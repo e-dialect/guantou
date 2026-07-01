@@ -1418,10 +1418,10 @@
     "@dcloudio/uni-shared" "3.0.0-4080720251210001"
     debug "4.3.7"
 
-"@dcloudio/uni-ui@^1.4.24":
-  version "1.5.11"
-  resolved "https://registry.npmjs.org/@dcloudio/uni-ui/-/uni-ui-1.5.11.tgz"
-  integrity sha512-DBtk046ofmeFd82zRI7d89SoEwrAxYzUN3WVPm1DIBkpLPG5F5QDNkHMnZGu2wNrMEmGBjBpUh3vqEY1L3jaMw==
+"@dcloudio/uni-ui@^1.5.12":
+  version "1.5.12"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-ui/-/uni-ui-1.5.12.tgz#91a848222321143492f079e4b49ed92f3721b9c1"
+  integrity sha512-mGDl2OZSz7D8xcUAzJegWDHOqB4MEFBSW9Esb/oJiu2/3Gk9+P/Z4bA4JZ9jv9VWBYbMrYwaTfK1Z728kABdYg==
 
 "@dcloudio/vite-plugin-uni@3.0.0-4080720251210001":
   version "3.0.0-4080720251210001"
@@ -6372,8 +6372,16 @@ string-hash@^1.1.1:
   resolved "https://registry.npmjs.org/string-hash/-/string-hash-1.1.3.tgz"
   integrity sha512-kJUvRUFK49aub+a7T1nNE66EJbZBMnBgoC1UbCZ5n6bsZKBRga4KgBRTMn/pFkeCZSYtNeSyMxPDM0AXWELk2A==
 
-"string-width-cjs@npm:string-width@^4.2.0", string-width@^4.1.0:
-  name string-width-cjs
+"string-width-cjs@npm:string-width@^4.2.0":
+  version "4.2.3"
+  resolved "https://registry.npmmirror.com/string-width/-/string-width-4.2.3.tgz#269c7117d27b05ad2e536830a8ec895ef9c6d010"
+  integrity sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==
+  dependencies:
+    emoji-regex "^8.0.0"
+    is-fullwidth-code-point "^3.0.0"
+    strip-ansi "^6.0.1"
+
+string-width@^4.1.0:
   version "4.2.3"
   resolved "https://registry.npmmirror.com/string-width/-/string-width-4.2.3.tgz#269c7117d27b05ad2e536830a8ec895ef9c6d010"
   integrity sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==
