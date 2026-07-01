@@ -74,7 +74,7 @@
     "@dcloudio/uni-automator": "3.0.0-4080720251210001",
     "@dcloudio/uni-cli-shared": "3.0.0-4080720251210001",
     "@dcloudio/uni-stacktracey": "3.0.0-4080720251210001",
-    "@dcloudio/vite-plugin-uni": "3.0.0-4080720251210001",
+    "@dcloudio/vite-plugin-uni": "3.0.0-5000720260410001",
     "@playwright/test": "^1.61.1",
     "@vitejs/plugin-vue": "5.2.4",
     "@vue/runtime-core": "^3.4.21",
