@@ -1,0 +1,137 @@
+{
+  "pages": [
+    {
+      "path": "pages/index",
+      "style": {}
+    },
+    {
+      "path": "pages/search",
+      "style": {}
+    },
+    {
+      "path": "pages/cans/index",
+      "style": {}
+    },
+    {
+      "path": "pages/cans/create",
+      "style": {}
+    },
+    {
+      "path": "pages/cans/details",
+      "style": {}
+    },
+    {
+      "path": "pages/flavors/index",
+      "style": {}
+    },
+    {
+      "path": "pages/flavors/details",
+      "style": {}
+    },
+    {
+      "path": "pages/shelves/index",
+      "style": {}
+    },
+    {
+      "path": "pages/shelves/details",
+      "style": {}
+    },
+    {
+      "path": "pages/users/me",
+      "style": {
+        "component": true
+      }
+    },
+    {
+      "path": "pages/users/details",
+      "style": {}
+    },
+    {
+      "path": "pages/users/settings/information",
+      "style": {}
+    },
+    {
+      "path": "pages/users/settings/username",
+      "style": {}
+    },
+    {
+      "path": "pages/users/settings/nickname",
+      "style": {}
+    },
+    {
+      "path": "pages/users/settings/email",
+      "style": {}
+    },
+    {
+      "path": "pages/users/settings/password",
+      "style": {}
+    },
+    {
+      "path": "pages/users/settings/telephone",
+      "style": {}
+    },
+    {
+      "path": "pages/mails/index",
+      "style": {}
+    },
+    {
+      "path": "pages/mails/details",
+      "style": {}
+    },
+    {
+      "path": "pages/mails/send",
+      "style": {}
+    },
+    {
+      "path": "pages/login/login",
+      "style": {}
+    },
+    {
+      "path": "pages/login/register",
+      "style": {}
+    },
+    {
+      "path": "pages/login/register/wechat",
+      "style": {}
+    },
+    {
+      "path": "pages/login/forget",
+      "style": {}
+    },
+    {
+      "path": "pages/error/not-found",
+      "style": {}
+    }
+  ],
+  "sitemapLocation": "sitemap.json",
+  "style": "v2",
+  "requiredBackgroundModes": [
+    "audio"
+  ],
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "cu-custom": "@/colorui/components/cu-custom",
+      "^uni-(.*)": "@dcloudio/uni-ui/lib/uni-$1/uni-$1.vue"
+    }
+  },
+  "globalStyle": {
+    "backgroundColor": "#F6F6F6",
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#F6F6F6",
+    "navigationBarTextStyle": "black",
+    "navigationStyle": "custom",
+    "navigationBarTitleText": "方言罐头"
+  },
+  "condition": {
+    "current": 0,
+    "list": [
+      {
+        "name": "",
+        "path": "",
+        "query": ""
+      }
+    ]
+  },
+  "subPackages": []
+}

@@ -1,0 +1,131 @@
+{
+    "name" : "方言罐头",
+    "appid" : "__UNI__51851C4",
+    "description" : "多方言语音采集与校验客户端",
+    "versionName" : "2.1.5",
+    "versionCode" : 20231002,
+    "transformPx" : false,
+    "app-plus" : {
+        "usingComponents" : true,
+        "nvueStyleCompiler" : "uni-app",
+        "compilerVersion" : 3,
+        "splashscreen" : {
+            "alwaysShowBeforeRender" : true,
+            "waiting" : true,
+            "autoclose" : true,
+            "delay" : 0
+        },
+        "modules" : {
+            "Record" : {},
+            "OAuth" : {}
+        },
+        "distribute" : {
+            "android" : {
+                "permissions" : [
+                    "<uses-permission android:name=\"android.permission.CHANGE_NETWORK_STATE\"/>",
+                    "<uses-permission android:name=\"android.permission.MOUNT_UNMOUNT_FILESYSTEMS\"/>",
+                    "<uses-permission android:name=\"android.permission.VIBRATE\"/>",
+                    "<uses-permission android:name=\"android.permission.READ_LOGS\"/>",
+                    "<uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\"/>",
+                    "<uses-feature android:name=\"android.hardware.camera.autofocus\"/>",
+                    "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>",
+                    "<uses-permission android:name=\"android.permission.CAMERA\"/>",
+                    "<uses-permission android:name=\"android.permission.GET_ACCOUNTS\"/>",
+                    "<uses-permission android:name=\"android.permission.READ_PHONE_STATE\"/>",
+                    "<uses-permission android:name=\"android.permission.CHANGE_WIFI_STATE\"/>",
+                    "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
+                    "<uses-permission android:name=\"android.permission.FLASHLIGHT\"/>",
+                    "<uses-feature android:name=\"android.hardware.camera\"/>",
+                    "<uses-permission android:name=\"android.permission.WRITE_SETTINGS\"/>"
+                ],
+                "autoSdkPermissions" : true,
+                "abiFilters" : [ "armeabi-v7a", "arm64-v8a" ]
+            },
+            "ios" : {
+                "dSYMs" : false
+            },
+            "sdkConfigs" : {
+                "ad" : {},
+                "oauth" : {
+                    "weixin" : {
+                        "appid" : "wxcfb772ecd3bd408e",
+                        "UniversalLinks" : ""
+                    },
+                    "qq" : {
+                        "appid" : "1112150805",
+                        "UniversalLinks" : ""
+                    }
+                }
+            },
+            "splashscreen" : {
+                "androidStyle" : "common",
+                "useOriginalMsgbox" : true
+            }
+        },
+        "uniStatistics" : {
+            "enable" : false
+        }
+    },
+    "quickapp" : {},
+    "mp-weixin" : {
+        "appid" : "wxcfb772ecd3bd408e",
+        "setting" : {
+            "urlCheck" : false,
+            "minified" : false
+        },
+        "usingComponents" : true,
+        "permission" : {
+            "scope.userLocation" : {
+                "desc" : "你的位置信息将用于小程序位置接口的效果展示"
+            }
+        },
+        "plugins" : {},
+        "cloudfunctionRoot" : "cloudfunctions/",
+        "requiredBackgroundModes" : [ "audio", "location" ],
+        "embeddedAppIdList" : [ "wx8abaf00ee8c3202e" ],
+        "uniStatistics" : {
+            "enable" : false
+        }
+    },
+    "mp-alipay" : {
+        "usingComponents" : true
+    },
+    "mp-baidu" : {
+        "usingComponents" : true
+    },
+    "mp-toutiao" : {
+        "usingComponents" : true
+    },
+    "uniStatistics" : {
+        "enable" : false,
+        "version" : "2"
+    },
+    "vueVersion" : "3",
+    "h5" : {
+        "devServer" : {
+            "port" : 8011
+        },
+        "sdkConfigs" : {
+            "maps" : {}
+        },
+        "title" : "方言罐头",
+        "router" : {
+            "mode" : "history",
+            "base" : "/__REPLACE_PREVIEW_BASE__/"
+        },
+        "publicPath" : "/__REPLACE_PREVIEW_BASE__/",
+        "optimization" : {
+            "treeShaking" : {
+                "enable" : false
+            }
+        },
+        "uniStatistics" : {
+            "enable" : false
+        }
+    },
+    "locale" : "auto",
+    "fallbackLocale" : "zh-Hans",
+    "mp-qq" : {
+        "appid" : "1112150805"
+    }
+}

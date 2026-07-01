@@ -1,0 +1,51 @@
+services:
+  backend:
+    build:
+      context: ./backend/guantou
+    image: ${BACKEND_IMAGE:-guantou-backend}
+    container_name: ${BACKEND_CONTAINER:-guantou-backend}
+    restart: unless-stopped
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key}
+      JWT_KEY: ${JWT_KEY:-dev-jwt-key}
+      COS_SECRET_ID: ${COS_SECRET_ID:-DEFAULT_COS_SECRET_ID}
+      COS_SECRET_KEY: ${COS_SECRET_KEY:-DEFAULT_COS_SECRET_KEY}
+      COS_BUCKET: ${COS_BUCKET:-DEFAULT_COS_BUCKET}
+      COS_REGION: ${COS_REGION:-DEFAULT_COS_REGION}
+      APP_ID: ${APP_ID:-DEFAULT_APP_ID}
+      APP_SECRECT: ${APP_SECRECT:-DEFAULT_APP_SECRECT}
+      WEB_APP_ID: ${WEB_APP_ID:-${APP_ID:-DEFAULT_APP_ID}}
+      WEB_APP_SECRET: ${WEB_APP_SECRET:-${APP_SECRECT:-DEFAULT_APP_SECRECT}}
+      EMAIL_HOST: ${EMAIL_HOST:-DEFAULT_EMAIL_HOST}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-DEFAULT_EMAIL_HOST_USER}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-DEFAULT_EMAIL_HOST_PASSWORD}
+      EMAIL_PORT: ${EMAIL_PORT:-465}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-DEFAULT_DEFAULT_FROM_EMAIL}
+      SQLITE_PATH: /data/db.sqlite3
+      MEDIA_ROOT: /data/media
+      LOG_DIR: /data/logs
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./data/backend:/data
+    networks:
+      - guantou
+
+  frontend:
+    build:
+      context: ./frontend
+    image: ${FRONTEND_IMAGE:-guantou-frontend}
+    container_name: ${FRONTEND_CONTAINER:-guantou-frontend}
+    restart: unless-stopped
+    environment:
+      VITE_BACKEND_URL: ${FRONTEND_BACKEND_URL:-}
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      - backend
+    networks:
+      - guantou
+
+networks:
+  guantou:
+    name: ${COMPOSE_PROJECT_NAME:-guantou}-network

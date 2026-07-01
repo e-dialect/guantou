@@ -1,0 +1,59 @@
+name: Deploy H5 to Tencent COS
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_prefix:
+        description: COS object prefix, for example guantou-preview/
+        required: true
+        type: string
+      backend_url:
+        description: Backend API base URL used by the H5 build
+        required: true
+        default: https://api.example.com
+        type: string
+
+jobs:
+  deploy-h5:
+    name: Build and upload H5
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --production=false
+
+      - name: Lint
+        run: yarn lint
+
+      - name: Build H5
+        env:
+          VITE_BACKEND_URL: ${{ inputs.backend_url }}
+        run: yarn build
+
+      - name: Generate SHA256 manifest
+        run: find dist/build/h5 -type f -exec sha256sum {} \; > dist/build/h5/sha256sum.txt
+
+      - name: Install coscmd
+        run: pip install coscmd
+
+      - name: Configure coscmd
+        run: |
+          coscmd config \
+            -a "${{ secrets.TENCENT_CLOUD_SECRET_ID }}" \
+            -s "${{ secrets.TENCENT_CLOUD_SECRET_KEY }}" \
+            -b "${{ secrets.TENCENT_CLOUD_BUCKET }}" \
+            -r "${{ secrets.TENCENT_CLOUD_REGION }}"
+
+      - name: Upload H5 assets
+        run: coscmd upload -r dist/build/h5/ "/${{ inputs.target_prefix }}"

@@ -1,0 +1,101 @@
+from django.contrib.auth.models import User
+from django.test import TestCase
+from rest_framework.test import APIClient
+
+from .models import Can, Dialect, Flavor, Nameplate, Package
+
+
+class GuantouApiTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="collector", password="pw")
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.root = Dialect.objects.create(name="莆仙方言", code="puxian")
+        self.child = Dialect.objects.create(
+            name="游洋话",
+            code="puxian-youyang",
+            parent=self.root,
+            county="莆田",
+            town="游洋",
+        )
+        self.package = Package.objects.create(
+            text="行", package_type=Package.PackageType.ORTHODOX
+        )
+        self.flavor = Flavor.objects.create(
+            name="行走", definition="走路", created_by=self.user
+        )
+        self.flavor.packages.add(self.package)
+
+    def test_create_can_and_nameplate(self):
+        can_res = self.client.post(
+            "/api/cans/",
+            {
+                "audio_url": "https://example.com/audio.mp3",
+                "dialect": self.child.id,
+                "concept_text": "走路",
+                "county": "莆田",
+                "town": "游洋",
+            },
+            format="json",
+        )
+        self.assertEqual(can_res.status_code, 201)
+        can_id = can_res.data["id"]
+        plate_res = self.client.post(
+            f"/api/cans/{can_id}/nameplates/",
+            {
+                "flavor": self.flavor.id,
+                "package": self.package.id,
+                "text_content": "行",
+                "definition": "走路",
+            },
+            format="json",
+        )
+        self.assertEqual(plate_res.status_code, 201)
+        can = Can.objects.get(id=can_id)
+        self.assertEqual(can.recorder, self.user)
+        self.assertEqual(can.status, Can.Status.PENDING)
+        self.assertTrue(can.primary_nameplate.is_primary)
+
+    def test_vote_promotes_strongest_nameplate(self):
+        can = Can.objects.create(
+            audio_url="https://example.com/audio.mp3",
+            recorder=self.user,
+            dialect=self.child,
+            concept_text="走路",
+        )
+        weak = Nameplate.objects.create(
+            can=can,
+            creator=self.user,
+            text_content="行",
+            flavor=self.flavor,
+            package=self.package,
+            is_primary=True,
+        )
+        strong = Nameplate.objects.create(
+            can=can,
+            creator=self.user,
+            text_content="趁行",
+            flavor=self.flavor,
+            package=self.package,
+            weight=2,
+        )
+        vote_res = self.client.post(
+            f"/api/nameplates/{strong.id}/vote/", {"delta": 1}, format="json"
+        )
+        self.assertEqual(vote_res.status_code, 200)
+        weak.refresh_from_db()
+        strong.refresh_from_db()
+        self.assertFalse(weak.is_primary)
+        self.assertTrue(strong.is_primary)
+
+    def test_parent_dialect_filter_includes_children(self):
+        can = Can.objects.create(
+            audio_url="https://example.com/audio.mp3",
+            recorder=self.user,
+            dialect=self.child,
+            visibility=True,
+        )
+        response = self.client.get("/api/cans/", {"dialect": self.root.id})
+        self.assertEqual(response.status_code, 200)
+        ids = [item["id"] for item in response.data["results"]]
+        self.assertIn(can.id, ids)
