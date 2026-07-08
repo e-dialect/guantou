@@ -866,6 +866,13 @@
     "@babel/types" "^7.4.4"
     esutils "^2.0.2"
 
+"@babel/runtime-corejs3@^7.26.9":
+  version "7.29.7"
+  resolved "https://registry.yarnpkg.com/@babel/runtime-corejs3/-/runtime-corejs3-7.29.7.tgz#2030fda34f3433647818660093751fb1ca2debf0"
+  integrity sha512-ppj9ouYku+RX0ljtgZd+KMO5mkM2bCqg8H2PYAFWnLsHEIKIdRojqbJ2i3eVHrisuxy7nOFCmngTDdWtUCdXUQ==
+  dependencies:
+    core-js-pure "^3.48.0"
+
 "@babel/runtime@^7.7.2":
   version "7.28.6"
   resolved "https://registry.npmjs.org/@babel/runtime/-/runtime-7.28.6.tgz"
@@ -1046,6 +1053,20 @@
     "@dcloudio/uni-stat" "3.0.0-4080720251210001"
     "@vue/shared" "3.4.21"
 
+"@dcloudio/uni-app@3.0.0-5010420260703001":
+  version "3.0.0-5010420260703001"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-app/-/uni-app-3.0.0-5010420260703001.tgz#b482a4f33e1928c9a3550f579b7590aa92f965c7"
+  integrity sha512-NmiL+pRJLBWISf4p3xpMjRo4hEe25bO4e2e7EIAsyJJy5J01TkY59GDdV4gwifB3jrbPzjvg+1ehbJc0LyRNNQ==
+  dependencies:
+    "@dcloudio/uni-cloud" "3.0.0-5010420260703001"
+    "@dcloudio/uni-components" "3.0.0-5010420260703001"
+    "@dcloudio/uni-console" "3.0.0-5010420260703001"
+    "@dcloudio/uni-i18n" "3.0.0-5010420260703001"
+    "@dcloudio/uni-push" "3.0.0-5010420260703001"
+    "@dcloudio/uni-shared" "3.0.0-5010420260703001"
+    "@dcloudio/uni-stat" "3.0.0-5010420260703001"
+    "@vue/shared" "3.4.21"
+
 "@dcloudio/uni-automator@3.0.0-4080720251210001":
   version "3.0.0-4080720251210001"
   resolved "https://registry.npmjs.org/@dcloudio/uni-automator/-/uni-automator-3.0.0-4080720251210001.tgz"
@@ -1119,6 +1140,63 @@
     unplugin-auto-import "19.1.0"
     xregexp "3.1.0"
 
+"@dcloudio/uni-cli-shared@3.0.0-5010420260703001":
+  version "3.0.0-5010420260703001"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-cli-shared/-/uni-cli-shared-3.0.0-5010420260703001.tgz#cf567d4f9e89a9acac99833b941c72fedaa03912"
+  integrity sha512-+sAn3Aw7Of8BCL5i/chcdstct2VurrVlHJiomLTx428zpZ/zGyORTCXIeOoqM9v7VtVxb4LCPfIjQ3Zz/fEfOA==
+  dependencies:
+    "@ampproject/remapping" "^2.1.2"
+    "@babel/code-frame" "7.24.7"
+    "@babel/core" "7.25.2"
+    "@babel/parser" "7.25.6"
+    "@babel/types" "7.25.6"
+    "@dcloudio/uni-i18n" "3.0.0-5010420260703001"
+    "@dcloudio/uni-nvue-styler" "3.0.0-5010420260703001"
+    "@dcloudio/uni-shared" "3.0.0-5010420260703001"
+    "@intlify/core-base" "9.1.9"
+    "@intlify/shared" "9.1.9"
+    "@intlify/vue-devtools" "9.1.9"
+    "@rollup/pluginutils" "5.1.0"
+    "@vue/compiler-core" "3.4.21"
+    "@vue/compiler-dom" "3.4.21"
+    "@vue/compiler-sfc" "3.4.21"
+    "@vue/compiler-ssr" "3.4.21"
+    "@vue/server-renderer" "3.4.21"
+    "@vue/shared" "3.4.21"
+    adm-zip "0.5.16"
+    autoprefixer "10.4.20"
+    base64url "^3.0.1"
+    chokidar "3.6.0"
+    compare-versions "^3.6.0"
+    debug "4.3.7"
+    entities "^7.0.0"
+    es-module-lexer "1.5.4"
+    esbuild "0.20.2"
+    estree-walker "2.0.2"
+    fast-glob "3.3.3"
+    fs-extra "10.1.0"
+    hash-sum "2.0.0"
+    isbinaryfile "5.0.2"
+    jsonc-parser "3.3.1"
+    lines-and-columns "^2.0.4"
+    magic-string "0.30.11"
+    merge "2.1.1"
+    mime "3.0.0"
+    module-alias "2.2.3"
+    os-locale-s-fix "^1.0.8-fix-1"
+    picocolors "1.1.0"
+    postcss-import "^14.0.2"
+    postcss-load-config "^3.1.1"
+    postcss-modules "^4.3.0"
+    postcss-selector-parser "6.1.2"
+    resolve "1.22.8"
+    source-map-js "1.2.1"
+    tapable "^2.2.0"
+    tinycolor2 "1.6.0"
+    unimport "4.1.1"
+    unplugin-auto-import "19.1.0"
+    xregexp "5.1.2"
+
 "@dcloudio/uni-cloud@3.0.0-4080720251210001":
   version "3.0.0-4080720251210001"
   resolved "https://registry.npmjs.org/@dcloudio/uni-cloud/-/uni-cloud-3.0.0-4080720251210001.tgz"
@@ -1127,6 +1205,17 @@
     "@dcloudio/uni-cli-shared" "3.0.0-4080720251210001"
     "@dcloudio/uni-i18n" "3.0.0-4080720251210001"
     "@dcloudio/uni-shared" "3.0.0-4080720251210001"
+    "@vue/shared" "3.4.21"
+    fast-glob "3.3.3"
+
+"@dcloudio/uni-cloud@3.0.0-5010420260703001":
+  version "3.0.0-5010420260703001"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-cloud/-/uni-cloud-3.0.0-5010420260703001.tgz#e2f722cfdfbeecd9ae51f68c2ab5e9751345df0e"
+  integrity sha512-eS20R5vU4nkvkRZDY92zny+iDlbdAmLQ20XxVizVugpDoBJhpSLODPgwyuUV6WirbWxUT9iVVgWx6hWXegaPmg==
+  dependencies:
+    "@dcloudio/uni-cli-shared" "3.0.0-5010420260703001"
+    "@dcloudio/uni-i18n" "3.0.0-5010420260703001"
+    "@dcloudio/uni-shared" "3.0.0-5010420260703001"
     "@vue/shared" "3.4.21"
     fast-glob "3.3.3"
 
@@ -1139,12 +1228,29 @@
     "@dcloudio/uni-h5" "3.0.0-4080720251210001"
     "@dcloudio/uni-i18n" "3.0.0-4080720251210001"
 
+"@dcloudio/uni-components@3.0.0-5010420260703001":
+  version "3.0.0-5010420260703001"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-components/-/uni-components-3.0.0-5010420260703001.tgz#fb68b2d8e9ea42823489fa4b26e74b015c052ece"
+  integrity sha512-VUuApIM7tkZoo40vCwu/XHJGGuSrTreUTE1t86d+CUvsLqShU5SVEsoCoVy8KeHDDKzIc81Dh7xQqZZGLBr5Ow==
+  dependencies:
+    "@dcloudio/uni-cloud" "3.0.0-5010420260703001"
+    "@dcloudio/uni-h5" "3.0.0-5010420260703001"
+    "@dcloudio/uni-i18n" "3.0.0-5010420260703001"
+
 "@dcloudio/uni-console@3.0.0-4080720251210001":
   version "3.0.0-4080720251210001"
   resolved "https://registry.npmjs.org/@dcloudio/uni-console/-/uni-console-3.0.0-4080720251210001.tgz"
   integrity sha512-eLgdK6Tq242FSmpfKPAAExq7zJEw1jT8gOQ8w8M3Bv6m4VwV/6VXXuEqDaqM+oBXUUzCf0eWVci76hXx+SoQpg==
   dependencies:
     "@dcloudio/uni-cli-shared" "3.0.0-4080720251210001"
+    fs-extra "10.1.0"
+
+"@dcloudio/uni-console@3.0.0-5010420260703001":
+  version "3.0.0-5010420260703001"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-console/-/uni-console-3.0.0-5010420260703001.tgz#0dd04074f1d945e021d445e572d13dc9ef929dfb"
+  integrity sha512-0yhW7JpPR3JPy0E2/HVyszFCb3ZHZlNYDn2gty2gxGC8/vBsV3aFcXAW4kqrugmbFjpdCQ/rWmjoIP3j3N/FfQ==
+  dependencies:
+    "@dcloudio/uni-cli-shared" "3.0.0-5010420260703001"
     fs-extra "10.1.0"
 
 "@dcloudio/uni-h5-vite@3.0.0-4080720251210001":
@@ -1164,12 +1270,38 @@
     mime "3.0.0"
     module-alias "2.2.3"
 
+"@dcloudio/uni-h5-vite@3.0.0-5010420260703001":
+  version "3.0.0-5010420260703001"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-h5-vite/-/uni-h5-vite-3.0.0-5010420260703001.tgz#8931743b800c458d450600bad48a187932ed2639"
+  integrity sha512-rGluiKXUKBL4yqJmiFVmOmaaL6RD3PTzER54cRJAf1fXSFTRxoxlBGRzRnbyg3DM3ZX7cTwyk+B7LHU3e7mQeg==
+  dependencies:
+    "@dcloudio/uni-cli-shared" "3.0.0-5010420260703001"
+    "@dcloudio/uni-shared" "3.0.0-5010420260703001"
+    "@rollup/pluginutils" "5.1.0"
+    "@vitejs/plugin-basic-ssl" "1.2.0"
+    "@vue/compiler-dom" "3.4.21"
+    "@vue/compiler-sfc" "3.4.21"
+    "@vue/server-renderer" "3.4.21"
+    "@vue/shared" "3.4.21"
+    debug "4.3.7"
+    fs-extra "10.1.0"
+    mime "3.0.0"
+    module-alias "2.2.3"
+
 "@dcloudio/uni-h5-vue@3.0.0-4080720251210001":
   version "3.0.0-4080720251210001"
   resolved "https://registry.npmjs.org/@dcloudio/uni-h5-vue/-/uni-h5-vue-3.0.0-4080720251210001.tgz"
   integrity sha512-x6IOZ+QyXUbOacc8/3h4HhwX0r0ORz57pNd95y9hAk/gVotqIKhNKwlH4JfMWIl21V6M3bSRY33w+4n1t+vRFA==
   dependencies:
     "@dcloudio/uni-shared" "3.0.0-4080720251210001"
+    "@vue/server-renderer" "3.4.21"
+
+"@dcloudio/uni-h5-vue@3.0.0-5010420260703001":
+  version "3.0.0-5010420260703001"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-h5-vue/-/uni-h5-vue-3.0.0-5010420260703001.tgz#112693e340e76aa72c5712b87e94ce7875deab26"
+  integrity sha512-Dn+KUDpz4vrYqHMtVY65dMs+J7RVIk6LsKt2Zpbi3sZ6qv1qa7Lu7IG8/tyZyvTjblIbDhlMLZdVvuMJ/9AMKw==
+  dependencies:
+    "@dcloudio/uni-shared" "3.0.0-5010420260703001"
     "@vue/server-renderer" "3.4.21"
 
 "@dcloudio/uni-h5@3.0.0-4080720251210001":
@@ -1190,10 +1322,33 @@
     vue-router "4.4.4"
     xmlhttprequest "^1.8.0"
 
+"@dcloudio/uni-h5@3.0.0-5010420260703001":
+  version "3.0.0-5010420260703001"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-h5/-/uni-h5-3.0.0-5010420260703001.tgz#9f86a35911a47b9f6c7a28957b92822b03cd0d32"
+  integrity sha512-lVJWzno2/7tqc2H8lD9noaGT/60nYw9l3qQWNvfFb4QaaL1Yl4vCEoiE1EYtclk1EXT43i30y+dQKtDeLrAmnQ==
+  dependencies:
+    "@dcloudio/uni-h5-vite" "3.0.0-5010420260703001"
+    "@dcloudio/uni-h5-vue" "3.0.0-5010420260703001"
+    "@dcloudio/uni-i18n" "3.0.0-5010420260703001"
+    "@dcloudio/uni-shared" "3.0.0-5010420260703001"
+    "@vue/server-renderer" "3.4.21"
+    "@vue/shared" "3.4.21"
+    debug "4.3.7"
+    localstorage-polyfill "^1.0.1"
+    postcss-selector-parser "6.1.2"
+    safe-area-insets "1.4.1"
+    vue-router "4.4.4"
+    xmlhttprequest "^1.8.0"
+
 "@dcloudio/uni-i18n@3.0.0-4080720251210001":
   version "3.0.0-4080720251210001"
   resolved "https://registry.npmjs.org/@dcloudio/uni-i18n/-/uni-i18n-3.0.0-4080720251210001.tgz"
   integrity sha512-ko+JeTjrr48o3l0oNvFTWguTT8U6RICgtN1d0oz3H1z0WI8R7+r058dMF3K5cZzljYVIjZh/kMBgGeLhP6mbog==
+
+"@dcloudio/uni-i18n@3.0.0-5010420260703001":
+  version "3.0.0-5010420260703001"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-i18n/-/uni-i18n-3.0.0-5010420260703001.tgz#d5ff1165da28cb02c68c3aa7187e5afa7770db2e"
+  integrity sha512-UyH/kgxZz/0hfa6KWkjmGpXGyeV89nScjxDmv7UXcxzK+she747+Tu6hu7vIEvaDFcjlKdWLtlBy1Z8WlNXrVg==
 
 "@dcloudio/uni-mp-alipay@3.0.0-4080720251210001":
   version "3.0.0-4080720251210001"
@@ -1207,18 +1362,18 @@
     "@vue/compiler-core" "3.4.21"
     "@vue/shared" "3.4.21"
 
-"@dcloudio/uni-mp-baidu@3.0.0-4080720251210001":
-  version "3.0.0-4080720251210001"
-  resolved "https://registry.npmjs.org/@dcloudio/uni-mp-baidu/-/uni-mp-baidu-3.0.0-4080720251210001.tgz"
-  integrity sha512-a6R4mM9yA70XMA0bkg9AXDrBcmj13nX8e44WscMALqfy/HgRCDibiBusJ7Alv5BRFhjxQlWDIw5HDlMcj0stkQ==
+"@dcloudio/uni-mp-baidu@3.0.0-5010420260703001":
+  version "3.0.0-5010420260703001"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-mp-baidu/-/uni-mp-baidu-3.0.0-5010420260703001.tgz#d24f90c2badde15a582ae3d2e96a3eb82d8e4abc"
+  integrity sha512-z6lipR78BtEgXY06FgdJLOMat+vQ0Py7QNhzb1FLjmTvY7ycbSAos0Ip20AbSEPGFDxHHSnxnvg1c+r4qaSdDQ==
   dependencies:
-    "@dcloudio/uni-app" "3.0.0-4080720251210001"
-    "@dcloudio/uni-cli-shared" "3.0.0-4080720251210001"
-    "@dcloudio/uni-mp-compiler" "3.0.0-4080720251210001"
-    "@dcloudio/uni-mp-vite" "3.0.0-4080720251210001"
-    "@dcloudio/uni-mp-vue" "3.0.0-4080720251210001"
-    "@dcloudio/uni-mp-weixin" "3.0.0-4080720251210001"
-    "@dcloudio/uni-shared" "3.0.0-4080720251210001"
+    "@dcloudio/uni-app" "3.0.0-5010420260703001"
+    "@dcloudio/uni-cli-shared" "3.0.0-5010420260703001"
+    "@dcloudio/uni-mp-compiler" "3.0.0-5010420260703001"
+    "@dcloudio/uni-mp-vite" "3.0.0-5010420260703001"
+    "@dcloudio/uni-mp-vue" "3.0.0-5010420260703001"
+    "@dcloudio/uni-mp-weixin" "3.0.0-5010420260703001"
+    "@dcloudio/uni-shared" "3.0.0-5010420260703001"
     "@vue/compiler-core" "3.4.21"
     "@vue/shared" "3.4.21"
     jimp "0.10.3"
@@ -1237,6 +1392,21 @@
     "@babel/types" "7.25.6"
     "@dcloudio/uni-cli-shared" "3.0.0-4080720251210001"
     "@dcloudio/uni-shared" "3.0.0-4080720251210001"
+    "@vue/compiler-core" "3.4.21"
+    "@vue/compiler-dom" "3.4.21"
+    "@vue/shared" "3.4.21"
+    estree-walker "2.0.2"
+
+"@dcloudio/uni-mp-compiler@3.0.0-5010420260703001":
+  version "3.0.0-5010420260703001"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-mp-compiler/-/uni-mp-compiler-3.0.0-5010420260703001.tgz#a90f75dccd36abd8a6799a781813b1fa9f8ab135"
+  integrity sha512-QANDDylCFrFvFYvYW9a8WsfkX3f/dImDFuzTCdXvvrqS+AzDMy0FPFCsPPRJAcviF/V1XRGcU3++egMAu1mNXg==
+  dependencies:
+    "@babel/generator" "7.25.6"
+    "@babel/parser" "7.25.6"
+    "@babel/types" "7.25.6"
+    "@dcloudio/uni-cli-shared" "3.0.0-5010420260703001"
+    "@dcloudio/uni-shared" "3.0.0-5010420260703001"
     "@vue/compiler-core" "3.4.21"
     "@vue/compiler-dom" "3.4.21"
     "@vue/shared" "3.4.21"
@@ -1335,12 +1505,35 @@
     "@vue/shared" "3.4.21"
     debug "4.3.7"
 
+"@dcloudio/uni-mp-vite@3.0.0-5010420260703001":
+  version "3.0.0-5010420260703001"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-mp-vite/-/uni-mp-vite-3.0.0-5010420260703001.tgz#43c04d6a02c45c40c78a836ae6f12bab37bbe0bd"
+  integrity sha512-ksFjN5bH5AHZvZS/3mpIr9hRnLp/hBeiDGRRyKmA14V6zLKPhdax1W25vxDHBn1LVDQXISN/5i2nUgn+l3bhYg==
+  dependencies:
+    "@dcloudio/uni-cli-shared" "3.0.0-5010420260703001"
+    "@dcloudio/uni-i18n" "3.0.0-5010420260703001"
+    "@dcloudio/uni-mp-compiler" "3.0.0-5010420260703001"
+    "@dcloudio/uni-mp-vue" "3.0.0-5010420260703001"
+    "@dcloudio/uni-shared" "3.0.0-5010420260703001"
+    "@vue/compiler-dom" "3.4.21"
+    "@vue/compiler-sfc" "3.4.21"
+    "@vue/shared" "3.4.21"
+    debug "4.3.7"
+
 "@dcloudio/uni-mp-vue@3.0.0-4080720251210001":
   version "3.0.0-4080720251210001"
   resolved "https://registry.npmjs.org/@dcloudio/uni-mp-vue/-/uni-mp-vue-3.0.0-4080720251210001.tgz"
   integrity sha512-X4t5xvtavUO+FxqcB8sOw/9dQ3191i9OfPyoRawlJiT2xq8aOdKwc5jj2CUwUdJwBbFynMSUHXKoZtLWZe1Lkg==
   dependencies:
     "@dcloudio/uni-shared" "3.0.0-4080720251210001"
+    "@vue/shared" "3.4.21"
+
+"@dcloudio/uni-mp-vue@3.0.0-5010420260703001":
+  version "3.0.0-5010420260703001"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-mp-vue/-/uni-mp-vue-3.0.0-5010420260703001.tgz#ef4c6e289b963c233f4f94d197b4095698cc2390"
+  integrity sha512-z0diwqlOEJs+Gg3n9zqzhPBrFLuHqq3RMpMfXGS+JuObnaIR/J19RF7UBipgqGYrtaJaEpq0he6JAhHbZHseWQ==
+  dependencies:
+    "@dcloudio/uni-shared" "3.0.0-5010420260703001"
     "@vue/shared" "3.4.21"
 
 "@dcloudio/uni-mp-weixin@3.0.0-4080720251210001":
@@ -1352,6 +1545,23 @@
     "@dcloudio/uni-mp-vite" "3.0.0-4080720251210001"
     "@dcloudio/uni-mp-vue" "3.0.0-4080720251210001"
     "@dcloudio/uni-shared" "3.0.0-4080720251210001"
+    "@vue/shared" "3.4.21"
+    jimp "0.10.3"
+    licia "1.41.1"
+    qrcode-reader "1.0.4"
+    qrcode-terminal "0.12.0"
+    ws "8.18.0"
+
+"@dcloudio/uni-mp-weixin@3.0.0-5010420260703001":
+  version "3.0.0-5010420260703001"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-mp-weixin/-/uni-mp-weixin-3.0.0-5010420260703001.tgz#5ca19e2c725ac9d4b3fe302716631e0a0527de41"
+  integrity sha512-SR6+/x9f5mS0PfS7hM+Gg0DmhDFrKjzo9YOPcXWWRV999IRqBKMXMVZ/DnsCC85qwBxEJQEnKjpQffw1vCsG8g==
+  dependencies:
+    "@dcloudio/uni-cli-shared" "3.0.0-5010420260703001"
+    "@dcloudio/uni-mp-compiler" "3.0.0-5010420260703001"
+    "@dcloudio/uni-mp-vite" "3.0.0-5010420260703001"
+    "@dcloudio/uni-mp-vue" "3.0.0-5010420260703001"
+    "@dcloudio/uni-shared" "3.0.0-5010420260703001"
     "@vue/shared" "3.4.21"
     jimp "0.10.3"
     licia "1.41.1"
@@ -1379,12 +1589,29 @@
     parse-css-font "^4.0.0"
     postcss "8.4.45"
 
+"@dcloudio/uni-nvue-styler@3.0.0-5010420260703001":
+  version "3.0.0-5010420260703001"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-nvue-styler/-/uni-nvue-styler-3.0.0-5010420260703001.tgz#e5523b3e054ae1b6cad9e425ed16f59cd7b0f99c"
+  integrity sha512-5RW+3YPuKIbFcud8/iA3iJYMLf8UNAs5YaHqdQmKyruPDaU8XNAsvws2v2WndaKtCc6GtHD/8ktXxsMRnlSbXg==
+  dependencies:
+    "@vue/shared" "3.4.21"
+    parse-css-font "^4.0.0"
+    postcss "8.5.6"
+    tinycolor2 "1.6.0"
+
 "@dcloudio/uni-push@3.0.0-4080720251210001":
   version "3.0.0-4080720251210001"
   resolved "https://registry.npmjs.org/@dcloudio/uni-push/-/uni-push-3.0.0-4080720251210001.tgz"
   integrity sha512-A7cT2Wmc6OmDX4KIhUtPwJrzpZDfcEhAkbza+4Y4KaSaeTsNIfyTmrPnjPsJoV2ETclaJduMGxMAb6l/FeV9DQ==
   dependencies:
     "@dcloudio/uni-cli-shared" "3.0.0-4080720251210001"
+
+"@dcloudio/uni-push@3.0.0-5010420260703001":
+  version "3.0.0-5010420260703001"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-push/-/uni-push-3.0.0-5010420260703001.tgz#b85cf4058efdfcba2749765db40472473faa5c12"
+  integrity sha512-h60KRKssv3Pn+Cn3ZRZbxQKYYiKophgbYBfNT/GSxlb74b6upekpSJF3nJ3rXguzPPo5MgjfOn7nDbxTmf4fhQ==
+  dependencies:
+    "@dcloudio/uni-cli-shared" "3.0.0-5010420260703001"
 
 "@dcloudio/uni-quickapp-webview@3.0.0-4080720251210001":
   version "3.0.0-4080720251210001"
@@ -1404,6 +1631,13 @@
   dependencies:
     "@vue/shared" "3.4.21"
 
+"@dcloudio/uni-shared@3.0.0-5010420260703001":
+  version "3.0.0-5010420260703001"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-shared/-/uni-shared-3.0.0-5010420260703001.tgz#25ece950d6b5a9fba9ceec6a9e730ff393570c12"
+  integrity sha512-EEj2gIxOn8XdgsiThqTWxy49BivlEG5poGH5xOl2UcjlNr8BqVmVO6xW8/pSZS5qaTUuIrtDgXr1UDIIxEi1mg==
+  dependencies:
+    "@vue/shared" "3.4.21"
+
 "@dcloudio/uni-stacktracey@3.0.0-4080720251210001":
   version "3.0.0-4080720251210001"
   resolved "https://registry.npmjs.org/@dcloudio/uni-stacktracey/-/uni-stacktracey-3.0.0-4080720251210001.tgz"
@@ -1416,6 +1650,15 @@
   dependencies:
     "@dcloudio/uni-cli-shared" "3.0.0-4080720251210001"
     "@dcloudio/uni-shared" "3.0.0-4080720251210001"
+    debug "4.3.7"
+
+"@dcloudio/uni-stat@3.0.0-5010420260703001":
+  version "3.0.0-5010420260703001"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-stat/-/uni-stat-3.0.0-5010420260703001.tgz#b2d3998b8fc7359b5b7653c08f7e69358938aa09"
+  integrity sha512-4mAHg8c7b3uW5MrlNLu0Yp2mWeV+byqlYHdynXTLP6WmUL0w4Jn6mJGM5snKAADbZhzQGz7labrNRjt0tRoNDA==
+  dependencies:
+    "@dcloudio/uni-cli-shared" "3.0.0-5010420260703001"
+    "@dcloudio/uni-shared" "3.0.0-5010420260703001"
     debug "4.3.7"
 
 "@dcloudio/uni-ui@^1.4.24":
@@ -2507,6 +2750,11 @@
   resolved "https://registry.npmjs.org/@ungap/structured-clone/-/structured-clone-1.3.0.tgz"
   integrity sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==
 
+"@vitejs/plugin-basic-ssl@1.2.0":
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/@vitejs/plugin-basic-ssl/-/plugin-basic-ssl-1.2.0.tgz#9490fe15b8833351982fbe0963987f69f40f5019"
+  integrity sha512-mkQnxTkcldAzIsomk1UuLfAu9n+kpQ3JbHcpCp7d2Oo6ITtji8pHS3QToOWjhPFvNQSnhlkAjmGbhv2QvwO/7Q==
+
 "@vitejs/plugin-legacy@5.3.2":
   version "5.3.2"
   resolved "https://registry.npmjs.org/@vitejs/plugin-legacy/-/plugin-legacy-5.3.2.tgz"
@@ -3371,6 +3619,11 @@ core-js-compat@^3.43.0:
   integrity sha512-IGfuznZ/n7Kp9+nypamBhvwdwLsW6KC8IOaURw2doAK5e98AG3acVLdh0woOnEqCfUtS+Vu882JE4k/DAm3ItQ==
   dependencies:
     browserslist "^4.28.0"
+
+core-js-pure@^3.48.0:
+  version "3.49.0"
+  resolved "https://registry.yarnpkg.com/core-js-pure/-/core-js-pure-3.49.0.tgz#ff8436b7251a3832f5fdbbe3e10f7f2e58e51fb1"
+  integrity sha512-XM4RFka59xATyJv/cS3O3Kml72hQXUeGRuuTmMYFxwzc9/7C8OYTaIR/Ji+Yt8DXzsFLNhat15cE/JP15HrCgw==
 
 core-js@^3.36.0, core-js@^3.4.1:
   version "3.47.0"
@@ -5801,7 +6054,7 @@ postcss@8.4.45:
     picocolors "^1.0.1"
     source-map-js "^1.2.0"
 
-postcss@^8.1.0, postcss@^8.4.35, postcss@^8.4.43, postcss@^8.5.6:
+postcss@8.5.6, postcss@^8.1.0, postcss@^8.4.35, postcss@^8.4.43, postcss@^8.5.6:
   version "8.5.6"
   resolved "https://registry.npmjs.org/postcss/-/postcss-8.5.6.tgz"
   integrity sha512-3Ybi1tAuwAP9s0r1UQ2J4n5Y0G05bJkpUIO0/bI9MhwmD70S5aTWbXGBwxHrelT+XM1k6dM0pk+SwNkpTRN7Pg==
@@ -6372,8 +6625,16 @@ string-hash@^1.1.1:
   resolved "https://registry.npmjs.org/string-hash/-/string-hash-1.1.3.tgz"
   integrity sha512-kJUvRUFK49aub+a7T1nNE66EJbZBMnBgoC1UbCZ5n6bsZKBRga4KgBRTMn/pFkeCZSYtNeSyMxPDM0AXWELk2A==
 
-"string-width-cjs@npm:string-width@^4.2.0", string-width@^4.1.0:
-  name string-width-cjs
+"string-width-cjs@npm:string-width@^4.2.0":
+  version "4.2.3"
+  resolved "https://registry.npmmirror.com/string-width/-/string-width-4.2.3.tgz#269c7117d27b05ad2e536830a8ec895ef9c6d010"
+  integrity sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==
+  dependencies:
+    emoji-regex "^8.0.0"
+    is-fullwidth-code-point "^3.0.0"
+    strip-ansi "^6.0.1"
+
+string-width@^4.1.0:
   version "4.2.3"
   resolved "https://registry.npmmirror.com/string-width/-/string-width-4.2.3.tgz#269c7117d27b05ad2e536830a8ec895ef9c6d010"
   integrity sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==
@@ -6532,7 +6793,7 @@ tinybench@^2.9.0:
   resolved "https://registry.npmmirror.com/tinybench/-/tinybench-2.9.0.tgz#103c9f8ba6d7237a47ab6dd1dcff77251863426b"
   integrity sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==
 
-tinycolor2@^1.4.1:
+tinycolor2@1.6.0, tinycolor2@^1.4.1:
   version "1.6.0"
   resolved "https://registry.npmjs.org/tinycolor2/-/tinycolor2-1.6.0.tgz"
   integrity sha512-XPaBkWQJdsf3pLKJV9p4qN/S+fm2Oj8AIPo1BTUhg5oxkvm9+SVEGFdhyOz7tTdUTfvxMiAs4sp6/eZO2Ew+pw==
@@ -7167,6 +7428,13 @@ xregexp@3.1.0:
   version "3.1.0"
   resolved "https://registry.npmjs.org/xregexp/-/xregexp-3.1.0.tgz"
   integrity sha512-4Y1x6DyB8xRoxosooa6PlGWqmmSKatbzhrftZ7Purmm4B8R4qIEJG1A2hZsdz5DhmIqS0msC0I7KEq93GphEVg==
+
+xregexp@5.1.2:
+  version "5.1.2"
+  resolved "https://registry.yarnpkg.com/xregexp/-/xregexp-5.1.2.tgz#ae4979868313d2f4dc4da9ab31ff5c2352fb969e"
+  integrity sha512-6hGgEMCGhqCTFEJbqmWrNIPqfpdirdGWkqshu7fFZddmTSfgv5Sn9D2SaKloR79s5VUiUlpwzg3CM3G6D3VIlw==
+  dependencies:
+    "@babel/runtime-corejs3" "^7.26.9"
 
 xtend@^4.0.0:
   version "4.0.2"
