@@ -1,5 +1,17 @@
 <template>
   <view class="page">
+    <view class="topbar">
+      <text
+        class="back"
+        @tap="goHome"
+      >
+        &#8249;
+      </text>
+      <text class="title">
+        我的
+      </text>
+    </view>
+
     <view class="profile">
       <image
         :src="avatar"
@@ -144,6 +156,9 @@ export default {
     toMineCans() {
       uni.navigateTo({ url: '/pages/cans/index?mine=true' });
     },
+    goHome() {
+      toIndexPage(true);
+    },
     async getInfo() {
       if (!app.globalData.id) return;
       const userInfo = await getUserInfo(app.globalData.id);
@@ -206,14 +221,34 @@ export default {
   min-height: 100vh;
   background: #f6f7f3;
   color: #1d2a24;
-  padding: 44rpx 28rpx 80rpx;
+  padding-bottom: 80rpx;
   box-sizing: border-box;
+}
+
+.topbar {
+  height: 96rpx;
+  display: flex;
+  align-items: center;
+  padding: 0 28rpx;
+  background: #fff;
+  border-bottom: 1px solid #e8ebe4;
+}
+
+.back {
+  font-size: 56rpx;
+  width: 54rpx;
+}
+
+.title {
+  font-size: 34rpx;
+  font-weight: 700;
 }
 
 .profile {
   display: flex;
   align-items: center;
   gap: 22rpx;
+  padding: 44rpx 28rpx 0;
 }
 
 .avatar {
@@ -237,7 +272,7 @@ export default {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16rpx;
-  margin-top: 30rpx;
+  margin: 30rpx 28rpx 0;
 }
 
 .stat,
@@ -264,7 +299,7 @@ export default {
 }
 
 .menu {
-  margin-top: 28rpx;
+  margin: 28rpx 28rpx 0;
   overflow: hidden;
 }
 
