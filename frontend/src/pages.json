@@ -87,6 +87,10 @@
       "style": {}
     },
     {
+      "path": "pages/login/wechat",
+      "style": {}
+    },
+    {
       "path": "pages/login/register",
       "style": {}
     },

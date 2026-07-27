@@ -1,107 +1,54 @@
 <template>
-  <view>
-    <cu-custom title="登录" />
+  <view class="page">
+    <cu-custom title="微信登录" />
+
     <view class="logo">
       <image
         :src="logo"
         mode="widthFix"
       />
     </view>
-    <form @submit="login">
-      <view class="info">
-        <view class="cuIcon-friend" />
-        <input
-          name="username"
-          placeholder="请输入用户名"
-        >
+
+    <view class="intro">
+      <view class="title">
+        微信一键登录
       </view>
-      <view class="info">
-        <view class="cuIcon-lock" />
-        <input
-          name="password"
-          password
-          placeholder="请输入密码"
-        >
+      <view class="desc">
+        使用微信授权进入方言罐头。
       </view>
-      <view class="flex justify-center">
-        <button
-          class="cu-btn round bg-gradual-blue shadow text-df margin-top"
-          form-type="submit"
-          style="width: 65vw"
-        >
-          登录
-        </button>
-      </view>
-      <!-- #ifdef MP-WEIXIN -->
-      <view class="flex justify-center">
-        <button
-          class="cu-btn round bg-gradual-blue shadow text-df margin-top"
-          style="width: 65vw"
-          @tap="mpLogin()"
-        >
-          微信一键登录
-        </button>
-      </view>
-      <!-- #endif -->
-    </form>
-    <view
-      class="flex text-bold text-center"
-      style="margin-top: 20vh"
-    >
-      <view
-        class="flex-sub solid-right"
-        @tap="toForgetPage()"
+    </view>
+
+    <view class="flex justify-center">
+      <button
+        class="cu-btn round bg-gradual-blue shadow text-df margin-top"
+        style="width: 65vw"
+        @tap="toWechatLoginPage()"
       >
-        忘记密码
-      </view>
-      <!-- #ifndef MP-WEIXIN -->
-      <view
-        class="flex-sub solid-right"
-        @tap="toRegisterPage()"
-      >
-        用户注册
-      </view>
-      <!-- #endif -->
-      <!-- #ifdef MP-WEIXIN -->
-      <view
-        class="flex-sub"
-        @tap="toWechatRegisterPage()"
-      >
-        微信注册
-      </view>
-      <!-- #endif -->
+        微信一键登录
+      </button>
     </view>
   </view>
 </template>
 
 <script>
 import { COS_URL } from '@/const/urls';
-import { mpLogin, normalLogin } from '@/services/login';
-import { toForgetPage, toRegisterPage, toWechatRegisterPage } from '@/routers/login';
+import { toWechatLoginPage } from '@/routers/login';
 import CuCustom from '@/colorui/components/cu-custom.vue';
 
 export default {
   components: { CuCustom },
   data() {
     return {
-      toForgetPage,
-      toRegisterPage,
-      toWechatRegisterPage,
       logo: `${COS_URL}/images/logo.png`,
+      toWechatLoginPage,
     };
-  },
-  methods: {
-    mpLogin,
-    login(e) {
-      const { username } = e.detail.value;
-      const { password } = e.detail.value;
-      normalLogin(username, password);
-    },
   },
 };
 </script>
-<style>
-page {
+
+<style scoped>
+.page {
+  min-height: 100vh;
   background-color: #ffffff;
 }
 
@@ -118,30 +65,20 @@ page {
   height: 40vw;
 }
 
-.info {
-  background-color: var(--white);
-  padding: 1rpx 30rpx;
-  display: flex;
-  align-items: center;
-  min-height: 100rpx;
-  justify-content: center;
-  margin-bottom: 16px;
+.intro {
+  padding: 0 60rpx;
+  text-align: center;
 }
 
-.info input {
-  color: #555;
-  background-color: #f5f5f5;
-  height: 80rpx;
-  width: 60vw;
-  padding-left: 20rpx;
-  border-radius: 10rpx;
-  font-size: 32rpx;
-  margin-left: 16px;
+.title {
+  color: #1d2a24;
+  font-size: 42rpx;
+  font-weight: 800;
 }
 
-.info > text[class*='cuIcon-'] {
-  font-size: 40rpx;
-  box-sizing: border-box;
+.desc {
+  margin-top: 16rpx;
+  color: #7a867d;
+  font-size: 28rpx;
 }
-
 </style>

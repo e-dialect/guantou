@@ -28,6 +28,18 @@ export function toRegisterPage() {
   });
 }
 
+export function toWechatLoginPage(closeAll = false) {
+  if (closeAll) {
+    uni.reLaunch({
+      url: '/pages/login/wechat',
+    });
+  } else {
+    uni.navigateTo({
+      url: '/pages/login/wechat',
+    });
+  }
+}
+
 /**
  * 前往微信注册页面
  */
