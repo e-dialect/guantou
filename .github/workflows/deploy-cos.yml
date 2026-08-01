@@ -44,6 +44,12 @@ jobs:
       - name: Generate SHA256 manifest
         run: find dist/build/h5 -type f -exec sha256sum {} \; > dist/build/h5/sha256sum.txt
 
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
       - name: Install coscmd
         run: pip install coscmd
 
