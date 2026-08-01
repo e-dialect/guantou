@@ -15,7 +15,7 @@ const allowedTypes = [
 ];
 
 const pattern = new RegExp(
-  `^(${allowedTypes.join('|')})\\([a-z0-9][a-z0-9-]*\\)!?: .+`
+  `^(${allowedTypes.join('|')})\\([A-Za-z0-9][A-Za-z0-9-]*\\)!?: .+(?: \\(#\\d+\\))?$`
 );
 const noisyPrefixes = [/^fixup!/i, /^squash!/i, /^wip[: ]/i, /^merge /i];
 
