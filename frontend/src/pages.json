@@ -29,6 +29,10 @@
       "style": {}
     },
     {
+      "path": "pages/packages/details",
+      "style": {}
+    },
+    {
       "path": "pages/shelves/index",
       "style": {}
     },

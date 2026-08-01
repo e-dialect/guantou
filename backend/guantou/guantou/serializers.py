@@ -68,6 +68,8 @@ class DialectSerializer(serializers.ModelSerializer):
 
 
 class PackageSerializer(serializers.ModelSerializer):
+    flavors = serializers.SerializerMethodField()
+
     class Meta:
         model = Package
         fields = [
@@ -76,9 +78,21 @@ class PackageSerializer(serializers.ModelSerializer):
             "package_type",
             "unicode",
             "metadata",
+            "flavors",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "flavors", "created_at"]
+
+    def get_flavors(self, obj):
+        return [
+            {
+                "id": flavor.id,
+                "name": flavor.name,
+                "definition": flavor.definition,
+                "mandarin": flavor.mandarin,
+            }
+            for flavor in obj.flavors.all()
+        ]
 
 
 class FlavorPackageSerializer(serializers.ModelSerializer):

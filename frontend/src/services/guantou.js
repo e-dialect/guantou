@@ -20,6 +20,10 @@ export function listPackages(params = {}) {
   return request.get('/api/packages/', params);
 }
 
+export function getPackage(id) {
+  return request.get(`/api/packages/${id}/`);
+}
+
 export function createPackage(payload) {
   return request.post('/api/packages/', payload);
 }

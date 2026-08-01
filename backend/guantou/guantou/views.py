@@ -50,7 +50,7 @@ class DialectViewSet(viewsets.ModelViewSet):
 
 
 class PackageViewSet(viewsets.ModelViewSet):
-    queryset = Package.objects.all()
+    queryset = Package.objects.prefetch_related("flavors")
     serializer_class = PackageSerializer
     permission_classes = [CanWritePermission]
 

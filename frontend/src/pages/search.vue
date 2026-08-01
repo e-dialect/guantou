@@ -107,7 +107,7 @@
 </template>
 
 <script>
-import { listCans, listFlavors } from '@/services/guantou';
+import { listCans, listFlavors, listPackages } from '@/services/guantou';
 import { APP_NAME } from '@/const/branding';
 import { defaultMessage } from '@/services/shareMessages';
 
@@ -120,6 +120,7 @@ export default {
       historyList: [],
       searchScopes: [
         { label: '义项', value: 'flavors' },
+        { label: '写法', value: 'packages' },
         { label: '罐头', value: 'cans' },
       ],
       keywords: '',
@@ -156,9 +157,12 @@ export default {
         return;
       }
       const scope = this.searchScopes[this.searchScopeIndex].value;
-      const res = scope === 'flavors'
-        ? await listFlavors({ search })
-        : await listCans({ search });
+      const searchers = {
+        flavors: listFlavors,
+        packages: listPackages,
+        cans: listCans,
+      };
+      const res = await searchers[scope]({ search });
       this.results = res.results || res;
       this.hasSearched = true;
       this.recordHistory(search);
@@ -188,6 +192,9 @@ export default {
       if (this.searchScopes[this.searchScopeIndex].value === 'flavors') {
         return item.name;
       }
+      if (this.searchScopes[this.searchScopeIndex].value === 'packages') {
+        return item.text;
+      }
       return item.primary_nameplate
         ? item.primary_nameplate.text_content
         : (item.concept_text || '无标罐头');
@@ -196,11 +203,18 @@ export default {
       if (this.searchScopes[this.searchScopeIndex].value === 'flavors') {
         return item.definition;
       }
+      if (this.searchScopes[this.searchScopeIndex].value === 'packages') {
+        return '查看这个写法关联的义项';
+      }
       return item.concept_text || '未填写普通话概念';
     },
     displayMeta(item) {
       if (this.searchScopes[this.searchScopeIndex].value === 'flavors') {
         return `${item.variants.length} 个变体 · ${item.package_links.length} 个写法`;
+      }
+      if (this.searchScopes[this.searchScopeIndex].value === 'packages') {
+        const typeText = item.package_type || 'uncertain';
+        return `${item.flavors.length} 个义项 · ${typeText}`;
       }
       const location = item.dialect_detail
         ? item.dialect_detail.name
@@ -209,9 +223,12 @@ export default {
     },
     openItem(item) {
       const scope = this.searchScopes[this.searchScopeIndex].value;
-      const url = scope === 'flavors'
-        ? `/pages/flavors/details?id=${item.id}`
-        : `/pages/cans/details?id=${item.id}`;
+      const urls = {
+        flavors: `/pages/flavors/details?id=${item.id}`,
+        packages: `/pages/packages/details?id=${item.id}`,
+        cans: `/pages/cans/details?id=${item.id}`,
+      };
+      const url = urls[scope];
       uni.navigateTo({ url });
     },
   },

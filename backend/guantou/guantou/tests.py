@@ -202,3 +202,11 @@ class GuantouApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         ids = [item["id"] for item in response.data["results"]]
         self.assertIn(can.id, ids)
+
+    def test_package_detail_includes_related_flavors(self):
+        response = self.client.get(f"/api/packages/{self.package.id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["text"], "行")
+        self.assertEqual(len(response.data["flavors"]), 1)
+        self.assertEqual(response.data["flavors"][0]["name"], "行走")
