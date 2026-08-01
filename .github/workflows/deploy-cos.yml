@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       target_prefix:
-        description: COS object prefix, for example guantou-preview/
+        description: Static H5 path prefix, for example guantou-preview/. Not the backend API URL.
         required: true
         type: string
       backend_url:
-        description: Backend API base URL used by the H5 build
+        description: Backend API base URL used by browser requests. Not the static H5 path prefix.
         required: true
         default: https://api.example.com
         type: string
@@ -38,7 +38,10 @@ jobs:
 
       - name: Build H5
         env:
+          # API origin for runtime requests.
           VITE_BACKEND_URL: ${{ inputs.backend_url }}
+          # Static mount path for router base and built assets.
+          PREVIEW_BASE: ${{ inputs.target_prefix }}
         run: yarn build
 
       - name: Generate SHA256 manifest
