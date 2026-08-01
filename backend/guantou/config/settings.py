@@ -110,8 +110,6 @@ TIME_ZONE = "Asia/Shanghai"
 
 USE_I18N = True
 
-USE_L10N = True
-
 USE_TZ = False
 
 STATIC_URL = "/static/"
@@ -136,12 +134,12 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = env.str("MEDIA_ROOT", os.path.join(BASE_DIR, "media"))
 
 # 跨域访问设置
-CORS_ORIGIN_ALLOW_ALL = True
+CORS_ALLOW_ALL_ORIGINS = True
 
 APPEND_SLASH = False
 
 CORS_ALLOW_CREDENTIALS = True
-CORS_ORIGIN_WHITELIST = (
+CORS_ALLOWED_ORIGINS = (
     "http://127.0.0.1:*",
     "https://api.pxm.edialect.top:*",
     "https://pxm.edialect.top:*",
