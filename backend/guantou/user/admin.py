@@ -29,7 +29,7 @@ class UserInfoAdmin(admin.ModelAdmin):
 admin.site.register(UserInfo, UserInfoAdmin)
 admin.site.unregister(Group)
 admin.site.site_url = "/"
-admin.site.site_header = "方言罐头后台管理"
-admin.site.site_title = "方言罐头后台管理"
+admin.site.site_header = "乡声集盒后台管理"
+admin.site.site_title = "乡声集盒后台管理"
 UserAdmin.list_display = ("id", "username", "email", "is_staff", "is_superuser")
 UserAdmin.ordering = ("id",)

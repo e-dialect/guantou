@@ -40,7 +40,7 @@
           {{ userInfo.contribution.flavors_uploaded }}
         </view>
         <view class="label">
-          风味
+          义项
         </view>
       </view>
       <view class="stat">
@@ -57,6 +57,7 @@
 
 <script>
 import { getUserInfo } from '@/services/user';
+import { APP_NAME } from '@/const/branding';
 import { defaultMessage } from '@/services/shareMessages';
 
 export default {
@@ -92,7 +93,7 @@ export default {
   },
   onShareAppMessage() {
     return {
-      title: '方言罐头用户',
+      title: `${APP_NAME}用户`,
       path: `/pages/users/details?id=${this.id}`,
       ...defaultMessage(),
     };

@@ -1,6 +1,6 @@
 # 贡献说明
 
-方言罐头是由原前后端仓库合并后的单一仓库。新功能应优先围绕根目录文档和 `guantou` 新实体实现；方言材料处理脚本按地域放在 `tools/materials/`，不进入 Django 运行路径。
+乡声集盒是由原前后端仓库合并后的单一仓库。新功能应优先围绕 `docs/PRODUCT_DESIGN.md` 和 `guantou` 新实体实现；方言材料处理脚本按地域放在 `tools/materials/`，不进入 Django 运行路径。
 
 ## 分支与提交
 

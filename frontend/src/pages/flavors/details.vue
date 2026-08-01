@@ -7,7 +7,7 @@
       >
         ‹
       </text><text class="title">
-        风味详情
+        义项详情
       </text>
     </view>
     <scroll-view
@@ -25,7 +25,7 @@
       </view>
       <view class="section">
         <view class="section-title">
-          包装
+          写法
         </view>
         <text
           v-for="link in flavor.package_links"
@@ -37,7 +37,7 @@
       </view>
       <view class="section">
         <view class="section-title">
-          味觉变体
+          读音变体
         </view>
         <view
           v-for="variant in flavor.variants"

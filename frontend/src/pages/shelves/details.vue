@@ -7,7 +7,7 @@
       >
         ‹
       </text><text class="title">
-        货架详情
+        集盒详情
       </text>
     </view>
     <scroll-view
@@ -25,7 +25,7 @@
       </view>
       <view class="section">
         <view class="section-title">
-          风味
+          义项
         </view>
         <view
           v-for="flavor in shelf.flavors"

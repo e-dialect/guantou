@@ -99,3 +99,44 @@ class GuantouApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         ids = [item["id"] for item in response.data["results"]]
         self.assertIn(can.id, ids)
+
+    def test_flavor_package_and_nameplate_model_national_lookup(self):
+        moon = Flavor.objects.create(
+            name="月亮",
+            definition="地球的天然卫星；夜晚可见的天体",
+            mandarin=["月亮"],
+            created_by=self.user,
+        )
+        yueliang = Package.objects.create(
+            text="月亮", package_type=Package.PackageType.ORTHODOX
+        )
+        yueguang = Package.objects.create(
+            text="月光", package_type=Package.PackageType.POPULAR
+        )
+        moon.packages.add(yueliang, yueguang)
+        can = Can.objects.create(
+            audio_url="https://example.com/moon.mp3",
+            recorder=self.user,
+            dialect=self.child,
+            concept_text="月亮",
+            visibility=True,
+        )
+        plate = Nameplate.objects.create(
+            can=can,
+            creator=self.user,
+            flavor=moon,
+            package=yueguang,
+            text_content="月光",
+            definition="月亮",
+            is_primary=True,
+        )
+
+        self.assertEqual(plate.flavor, moon)
+        self.assertEqual(plate.package, yueguang)
+        self.assertCountEqual(
+            list(moon.packages.values_list("text", flat=True)), ["月亮", "月光"]
+        )
+        response = self.client.get("/api/cans/", {"flavor": moon.id})
+        self.assertEqual(response.status_code, 200)
+        ids = [item["id"] for item in response.data["results"]]
+        self.assertIn(can.id, ids)

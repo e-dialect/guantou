@@ -8,7 +8,7 @@
         ‹
       </text>
       <text class="title">
-        罐头货架
+        罐头集盒
       </text>
       <button
         class="small-button"

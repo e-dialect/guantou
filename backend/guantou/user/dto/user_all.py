@@ -8,7 +8,7 @@ def calculate_title(points_sum) -> dict:
     if points_sum < 500:
         return {"title": "方言采集员", "color": "blue"}
     if points_sum < 1500:
-        return {"title": "风味鉴定师", "color": "green"}
+        return {"title": "义项鉴定师", "color": "green"}
     return {"title": "罐头馆长", "color": "gold"}
 
 

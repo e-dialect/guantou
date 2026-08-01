@@ -1,9 +1,14 @@
-/**
- * 播放音频
- * @param src 音频地址
- * @param warn 是否警告
- */
-// eslint-disable-next-line import/prefer-default-export
+let currentAudioContext = null;
+
+function stopCurrentAudio() {
+  if (!currentAudioContext) return;
+  currentAudioContext.stop();
+  if (typeof currentAudioContext.destroy === 'function') {
+    currentAudioContext.destroy();
+  }
+  currentAudioContext = null;
+}
+
 export function playAudio(src, warn = true) {
   if (!src || src === 'null') {
     if (warn) {
@@ -15,13 +20,20 @@ export function playAudio(src, warn = true) {
     return;
   }
 
-  // 播放录音文件用
+  stopCurrentAudio();
   const innerAudioContext = uni.createInnerAudioContext();
+  currentAudioContext = innerAudioContext;
   innerAudioContext.onError(() => {
     uni.showToast({
       title: '播放失败',
       icon: 'none',
     });
+    stopCurrentAudio();
+  });
+  innerAudioContext.onEnded(() => {
+    if (currentAudioContext === innerAudioContext) {
+      currentAudioContext = null;
+    }
   });
 
   uni.showToast({
@@ -31,4 +43,8 @@ export function playAudio(src, warn = true) {
 
   innerAudioContext.src = src;
   innerAudioContext.play();
+}
+
+export function stopAudio() {
+  stopCurrentAudio();
 }
