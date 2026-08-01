@@ -15,7 +15,7 @@ const allowedTypes = [
 ];
 
 const pattern = new RegExp(
-  `^(${allowedTypes.join('|')})\\([A-Za-z0-9][A-Za-z0-9-]*\\)!?: .+(?: \\(#\\d+\\))?$`
+  `^(${allowedTypes.join('|')})(?:\\([A-Za-z0-9][A-Za-z0-9-]*\\))?!?: .+(?: \\(#\\d+\\))?$`
 );
 const noisyPrefixes = [/^fixup!/i, /^squash!/i, /^wip[: ]/i, /^merge /i];
 
@@ -67,9 +67,9 @@ if (invalid.length === 0) {
   process.exit(0);
 }
 
-console.error('Commit messages must use Angular style: type(scope): summary');
+console.error('Commit messages must use Conventional Commits style: type: summary or type(scope): summary');
 console.error(`Allowed types: ${allowedTypes.join(', ')}`);
-console.error('Example: feat(frontend): add can detail page');
+console.error('Examples: ci: cache workflow dependencies; feat(frontend): add can detail page');
 console.error('');
 console.error('Invalid commits:');
 invalid.forEach(({ sha, subject }) => {

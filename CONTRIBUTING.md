@@ -5,9 +5,9 @@
 ## 分支与提交
 
 - 分支命名建议使用 `feat/...`、`fix/...`、`docs/...`、`refactor/...`。
-- PR 中的提交信息必须使用 Angular/Conventional Commits 风格：`type(scope): summary`，例如 `feat(cans): add nameplate voting`。
+- PR 中的提交信息必须使用 Conventional Commits 风格：`type: summary` 或 `type(scope): summary`，例如 `ci: cache dependencies` 或 `feat(cans): add nameplate voting`。
 - 常用类型：`feat`、`fix`、`docs`、`test`、`refactor`、`build`、`ci`、`chore`、`revert`。
-- `scope` 使用小写英文、数字或短横线，例如 `frontend`、`backend`、`cans`、`ci`。
+- 可选 `scope` 使用小写英文、数字或短横线，例如 `frontend`、`backend`、`cans`、`ci`。
 - PR 分支应保持干净：不要包含 `WIP`、`fixup!`、`squash!`、merge commit 或与本次工作无关的历史提交；必要时在提交 PR 前本地 rebase/squash。
 - 仓库初始化提交 `init` 是历史重写时的特例；后续普通提交不使用裸 `init` 或自由格式信息。
 

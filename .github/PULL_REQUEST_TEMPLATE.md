@@ -4,7 +4,7 @@
 
 ## Checks
 
-- [ ] Commit messages use `type(scope): summary`, e.g. `feat(frontend): add can detail page`
+- [ ] Commit messages use `type: summary` or `type(scope): summary`, e.g. `ci: cache dependencies`
 - [ ] PR branch commits are clean: no `WIP`, `fixup!`, merge commits, or unrelated history
 - [ ] `make backend-check`
 - [ ] `make frontend-check`
