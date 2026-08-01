@@ -1,9 +1,9 @@
 import demjson3
 from django.http import JsonResponse
 from django.views import View
-from notifications.models import Notification
 
 from guantou.models import Can, Flavor, Nameplate
+from inbox.models import Notification
 from user.dto.user_all import user_all
 from user.forms import UserInfoForm
 from user.utils import get_user_by_id
@@ -46,7 +46,7 @@ class Manage(View):
         request_user = get_request_user(request)
         # 如果是本人额外返回邮件
         if request_user.id == id:
-            sent = Notification.objects.filter(actor_object_id=id)
+            sent = Notification.objects.filter(actor_id=id)
             received = Notification.objects.filter(recipient_id=id)
             unread = received.filter(unread=True)
             response.update(

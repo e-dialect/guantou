@@ -1,17 +1,19 @@
-from notifications.admin import NotificationAdmin
-from notifications.models import Notification
+from django.contrib import admin
+
+from .models import Notification
 
 
-Notification._meta.verbose_name_plural = "站内通知"
-NotificationAdmin.search_fields = ["recipient__username", "actor__username"]
-NotificationAdmin.list_display = (
-    "id",
-    "recipient",
-    "actor",
-    "level",
-    "verb",
-    "timestamp",
-    "unread",
-    "public",
-)
-NotificationAdmin.date_hierarchy = "timestamp"
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    search_fields = ["recipient__username", "actor__username"]
+    list_display = (
+        "id",
+        "recipient",
+        "actor",
+        "level",
+        "verb",
+        "timestamp",
+        "unread",
+        "public",
+    )
+    date_hierarchy = "timestamp"

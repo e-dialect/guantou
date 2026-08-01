@@ -1,4 +1,4 @@
-from notifications.models import Notification
+from .models import Notification
 
 from user.dto.user_simple import user_simple
 

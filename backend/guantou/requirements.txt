@@ -4,9 +4,6 @@ django-cors-headers~=4.9.0
 django-simpleui==2026.1.13
 djangorestframework~=3.17.1
 
-django-notifications-hq==1.8.3
-django-model-utils~=5.0.0
-
 # Utilities
 demjson3~=3.0.6
 pyjwt~=2.4.0

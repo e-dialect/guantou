@@ -7,7 +7,6 @@ import sys
 def main():
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
     try:
-        from config.django_compat import patch_legacy_model_meta_options
         from django.core.management import execute_from_command_line
     except ImportError as exc:
         raise ImportError(
@@ -15,7 +14,6 @@ def main():
             "available on your PYTHONPATH environment variable? Did you "
             "forget to activate a virtual environment?"
         ) from exc
-    patch_legacy_model_meta_options()
     execute_from_command_line(sys.argv)
 
 

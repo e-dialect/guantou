@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.db.models import Q
-from notifications.models import Notification
-from notifications.signals import notify
+
+from .models import Notification
 
 
 def send_notification(
@@ -23,25 +23,24 @@ def send_notification(
         len(recipients)
     except TypeError:
         recipients = [recipients]
-    result = notify.send(
-        sender,
-        recipient=recipients,
-        verb=title,
-        description=content,
-        target=target,
-        action_object=action_object,
-    )
-    return [note.id for note in result[0][1]]
+    notifications = [
+        Notification.objects.create(
+            actor=sender,
+            recipient=recipient,
+            verb=title,
+            description=content,
+            target=target if isinstance(target, Notification) else None,
+        )
+        for recipient in recipients
+    ]
+    return [notification.id for notification in notifications]
 
 
 def mark_notification_read(notification):
     if isinstance(notification.target, Notification):
         notification.target.unread = False
         notification.target.save()
-        Notification.objects.filter(
-            Q(target_content_type=notification.target_content_type)
-            & Q(target_object_id=notification.target_object_id)
-        ).mark_all_as_read()
+        Notification.objects.filter(Q(target=notification.target)).update(unread=False)
     else:
         notification.unread = False
         notification.save()

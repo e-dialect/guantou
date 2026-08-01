@@ -37,7 +37,6 @@ INSTALLED_APPS = [
     "files",
     "inbox",
     "corsheaders",
-    "notifications",
 ]
 
 MIDDLEWARE = [

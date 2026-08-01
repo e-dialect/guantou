@@ -5,13 +5,13 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-from notifications.models import Notification
 
 from user.tokens import get_request_user, token_check
 from utils.exceptions.types.bad_request import BadRequestException
 from utils.exceptions.types.unauthorized import UnauthorizedException
 
 from .dto import notification_normal
+from .models import Notification
 from .services import mark_notification_read, send_notification
 
 
@@ -38,10 +38,10 @@ class Notifications(View):
         notifications = Notification.objects.all()
         if not user.is_staff:
             notifications = notifications.filter(
-                Q(actor_object_id=user.id) | Q(recipient_id=user.id)
+                Q(actor_id=user.id) | Q(recipient_id=user.id)
             )
         if "from" in request.GET:
-            notifications = notifications.filter(actor_object_id=request.GET["from"])
+            notifications = notifications.filter(actor_id=request.GET["from"])
         elif "to" in request.GET:
             notifications = notifications.filter(recipient_id=request.GET["to"])
         else:
@@ -78,7 +78,7 @@ def manage_notification(request, id):
     if request.method != "GET":
         return JsonResponse({}, status=405)
     token = request.headers.get("token")
-    user1 = token_check(token, notification.actor_object_id)
+    user1 = token_check(token, notification.actor_id)
     user2 = token_check(token, notification.recipient_id)
     if not (user1 or user2):
         return JsonResponse({}, status=401)
