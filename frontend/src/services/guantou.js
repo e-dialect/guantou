@@ -36,6 +36,10 @@ export function createFlavor(payload) {
   return request.post('/api/flavors/', payload);
 }
 
+export function createFlavorVariant(payload) {
+  return request.post('/api/flavor-variants/', payload);
+}
+
 export function listShelves(params = {}) {
   return request.get('/api/shelves/', params);
 }
@@ -76,6 +80,20 @@ export async function createCanWithNameplate({ can, label }) {
     definition: label.definition || can.concept_text || '',
     evidence_level: label.evidence_level || 1,
     source_citation: label.source_citation || '',
+  });
+  return getCan(createdCan.id);
+}
+
+export async function createCanForFlavor({ can, flavorId }) {
+  const variant = await createFlavorVariant({
+    flavor: flavorId,
+    dialect: can.dialect,
+    audio_url: can.audio_url,
+    audio_source: 'user',
+  });
+  const createdCan = await createCan({
+    ...can,
+    flavor_variant: variant.id,
   });
   return getCan(createdCan.id);
 }
