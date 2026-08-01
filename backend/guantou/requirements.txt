@@ -26,4 +26,4 @@ cos-python-sdk-v5
 
 # Development Tools
 setuptools>=80.10.2,<81
-black==24.3.0
+black==26.5.1
