@@ -1,4 +1,4 @@
-# 方言罐头 API
+# 乡声集盒 API
 
 所有新接口挂载在 `/api/`，分页使用 DRF 默认结构：
 
@@ -25,9 +25,9 @@
 
 ## 数据约定
 
-- `Nameplate` 是用户主张，创建时必须尽量同时给出 `flavor` 和 `package`；没有明确写法时可以先记录 `text_content`，后续再补包装。
+- `Nameplate` 是用户主张，创建时必须尽量同时给出 `flavor`（义项）和 `package`（写法）；没有明确写法时可以先记录 `text_content`，后续再补写法。
 - `Flavor` 表示义项/概念，不直接承载县镇读音差异。
-- `FlavorVariant` 表示风味在某方言点的读音，不负责决定正字。
+- `FlavorVariant` 表示义项在某方言点的读音，不负责决定正字。
 - `Package` 是检索入口，`package_type` 用于区分正字、借字、俗写、拟音等写法。
 - `sandhi_info` 只存结构化变调说明，v1 不做自动推导。
 
@@ -102,9 +102,9 @@ POST /api/nameplates/{nameplate_id}/vote/
 - `weight`：投票和管理动作累积后的展示权重。
 - `is_primary`：当前罐头默认展示的铭牌。
 
-## 风味与包装
+## 义项与写法
 
-创建包装：
+创建写法：
 
 ```json
 {
@@ -113,7 +113,7 @@ POST /api/nameplates/{nameplate_id}/vote/
 }
 ```
 
-创建风味：
+创建义项：
 
 ```json
 {
@@ -146,4 +146,4 @@ POST /api/nameplates/{nameplate_id}/vote/
 - `/api/flavor-variants/?flavor=1&dialect=2`
 - `/api/packages/?search=行`
 
-搜索包装时，前端应展示该包装关联的风味列表；进入风味详情后，再展示方言点变体和相关罐头。
+搜索写法时，前端应展示该写法关联的义项列表；进入义项详情后，再展示方言点变体和相关罐头。

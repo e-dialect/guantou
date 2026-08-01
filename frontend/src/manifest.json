@@ -1,5 +1,5 @@
 {
-    "name" : "方言罐头",
+    "name" : "乡声集盒",
     "appid" : "__UNI__51851C4",
     "description" : "多方言语音采集与校验客户端",
     "versionName" : "2.1.5",
@@ -108,7 +108,7 @@
         "sdkConfigs" : {
             "maps" : {}
         },
-        "title" : "方言罐头",
+        "title" : "乡声集盒",
         "router" : {
             "mode" : "history",
             "base" : "/"

@@ -7,14 +7,14 @@
       >
         ‹
       </text><text class="title">
-        正字图鉴
+        义项图鉴
       </text>
     </view>
     <view class="search-row">
       <input
         v-model="search"
         class="search"
-        placeholder="搜索风味、释义、包装"
+        placeholder="搜索义项、释义、写法"
         @confirm="refresh"
       >
       <button
@@ -41,7 +41,7 @@
           {{ item.definition }}
         </view>
         <view class="meta">
-          {{ item.variants.length }} 个变体 · {{ item.package_links.length }} 个包装
+          {{ item.variants.length }} 个变体 · {{ item.package_links.length }} 个写法
         </view>
       </view>
     </scroll-view>

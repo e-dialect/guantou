@@ -10,7 +10,7 @@
       <input
         v-model="keywords"
         class="search"
-        placeholder="搜索概念、铭牌、包装"
+        placeholder="搜索义项、写法、罐头"
         :focus="true"
         confirm-type="search"
         @confirm="search"
@@ -42,7 +42,43 @@
         v-if="!hasSearched"
         class="empty"
       >
-        输入普通话概念、罐头铭牌或包装文字
+        输入义项、写法、罐头铭牌或普通话概念
+      </view>
+      <view
+        v-if="!hasSearched"
+        class="quick-section"
+      >
+        <view class="quick-title">
+          热门搜索
+        </view>
+        <view class="tag-row">
+          <text
+            v-for="tag in hotTags"
+            :key="tag"
+            class="tag"
+            @tap="searchKeyword(tag)"
+          >
+            {{ tag }}
+          </text>
+        </view>
+      </view>
+      <view
+        v-if="!hasSearched && historyList.length"
+        class="quick-section"
+      >
+        <view class="quick-title">
+          搜索历史
+        </view>
+        <view class="tag-row">
+          <text
+            v-for="item in historyList"
+            :key="item"
+            class="tag"
+            @tap="searchKeyword(item)"
+          >
+            {{ item }}
+          </text>
+        </view>
       </view>
       <view
         v-for="item in results"
@@ -72,6 +108,7 @@
 
 <script>
 import { listCans, listFlavors } from '@/services/guantou';
+import { APP_NAME } from '@/const/branding';
 import { defaultMessage } from '@/services/shareMessages';
 
 export default {
@@ -79,8 +116,10 @@ export default {
     return {
       hasSearched: false,
       searchScopeIndex: 0,
+      hotTags: ['月亮', '膝盖', '祖母', '行', '杀', '吃饭'],
+      historyList: [],
       searchScopes: [
-        { label: '风味', value: 'flavors' },
+        { label: '义项', value: 'flavors' },
         { label: '罐头', value: 'cans' },
       ],
       keywords: '',
@@ -88,6 +127,7 @@ export default {
     };
   },
   onLoad(option) {
+    this.loadHistory();
     if (option.index) this.searchScopeIndex = Number(option.index);
     if (option.keywords || option.key) {
       this.keywords = option.keywords || option.key;
@@ -96,7 +136,7 @@ export default {
   },
   onShareAppMessage() {
     return {
-      title: `方言罐头：${this.keywords || '搜索'}`,
+      title: `${APP_NAME}：${this.keywords || '搜索'}`,
       path: `/pages/search?index=${this.searchScopeIndex}&keywords=${this.keywords}`,
       ...defaultMessage(),
     };
@@ -121,6 +161,28 @@ export default {
         : await listCans({ search });
       this.results = res.results || res;
       this.hasSearched = true;
+      this.recordHistory(search);
+    },
+    searchKeyword(keyword) {
+      this.keywords = keyword;
+      this.search();
+    },
+    loadHistory() {
+      try {
+        this.historyList = JSON.parse(uni.getStorageSync('search_history') || '[]').slice(0, 8);
+      } catch (error) {
+        this.historyList = [];
+      }
+    },
+    recordHistory(keyword) {
+      this.historyList = [
+        keyword,
+        ...this.historyList.filter((item) => item !== keyword),
+      ].slice(0, 8);
+      uni.setStorage({
+        key: 'search_history',
+        data: JSON.stringify(this.historyList),
+      });
     },
     displayTitle(item) {
       if (this.searchScopes[this.searchScopeIndex].value === 'flavors') {
@@ -138,7 +200,7 @@ export default {
     },
     displayMeta(item) {
       if (this.searchScopes[this.searchScopeIndex].value === 'flavors') {
-        return `${item.variants.length} 个变体 · ${item.package_links.length} 个包装`;
+        return `${item.variants.length} 个变体 · ${item.package_links.length} 个写法`;
       }
       const location = item.dialect_detail
         ? item.dialect_detail.name
@@ -252,5 +314,30 @@ export default {
   padding: 80rpx 20rpx;
   text-align: center;
   color: #7a867d;
+}
+
+.quick-section {
+  margin-bottom: 30rpx;
+}
+
+.quick-title {
+  margin-bottom: 16rpx;
+  color: #2f4638;
+  font-weight: 700;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+}
+
+.tag {
+  background: #fff;
+  border: 1px solid #d9dfd5;
+  border-radius: 999rpx;
+  color: #1f5c43;
+  padding: 12rpx 20rpx;
+  font-size: 26rpx;
 }
 </style>

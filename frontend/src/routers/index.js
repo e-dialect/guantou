@@ -53,7 +53,7 @@ export function toTuxiaochaoPage() {
       );
       break;
     case 'web':
-      // 跳转到方言罐头反馈页面
+      // 跳转到乡声集盒反馈页面
       window.location = 'https://support.qq.com/product/420021';
       break;
     default:

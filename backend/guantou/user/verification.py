@@ -39,13 +39,13 @@ def send_email_code(email):
     if "@" not in email_address:
         return False
     code = generate_email_code()
-    subject = "[方言罐头]验证码"
+    subject = "[乡声集盒]验证码"
     html_message = f"""<!DOCTYPE html>
 <html lang="zh-Hans">
 <body>
     <p><strong>亲爱的用户：</strong></p>
     <p>你的验证码为：<strong>{code}</strong>，有效时间 10 分钟。</p>
-    <p>方言罐头团队</p>
+    <p>乡声集盒团队</p>
     <p>{timezone.now().date()}</p>
 </body>
 </html>"""

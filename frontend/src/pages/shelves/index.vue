@@ -7,7 +7,7 @@
       >
         ‹
       </text><text class="title">
-        主题货架
+        主题集盒
       </text>
     </view>
     <scroll-view
@@ -27,7 +27,7 @@
           {{ item.description || '暂无简介' }}
         </view>
         <view class="meta">
-          {{ item.flavors.length }} 个风味 · {{ item.cans.length }} 个罐头
+          {{ item.flavors.length }} 个义项 · {{ item.cans.length }} 个罐头
         </view>
       </view>
     </scroll-view>

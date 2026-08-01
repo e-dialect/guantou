@@ -3,7 +3,7 @@
     <view class="header">
       <view>
         <view class="brand">
-          方言罐头
+          {{ appName }}
         </view>
         <view class="subtitle">
           把每一段乡音装进可校验的资料库
@@ -35,10 +35,10 @@
         @tap="toShelves"
       >
         <view class="quick-title">
-          货架
+          集盒
         </view>
         <view class="quick-copy">
-          按主题浏览罐头
+          按主题收纳乡音
         </view>
       </view>
       <view
@@ -103,10 +103,12 @@
 
 <script>
 import { listCans } from '@/services/guantou';
+import { APP_NAME, SHARE_TITLE } from '@/const/branding';
 
 export default {
   data() {
     return {
+      appName: APP_NAME,
       cans: [],
     };
   },
@@ -116,7 +118,7 @@ export default {
   },
   onShareAppMessage() {
     return {
-      title: '方言罐头：把乡音装进罐头',
+      title: SHARE_TITLE,
       path: '/pages/index',
     };
   },

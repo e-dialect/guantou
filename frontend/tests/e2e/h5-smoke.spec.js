@@ -7,7 +7,7 @@ test('H5 app renders home page', async ({ page }) => {
   });
 
   await page.goto('/');
-  await expect(page.getByText('方言罐头').first()).toBeVisible();
+  await expect(page.getByText('乡声集盒').first()).toBeVisible();
   await expect(page.getByText('装罐').first()).toBeVisible();
 
   expect(consoleErrors).toEqual([]);

@@ -29,57 +29,8 @@
             class="field"
             :disabled="Boolean(targetFlavor.id)"
             placeholder="例如：膝盖、祖母、走路"
+            maxlength="20"
           >
-        </uni-forms-item>
-        <uni-forms-item label="候选写法">
-          <input
-            v-model="label.text_content"
-            class="field"
-            placeholder="正字、俗写、拟音都可以先填"
-          >
-        </uni-forms-item>
-        <uni-forms-item label="释义">
-          <textarea
-            v-model="label.definition"
-            class="textarea"
-            placeholder="说明这罐声音是什么意思"
-          />
-        </uni-forms-item>
-        <uni-forms-item label="包装类型">
-          <picker
-            :range="packageTypes"
-            range-key="label"
-            @change="onPackageTypeChange"
-          >
-            <view class="select">
-              {{ packageTypeLabel }}
-            </view>
-          </picker>
-        </uni-forms-item>
-        <uni-forms-item label="证据等级">
-          <picker
-            :range="evidenceLevels"
-            range-key="label"
-            @change="onEvidenceChange"
-          >
-            <view class="select">
-              {{ evidenceLabel }}
-            </view>
-          </picker>
-        </uni-forms-item>
-        <uni-forms-item label="产地">
-          <view class="split">
-            <input
-              v-model="form.county"
-              class="field"
-              placeholder="县区"
-            >
-            <input
-              v-model="form.town"
-              class="field"
-              placeholder="乡镇/社区"
-            >
-          </view>
         </uni-forms-item>
         <uni-forms-item label="方言点">
           <picker
@@ -92,14 +43,84 @@
             </view>
           </picker>
         </uni-forms-item>
-        <uni-forms-item label="来源说明">
-          <input
-            v-model="form.source_note"
-            class="field"
-            placeholder="本人记忆、长辈确认、文献出处等"
+
+        <view class="optional-head">
+          <text>补充信息（选填）</text>
+          <text
+            class="optional-toggle"
+            @tap="optionalOpen = !optionalOpen"
           >
-        </uni-forms-item>
+            {{ optionalOpen ? '收起' : '展开' }}
+          </text>
+        </view>
+
+        <view v-if="optionalOpen">
+          <uni-forms-item label="候选写法">
+            <input
+              v-model="label.text_content"
+              class="field"
+              maxlength="10"
+              placeholder="不确定正字可先空着"
+            >
+          </uni-forms-item>
+          <uni-forms-item label="释义">
+            <textarea
+              v-model="label.definition"
+              class="textarea"
+              maxlength="50"
+              placeholder="这个词是什么意思？"
+            />
+          </uni-forms-item>
+          <uni-forms-item label="写法类型">
+            <picker
+              :range="packageTypes"
+              range-key="label"
+              @change="onPackageTypeChange"
+            >
+              <view class="select">
+                {{ packageTypeLabel }}
+              </view>
+            </picker>
+          </uni-forms-item>
+          <uni-forms-item label="证据等级">
+            <picker
+              :range="evidenceLevels"
+              range-key="label"
+              @change="onEvidenceChange"
+            >
+              <view class="select">
+                {{ evidenceLabel }}
+              </view>
+            </picker>
+          </uni-forms-item>
+          <uni-forms-item label="产地">
+            <view class="split">
+              <input
+                v-model="form.county"
+                class="field"
+                placeholder="县区"
+              >
+              <input
+                v-model="form.town"
+                class="field"
+                placeholder="乡镇/社区"
+              >
+            </view>
+          </uni-forms-item>
+          <uni-forms-item label="来源说明">
+            <input
+              v-model="form.source_note"
+              class="field"
+              maxlength="50"
+              placeholder="比如：听奶奶说的"
+            >
+          </uni-forms-item>
+        </view>
       </uni-forms>
+
+      <view class="form-hint">
+        不会写正字也没关系，先录下来最重要
+      </view>
 
       <view class="recorder">
         <button
@@ -127,7 +148,7 @@
 
       <button
         class="primary-button"
-        :disabled="submitting"
+        :disabled="submitting || !canSubmit"
         @tap="submit"
       >
         {{ submitting ? '提交中...' : '封存这罐乡音' }}
@@ -149,6 +170,7 @@ export default {
         id: '',
         name: '',
       },
+      optionalOpen: false,
       recorderManager: null,
       recording: false,
       dialects: [],
@@ -196,7 +218,14 @@ export default {
     },
     dialectLabel() {
       const dialect = this.dialects.find((item) => item.id === this.form.dialect);
-      return dialect ? dialect.name : '暂不选择';
+      return dialect ? dialect.name : '请选择方言点';
+    },
+    canSubmit() {
+      return Boolean(
+        this.form.concept_text.trim()
+        && this.form.dialect
+        && this.form.audio_url,
+      );
     },
     pageTitle() {
       return this.targetFlavor.id ? '补录乡音' : '装一罐';
@@ -271,8 +300,8 @@ export default {
         uni.showToast({ title: '请先登录', icon: 'none' });
         return;
       }
-      if (!this.form.audio_url || !this.form.concept_text) {
-        uni.showToast({ title: '请至少填写概念并录音', icon: 'none' });
+      if (!this.canSubmit) {
+        uni.showToast({ title: '请填写概念、方言点并录音', icon: 'none' });
         return;
       }
       this.submitting = true;
@@ -351,6 +380,30 @@ export default {
   font-weight: 700;
 }
 
+.optional-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border: 1px solid #d9dfd5;
+  border-radius: 12rpx;
+  padding: 22rpx;
+  margin-bottom: 24rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.optional-toggle {
+  color: #1f5c43;
+  font-size: 26rpx;
+  font-weight: 500;
+}
+
+.form-hint {
+  color: #6a766e;
+  font-size: 26rpx;
+}
+
 .textarea {
   min-height: 150rpx;
 }
@@ -396,5 +449,9 @@ export default {
   background: #1f5c43;
   color: white;
   border-radius: 12rpx;
+}
+
+.primary-button[disabled] {
+  background: #aeb9b1;
 }
 </style>

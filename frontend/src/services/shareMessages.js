@@ -1,3 +1,5 @@
+import { SHARE_TITLE } from '@/const/branding';
+
 export function message(successMessage, failMessage) {
   return {
     success() {
@@ -21,7 +23,7 @@ export function defaultMessage() {
 export default {
   onShareTimeline() {
     return {
-      title: '方言罐头：把乡音装进罐头',
+      title: SHARE_TITLE,
       path: '/pages/index',
       imageUrl: 'https://cos.edialect.top/miniprogram/fm.gif',
       ...defaultMessage(),

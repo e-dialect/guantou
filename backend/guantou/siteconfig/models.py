@@ -21,7 +21,7 @@ class SiteSettings(models.Model):
         return None
 
     def __str__(self):
-        return "方言罐头站点运营配置"
+        return "乡声集盒站点运营配置"
 
     class Meta:
         verbose_name = "站点运营配置"

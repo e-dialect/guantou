@@ -34,7 +34,7 @@
           {{ flavorsCount }}
         </view>
         <view class="label">
-          风味
+          义项
         </view>
       </view>
       <view class="stat">
