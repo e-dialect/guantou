@@ -9,7 +9,7 @@ django-notifications-hq==1.8.3
 # Utilities
 demjson3~=3.0.6
 pyjwt~=2.4.0
-django-environ==0.11.2
+django-environ==0.14.0
 
 # Data Processing
 numpy>=1.26.0,<2.0.0  # Python 3.12+ compatible, avoid numpy 2.x for compatibility
