@@ -16,6 +16,7 @@
 ## 文档
 
 - [产品设计](docs/PRODUCT_DESIGN.md)
+- [历史视觉/交互参考](docs/references/README.md)
 - [架构说明](docs/ARCHITECTURE.md)
 - [API 约定](docs/API.md)
 - [开发指南](docs/DEVELOPMENT.md)

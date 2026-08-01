@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<!-- saved from url=(0054)https://xinghuayuji.feishuapp.com/app/app_17apwv04tft/ -->
+<html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方言罐头 · 前端交互设计 v2</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, "PingFang SC", "Noto Sans SC", sans-serif;
+  background: #f5f3f0;
+  color: #2d2a26;
+  padding: 40px 20px;
+}
+.container { max-width: 1200px; margin: 0 auto; }
+h1 { text-align: center; font-size: 32px; margin-bottom: 8px; }
+.doc-subtitle { text-align: center; font-size: 14px; color: #888; margin-bottom: 40px; }
+
+/* Version tabs */
+.version-tabs { display: flex; justify-content: center; gap: 12px; margin-bottom: 36px; }
+.version-tab {
+  padding: 10px 24px; border-radius: 20px; font-size: 14px; font-weight: 600;
+  cursor: pointer; border: 2px solid #e8e4df; background: #fff; color: #666;
+  transition: all 0.2s;
+}
+.version-tab.active { border-color: #ff6b35; background: #fff5f0; color: #ff6b35; }
+.version-tab:hover { border-color: #ff6b35; }
+.version-section { display: none; }
+.version-section.active { display: block; }
+
+/* Phone frame */
+.screens-row { display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; margin-bottom: 48px; }
+.screen-wrap { text-align: center; }
+.screen-label { font-size: 14px; font-weight: 700; margin-bottom: 10px; color: #333; }
+.screen-note { font-size: 11px; color: #999; margin-top: 8px; max-width: 280px; margin-left: auto; margin-right: auto; }
+.phone {
+  width: 260px; height: 520px; border: 2px solid #333; border-radius: 28px;
+  background: #fff; overflow: hidden; position: relative; padding: 32px 0 40px;
+}
+.phone::before {
+  content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  width: 60px; height: 6px; border-radius: 3px; background: #ddd;
+}
+.phone::after {
+  content: ''; position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+  width: 80px; height: 4px; border-radius: 2px; background: #ddd;
+}
+.phone-content { height: 100%; overflow: hidden; padding: 0 14px; display: flex; flex-direction: column; }
+
+/* Common UI elements */
+.statusbar { height: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #999; margin-bottom: 8px; }
+.navbar { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; margin-bottom: 10px; }
+.navbar .back { font-size: 18px; color: #333; margin-right: 8px; }
+.navbar .title { font-size: 14px; font-weight: 700; }
+.navbar .action { margin-left: auto; font-size: 11px; color: #ff6b35; font-weight: 600; }
+
+.btn {
+  display: block; width: 100%; padding: 10px; border-radius: 10px; text-align: center;
+  font-size: 13px; font-weight: 600; margin-top: 8px;
+}
+.btn-primary { background: #ff6b35; color: #fff; }
+.btn-ghost { background: #fff; color: #ff6b35; border: 1.5px solid #ff6b35; }
+.btn-disabled { background: #f0f0f0; color: #999; }
+.btn-secondary { background: #6c5ce7; color: #fff; }
+
+.input-field {
+  border: 1.5px solid #e8e4df; border-radius: 8px; padding: 8px 10px;
+  font-size: 12px; color: #333; margin-bottom: 8px; background: #faf9f7;
+}
+.input-field.placeholder { color: #bbb; }
+.field-label { font-size: 11px; font-weight: 600; color: #555; margin-bottom: 4px; }
+
+.card {
+  border: 1px solid #eee; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+  background: #faf9f7;
+}
+.card-highlight { border-color: #ff6b35; background: #fffaf7; }
+
+.tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 9px; font-weight: 600; }
+.tag-orange { background: #fff3e0; color: #e65100; }
+.tag-green { background: #e8f5e9; color: #2e7d32; }
+.tag-blue { background: #e3f2fd; color: #1565c0; }
+.tag-gray { background: #f5f5f5; color: #757575; }
+.tag-red { background: #fce4ec; color: #c62828; }
+.tag-yellow { background: #fffde7; color: #f57f17; }
+.tag-purple { background: #f3e5f5; color: #6a1b9a; }
+
+.tab-bar {
+  position: absolute; bottom: 40px; left: 0; right: 0; height: 44px;
+  border-top: 1px solid #eee; display: flex; align-items: center; justify-content: space-around;
+  background: #fff; font-size: 9px; color: #999;
+}
+.tab-bar .tab { text-align: center; }
+.tab-bar .tab.active { color: #ff6b35; font-weight: 700; }
+.tab-bar .tab-icon { font-size: 16px; display: block; margin-bottom: 2px; }
+
+/* Section headers */
+.section-header { margin: 36px 0 20px; padding-left: 14px; border-left: 4px solid #6c5ce7; }
+.section-header h2 { font-size: 22px; font-weight: 700; }
+.section-header p { font-size: 13px; color: #666; margin-top: 4px; }
+.section-header.green { border-left-color: #388e3c; }
+.section-header.orange { border-left-color: #ff6b35; }
+
+/* Flow diagram */
+.flow-section { background: #fff; border-radius: 16px; padding: 28px; margin-bottom: 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.flow-steps { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin: 16px 0; }
+.flow-node { padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; background: #f3f0ff; color: #6c5ce7; }
+.flow-node.action { background: #fff5f0; color: #ff6b35; }
+.flow-node.decision { background: #fffde7; color: #f57f17; border-radius: 50%; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; text-align: center; }
+.flow-arrow { color: #ccc; font-size: 16px; }
+
+/* Interaction notes */
+.interaction-notes { background: #fff; border-radius: 16px; padding: 28px; margin-bottom: 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.note-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 16px; }
+.note-card { border-radius: 10px; padding: 16px; background: #faf9f7; border: 1px solid #eee; }
+.note-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+.note-card p { font-size: 12px; color: #555; line-height: 1.6; }
+.note-card .state { font-size: 11px; color: #999; margin-top: 6px; font-style: italic; }
+
+/* Changelog */
+.changelog { background: #fff; border-radius: 16px; padding: 28px; margin-bottom: 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.changelog-item { display: flex; gap: 10px; margin-bottom: 12px; align-items: flex-start; }
+.changelog-badge { padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.badge-new { background: #e8f5e9; color: #2e7d32; }
+.badge-fix { background: #fff3e0; color: #e65100; }
+.badge-adjust { background: #e3f2fd; color: #1565c0; }
+.changelog-text { font-size: 12px; color: #555; line-height: 1.5; }
+
+/* Priority badge */
+.priority-low { opacity: 0.5; border-style: dashed; }
+.priority-label { font-size: 9px; color: #999; font-style: italic; margin-top: 4px; }
+
+/* Dialect switch */
+.dialect-switch { display: flex; gap: 4px; margin: 6px 0; flex-wrap: wrap; }
+.dialect-chip { padding: 3px 8px; border-radius: 12px; font-size: 9px; border: 1px solid #e0e0e0; color: #666; }
+.dialect-chip.active { background: #ff6b35; color: #fff; border-color: #ff6b35; }
+
+/* Ruby annotation */
+.ruby-word { display: inline-flex; flex-direction: column; align-items: center; margin: 0 4px; }
+.ruby-top { font-size: 8px; color: #6c5ce7; font-weight: 600; }
+.ruby-main { font-size: 18px; font-weight: 800; }
+
+@media (max-width: 768px) {
+  .screens-row { flex-direction: column; align-items: center; }
+  .note-grid { grid-template-columns: 1fr; }
+}
+</style>
+<style type="text/css">@font-face {
+  font-family: "xm-iconfont";
+  src: url('//at.alicdn.com/t/font_792691_ptvyboo0bno.eot?t=1574048839056');
+  /* IE9 */
+  src: url('//at.alicdn.com/t/font_792691_ptvyboo0bno.eot?t=1574048839056#iefix') format('embedded-opentype'), /* IE6-IE8 */ url('data:application/x-font-woff2;charset=utf-8;base64,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') format('woff2'), url('//at.alicdn.com/t/font_792691_ptvyboo0bno.woff?t=1574048839056') format('woff'), url('//at.alicdn.com/t/font_792691_ptvyboo0bno.ttf?t=1574048839056') format('truetype'), /* chrome, firefox, opera, Safari, Android, iOS 4.2+ */ url('//at.alicdn.com/t/font_792691_ptvyboo0bno.svg?t=1574048839056#iconfont') format('svg');
+  /* iOS 4.1- */
+}
+.xm-iconfont {
+  font-family: "xm-iconfont" !important;
+  font-size: 16px;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.xm-icon-quanxuan:before {
+  content: "\e62c";
+}
+.xm-icon-caidan:before {
+  content: "\e610";
+}
+.xm-icon-fanxuan:before {
+  content: "\e837";
+}
+.xm-icon-pifu:before {
+  content: "\e668";
+}
+.xm-icon-qingkong:before {
+  content: "\e63e";
+}
+.xm-icon-sousuo:before {
+  content: "\e600";
+}
+.xm-icon-danx:before {
+  content: "\e62b";
+}
+.xm-icon-duox:before {
+  content: "\e613";
+}
+.xm-icon-close:before {
+  content: "\e601";
+}
+.xm-icon-expand:before {
+  content: "\e641";
+}
+.xm-icon-banxuan:before {
+  content: "\e60d";
+}
+</style><style type="text/css">@-webkit-keyframes xm-upbit {
+  from {
+    -webkit-transform: translate3d(0, 30px, 0);
+    opacity: 0.3;
+  }
+  to {
+    -webkit-transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+@keyframes xm-upbit {
+  from {
+    transform: translate3d(0, 30px, 0);
+    opacity: 0.3;
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+@-webkit-keyframes loader {
+  0% {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+@keyframes loader {
+  0% {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+xm-select {
+  background-color: #FFF;
+  position: relative;
+  border: 1px solid #E6E6E6;
+  border-radius: 2px;
+  display: block;
+  width: 100%;
+  cursor: pointer;
+  outline: none;
+}
+xm-select * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-size: 14px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  user-select: none;
+  -ms-user-select: none;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+}
+xm-select:hover,
+xm-select:focus {
+  border-color: #C0C4CC;
+}
+xm-select > .xm-tips {
+  color: #999999;
+  padding: 0 10px;
+  position: absolute;
+  display: flex;
+  height: 100%;
+  align-items: center;
+}
+xm-select > .xm-icon {
+  display: inline-block;
+  overflow: hidden;
+  position: absolute;
+  width: 0;
+  height: 0;
+  right: 10px;
+  top: 50%;
+  margin-top: -3px;
+  cursor: pointer;
+  border: 6px dashed transparent;
+  border-top-color: #C2C2C2;
+  border-top-style: solid;
+  transition: all 0.3s;
+  -webkit-transition: all 0.3s;
+}
+xm-select > .xm-icon-expand {
+  margin-top: -9px;
+  transform: rotate(180deg);
+}
+xm-select > .xm-label.single-row {
+  position: absolute;
+  top: 0;
+  bottom: 0px;
+  left: 0px;
+  right: 30px;
+  overflow: auto hidden;
+}
+xm-select > .xm-label.single-row .scroll {
+  overflow-y: hidden;
+}
+xm-select > .xm-label.single-row .label-content {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+xm-select > .xm-label.auto-row .label-content {
+  flex-wrap: wrap;
+  padding-right: 30px !important;
+}
+xm-select > .xm-label.auto-row .xm-label-block > span {
+  white-space: unset;
+  height: 100%;
+}
+xm-select > .xm-label .scroll .label-content {
+  display: flex;
+  padding: 3px 10px;
+}
+xm-select > .xm-label .xm-label-block {
+  display: flex;
+  position: relative;
+  padding: 0px 5px;
+  margin: 2px 5px 2px 0;
+  border-radius: 3px;
+  align-items: baseline;
+  color: #FFF;
+}
+xm-select > .xm-label .xm-label-block > span {
+  display: flex;
+  color: #FFF;
+  white-space: nowrap;
+}
+xm-select > .xm-label .xm-label-block > i {
+  color: #FFF;
+  margin-left: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+}
+xm-select > .xm-label .xm-label-block.disabled {
+  background-color: #C2C2C2 !important;
+  cursor: no-drop !important;
+}
+xm-select > .xm-label .xm-label-block.disabled > i {
+  cursor: no-drop !important;
+}
+xm-select > .xm-body {
+  position: absolute;
+  left: 0;
+  top: 42px;
+  padding: 5px 0;
+  z-index: 999;
+  width: 100%;
+  min-width: fit-content;
+  border: 1px solid #E6E6E6;
+  background-color: #fff;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+  animation-name: xm-upbit;
+  animation-duration: 0.3s;
+  animation-fill-mode: both;
+}
+xm-select > .xm-body .scroll-body {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+xm-select > .xm-body .scroll-body::-webkit-scrollbar {
+  width: 8px;
+}
+xm-select > .xm-body .scroll-body::-webkit-scrollbar-track {
+  -webkit-border-radius: 2em;
+  -moz-border-radius: 2em;
+  -ms-border-radius: 2em;
+  border-radius: 2em;
+  background-color: #FFF;
+}
+xm-select > .xm-body .scroll-body::-webkit-scrollbar-thumb {
+  -webkit-border-radius: 2em;
+  -moz-border-radius: 2em;
+  -ms-border-radius: 2em;
+  border-radius: 2em;
+  background-color: #C2C2C2;
+}
+xm-select > .xm-body.up {
+  top: auto;
+  bottom: 42px;
+}
+xm-select > .xm-body.relative {
+  position: relative;
+  display: block !important;
+  top: 0;
+  box-shadow: none;
+  border: none;
+  animation-name: none;
+  animation-duration: 0;
+  min-width: 100%;
+}
+xm-select > .xm-body .xm-group {
+  cursor: default;
+}
+xm-select > .xm-body .xm-group-item {
+  display: inline-block;
+  cursor: pointer;
+  padding: 0 10px;
+  color: #999;
+  font-size: 12px;
+}
+xm-select > .xm-body .xm-option {
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding: 0 10px;
+  cursor: pointer;
+}
+xm-select > .xm-body .xm-option-icon {
+  color: transparent;
+  display: flex;
+  border: 1px solid #E6E6E6;
+  border-radius: 3px;
+  justify-content: center;
+  align-items: center;
+}
+xm-select > .xm-body .xm-option-icon.xm-custom-icon {
+  color: unset;
+  border: unset;
+}
+xm-select > .xm-body .xm-option-icon-hidden {
+  margin-right: -10px;
+}
+xm-select > .xm-body .xm-option-icon.xm-icon-danx {
+  border-radius: 100%;
+}
+xm-select > .xm-body .xm-option-content {
+  display: flex;
+  position: relative;
+  padding-left: 15px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  ;
+  width: calc(100% - 20px);
+}
+xm-select > .xm-body .xm-option.hide-icon .xm-option-content {
+  padding-left: 0;
+}
+xm-select > .xm-body .xm-option.selected.hide-icon .xm-option-content {
+  color: #FFF !important;
+}
+xm-select > .xm-body .xm-option .loader {
+  width: 0.8em;
+  height: 0.8em;
+  margin-right: 6px;
+  color: #C2C2C2;
+}
+xm-select > .xm-body .xm-select-empty {
+  text-align: center;
+  color: #999;
+}
+xm-select > .xm-body .disabled {
+  cursor: no-drop;
+}
+xm-select > .xm-body .disabled:hover {
+  background-color: #FFF;
+}
+xm-select > .xm-body .disabled .xm-option-icon {
+  border-color: #C2C2C2 !important;
+}
+xm-select > .xm-body .disabled .xm-option-content {
+  color: #C2C2C2 !important;
+}
+xm-select > .xm-body .disabled.selected > .xm-option-icon {
+  color: #C2C2C2 !important;
+}
+xm-select > .xm-body .xm-search {
+  background-color: #FFF !important;
+  position: relative;
+  padding: 0 10px;
+  margin-bottom: 5px;
+  cursor: pointer;
+}
+xm-select > .xm-body .xm-search > i {
+  position: absolute;
+  color: ;
+}
+xm-select > .xm-body .xm-search-input {
+  border: none;
+  border-bottom: 1px solid #E6E6E6;
+  padding-left: 27px;
+  cursor: text;
+}
+xm-select > .xm-body .xm-paging {
+  padding: 0 10px;
+  display: flex;
+  margin-top: 5px;
+}
+xm-select > .xm-body .xm-paging > span:first-child {
+  border-radius: 2px 0 0 2px;
+}
+xm-select > .xm-body .xm-paging > span:last-child {
+  border-radius: 0 2px 2px 0;
+}
+xm-select > .xm-body .xm-paging > span {
+  display: flex;
+  flex: auto;
+  justify-content: center;
+  vertical-align: middle;
+  margin: 0 -1px 0 0;
+  background-color: #fff;
+  color: #333;
+  font-size: 12px;
+  border: 1px solid #e2e2e2;
+  flex-wrap: nowrap;
+  width: 100%;
+  overflow: hidden;
+  min-width: 50px;
+}
+xm-select > .xm-body .xm-toolbar {
+  padding: 0 10px;
+  display: flex;
+  margin: -3px 0;
+  cursor: default;
+}
+xm-select > .xm-body .xm-toolbar .toolbar-tag {
+  cursor: pointer;
+  display: flex;
+  margin-right: 20px;
+  color: ;
+  align-items: baseline;
+}
+xm-select > .xm-body .xm-toolbar .toolbar-tag:hover {
+  opacity: 0.8;
+}
+xm-select > .xm-body .xm-toolbar .toolbar-tag:active {
+  opacity: 1;
+}
+xm-select > .xm-body .xm-toolbar .toolbar-tag > i {
+  margin-right: 2px;
+  font-size: 14px;
+}
+xm-select > .xm-body .xm-toolbar .toolbar-tag:last-child {
+  margin-right: 0;
+}
+xm-select > .xm-body .xm-body-custom {
+  line-height: initial;
+  cursor: default;
+}
+xm-select > .xm-body .xm-body-custom * {
+  box-sizing: initial;
+}
+xm-select > .xm-body .xm-tree {
+  position: relative;
+}
+xm-select > .xm-body .xm-tree-icon {
+  display: inline-block;
+  margin-right: 3px;
+  cursor: pointer;
+  border: 6px dashed transparent;
+  border-left-color: #C2C2C2;
+  border-left-style: solid;
+  transition: all 0.3s;
+  -webkit-transition: all 0.3s;
+  z-index: 2;
+  visibility: hidden;
+}
+xm-select > .xm-body .xm-tree-icon.expand {
+  margin-top: 3px;
+  margin-right: 5px;
+  margin-left: -2px;
+  transform: rotate(90deg);
+}
+xm-select > .xm-body .xm-tree-icon.xm-visible {
+  visibility: visible;
+}
+xm-select > .xm-body .xm-tree .left-line {
+  position: absolute;
+  left: 13px;
+  width: 0;
+  z-index: 1;
+  border-left: 1px dotted #c0c4cc !important;
+}
+xm-select > .xm-body .xm-tree .top-line {
+  position: absolute;
+  left: 13px;
+  height: 0;
+  z-index: 1;
+  border-top: 1px dotted #c0c4cc !important;
+}
+xm-select > .xm-body .xm-tree .xm-tree-icon + .top-line {
+  margin-left: 1px;
+}
+xm-select > .xm-body .scroll-body > .xm-tree > .xm-option > .top-line,
+xm-select > .xm-body .scroll-body > .xm-option > .top-line {
+  width: 0 !important;
+}
+xm-select > .xm-body .xm-cascader-box {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  padding: 5px 0;
+  border: 1px solid #E6E6E6;
+  background-color: #fff;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+  margin: -1px;
+}
+xm-select > .xm-body .xm-cascader-box::before {
+  content: ' ';
+  position: absolute;
+  width: 0;
+  height: 0;
+  border: 6px solid transparent;
+  border-right-color: #E6E6E6;
+  top: 10px;
+  left: -12px;
+}
+xm-select > .xm-body .xm-cascader-box::after {
+  content: ' ';
+  position: absolute;
+  width: 0;
+  height: 0;
+  border: 6px solid transparent;
+  border-right-color: #fff;
+  top: 10px;
+  left: -11px;
+}
+xm-select > .xm-body .xm-cascader-scroll {
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+xm-select > .xm-body.cascader {
+  width: unset;
+  min-width: unset;
+}
+xm-select > .xm-body.cascader .xm-option-content {
+  padding-left: 8px;
+}
+xm-select > .xm-body.cascader .disabled .xm-right-arrow {
+  color: #C2C2C2 !important;
+}
+xm-select > .xm-body.cascader .hide-icon.disabled .xm-right-arrow {
+  color: #999 !important;
+}
+xm-select .xm-input {
+  cursor: pointer;
+  border-radius: 2px;
+  border-width: 1px;
+  border-style: solid;
+  border-color: #E6E6E6;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #FFF;
+  line-height: 1.3;
+  padding-left: 10px;
+  outline: 0;
+  user-select: text;
+  -ms-user-select: text;
+  -moz-user-select: text;
+  -webkit-user-select: text;
+}
+xm-select .dis {
+  display: none;
+}
+xm-select .loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+xm-select .loader {
+  border: 0.2em dotted currentcolor;
+  border-radius: 50%;
+  -webkit-animation: 1s loader linear infinite;
+  animation: 1s loader linear infinite;
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  color: inherit;
+  vertical-align: middle;
+  pointer-events: none;
+}
+xm-select .xm-select-default {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: none;
+  visibility: hidden;
+}
+xm-select .xm-select-disabled {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  cursor: no-drop;
+  z-index: 2;
+  opacity: 0.3;
+  background-color: #FFF;
+}
+xm-select .item--divided {
+  border-top: 1px solid #ebeef5;
+  width: calc(100% - 20px);
+  cursor: initial;
+}
+xm-select .xm-right-arrow {
+  position: absolute;
+  color: ;
+  right: 5px;
+  top: -1px;
+  font-weight: 700;
+  transform: scale(0.6, 1);
+}
+xm-select .xm-right-arrow::after {
+  content: '>';
+}
+xm-select[size='large'] {
+  min-height: 40px;
+  line-height: 40px;
+}
+xm-select[size='large'] .xm-input {
+  height: 40px;
+}
+xm-select[size='large'] .xm-label .scroll .label-content {
+  line-height: 34px;
+}
+xm-select[size='large'] .xm-label .xm-label-block {
+  height: 30px;
+  line-height: 30px;
+}
+xm-select[size='large'] .xm-body .xm-option .xm-option-icon {
+  height: 20px;
+  width: 20px;
+  font-size: 20px;
+}
+xm-select[size='large'] .xm-paging > span {
+  height: 34px;
+  line-height: 34px;
+}
+xm-select[size='large'] .xm-tree .left-line {
+  height: 100%;
+  bottom: 20px;
+}
+xm-select[size='large'] .xm-tree .left-line-group {
+  height: calc(100% - 40px);
+}
+xm-select[size='large'] .xm-tree .xm-tree-icon.xm-hidden + .top-line {
+  top: 19px;
+}
+xm-select[size='large'] .item--divided {
+  margin: 10px;
+}
+xm-select {
+  min-height: 36px;
+  line-height: 36px;
+}
+xm-select .xm-input {
+  height: 36px;
+}
+xm-select .xm-label .scroll .label-content {
+  line-height: 30px;
+}
+xm-select .xm-label .xm-label-block {
+  height: 26px;
+  line-height: 26px;
+}
+xm-select .xm-body .xm-option .xm-option-icon {
+  height: 18px;
+  width: 18px;
+  font-size: 18px;
+}
+xm-select .xm-paging > span {
+  height: 30px;
+  line-height: 30px;
+}
+xm-select .xm-tree .left-line {
+  height: 100%;
+  bottom: 18px;
+}
+xm-select .xm-tree .left-line-group {
+  height: calc(100% - 36px);
+}
+xm-select .xm-tree .xm-tree-icon.xm-hidden + .top-line {
+  top: 17px;
+}
+xm-select .item--divided {
+  margin: 9px;
+}
+xm-select[size='small'] {
+  min-height: 32px;
+  line-height: 32px;
+}
+xm-select[size='small'] .xm-input {
+  height: 32px;
+}
+xm-select[size='small'] .xm-label .scroll .label-content {
+  line-height: 26px;
+}
+xm-select[size='small'] .xm-label .xm-label-block {
+  height: 22px;
+  line-height: 22px;
+}
+xm-select[size='small'] .xm-body .xm-option .xm-option-icon {
+  height: 16px;
+  width: 16px;
+  font-size: 16px;
+}
+xm-select[size='small'] .xm-paging > span {
+  height: 26px;
+  line-height: 26px;
+}
+xm-select[size='small'] .xm-tree .left-line {
+  height: 100%;
+  bottom: 16px;
+}
+xm-select[size='small'] .xm-tree .left-line-group {
+  height: calc(100% - 32px);
+}
+xm-select[size='small'] .xm-tree .xm-tree-icon.xm-hidden + .top-line {
+  top: 15px;
+}
+xm-select[size='small'] .item--divided {
+  margin: 8px;
+}
+xm-select[size='mini'] {
+  min-height: 28px;
+  line-height: 28px;
+}
+xm-select[size='mini'] .xm-input {
+  height: 28px;
+}
+xm-select[size='mini'] .xm-label .scroll .label-content {
+  line-height: 22px;
+}
+xm-select[size='mini'] .xm-label .xm-label-block {
+  height: 18px;
+  line-height: 18px;
+}
+xm-select[size='mini'] .xm-body .xm-option .xm-option-icon {
+  height: 14px;
+  width: 14px;
+  font-size: 14px;
+}
+xm-select[size='mini'] .xm-paging > span {
+  height: 22px;
+  line-height: 22px;
+}
+xm-select[size='mini'] .xm-tree .left-line {
+  height: 100%;
+  bottom: 14px;
+}
+xm-select[size='mini'] .xm-tree .left-line-group {
+  height: calc(100% - 28px);
+}
+xm-select[size='mini'] .xm-tree .xm-tree-icon.xm-hidden + .top-line {
+  top: 13px;
+}
+xm-select[size='mini'] .item--divided {
+  margin: 7px;
+}
+.layui-form-pane xm-select {
+  margin: -1px -1px -1px 0;
+}
+</style></head>
+<body>
+<div class="container">
+
+<h1>方言罐头 · 前端交互设计</h1>
+<p class="doc-subtitle">产品体验组出品 · v2 · 2026.07.23 · 基于产品规划组讨论修订</p>
+<p class="doc-subtitle" style="max-width:760px;margin-left:auto;margin-right:auto;color:#555;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px 14px;line-height:1.7;">
+  历史参考稿：本文保留旧版本页面线框和交互讨论。当前产品名称、术语和模型关系以 docs/PRODUCT_DESIGN.md 为准；旧稿中的“货架”按“集盒”理解，“风味”按“义项”理解。
+</p>
+
+<!-- Version Tabs -->
+<div class="version-tabs">
+  <div class="version-tab active" onclick="switchVersion(&#39;v2&#39;)">v2 修订版（当前）</div>
+  <div class="version-tab" onclick="switchVersion(&#39;v1&#39;)">v1 原版（存档）</div>
+</div>
+
+<!-- ==================== V2 SECTION ==================== -->
+<div id="version-v2" class="version-section active">
+
+<!-- Changelog -->
+<div class="changelog">
+  <h3 style="font-size:16px;margin-bottom:14px;">v2 修订说明（基于 7.23 产品规划组讨论）</h3>
+  <div class="changelog-item"><span class="changelog-badge badge-new">新增</span><span class="changelog-text">搜索聚焦态线框图 — 点击搜索后隐藏内容，只留搜索栏+光标</span></div>
+  <div class="changelog-item"><span class="changelog-badge badge-fix">重做</span><span class="changelog-text">罐头详情页 → 词典式词条页：正字+注音+释义+例句+方言切换+审核状态</span></div>
+  <div class="changelog-item"><span class="changelog-badge badge-new">新增</span><span class="changelog-text">方言采集表录音模式 — 对着已有词条录音（语料组提供词表）</span></div>
+  <div class="changelog-item"><span class="changelog-badge badge-fix">修改</span><span class="changelog-text">首页增加"随机罐头"展示区，替代纯列表</span></div>
+  <div class="changelog-item"><span class="changelog-badge badge-adjust">调整</span><span class="changelog-text">铭牌投票降为低优先级（虚线框），后期互动功能</span></div>
+  <div class="changelog-item"><span class="changelog-badge badge-adjust">调整</span><span class="changelog-text">产品调性：更轻松社区化，非严肃词典工具</span></div>
+</div>
+
+<!-- ===== V2 SECTION 1: Core Screens ===== -->
+<div class="section-header green">
+  <h2>一、核心页面线框图（v2）</h2>
+  <p>按用户使用逻辑排列：首页 → 搜索 → 词条详情 → 装罐（双模式）→ 货架/图鉴</p>
+</div>
+
+<div class="screens-row">
+  <!-- Screen 1: Home v2 -->
+  <div class="screen-wrap">
+    <div class="screen-label">首页 (index) v2</div>
+    <div class="phone">
+      <div class="phone-content">
+        <div class="statusbar"><span>9:41</span><span>方言罐头</span><span>100%</span></div>
+        <!-- Top menu bar -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div style="font-size:16px;font-weight:800;color:#1a1a1a;">方言罐头</div>
+          <div style="display:flex;gap:12px;font-size:11px;color:#666;">
+            <span style="font-weight:600;color:#ff6b35;">首页</span>
+            <span>货架</span>
+            <span>图鉴</span>
+            <span>我的</span>
+          </div>
+        </div>
+        <!-- Search bar (middle) -->
+        <div class="input-field placeholder" style="display:flex;align-items:center;gap:6px;padding:10px 12px;">
+          <span style="font-size:14px;">⌕</span><span>搜索方言、正字、拼音、概念</span>
+        </div>
+        <!-- Random can highlight -->
+        <div style="font-size:10px;color:#999;margin:10px 0 6px;">今日随机罐头 🎲</div>
+        <div style="background:linear-gradient(135deg,#fffaf7,#fff3e0);border:1.5px solid #ff6b35;border-radius:14px;padding:14px;text-align:center;">
+          <div style="font-size:28px;margin-bottom:4px;">🥫</div>
+          <div style="font-size:16px;font-weight:800;color:#333;">骹头</div>
+          <div style="font-size:10px;color:#666;margin-top:2px;">膝盖 · 莆仙话莆田游洋</div>
+          <div style="margin-top:8px;display:flex;justify-content:center;gap:6px;">
+            <span class="tag tag-green">tentative</span>
+            <span class="tag tag-blue">3 张铭牌</span>
+          </div>
+          <div style="margin-top:8px;font-size:11px;color:#ff6b35;font-weight:600;">点击收听乡音 ▶</div>
+        </div>
+        <!-- Quick actions -->
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <div class="card" style="flex:1;text-align:center;margin:0;padding:10px 6px;">
+            <div style="font-size:18px;">🎙️</div>
+            <div style="font-size:11px;font-weight:700;color:#ff6b35;">装罐</div>
+          </div>
+          <div class="card" style="flex:1;text-align:center;margin:0;padding:10px 6px;">
+            <div style="font-size:18px;">📋</div>
+            <div style="font-size:11px;font-weight:700;">采集表</div>
+          </div>
+          <div class="card" style="flex:1;text-align:center;margin:0;padding:10px 6px;">
+            <div style="font-size:18px;">🗄️</div>
+            <div style="font-size:11px;font-weight:700;">货架</div>
+          </div>
+        </div>
+      </div>
+      <div class="tab-bar">
+        <div class="tab active"><span class="tab-icon">🏠</span>首页</div>
+        <div class="tab"><span class="tab-icon">🗄️</span>货架</div>
+        <div class="tab"><span class="tab-icon">🎙️</span>装罐</div>
+        <div class="tab"><span class="tab-icon">📖</span>图鉴</div>
+        <div class="tab"><span class="tab-icon">👤</span>我的</div>
+      </div>
+    </div>
+    <div class="screen-note">顶部菜单栏 + 中间搜索 + 随机罐头大卡片。"采集表"入口对应方言采集表录音模式。</div>
+  </div>
+
+  <!-- Screen 2: Search Focus State (NEW) -->
+  <div class="screen-wrap">
+    <div class="screen-label">搜索聚焦态 (新增)</div>
+    <div class="phone">
+      <div class="phone-content">
+        <div class="statusbar"><span>9:41</span><span></span><span>100%</span></div>
+        <!-- Only search bar visible, content hidden -->
+        <div style="margin-top:40px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+            <span style="font-size:16px;color:#333;">‹</span>
+            <div style="flex:1;border:2px solid #ff6b35;border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:6px;background:#fff;">
+              <span style="font-size:14px;color:#ff6b35;">⌕</span>
+              <span style="font-size:12px;color:#333;">膝盖<span style="animation:blink 1s infinite;color:#ff6b35;">|</span></span>
+            </div>
+            <span style="font-size:11px;color:#ff6b35;font-weight:600;">搜索</span>
+          </div>
+          <!-- Search suggestions -->
+          <div style="font-size:10px;color:#999;margin-bottom:8px;">搜索建议</div>
+          <div class="card" style="padding:8px 12px;">
+            <div style="font-size:12px;font-weight:600;">骹头 <span style="font-size:9px;color:#999;">/ 膝盖 · 莆仙话</span></div>
+          </div>
+          <div class="card" style="padding:8px 12px;">
+            <div style="font-size:12px;font-weight:600;">膝头 <span style="font-size:9px;color:#999;">/ 膝盖 · 闽南话</span></div>
+          </div>
+          <div class="card" style="padding:8px 12px;">
+            <div style="font-size:12px;font-weight:600;">脚头 <span style="font-size:9px;color:#999;">/ 膝盖 · 俗写</span></div>
+          </div>
+          <!-- Hot searches -->
+          <div style="font-size:10px;color:#999;margin:12px 0 8px;">热门搜索</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            <span class="tag tag-orange">阿嬷</span>
+            <span class="tag tag-orange">行路</span>
+            <span class="tag tag-orange">食饭</span>
+            <span class="tag tag-orange">落雨</span>
+            <span class="tag tag-orange">日头</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="screen-note">点击搜索后：页面内容+菜单隐藏，只留搜索栏+光标闪烁+联想建议。经典交互。</div>
+  </div>
+
+  <!-- Screen 3: Can Detail / Dictionary Entry (REDESIGNED) -->
+  <div class="screen-wrap">
+    <div class="screen-label">词条详情 (重做)</div>
+    <div class="phone">
+      <div class="phone-content">
+        <div class="statusbar"><span>9:41</span><span></span><span>100%</span></div>
+        <div class="navbar">
+          <span class="back">‹</span>
+          <span class="title">词条详情</span>
+          <span class="action">分享</span>
+        </div>
+        <!-- Dictionary-style entry -->
+        <div style="text-align:center;padding:8px 0;">
+          <!-- Ruby annotation: pronunciation on top, character below -->
+          <div style="display:flex;justify-content:center;align-items:flex-end;gap:2px;margin-bottom:4px;">
+            <div class="ruby-word"><span class="ruby-top">kʰa˥</span><span class="ruby-main">骹</span></div>
+            <div class="ruby-word"><span class="ruby-top">tʰau˨˦</span><span class="ruby-main">头</span></div>
+          </div>
+          <!-- Definition -->
+          <div style="font-size:12px;color:#333;margin-top:4px;">膝盖。"骹"为古汉语"脚"，"头"为词缀。</div>
+          <!-- Status -->
+          <div style="margin-top:6px;"><span class="tag tag-green">✓ 已审核</span></div>
+        </div>
+        <!-- Dialect switch -->
+        <div style="font-size:10px;font-weight:600;color:#555;margin:8px 0 4px;">方言读音切换</div>
+        <div class="dialect-switch">
+          <span class="dialect-chip active">莆田游洋</span>
+          <span class="dialect-chip">仙游</span>
+          <span class="dialect-chip">泉州</span>
+          <span class="dialect-chip">+2</span>
+        </div>
+        <!-- Audio player -->
+        <div style="background:#fffaf7;border:1px solid #ffe0cc;border-radius:10px;padding:10px;display:flex;align-items:center;gap:8px;margin:6px 0;">
+          <span style="width:28px;height:28px;background:#ff6b35;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;">▶</span>
+          <div style="flex:1;height:4px;background:#ffe0cc;border-radius:2px;"><div style="width:35%;height:100%;background:#ff6b35;border-radius:2px;"></div></div>
+          <span style="font-size:9px;color:#999;">0:02</span>
+        </div>
+        <!-- Flavor tags -->
+        <div style="display:flex;gap:4px;margin:6px 0;flex-wrap:wrap;">
+          <span class="tag tag-purple">身体部位</span>
+          <span class="tag tag-purple">名词</span>
+        </div>
+        <!-- Example sentence -->
+        <div style="font-size:10px;font-weight:600;color:#555;margin:8px 0 4px;">例句</div>
+        <div class="card" style="padding:8px 10px;">
+          <div style="font-size:11px;color:#333;">我<span style="color:#ff6b35;font-weight:600;">骹头</span>痛，行路无方便。</div>
+          <div style="font-size:9px;color:#999;margin-top:3px;">我膝盖疼，走路不方便。</div>
+          <div style="display:flex;align-items:center;gap:4px;margin-top:4px;">
+            <span style="font-size:9px;color:#ff6b35;">▶ 听方言读音</span>
+            <span style="font-size:8px;color:#ccc;margin-left:auto;">by 阿游</span>
+          </div>
+        </div>
+        <!-- Actions -->
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <div class="btn btn-primary" style="flex:1;font-size:11px;padding:8px;">🎙️ 录一罐</div>
+          <div class="btn btn-ghost" style="flex:1;font-size:11px;padding:8px;">+ 补例句</div>
+        </div>
+      </div>
+    </div>
+    <div class="screen-note">词典式布局：注音在字上方，释义在下，方言切换按钮，例句区，录音/补例句操作。</div>
+  </div>
+</div>
+
+<!-- Second row: Recording modes -->
+<div class="screens-row">
+  <!-- Screen 4: Create Can (same as v1 but with mode toggle) -->
+  <div class="screen-wrap">
+    <div class="screen-label">装罐 · 创建模式</div>
+    <div class="phone">
+      <div class="phone-content">
+        <div class="statusbar"><span>9:41</span><span></span><span>100%</span></div>
+        <div class="navbar">
+          <span class="back">‹</span>
+          <span class="title">装一罐</span>
+        </div>
+        <!-- Mode toggle -->
+        <div style="display:flex;background:#f5f3f0;border-radius:8px;padding:3px;margin-bottom:10px;">
+          <div style="flex:1;text-align:center;padding:6px;border-radius:6px;background:#ff6b35;color:#fff;font-size:11px;font-weight:600;">创建新词条</div>
+          <div style="flex:1;text-align:center;padding:6px;border-radius:6px;font-size:11px;color:#666;">对着词表录</div>
+        </div>
+        <!-- Form -->
+        <div class="field-label">普通话概念 *</div>
+        <div class="input-field placeholder">例如：膝盖、祖母、走路</div>
+        <div class="field-label">候选写法（可选）</div>
+        <div class="input-field placeholder">正字、俗写、拟音都可以先填</div>
+        <div class="field-label">释义（可选）</div>
+        <div class="input-field placeholder" style="height:32px;">说明这罐声音是什么意思</div>
+        <div class="field-label">方言点 *</div>
+        <div class="input-field" style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="color:#333;">莆仙话 → 莆田 → 游洋</span><span style="color:#999;">▾</span>
+        </div>
+        <!-- Audio recording -->
+        <div class="field-label">录音 *</div>
+        <div style="border:2px dashed #ff6b35;border-radius:12px;padding:14px;text-align:center;margin-bottom:8px;">
+          <div style="font-size:22px;margin-bottom:4px;">🎙️</div>
+          <div style="font-size:12px;font-weight:600;color:#ff6b35;">按住录音</div>
+          <div style="font-size:9px;color:#999;">或点击上传音频文件</div>
+        </div>
+        <div class="btn btn-primary">提交这罐 🥫</div>
+        <div style="font-size:9px;color:#999;text-align:center;margin-top:4px;">提交后由语料组审核</div>
+      </div>
+    </div>
+    <div class="screen-note">创建模式：用户自主创建新词条+录音。必填：概念+方言点+录音。提交后语料组审核。</div>
+  </div>
+
+  <!-- Screen 5: Collection Table Recording Mode (NEW) -->
+  <div class="screen-wrap">
+    <div class="screen-label">装罐 · 采集表模式 (新增)</div>
+    <div class="phone">
+      <div class="phone-content">
+        <div class="statusbar"><span>9:41</span><span></span><span>100%</span></div>
+        <div class="navbar">
+          <span class="back">‹</span>
+          <span class="title">方言采集表</span>
+        </div>
+        <!-- Mode toggle -->
+        <div style="display:flex;background:#f5f3f0;border-radius:8px;padding:3px;margin-bottom:10px;">
+          <div style="flex:1;text-align:center;padding:6px;border-radius:6px;font-size:11px;color:#666;">创建新词条</div>
+          <div style="flex:1;text-align:center;padding:6px;border-radius:6px;background:#ff6b35;color:#fff;font-size:11px;font-weight:600;">对着词表录</div>
+        </div>
+        <!-- Collection table info -->
+        <div style="background:#f3f0ff;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:10px;color:#6c5ce7;">
+          📋 基础词表 · 身体部位（语料组提供）· 已完成 3/20
+        </div>
+        <!-- Word list to record -->
+        <div class="card" style="display:flex;align-items:center;gap:8px;padding:8px 10px;">
+          <span style="font-size:14px;color:#388e3c;">✓</span>
+          <div style="flex:1;"><div style="font-size:12px;font-weight:600;">膝盖</div><div style="font-size:9px;color:#999;">已录 · 骹头</div></div>
+          <span class="tag tag-green">已录</span>
+        </div>
+        <div class="card card-highlight" style="display:flex;align-items:center;gap:8px;padding:8px 10px;">
+          <span style="font-size:14px;">🎙️</span>
+          <div style="flex:1;"><div style="font-size:12px;font-weight:700;color:#ff6b35;">肩膀</div><div style="font-size:9px;color:#999;">点击录制你的方言读音</div></div>
+          <span class="tag tag-orange">录制中</span>
+        </div>
+        <div class="card" style="display:flex;align-items:center;gap:8px;padding:8px 10px;">
+          <span style="font-size:14px;color:#ccc;">○</span>
+          <div style="flex:1;"><div style="font-size:12px;font-weight:600;">脚趾</div><div style="font-size:9px;color:#999;">待录制</div></div>
+        </div>
+        <div class="card" style="display:flex;align-items:center;gap:8px;padding:8px 10px;">
+          <span style="font-size:14px;color:#ccc;">○</span>
+          <div style="flex:1;"><div style="font-size:12px;font-weight:600;">手肘</div><div style="font-size:9px;color:#999;">待录制</div></div>
+        </div>
+        <!-- Recording panel (when active) -->
+        <div style="border:2px solid #ff6b35;border-radius:12px;padding:12px;text-align:center;margin-top:8px;background:#fffaf7;">
+          <div style="font-size:11px;font-weight:600;margin-bottom:6px;">正在录制「肩膀」的方言读音</div>
+          <div style="width:48px;height:48px;border-radius:50%;background:#ff6b35;margin:0 auto 6px;display:flex;align-items:center;justify-content:center;">
+            <span style="color:#fff;font-size:18px;">⏺</span>
+          </div>
+          <div style="font-size:9px;color:#999;">按住录音 · 松开结束</div>
+        </div>
+      </div>
+    </div>
+    <div class="screen-note">采集表模式：语料组提供基础词表，用户照着释义用方言录。类似田野调查采集表。</div>
+  </div>
+
+  <!-- Screen 6: Shelves (same as v1) -->
+  <div class="screen-wrap">
+    <div class="screen-label">货架 (shelves)</div>
+    <div class="phone">
+      <div class="phone-content">
+        <div class="statusbar"><span>9:41</span><span></span><span>100%</span></div>
+        <div class="navbar"><span class="title">货架</span></div>
+        <div style="font-size:10px;color:#999;margin-bottom:10px;">按主题浏览方言罐头</div>
+        <div class="card" style="display:flex;align-items:center;gap:10px;">
+          <div style="font-size:22px;">🦵</div>
+          <div><div style="font-size:12px;font-weight:700;">身体部位</div><div style="font-size:9px;color:#999;">23 罐 · 膝盖、肩膀、脚趾…</div></div>
+        </div>
+        <div class="card" style="display:flex;align-items:center;gap:10px;">
+          <div style="font-size:22px;">👨‍👩‍👧</div>
+          <div><div style="font-size:12px;font-weight:700;">亲属称谓</div><div style="font-size:9px;color:#999;">18 罐 · 祖母、外公、婶婶…</div></div>
+        </div>
+        <div class="card" style="display:flex;align-items:center;gap:10px;">
+          <div style="font-size:22px;">🚶</div>
+          <div><div style="font-size:12px;font-weight:700;">日常动作</div><div style="font-size:9px;color:#999;">31 罐 · 走路、吃饭、睡觉…</div></div>
+        </div>
+        <div class="card" style="display:flex;align-items:center;gap:10px;">
+          <div style="font-size:22px;">🌤️</div>
+          <div><div style="font-size:12px;font-weight:700;">天气与自然</div><div style="font-size:9px;color:#999;">12 罐 · 下雨、打雷、太阳…</div></div>
+        </div>
+      </div>
+      <div class="tab-bar">
+        <div class="tab"><span class="tab-icon">🏠</span>首页</div>
+        <div class="tab active"><span class="tab-icon">🗄️</span>货架</div>
+        <div class="tab"><span class="tab-icon">🎙️</span>装罐</div>
+        <div class="tab"><span class="tab-icon">📖</span>图鉴</div>
+        <div class="tab"><span class="tab-icon">👤</span>我的</div>
+      </div>
+    </div>
+    <div class="screen-note">货架 = 主题分类入口。点进去是该主题下的罐头列表。</div>
+  </div>
+</div>
+
+<!-- Third row: Flavors + Nameplate (low priority) -->
+<div class="screens-row">
+  <!-- Screen 7: Flavors -->
+  <div class="screen-wrap">
+    <div class="screen-label">图鉴 (flavors)</div>
+    <div class="phone">
+      <div class="phone-content">
+        <div class="statusbar"><span>9:41</span><span></span><span>100%</span></div>
+        <div class="navbar"><span class="title">图鉴</span></div>
+        <div class="input-field placeholder" style="font-size:11px;">搜索义项，如"行走""祖母"</div>
+        <div style="font-size:10px;font-weight:700;color:#6c5ce7;margin:8px 0 6px;">按义项浏览（风味）</div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:12px;font-weight:700;">行走</div>
+            <span class="tag tag-blue">5 个方言点</span>
+          </div>
+          <div style="font-size:9px;color:#999;margin-top:3px;">行 / 走 / 趁行 · 8 罐录音</div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:12px;font-weight:700;">祖母（称谓）</div>
+            <span class="tag tag-blue">3 个方言点</span>
+          </div>
+          <div style="font-size:9px;color:#999;margin-top:3px;">阿嬷 / 奶奶 / 阿婆 · 6 罐录音</div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:12px;font-weight:700;">膝盖</div>
+            <span class="tag tag-blue">2 个方言点</span>
+          </div>
+          <div style="font-size:9px;color:#999;margin-top:3px;">骹头 / 脚头 / 膝头 · 4 罐录音</div>
+        </div>
+      </div>
+      <div class="tab-bar">
+        <div class="tab"><span class="tab-icon">🏠</span>首页</div>
+        <div class="tab"><span class="tab-icon">🗄️</span>货架</div>
+        <div class="tab"><span class="tab-icon">🎙️</span>装罐</div>
+        <div class="tab active"><span class="tab-icon">📖</span>图鉴</div>
+        <div class="tab"><span class="tab-icon">👤</span>我的</div>
+      </div>
+    </div>
+    <div class="screen-note">图鉴 = 按义项（风味）浏览。点进一个风味可看到各地读音变体和关联罐头。</div>
+  </div>
+
+  <!-- Screen 8: Nameplate (LOW PRIORITY) -->
+  <div class="screen-wrap">
+    <div class="screen-label">铭牌投票 (低优先级)</div>
+    <div class="phone priority-low" style="border-style:dashed;">
+      <div class="phone-content">
+        <div class="statusbar"><span>9:41</span><span></span><span>100%</span></div>
+        <div class="navbar">
+          <span class="back">‹</span>
+          <span class="title">铭牌列表</span>
+        </div>
+        <div style="background:#f3f0ff;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:10px;color:#6c5ce7;">
+          正在为「骹头 · 莆田话游洋」查看铭牌
+        </div>
+        <div class="card card-highlight">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:12px;font-weight:700;">骹头</div>
+            <span class="tag tag-orange">主铭牌</span>
+          </div>
+          <div style="font-size:10px;color:#666;margin-top:3px;">"骹"为古汉语"脚"，"头"为词缀</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+            <span style="font-size:9px;color:#999;">by 阿游 · 权重 12</span>
+            <span style="font-size:10px;color:#ff6b35;font-weight:600;">▲ 支持 (12)</span>
+          </div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:12px;font-weight:600;">脚头</div>
+            <span class="tag tag-gray">副铭牌</span>
+          </div>
+          <div style="font-size:10px;color:#666;margin-top:3px;">民间俗写</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+            <span style="font-size:9px;color:#999;">by 小陈 · 权重 5</span>
+            <span style="font-size:10px;color:#666;">▲ 支持 (5)</span>
+          </div>
+        </div>
+        <div class="btn btn-ghost" style="font-size:11px;">+ 我也来贴一张铭牌</div>
+      </div>
+    </div>
+    <div class="screen-note">⚠️ 低优先级 · 后期互动功能。群聊共识：投票参考性存疑，先做核心录音频功能。</div>
+    <div class="priority-label">优先级：P2（后期）· 虚线表示非首版必须</div>
+  </div>
+</div>
+
+<!-- ===== V2 SECTION 2: Interaction Flows ===== -->
+<div class="section-header green">
+  <h2>二、核心交互流程（v2）</h2>
+  <p>装罐双模式 + 搜索聚焦 + 词条浏览是主路径</p>
+</div>
+
+<div class="flow-section">
+  <h3 style="font-size:16px;margin-bottom:12px;">流程 A：装罐 · 创建模式（录一罐新声音）</h3>
+  <div class="flow-steps">
+    <div class="flow-node">首页点"装罐"</div><span class="flow-arrow">→</span>
+    <div class="flow-node action">填概念+方言点</div><span class="flow-arrow">→</span>
+    <div class="flow-node action">按住录音</div><span class="flow-arrow">→</span>
+    <div class="flow-node decision">必填<br>校验</div><span class="flow-arrow">→</span>
+    <div class="flow-node" style="background:#e8f5e9;color:#2e7d32;">提交<br>→语料组审核</div>
+  </div>
+
+  <h3 style="font-size:16px;margin:20px 0 12px;">流程 B：装罐 · 采集表模式（对着词表录）</h3>
+  <div class="flow-steps">
+    <div class="flow-node">首页点"采集表"</div><span class="flow-arrow">→</span>
+    <div class="flow-node action">选择词表主题</div><span class="flow-arrow">→</span>
+    <div class="flow-node action">看释义→录方言</div><span class="flow-arrow">→</span>
+    <div class="flow-node action">下一个词</div><span class="flow-arrow">→</span>
+    <div class="flow-node" style="background:#e8f5e9;color:#2e7d32;">批量提交<br>→语料组审核</div>
+  </div>
+  <p style="font-size:12px;color:#555;line-height:1.7;margin-top:8px;">
+    <strong>采集表来源：</strong>语料组提供基础词表（如"身体部位20词"），用户照着释义用方言读出来。<br>
+    <strong>进度追踪：</strong>显示"已完成 3/20"，已录词条打勾，当前录制词条高亮。<br>
+    <strong>与创建模式的关系：</strong>采集表录完的词条自动关联到已有罐头，不创建新词条。
+  </p>
+
+  <h3 style="font-size:16px;margin:20px 0 12px;">流程 C：搜索 → 词条浏览</h3>
+  <div class="flow-steps">
+    <div class="flow-node">点击搜索栏</div><span class="flow-arrow">→</span>
+    <div class="flow-node action">内容隐藏<br>光标闪烁</div><span class="flow-arrow">→</span>
+    <div class="flow-node action">输入关键词</div><span class="flow-arrow">→</span>
+    <div class="flow-node action">联想建议</div><span class="flow-arrow">→</span>
+    <div class="flow-node" style="background:#e8f5e9;color:#2e7d32;">进入词条<br>详情页</div>
+  </div>
+
+  <h3 style="font-size:16px;margin:20px 0 12px;">流程 D：铭牌投票（后期 · P2）</h3>
+  <div class="flow-steps" style="opacity:0.5;">
+    <div class="flow-node">进入词条详情</div><span class="flow-arrow">→</span>
+    <div class="flow-node action">查看铭牌</div><span class="flow-arrow">→</span>
+    <div class="flow-node action">支持/贴铭牌</div><span class="flow-arrow">→</span>
+    <div class="flow-node" style="background:#e8f5e9;color:#2e7d32;">权重重排</div>
+  </div>
+  <p style="font-size:11px;color:#999;margin-top:6px;">⚠️ 后期功能。群聊共识：投票参考性存疑，优先级低于核心录音功能。首版不做。</p>
+</div>
+
+<!-- ===== V2 SECTION 3: Open Questions ===== -->
+<div class="section-header orange">
+  <h2>三、待定问题（群聊中未解决）</h2>
+  <p>以下问题在 7.23 讨论中明确"先保留"，需后续会议确定</p>
+</div>
+
+<div class="interaction-notes">
+  <div class="note-grid">
+    <div class="note-card">
+      <h4>发音基准</h4>
+      <p>注音以哪个发音为主？不同口音是同一语言的变种，但是否存在"标准音"？<br><br>
+      <strong>临时方案：</strong>使用人数最多的方言读音为默认，其他读音通过切换按钮展示。</p>
+      <div class="state">状态：待定 · 余佳辰"暂时没想好，先作为问题摆出来"</div>
+    </div>
+    <div class="note-card">
+      <h4>多义词归类</h4>
+      <p>相近释义如何合并？如"小孩"和"儿童"是否算同一义项？一个读音对应多个意思时如何分列？<br><br>
+      <strong>临时方案：</strong>用户提出新释义 → 审核后单列义项。</p>
+      <div class="state">状态：待定 · 余佳辰"我觉得可能未必存在那种一个读音对应很多个意思的方言"</div>
+    </div>
+    <div class="note-card">
+      <h4>语料来源</h4>
+      <p>采集表词表由谁提供？例句语料从哪来？初版例句可以先空着，但功能要保留。<br><br>
+      <strong>临时方案：</strong>语料组负责词表和语料选择。</p>
+      <div class="state">状态：交给语料组 · 楚程昊"语料的选择交给语料的同学来吧"</div>
+    </div>
+    <div class="note-card">
+      <h4>搜索栏位置</h4>
+      <p>余佳辰倾向夸克引擎风格（搜索栏放底部，单手操作），但明确说"这都后话"。<br><br>
+      <strong>当前方案：</strong>搜索栏在中间偏上。后续可调整。</p>
+      <div class="state">状态：后话 · 先把框立起来</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== V2 SECTION 4: Design Tokens (same as v1) ===== -->
+<div class="section-header">
+  <h2>四、基础设计变量</h2>
+  <p>供前端写入 uni.scss（与 v1 一致）</p>
+</div>
+
+<div class="interaction-notes">
+  <div class="note-grid">
+    <div class="note-card">
+      <h4>色彩</h4>
+      <p>
+        <strong>主色：</strong>#FF6B35（装罐按钮、主铭牌高亮、Tab 激活）<br>
+        <strong>辅色：</strong>#6C5CE7（风味/图鉴相关）<br>
+        <strong>成功：</strong>#388E3C · <strong>警告：</strong>#F9A825 · <strong>错误：</strong>#D32F2F<br>
+        <strong>背景：</strong>#FAF8F5 · <strong>卡片：</strong>#FFFFFF · <strong>边框：</strong>#E8E4DF<br>
+        <strong>正文：</strong>#2D2A26 · <strong>次要文字：</strong>#666666 · <strong>辅助：</strong>#999999
+      </p>
+    </div>
+    <div class="note-card">
+      <h4>字号与圆角</h4>
+      <p>
+        <strong>大标题：</strong>18px/800 · <strong>页面标题：</strong>16px/700<br>
+        <strong>卡片标题：</strong>14px/700 · <strong>正文：</strong>13px/400<br>
+        <strong>辅助文字：</strong>11px/400 · <strong>标签：</strong>10px/600<br>
+        <strong>卡片圆角：</strong>12px · <strong>按钮圆角：</strong>10px<br>
+        <strong>标签圆角：</strong>6px · <strong>输入框圆角：</strong>8px
+      </p>
+    </div>
+  </div>
+</div>
+
+</div><!-- end v2 section -->
+
+<!-- ==================== V1 SECTION (ARCHIVE) ==================== -->
+<div id="version-v1" class="version-section">
+
+<div class="changelog">
+  <h3 style="font-size:16px;margin-bottom:8px;">v1 原版（2026.07.23 初版存档）</h3>
+  <p style="font-size:12px;color:#666;">以下为最初基于代码仓库生成的交互设计，保留供对照参考。</p>
+</div>
+
+<!-- V1 Screens -->
+<div class="section-header">
+  <h2>v1 · 核心页面线框图</h2>
+  <p>以下 6 个页面为初版设计</p>
+</div>
+
+<div class="screens-row">
+  <!-- V1 Screen 1: Home -->
+  <div class="screen-wrap">
+    <div class="screen-label">首页 (index)</div>
+    <div class="phone">
+      <div class="phone-content">
+        <div class="statusbar"><span>9:41</span><span>方言罐头</span><span>100%</span></div>
+        <div style="margin-bottom:10px;">
+          <div style="font-size:18px;font-weight:800;color:#1a1a1a;">方言罐头</div>
+          <div style="font-size:10px;color:#999;">把每一段乡音装进可校验的资料库</div>
+        </div>
+        <div class="input-field placeholder" style="display:flex;align-items:center;gap:6px;">
+          <span>⌕</span><span>搜索方言、正字、拼音、概念</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;">
+          <div class="card" style="text-align:center;margin:0;"><div style="font-size:20px;">🗄️</div><div style="font-size:12px;font-weight:700;">货架</div><div style="font-size:9px;color:#999;">按主题浏览</div></div>
+          <div class="card" style="text-align:center;margin:0;border-color:#ff6b35;"><div style="font-size:20px;">🎙️</div><div style="font-size:12px;font-weight:700;color:#ff6b35;">装罐</div><div style="font-size:9px;color:#999;">录下新乡音</div></div>
+          <div class="card" style="text-align:center;margin:0;"><div style="font-size:20px;">📖</div><div style="font-size:12px;font-weight:700;">图鉴</div><div style="font-size:9px;color:#999;">按义项浏览</div></div>
+          <div class="card" style="text-align:center;margin:0;"><div style="font-size:20px;">👤</div><div style="font-size:12px;font-weight:700;">我的</div><div style="font-size:9px;color:#999;">我的罐头</div></div>
+        </div>
+        <div style="font-size:11px;font-weight:700;margin-bottom:6px;">最近的罐头</div>
+        <div class="card" style="display:flex;align-items:center;gap:8px;">
+          <div style="width:28px;height:28px;border-radius:6px;background:#fff3e0;display:flex;align-items:center;justify-content:center;font-size:12px;">🥫</div>
+          <div style="flex:1;"><div style="font-size:11px;font-weight:600;">骹头 · 莆田话</div><div style="font-size:9px;color:#999;">膝盖 · 3张铭牌</div></div>
+          <span class="tag tag-green">tentative</span>
+        </div>
+        <div class="card" style="display:flex;align-items:center;gap:8px;">
+          <div style="width:28px;height:28px;border-radius:6px;background:#f3e5f5;display:flex;align-items:center;justify-content:center;font-size:12px;">🥫</div>
+          <div style="flex:1;"><div style="font-size:11px;font-weight:600;">阿嬷 · 仙游话</div><div style="font-size:9px;color:#999;">祖母 · 1张铭牌</div></div>
+          <span class="tag tag-yellow">pending</span>
+        </div>
+      </div>
+      <div class="tab-bar">
+        <div class="tab active"><span class="tab-icon">🏠</span>首页</div>
+        <div class="tab"><span class="tab-icon">🗄️</span>货架</div>
+        <div class="tab"><span class="tab-icon">🎙️</span>装罐</div>
+        <div class="tab"><span class="tab-icon">📖</span>图鉴</div>
+        <div class="tab"><span class="tab-icon">👤</span>我的</div>
+      </div>
+    </div>
+    <div class="screen-note">底部 Tab 导航。"装罐"Tab 用主色突出。</div>
+  </div>
+
+  <!-- V1 Screen 2: Create -->
+  <div class="screen-wrap">
+    <div class="screen-label">装罐 (cans/create)</div>
+    <div class="phone">
+      <div class="phone-content">
+        <div class="statusbar"><span>9:41</span><span></span><span>100%</span></div>
+        <div class="navbar"><span class="back">‹</span><span class="title">装一罐</span></div>
+        <div class="field-label">普通话概念 *</div>
+        <div class="input-field placeholder">例如：膝盖、祖母、走路</div>
+        <div class="field-label">候选写法（可选）</div>
+        <div class="input-field placeholder">正字、俗写、拟音都可以先填</div>
+        <div class="field-label">释义（可选）</div>
+        <div class="input-field placeholder" style="height:36px;">说明这罐声音是什么意思</div>
+        <div class="field-label">方言点 *</div>
+        <div class="input-field" style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#333;">莆仙话 → 莆田 → 游洋</span><span style="color:#999;">▾</span></div>
+        <div class="field-label">录音 *</div>
+        <div style="border:2px dashed #ff6b35;border-radius:12px;padding:16px;text-align:center;margin-bottom:8px;">
+          <div style="font-size:24px;margin-bottom:4px;">🎙️</div>
+          <div style="font-size:12px;font-weight:600;color:#ff6b35;">按住录音</div>
+          <div style="font-size:9px;color:#999;">或点击上传音频文件</div>
+        </div>
+        <div class="btn btn-primary">提交这罐 🥫</div>
+        <div style="font-size:9px;color:#999;text-align:center;margin-top:6px;">不会写正字也没关系，先录下来最重要</div>
+      </div>
+    </div>
+    <div class="screen-note">门槛极低：只有"概念+方言点+录音"是必填。</div>
+  </div>
+
+  <!-- V1 Screen 3: Details -->
+  <div class="screen-wrap">
+    <div class="screen-label">罐头详情 (cans/details)</div>
+    <div class="phone">
+      <div class="phone-content">
+        <div class="statusbar"><span>9:41</span><span></span><span>100%</span></div>
+        <div class="navbar"><span class="back">‹</span><span class="title">罐头详情</span><span class="action">分享</span></div>
+        <div style="background:#fffaf7;border:1.5px solid #ff6b35;border-radius:12px;padding:12px;text-align:center;margin-bottom:10px;">
+          <div style="font-size:22px;font-weight:800;color:#333;">骹头</div>
+          <div style="font-size:11px;color:#666;margin-top:2px;">膝盖 · 莆仙话莆田游洋</div>
+          <div style="margin-top:8px;"><span style="display:inline-block;padding:6px 20px;background:#ff6b35;color:#fff;border-radius:16px;font-size:12px;font-weight:600;">▶ 播放乡音</span></div>
+          <div style="margin-top:6px;"><span class="tag tag-green">tentative 社区暂定</span></div>
+        </div>
+        <div style="font-size:11px;font-weight:700;margin-bottom:6px;">铭牌 (3)</div>
+        <div class="card card-highlight">
+          <div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-size:12px;font-weight:700;">骹头</div><span class="tag tag-orange">主铭牌</span></div>
+          <div style="font-size:10px;color:#666;margin-top:3px;">"骹"为古汉语"脚"，"头"为词缀</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;"><span style="font-size:9px;color:#999;">by 阿游 · 权重 12</span><span style="font-size:10px;color:#ff6b35;font-weight:600;">▲ 支持 (12)</span></div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-size:12px;font-weight:600;">脚头</div><span class="tag tag-gray">副铭牌</span></div>
+          <div style="font-size:10px;color:#666;margin-top:3px;">民间俗写</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;"><span style="font-size:9px;color:#999;">by 小陈 · 权重 5</span><span style="font-size:10px;color:#666;">▲ 支持 (5)</span></div>
+        </div>
+        <div class="btn btn-ghost" style="font-size:11px;">+ 我也来贴一张铭牌</div>
+      </div>
+    </div>
+    <div class="screen-note">主铭牌高亮卡片置顶，副铭牌普通列表。</div>
+  </div>
+</div>
+
+<div class="screens-row">
+  <!-- V1 Screen 4: Shelves -->
+  <div class="screen-wrap">
+    <div class="screen-label">货架 (shelves)</div>
+    <div class="phone">
+      <div class="phone-content">
+        <div class="statusbar"><span>9:41</span><span></span><span>100%</span></div>
+        <div class="navbar"><span class="title">货架</span></div>
+        <div style="font-size:10px;color:#999;margin-bottom:10px;">按主题浏览方言罐头</div>
+        <div class="card" style="display:flex;align-items:center;gap:10px;"><div style="font-size:22px;">🦵</div><div><div style="font-size:12px;font-weight:700;">身体部位</div><div style="font-size:9px;color:#999;">23 罐</div></div></div>
+        <div class="card" style="display:flex;align-items:center;gap:10px;"><div style="font-size:22px;">👨‍👩‍👧</div><div><div style="font-size:12px;font-weight:700;">亲属称谓</div><div style="font-size:9px;color:#999;">18 罐</div></div></div>
+        <div class="card" style="display:flex;align-items:center;gap:10px;"><div style="font-size:22px;">🚶</div><div><div style="font-size:12px;font-weight:700;">日常动作</div><div style="font-size:9px;color:#999;">31 罐</div></div></div>
+        <div class="card" style="display:flex;align-items:center;gap:10px;"><div style="font-size:22px;">🌤️</div><div><div style="font-size:12px;font-weight:700;">天气与自然</div><div style="font-size:9px;color:#999;">12 罐</div></div></div>
+      </div>
+      <div class="tab-bar">
+        <div class="tab"><span class="tab-icon">🏠</span>首页</div>
+        <div class="tab active"><span class="tab-icon">🗄️</span>货架</div>
+        <div class="tab"><span class="tab-icon">🎙️</span>装罐</div>
+        <div class="tab"><span class="tab-icon">📖</span>图鉴</div>
+        <div class="tab"><span class="tab-icon">👤</span>我的</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- V1 Screen 5: Flavors -->
+  <div class="screen-wrap">
+    <div class="screen-label">图鉴 (flavors)</div>
+    <div class="phone">
+      <div class="phone-content">
+        <div class="statusbar"><span>9:41</span><span></span><span>100%</span></div>
+        <div class="navbar"><span class="title">图鉴</span></div>
+        <div class="input-field placeholder" style="font-size:11px;">搜索义项</div>
+        <div style="font-size:10px;font-weight:700;color:#6c5ce7;margin:8px 0 6px;">按义项浏览（风味）</div>
+        <div class="card"><div style="display:flex;justify-content:space-between;"><div style="font-size:12px;font-weight:700;">行走</div><span class="tag tag-blue">5 个方言点</span></div><div style="font-size:9px;color:#999;margin-top:3px;">行 / 走 / 趁行 · 8 罐</div></div>
+        <div class="card"><div style="display:flex;justify-content:space-between;"><div style="font-size:12px;font-weight:700;">祖母</div><span class="tag tag-blue">3 个方言点</span></div><div style="font-size:9px;color:#999;margin-top:3px;">阿嬷 / 奶奶 / 阿婆 · 6 罐</div></div>
+        <div class="card"><div style="display:flex;justify-content:space-between;"><div style="font-size:12px;font-weight:700;">膝盖</div><span class="tag tag-blue">2 个方言点</span></div><div style="font-size:9px;color:#999;margin-top:3px;">骹头 / 脚头 / 膝头 · 4 罐</div></div>
+      </div>
+      <div class="tab-bar">
+        <div class="tab"><span class="tab-icon">🏠</span>首页</div>
+        <div class="tab"><span class="tab-icon">🗄️</span>货架</div>
+        <div class="tab"><span class="tab-icon">🎙️</span>装罐</div>
+        <div class="tab active"><span class="tab-icon">📖</span>图鉴</div>
+        <div class="tab"><span class="tab-icon">👤</span>我的</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- V1 Screen 6: Nameplate -->
+  <div class="screen-wrap">
+    <div class="screen-label">贴铭牌 (交互弹层)</div>
+    <div class="phone">
+      <div class="phone-content">
+        <div class="statusbar"><span>9:41</span><span></span><span>100%</span></div>
+        <div class="navbar"><span class="back">‹</span><span class="title">贴铭牌</span></div>
+        <div style="background:#f3f0ff;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:10px;color:#6c5ce7;">正在为「骹头 · 莆田话游洋」贴铭牌</div>
+        <div class="field-label">我主张的写法 *</div>
+        <div class="input-field placeholder">你认为该写成什么字？</div>
+        <div class="field-label">释义</div>
+        <div class="input-field placeholder" style="height:32px;">这个写法是什么意思？</div>
+        <div class="field-label">包装类型</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+          <span class="tag tag-orange" style="padding:4px 10px;font-size:10px;">正字</span>
+          <span class="tag tag-gray" style="padding:4px 10px;font-size:10px;">借字</span>
+          <span class="tag tag-gray" style="padding:4px 10px;font-size:10px;">俗写</span>
+          <span class="tag tag-gray" style="padding:4px 10px;font-size:10px;">拟音</span>
+        </div>
+        <div class="field-label">证据 / 来源（加分项）</div>
+        <div class="input-field placeholder" style="height:32px;">方言志页码、长辈确认…</div>
+        <div class="btn btn-primary">提交铭牌 🏷️</div>
+      </div>
+    </div>
+    <div class="screen-note">铭牌 = 主张。多张铭牌可以共存。</div>
+  </div>
+</div>
+
+</div><!-- end v1 section -->
+
+</div><!-- end container -->
+
+<script>
+function switchVersion(v) {
+  document.querySelectorAll('.version-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.version-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('version-' + v).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+
+
+</body></html>
