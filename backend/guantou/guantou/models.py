@@ -365,6 +365,37 @@ class Nameplate(models.Model):
         verbose_name_plural = "铭牌"
 
 
+class NameplateSupport(models.Model):
+    """铭牌支持记录；同一用户对同一铭牌只能支持一次。"""
+
+    nameplate = models.ForeignKey(
+        Nameplate,
+        on_delete=models.CASCADE,
+        related_name="supports",
+        verbose_name="铭牌",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="nameplate_supports",
+        verbose_name="支持者",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    def __str__(self):
+        return f"{self.user_id} 支持 {self.nameplate_id}"
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["nameplate", "user"], name="unique_nameplate_support_user"
+            )
+        ]
+        verbose_name = "铭牌支持"
+        verbose_name_plural = "铭牌支持"
+
+
 class Shelf(models.Model):
     """货架；主题组织容器，对应旧系统中的词单。"""
 

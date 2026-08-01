@@ -69,9 +69,10 @@
           </view>
           <button
             class="vote"
+            :disabled="plate.supported_by_current_user"
             @tap="vote(plate.id)"
           >
-            认可这张铭牌 · {{ plate.weight }}
+            {{ plate.supported_by_current_user ? '已支持' : '支持这张铭牌' }} · {{ plate.weight }}
           </button>
         </view>
         <view class="new-plate">
@@ -140,6 +141,8 @@ export default {
       this.can = await getCan(this.id);
     },
     async vote(id) {
+      const plate = this.can.nameplates.find((item) => item.id === id);
+      if (plate && plate.supported_by_current_user) return;
       await voteNameplate(id, 1);
       await this.refresh();
     },
@@ -263,6 +266,11 @@ export default {
   background: #fff;
   border: 1px solid #cbd5c5;
   color: #2f4638;
+}
+
+.vote[disabled] {
+  color: #7a867d;
+  background: #f3f5f1;
 }
 
 .new-plate {

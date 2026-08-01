@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from .models import Can, Dialect, Flavor, Nameplate, Package
+from .models import Can, Dialect, Flavor, Nameplate, NameplateSupport, Package
 
 
 class GuantouApiTests(TestCase):
@@ -87,6 +87,68 @@ class GuantouApiTests(TestCase):
         strong.refresh_from_db()
         self.assertFalse(weak.is_primary)
         self.assertTrue(strong.is_primary)
+        self.assertEqual(strong.weight, 3)
+        self.assertTrue(
+            NameplateSupport.objects.filter(nameplate=strong, user=self.user).exists()
+        )
+        self.assertTrue(vote_res.data["supported_by_current_user"])
+
+    def test_repeated_vote_by_same_user_does_not_increment_weight(self):
+        can = Can.objects.create(
+            audio_url="https://example.com/audio.mp3",
+            recorder=self.user,
+            dialect=self.child,
+            concept_text="走路",
+        )
+        plate = Nameplate.objects.create(
+            can=can,
+            creator=self.user,
+            text_content="行",
+            flavor=self.flavor,
+            package=self.package,
+        )
+
+        first_res = self.client.post(
+            f"/api/nameplates/{plate.id}/vote/", {"delta": 1}, format="json"
+        )
+        second_res = self.client.post(
+            f"/api/nameplates/{plate.id}/vote/", {"delta": 1}, format="json"
+        )
+
+        self.assertEqual(first_res.status_code, 200)
+        self.assertEqual(second_res.status_code, 200)
+        plate.refresh_from_db()
+        self.assertEqual(plate.weight, 1)
+        self.assertEqual(NameplateSupport.objects.filter(nameplate=plate).count(), 1)
+
+    def test_different_users_can_support_same_nameplate_once_each(self):
+        other_user = User.objects.create_user(username="supporter", password="pw")
+        can = Can.objects.create(
+            audio_url="https://example.com/audio.mp3",
+            recorder=self.user,
+            dialect=self.child,
+            concept_text="走路",
+        )
+        plate = Nameplate.objects.create(
+            can=can,
+            creator=self.user,
+            text_content="行",
+            flavor=self.flavor,
+            package=self.package,
+        )
+
+        self.client.post(
+            f"/api/nameplates/{plate.id}/vote/", {"delta": 1}, format="json"
+        )
+        other_client = APIClient()
+        other_client.force_authenticate(user=other_user)
+        other_client.post(
+            f"/api/nameplates/{plate.id}/vote/", {"delta": 1}, format="json"
+        )
+
+        plate.refresh_from_db()
+        self.assertEqual(plate.weight, 2)
+        self.assertEqual(NameplateSupport.objects.filter(nameplate=plate).count(), 2)
 
     def test_parent_dialect_filter_includes_children(self):
         can = Can.objects.create(

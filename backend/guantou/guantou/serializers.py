@@ -7,6 +7,7 @@ from .models import (
     FlavorPackage,
     FlavorVariant,
     Nameplate,
+    NameplateSupport,
     Package,
     Shelf,
 )
@@ -178,6 +179,7 @@ class NameplateSerializer(serializers.ModelSerializer):
     creator = UserLiteSerializer(read_only=True)
     flavor_detail = FlavorSerializer(source="flavor", read_only=True)
     package_detail = PackageSerializer(source="package", read_only=True)
+    supported_by_current_user = serializers.SerializerMethodField()
 
     class Meta:
         model = Nameplate
@@ -195,6 +197,7 @@ class NameplateSerializer(serializers.ModelSerializer):
             "source_citation",
             "weight",
             "is_primary",
+            "supported_by_current_user",
             "created_at",
             "updated_at",
         ]
@@ -203,9 +206,17 @@ class NameplateSerializer(serializers.ModelSerializer):
             "creator",
             "weight",
             "is_primary",
+            "supported_by_current_user",
             "created_at",
             "updated_at",
         ]
+
+    def get_supported_by_current_user(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return False
+        return NameplateSupport.objects.filter(nameplate=obj, user=user).exists()
 
     def create(self, validated_data):
         request = self.context.get("request")

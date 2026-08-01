@@ -1,4 +1,5 @@
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import F, Q
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -9,6 +10,7 @@ from .models import (
     Flavor,
     FlavorVariant,
     Nameplate,
+    NameplateSupport,
     Package,
     Shelf,
 )
@@ -199,13 +201,20 @@ class NameplateViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def vote(self, request, pk=None):
         nameplate = self.get_object()
-        delta = int(request.data.get("delta", 1))
-        nameplate.weight = nameplate.weight + delta
-        nameplate.save(update_fields=["weight", "updated_at"])
+        with transaction.atomic():
+            _, created = NameplateSupport.objects.get_or_create(
+                nameplate=nameplate, user=request.user
+            )
+            if created:
+                Nameplate.objects.filter(id=nameplate.id).update(weight=F("weight") + 1)
+                nameplate.refresh_from_db()
         strongest = nameplate.can.nameplates.order_by("-weight", "id").first()
         if strongest:
             strongest.promote_to_primary()
-        return Response(NameplateSerializer(strongest or nameplate).data)
+        serializer = NameplateSerializer(
+            strongest or nameplate, context={"request": request}
+        )
+        return Response(serializer.data)
 
 
 class ShelfViewSet(viewsets.ModelViewSet):
