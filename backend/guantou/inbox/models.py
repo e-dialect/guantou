@@ -1,4 +1,6 @@
 from django.conf import settings
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.utils import timezone
 
@@ -34,6 +36,14 @@ class Notification(models.Model):
         blank=True,
         null=True,
     )
+    related_content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+    )
+    related_object_id = models.CharField(max_length=255, blank=True, null=True)
+    related_object = GenericForeignKey("related_content_type", "related_object_id")
     level = models.CharField(max_length=20, choices=LEVEL_CHOICES, default=LEVEL_INFO)
     verb = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
@@ -46,6 +56,7 @@ class Notification(models.Model):
         indexes = [
             models.Index(fields=["recipient", "unread"]),
             models.Index(fields=["actor"]),
+            models.Index(fields=["related_content_type", "related_object_id"]),
         ]
         verbose_name = "Notification"
         verbose_name_plural = "站内通知"

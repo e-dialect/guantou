@@ -30,6 +30,7 @@ def send_notification(
             verb=title,
             description=content,
             target=target if isinstance(target, Notification) else None,
+            related_object=action_object,
         )
         for recipient in recipients
     ]

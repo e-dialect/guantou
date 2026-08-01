@@ -8,6 +8,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
+        ("contenttypes", "0002_remove_content_type_name"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -40,6 +41,10 @@ class Migration(migrations.Migration):
                 ("verb", models.CharField(max_length=255)),
                 ("description", models.TextField(blank=True, null=True)),
                 (
+                    "related_object_id",
+                    models.CharField(blank=True, max_length=255, null=True),
+                ),
+                (
                     "timestamp",
                     models.DateTimeField(
                         db_index=True, default=django.utils.timezone.now
@@ -63,6 +68,15 @@ class Migration(migrations.Migration):
                         related_name="received_notifications",
                         to=settings.AUTH_USER_MODEL,
                         verbose_name="recipient",
+                    ),
+                ),
+                (
+                    "related_content_type",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="contenttypes.contenttype",
                     ),
                 ),
                 (
@@ -91,5 +105,12 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name="notification",
             index=models.Index(fields=["actor"], name="inbox_notif_actor_i_13f4bc_idx"),
+        ),
+        migrations.AddIndex(
+            model_name="notification",
+            index=models.Index(
+                fields=["related_content_type", "related_object_id"],
+                name="inbox_notif_related_6e16e2_idx",
+            ),
         ),
     ]
