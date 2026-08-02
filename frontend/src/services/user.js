@@ -7,7 +7,7 @@ import rawRequest from '@/utils/rawRequest';
  */
 export async function registerUser(username, password, email, code) {
   return new Promise((resolve, reject) => {
-    rawRequest.post('/users', {
+    rawRequest.post('/api/users', {
       username, password, email, code,
     }, { auth: false }).then((res) => {
       resolve(res);
@@ -46,7 +46,7 @@ export function registerWechatUser(username, password, nickname) {
   uni.login({
     async success(res) {
       if (res.code) {
-        await rawRequest.post('/users/wechat/register', {
+        await rawRequest.post('/api/users/wechat/register', {
           username,
           password,
           jscode: res.code,
@@ -88,7 +88,7 @@ export function registerWechatUser(username, password, nickname) {
  * @returns {Promise<unknown>}
  */
 export async function getUserInfo(id) {
-  return request.get(`/users/${id}`);
+  return request.get(`/api/users/${id}`);
 }
 
 /**
@@ -98,7 +98,7 @@ export async function getUserInfo(id) {
  */
 export async function changeUserInfo(id, userInfo) {
   return new Promise((resolve) => {
-    request.put(`/users/${id}`, { user: userInfo }).then((res) => {
+    request.put(`/api/users/${id}`, { user: userInfo }).then((res) => {
       uni.setStorageSync('token', res.token);
       getApp().globalData.userInfo = userInfo;
       uni.showToast({
@@ -117,7 +117,7 @@ export async function changeUserInfo(id, userInfo) {
  * @returns {Promise<unknown>}
  */
 export async function changeUserPassword(id, oldPassword, newPassword) {
-  return request.put(`/users/${id}/password`, { oldpassword: oldPassword, newpassword: newPassword });
+  return request.put(`/api/users/${id}/password`, { oldpassword: oldPassword, newpassword: newPassword });
 }
 
 /**
@@ -128,7 +128,7 @@ export async function changeUserPassword(id, oldPassword, newPassword) {
  * @returns {Promise<unknown>}
  */
 export async function changeUserEmail(id, email, code) {
-  return request.put(`/users/${id}/email`, { email, code });
+  return request.put(`/api/users/${id}/email`, { email, code });
 }
 
 /**
@@ -146,7 +146,7 @@ export async function bindingWechat(id, overwrite) {
           return;
         }
         try {
-          await request.put(`/users/${id}/wechat`, { jscode: res.code, overwrite });
+          await request.put(`/api/users/${id}/wechat`, { jscode: res.code, overwrite });
           resolve({ success: true, msg: '绑定成功' });
         } catch (err) {
           // 传递错误给调用方，由调用方统一显示提示
@@ -166,7 +166,7 @@ export async function bindingWechat(id, overwrite) {
  * @returns {Promise<unknown>}
  */
 export async function cancelBindingWechat(id) {
-  return request.del(`/users/${id}/wechat`);
+  return request.del(`/api/users/${id}/wechat`);
 }
 
 /**
@@ -186,11 +186,11 @@ export function clearUserInfo() {
  * @returns {Promise<unknown>}
  */
 export function getEmailByUsername(username) {
-  return request.get('/login/forget', { username });
+  return request.get('/api/login/forget', { username });
 }
 
 export function resetPassword(username, password, email, code) {
-  return request.put('/login/forget', {
+  return request.put('/api/login/forget', {
     username, password, email, code,
   });
 }

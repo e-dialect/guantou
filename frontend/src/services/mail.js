@@ -2,7 +2,7 @@ import request from '@/utils/request';
 
 export async function postMail(notification) {
   try {
-    const response = await request.post('/notifications', notification);
+    const response = await request.post('/api/notifications', notification);
     // 请求成功时显示成功提示框
     uni.showToast({
       title: '请求成功',
@@ -24,11 +24,11 @@ export async function postMail(notification) {
 /* 获取用户所有的通知
 */
 export async function getAllMails(page) {
-  return request.get(`/notifications?page=${page}`);
+  return request.get(`/api/notifications?page=${page}`);
 }
 
 /* 获取某个通知的详情
 */
 export async function getMailDetails(id) {
-  return request.get(`/notifications/${id}`);
+  return request.get(`/api/notifications/${id}`);
 }

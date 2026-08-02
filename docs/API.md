@@ -20,8 +20,17 @@
 - `GET/POST /api/cans/`
 - `GET/POST /api/nameplates/`
 - `GET/POST /api/shelves/`
+- `GET /api/search/`
+- `/api/users...`
+- `/api/login...`
+- `/api/announcements...`
+- `/api/site-settings...`
+- `/api/files...`
+- `/api/notifications...`
 
 写接口需要在 header 中传入旧系统的 `token`。
+
+旧版无 `/api` 前缀的用户、登录、公告、站点配置、文件和通知入口暂时保留兼容，不作为新增开发入口。
 
 ## 错误响应
 
@@ -163,3 +172,13 @@ POST /api/nameplates/{nameplate_id}/vote/
 - `/api/packages/?search=行`
 
 搜索写法时，前端应展示该写法关联的义项列表；进入义项详情后，再展示方言点变体和相关罐头。
+
+## 聚合搜索
+
+聚合搜索属于罐头核心领域，不单独拆 Django app：
+
+```http
+GET /api/search/?q=膝盖&limit=8
+```
+
+返回 `flavors`、`packages`、`cans` 三组结果。它不会改变外键检索方式；单资源筛选仍走 `/api/flavors/?package=...`、`/api/cans/?flavor=...` 等资源列表参数。

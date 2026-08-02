@@ -12,7 +12,7 @@ export async function loadUserInfo() {
     return;
   }
   const app = getApp();
-  await rawRequest.get(`/users/${id}`).then((res) => {
+  await rawRequest.get(`/api/users/${id}`).then((res) => {
     app.globalData.userInfo = res.user;
     app.globalData.contribution = res.contribution;
     app.globalData.id = res.user.id;
@@ -60,7 +60,7 @@ async function registerWithWechatCode(code) {
 
   // 不再调用 uni.getUserProfile（小程序基础库限制），只提交必需字段
   // 发送注册请求（仅必填项）
-  return rawRequest.post('/users/wechat/register', {
+  return rawRequest.post('/api/users/wechat/register', {
     jscode: code,
     username,
     password,
@@ -95,7 +95,7 @@ export async function mpLogin() {
       }
       // 尝试进行微信登录
       rawRequest.post(
-        '/login/wechat',
+        '/api/login/wechat',
         {
           jscode: res.code,
         },
@@ -169,7 +169,7 @@ export async function normalLogin(username, password) {
     });
     return;
   }
-  rawRequest.post('/login', {
+  rawRequest.post('/api/login', {
     username,
     password,
   }, { auth: false }).then(async (res) => {
@@ -200,7 +200,7 @@ export async function getLoginStatus() {
   }
 
   let flag = false;
-  await rawRequest.put('/login', {}).then(async (res) => {
+  await rawRequest.put('/api/login', {}).then(async (res) => {
     uni.setStorageSync('token', res.token);
     uni.setStorageSync('id', res.id);
     await loadUserInfo();

@@ -36,9 +36,13 @@ v1 只实现可追溯的主张与权重，不实现 AI 聚类或自动正字裁�
 
 新 API 统一挂载在 `/api/` 下，由 DRF router 暴露资源。旧词典式 `/words`、`/pronunciation`、`/characters` 入口不存在。
 
+用户、登录、公告、站点配置、文件和通知的 canonical 入口也统一挂在 `/api/` 下。无 `/api` 前缀的旧入口只作为兼容别名保留，新增前端 service、测试和文档都应使用 `/api/...`。
+
 读接口默认开放，写接口需要旧系统 `token` header。后端通过 `guantou.authentication.HeaderTokenAuthentication` 复用现有 JWT 解析逻辑。
 
 后端可以按领域拆分 Django app，不要求所有模型和接口都塞进 `guantou` app。新增 app 时应同时补齐 `apps.py`、`urls.py`、service 层和聚合入口；跨领域编排优先放在 service 层，不把复杂业务直接堆在 view 或 serializer 里。
+
+聚合搜索目前只是罐头、义项和写法的横向读取能力，归入 `guantou` 的 view/service，不单独拆 app。只有当搜索拥有独立索引、同步任务、权限模型或外部检索后端时，才值得拆出专门 app。
 
 异常响应由 `utils.exceptions` 统一处理。DRF 校验错误、自定义业务异常和普通 Django 中间件异常都应返回同一结构：
 

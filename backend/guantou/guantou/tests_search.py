@@ -2,8 +2,7 @@ from django.contrib.auth.models import AnonymousUser, User
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from guantou.models import Can, Dialect, Flavor, Nameplate, Package
-
+from .models import Can, Dialect, Flavor, Nameplate, Package
 from .services import aggregate_search
 
 

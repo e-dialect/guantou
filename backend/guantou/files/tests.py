@@ -25,10 +25,10 @@ class FileApiTests(TestCase):
     def test_upload_requires_auth_and_returns_url(self, upload_file):
         upload_file.return_value = "https://cos.test.edialect.top/files/image/1/x.png"
         file = SimpleUploadedFile("cover.png", b"image", content_type="image/png")
-        response = self.client.post("/files", {"file": file})
+        response = self.client.post("/api/files", {"file": file})
         self.assertEqual(response.status_code, 401)
         response = self.client.post(
-            "/files",
+            "/api/files",
             {"file": file},
             HTTP_TOKEN=generate_token(self.user),
         )

@@ -3,6 +3,7 @@ from django.db.models import F, Q
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import (
     Can,
@@ -14,6 +15,7 @@ from .models import (
     Package,
     Shelf,
 )
+from .services import aggregate_search
 from .serializers import (
     CanSerializer,
     DialectSerializer,
@@ -30,6 +32,33 @@ class CanWritePermission(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
         return bool(request.user and request.user.is_authenticated)
+
+
+class AggregateSearchView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        keyword = request.query_params.get("q") or request.query_params.get(
+            "search", ""
+        )
+        results = aggregate_search(
+            keyword,
+            user=request.user,
+            limit=request.query_params.get("limit"),
+        )
+        context = {"request": request}
+        return Response(
+            {
+                "keyword": results["keyword"],
+                "flavors": FlavorSerializer(
+                    results["flavors"], many=True, context=context
+                ).data,
+                "packages": PackageSerializer(
+                    results["packages"], many=True, context=context
+                ).data,
+                "cans": CanSerializer(results["cans"], many=True, context=context).data,
+            }
+        )
 
 
 class DialectViewSet(viewsets.ModelViewSet):

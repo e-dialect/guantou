@@ -15,7 +15,7 @@ class InboxApiTests(TestCase):
 
     def test_send_list_detail_and_mark_read(self):
         response = self.client.post(
-            "/notifications",
+            "/api/notifications",
             data='{"recipients": [%d], "title": "通知", "content": "内容"}'
             % self.recipient.id,
             content_type="application/json",
@@ -25,14 +25,14 @@ class InboxApiTests(TestCase):
         notification_id = response.json()["notifications"][0]
 
         response = self.client.get(
-            "/notifications",
+            "/api/notifications",
             HTTP_TOKEN=generate_token(self.recipient),
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["total"], 1)
 
         response = self.client.get(
-            f"/notifications/{notification_id}",
+            f"/api/notifications/{notification_id}",
             HTTP_TOKEN=generate_token(self.recipient),
         )
         self.assertEqual(response.status_code, 200)

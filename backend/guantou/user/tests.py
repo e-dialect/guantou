@@ -15,7 +15,7 @@ class EmailVerificationTests(TestCase):
     @patch("user.verification.generate_email_code", return_value="123456")
     def test_send_and_consume_email_code(self, generate_email_code):
         response = self.client.post(
-            "/users/email-code",
+            "/api/users/email-code",
             data='{"email": "User@Example.com"}',
             content_type="application/json",
         )
@@ -26,7 +26,7 @@ class EmailVerificationTests(TestCase):
 
     def test_reject_invalid_email(self):
         response = self.client.post(
-            "/users/email-code",
+            "/api/users/email-code",
             data='{"email": "invalid"}',
             content_type="application/json",
         )

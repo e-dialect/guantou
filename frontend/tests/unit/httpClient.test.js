@@ -73,7 +73,7 @@ describe('httpClient compatibility wrappers', () => {
       data: { msg: '未登录' },
     });
 
-    await expect(request.get('/users/1')).rejects.toMatchObject({
+    await expect(request.get('/api/users/1')).rejects.toMatchObject({
       statusCode: 401,
       message: '未登录',
     });
@@ -94,7 +94,7 @@ describe('httpClient compatibility wrappers', () => {
       data: { msg: '未登录' },
     });
 
-    await expect(request.get('/users/1', null, true)).rejects.toMatchObject({
+    await expect(request.get('/api/users/1', null, true)).rejects.toMatchObject({
       statusCode: 401,
     });
 
@@ -109,7 +109,7 @@ describe('httpClient compatibility wrappers', () => {
       data: { msg: '用户名或密码错误' },
     });
 
-    await expect(rawRequest.post('/login', { username: 'a' })).rejects.toMatchObject({
+    await expect(rawRequest.post('/api/login', { username: 'a' })).rejects.toMatchObject({
       statusCode: 401,
       message: '用户名或密码错误',
     });
@@ -124,13 +124,13 @@ describe('httpClient compatibility wrappers', () => {
       data: { token: 'new-token' },
     });
 
-    await expect(rawRequest.post('/login', { username: 'a' }, { auth: false })).resolves.toEqual({
+    await expect(rawRequest.post('/api/login', { username: 'a' }, { auth: false })).resolves.toEqual({
       token: 'new-token',
     });
 
     expect(uni.request).toHaveBeenCalledWith(expect.objectContaining({
       method: 'POST',
-      url: 'http://localhost:8000/login',
+      url: 'http://localhost:8000/api/login',
       header: {
         'content-type': 'application/json',
       },
@@ -165,7 +165,7 @@ describe('httpClient compatibility wrappers', () => {
     });
 
     expect(uni.uploadFile).toHaveBeenCalledWith(expect.objectContaining({
-      url: 'http://localhost:8000/files',
+      url: 'http://localhost:8000/api/files',
       filePath: '/tmp/audio.mp3',
       name: 'file',
       header: {
