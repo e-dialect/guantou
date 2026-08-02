@@ -83,14 +83,5 @@ export async function createCanForFlavor({ can, flavorId }) {
 }
 
 export async function searchGuantou(search) {
-  const [flavors, packages, cans] = await Promise.all([
-    listFlavors({ search }),
-    listPackages({ search }),
-    listCans({ search }),
-  ]);
-  return {
-    flavors: flavors.results || flavors,
-    packages: packages.results || packages,
-    cans: cans.results || cans,
-  };
+  return request.get('/api/search/', { search });
 }

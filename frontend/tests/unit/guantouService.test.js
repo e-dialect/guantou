@@ -61,4 +61,16 @@ describe('guantou service canning helpers', () => {
       flavor: 9,
     });
   });
+
+  it('uses the backend aggregate search endpoint', async () => {
+    request.get.mockResolvedValue({ flavors: [], packages: [], cans: [] });
+
+    await expect(guantou.searchGuantou('moon')).resolves.toEqual({
+      flavors: [],
+      packages: [],
+      cans: [],
+    });
+
+    expect(request.get).toHaveBeenCalledWith('/api/search/', { search: 'moon' });
+  });
 });

@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "announcements",
     "user",
     "guantou",
+    "search",
     "siteconfig",
     "files",
     "inbox",
