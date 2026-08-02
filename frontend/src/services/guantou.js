@@ -16,6 +16,10 @@ export function createCan(can) {
   return request.post('/api/cans/', can);
 }
 
+export function createCanSubmission(payload) {
+  return request.post('/api/cans/', payload);
+}
+
 export function listPackages(params = {}) {
   return request.get('/api/packages/', params);
 }
@@ -61,43 +65,32 @@ export function voteNameplate(nameplateId, delta = 1) {
 }
 
 export async function createCanWithNameplate({ can, label }) {
-  const createdCan = await createCan(can);
   const labelText = (label.text_content || '').trim();
-  if (!labelText) {
-    return createdCan;
-  }
-
-  const createdPackage = await createPackage({
-    text: labelText,
-    package_type: label.package_type || 'uncertain',
+  return createCanSubmission({
+    ...can,
+    initial_nameplate: labelText ? {
+      ...label,
+      text_content: labelText,
+    } : undefined,
   });
-  const createdFlavor = await createFlavor({
-    name: label.definition || can.concept_text || labelText,
-    definition: label.definition || can.concept_text || labelText,
-    mandarin: can.concept_text ? [can.concept_text] : [],
-    package_ids: [createdPackage.id],
-  });
-  await createNameplate(createdCan.id, {
-    flavor: createdFlavor.id,
-    package: createdPackage.id,
-    text_content: labelText,
-    definition: label.definition || can.concept_text || '',
-    evidence_level: label.evidence_level || 1,
-    source_citation: label.source_citation || '',
-  });
-  return getCan(createdCan.id);
 }
 
 export async function createCanForFlavor({ can, flavorId }) {
-  const variant = await createFlavorVariant({
-    flavor: flavorId,
-    dialect: can.dialect,
-    audio_url: can.audio_url,
-    audio_source: 'user',
-  });
-  const createdCan = await createCan({
+  return createCanSubmission({
     ...can,
-    flavor_variant: variant.id,
+    flavor: flavorId,
   });
-  return getCan(createdCan.id);
+}
+
+export async function searchGuantou(search) {
+  const [flavors, packages, cans] = await Promise.all([
+    listFlavors({ search }),
+    listPackages({ search }),
+    listCans({ search }),
+  ]);
+  return {
+    flavors: flavors.results || flavors,
+    packages: packages.results || packages,
+    cans: cans.results || cans,
+  };
 }

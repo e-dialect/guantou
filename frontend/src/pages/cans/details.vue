@@ -50,34 +50,23 @@
         <view class="section-title">
           铭牌
         </view>
-        <view
+        <EmptyState
+          v-if="!can.nameplates.length"
+          title="等待第一张铭牌"
+          description="可以先记录你的写法、释义和来源，不必一次判定唯一正解。"
+          action-text="贴第一张铭牌"
+          @action="focusNameplateInput"
+        />
+        <NameplateCard
           v-for="plate in can.nameplates"
           :key="plate.id"
-          class="plate"
-        >
-          <view class="plate-title">
-            <text>{{ plate.text_content }}</text>
-            <text
-              v-if="plate.is_primary"
-              class="primary"
-            >
-              主铭牌
-            </text>
-          </view>
-          <view class="plate-def">
-            {{ plate.definition || '暂无释义' }}
-          </view>
-          <button
-            class="vote"
-            :disabled="plate.supported_by_current_user"
-            @tap="vote(plate.id)"
-          >
-            {{ plate.supported_by_current_user ? '已支持' : '支持这张铭牌' }} · {{ plate.weight }}
-          </button>
-        </view>
+          :plate="plate"
+          @support="vote"
+        />
         <view class="new-plate">
           <input
             v-model="newPlate.text_content"
+            :focus="nameplateInputFocused"
             class="field"
             placeholder="补一张铭牌"
           >
@@ -99,7 +88,10 @@
 </template>
 
 <script>
+import EmptyState from '@/components/EmptyState.vue';
+import NameplateCard from '@/components/NameplateCard.vue';
 import { createNameplate, getCan, voteNameplate } from '@/services/guantou';
+import { requireAuth } from '@/services/authGuard';
 import { playAudio } from '@/utils/audio';
 
 const statusLabels = {
@@ -112,10 +104,15 @@ const statusLabels = {
 };
 
 export default {
+  components: {
+    EmptyState,
+    NameplateCard,
+  },
   data() {
     return {
       id: 0,
       can: null,
+      nameplateInputFocused: false,
       newPlate: { text_content: '', definition: '' },
     };
   },
@@ -141,12 +138,14 @@ export default {
       this.can = await getCan(this.id);
     },
     async vote(id) {
+      if (!requireAuth('nameplate_support', { page: 'can_detail', canId: this.id, nameplateId: id })) return;
       const plate = this.can.nameplates.find((item) => item.id === id);
       if (plate && plate.supported_by_current_user) return;
       await voteNameplate(id, 1);
       await this.refresh();
     },
     async submitNameplate() {
+      if (!requireAuth('nameplate_create', { page: 'can_detail', canId: this.id })) return;
       if (!this.newPlate.text_content) {
         uni.showToast({ title: '请填写铭牌文字', icon: 'none' });
         return;
@@ -157,6 +156,12 @@ export default {
     },
     goBack() {
       uni.navigateBack();
+    },
+    focusNameplateInput() {
+      this.nameplateInputFocused = false;
+      this.$nextTick(() => {
+        this.nameplateInputFocused = true;
+      });
     },
   },
 };
@@ -233,44 +238,6 @@ export default {
   padding: 14rpx 0;
   color: #425148;
   border-bottom: 1px solid #eef1eb;
-}
-
-.plate {
-  padding: 18rpx 0;
-  border-bottom: 1px solid #eef1eb;
-}
-
-.plate-title {
-  display: flex;
-  justify-content: space-between;
-  font-size: 32rpx;
-  font-weight: 700;
-}
-
-.primary {
-  color: #1f5c43;
-  font-size: 24rpx;
-  background: #e8f1eb;
-  padding: 4rpx 12rpx;
-  border-radius: 999rpx;
-}
-
-.plate-def {
-  margin-top: 8rpx;
-  color: #56645b;
-}
-
-.vote {
-  margin: 14rpx 0 0;
-  font-size: 24rpx;
-  background: #fff;
-  border: 1px solid #cbd5c5;
-  color: #2f4638;
-}
-
-.vote[disabled] {
-  color: #7a867d;
-  background: #f3f5f1;
 }
 
 .new-plate {

@@ -58,41 +58,35 @@
         <view class="section-title">
           相关罐头
         </view>
-        <view
+        <CanCard
           v-for="can in relatedCans"
           :key="can.id"
-          class="can-card"
-          @tap="toCan(can.id)"
-        >
-          <view class="can-title">
-            {{ primaryText(can) }}
-          </view>
-          <view class="can-meta">
-            {{ locationText(can) }} · {{ can.nameplates.length }} 张铭牌
-          </view>
-          <button
-            class="play-button"
-            @tap.stop="playAudio(can.audio_url)"
-          >
-            播放乡音
-          </button>
-        </view>
-        <view
+          :can="can"
+          @open="toCan"
+        />
+        <EmptyState
           v-if="!relatedCans.length"
-          class="empty"
-        >
-          还没有相关罐头
-        </view>
+          title="还没有相关罐头"
+          description="可以用自己的方言为这个义项补录一版。"
+          action-text="补录乡音"
+          @action="toCreateForFlavor"
+        />
       </view>
     </scroll-view>
   </view>
 </template>
 
 <script>
+import CanCard from '@/components/CanCard.vue';
+import EmptyState from '@/components/EmptyState.vue';
+import { requireAuth } from '@/services/authGuard';
 import { getFlavor, listCans } from '@/services/guantou';
-import { playAudio } from '@/utils/audio';
 
 export default {
+  components: {
+    CanCard,
+    EmptyState,
+  },
   data() {
     return { flavor: null, id: 0, relatedCans: [] };
   },
@@ -101,25 +95,16 @@ export default {
     await this.refresh();
   },
   methods: {
-    playAudio,
     async refresh() {
       this.flavor = await getFlavor(this.id);
       const res = await listCans({ flavor: this.id });
       this.relatedCans = res.results || res;
     },
-    primaryText(can) {
-      return can.primary_nameplate
-        ? can.primary_nameplate.text_content
-        : (can.concept_text || '无标罐头');
-    },
-    locationText(can) {
-      if (can.dialect_detail) return can.dialect_detail.name;
-      return [can.county, can.town].filter(Boolean).join('-') || '未标产地';
-    },
     toCan(id) {
       uni.navigateTo({ url: `/pages/cans/details?id=${id}` });
     },
     toCreateForFlavor() {
+      if (!requireAuth('record_can', { page: 'flavor_detail', flavorId: this.id })) return;
       uni.navigateTo({
         url: `/pages/cans/create?flavor=${this.id}&flavor_name=${encodeURIComponent(this.flavor.name)}`,
       });
@@ -209,32 +194,4 @@ export default {
   border-bottom: 1px solid #eef1eb;
 }
 
-.can-card {
-  border-bottom: 1px solid #eef1eb;
-  padding: 18rpx 0;
-}
-
-.can-title {
-  font-size: 30rpx;
-  font-weight: 700;
-}
-
-.can-meta {
-  margin-top: 8rpx;
-  color: #6c776e;
-  font-size: 24rpx;
-}
-
-.play-button {
-  margin: 14rpx 0 0;
-  font-size: 24rpx;
-  background: #fff;
-  border: 1px solid #cbd5c5;
-  color: #2f4638;
-}
-
-.empty {
-  color: #7a867d;
-  padding: 18rpx 0;
-}
 </style>

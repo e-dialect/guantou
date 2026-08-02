@@ -17,12 +17,12 @@ class ExceptionMiddleware(MiddlewareMixin):
         :return:
         """
         if isinstance(exception, EmptyPage):
-            return BadRequestException(str(exception)).response()
+            return BadRequestException(str(exception)).response(request)
         if isinstance(exception, KeyError):
-            return BadRequestException("缺少必要参数").response()
+            return BadRequestException("缺少必要参数").response(request)
         if isinstance(exception, ValueError):
-            return BadRequestException("参数值异常").response()
+            return BadRequestException("参数值异常").response(request)
         if isinstance(exception, CommonException):
-            return exception.response()
+            return exception.response(request)
         print(repr(exception))
-        return CommonException(exception).response()
+        return CommonException(exception).response(request)

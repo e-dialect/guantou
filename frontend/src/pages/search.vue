@@ -23,27 +23,10 @@
       </button>
     </view>
 
-    <view class="tabs">
-      <view
-        v-for="(scope, index) in searchScopes"
-        :key="scope.value"
-        :class="['tab', index === searchScopeIndex ? 'active' : '']"
-        @tap="checkout(index)"
-      >
-        {{ scope.label }}
-      </view>
-    </view>
-
     <scroll-view
       scroll-y
       class="list"
     >
-      <view
-        v-if="!hasSearched"
-        class="empty"
-      >
-        输入义项、写法、罐头铭牌或普通话概念
-      </view>
       <view
         v-if="!hasSearched"
         class="quick-section"
@@ -80,56 +63,126 @@
           </text>
         </view>
       </view>
-      <view
-        v-for="item in results"
-        :key="item.id"
-        class="result-card"
-        @tap="openItem(item)"
-      >
-        <view class="title">
-          {{ displayTitle(item) }}
-        </view>
-        <view class="description">
-          {{ displayDescription(item) }}
-        </view>
-        <view class="meta">
-          {{ displayMeta(item) }}
-        </view>
-      </view>
-      <view
-        v-if="hasSearched && !results.length"
-        class="empty"
-      >
-        没有找到结果
+      <EmptyState
+        v-if="!hasSearched && !historyList.length"
+        title="输入一个概念或写法"
+        description="比如月亮、行、杀，也可以直接搜某张铭牌。"
+      />
+
+      <view v-if="hasSearched">
+        <ResultSection
+          title="义项"
+          :items="results.flavors"
+          empty-title="没有匹配义项"
+        >
+          <view
+            v-for="item in results.flavors"
+            :key="`flavor-${item.id}`"
+            class="result-card"
+            @tap="openItem('flavors', item)"
+          >
+            <view class="type">
+              义项
+            </view>
+            <view class="title">
+              {{ item.name }}
+            </view>
+            <view class="description">
+              {{ item.definition }}
+            </view>
+            <view class="meta">
+              {{ item.variants.length }} 个变体 · {{ item.package_links.length }} 个写法
+            </view>
+          </view>
+        </ResultSection>
+
+        <ResultSection
+          title="写法"
+          :items="results.packages"
+          empty-title="没有匹配写法"
+        >
+          <view
+            v-for="item in results.packages"
+            :key="`package-${item.id}`"
+            class="result-card"
+            @tap="openItem('packages', item)"
+          >
+            <view class="type">
+              写法
+            </view>
+            <view class="title">
+              {{ item.text }}
+            </view>
+            <view class="description">
+              查看这个写法关联的义项
+            </view>
+            <view class="meta">
+              {{ item.flavors.length }} 个义项 · {{ item.package_type || 'uncertain' }}
+            </view>
+          </view>
+        </ResultSection>
+
+        <ResultSection
+          title="罐头"
+          :items="results.cans"
+          empty-title="没有匹配罐头"
+        >
+          <CanCard
+            v-for="item in results.cans"
+            :key="`can-${item.id}`"
+            :can="item"
+            @open="openCan"
+          />
+        </ResultSection>
+
+        <EmptyState
+          v-if="!totalResults"
+          title="没有找到结果"
+          description="换个写法试试，或者先装一罐。"
+          action-text="装一罐"
+          @action="toCreateCan"
+        />
       </view>
     </scroll-view>
   </view>
 </template>
 
 <script>
-import { listCans, listFlavors, listPackages } from '@/services/guantou';
+import CanCard from '@/components/CanCard.vue';
+import EmptyState from '@/components/EmptyState.vue';
+import ResultSection from '@/components/ResultSection.vue';
 import { APP_NAME } from '@/const/branding';
+import { searchGuantou } from '@/services/guantou';
 import { defaultMessage } from '@/services/shareMessages';
 
 export default {
+  components: {
+    CanCard,
+    EmptyState,
+    ResultSection,
+  },
   data() {
     return {
       hasSearched: false,
-      searchScopeIndex: 0,
       hotTags: ['月亮', '膝盖', '祖母', '行', '杀', '吃饭'],
       historyList: [],
-      searchScopes: [
-        { label: '义项', value: 'flavors' },
-        { label: '写法', value: 'packages' },
-        { label: '罐头', value: 'cans' },
-      ],
       keywords: '',
-      results: [],
+      results: {
+        flavors: [],
+        packages: [],
+        cans: [],
+      },
     };
+  },
+  computed: {
+    totalResults() {
+      return this.results.flavors.length
+        + this.results.packages.length
+        + this.results.cans.length;
+    },
   },
   onLoad(option) {
     this.loadHistory();
-    if (option.index) this.searchScopeIndex = Number(option.index);
     if (option.keywords || option.key) {
       this.keywords = option.keywords || option.key;
       this.search();
@@ -138,7 +191,7 @@ export default {
   onShareAppMessage() {
     return {
       title: `${APP_NAME}：${this.keywords || '搜索'}`,
-      path: `/pages/search?index=${this.searchScopeIndex}&keywords=${this.keywords}`,
+      path: `/pages/search?keywords=${this.keywords}`,
       ...defaultMessage(),
     };
   },
@@ -146,24 +199,13 @@ export default {
     goBack() {
       uni.navigateBack();
     },
-    checkout(index) {
-      this.searchScopeIndex = index;
-      if (this.hasSearched) this.search();
-    },
     async search() {
       const search = this.keywords.trim();
       if (!search) {
         uni.showToast({ title: '请输入搜索内容', icon: 'none' });
         return;
       }
-      const scope = this.searchScopes[this.searchScopeIndex].value;
-      const searchers = {
-        flavors: listFlavors,
-        packages: listPackages,
-        cans: listCans,
-      };
-      const res = await searchers[scope]({ search });
-      this.results = res.results || res;
+      this.results = await searchGuantou(search);
       this.hasSearched = true;
       this.recordHistory(search);
     },
@@ -188,48 +230,18 @@ export default {
         data: JSON.stringify(this.historyList),
       });
     },
-    displayTitle(item) {
-      if (this.searchScopes[this.searchScopeIndex].value === 'flavors') {
-        return item.name;
-      }
-      if (this.searchScopes[this.searchScopeIndex].value === 'packages') {
-        return item.text;
-      }
-      return item.primary_nameplate
-        ? item.primary_nameplate.text_content
-        : (item.concept_text || '无标罐头');
+    openCan(id) {
+      uni.navigateTo({ url: `/pages/cans/details?id=${id}` });
     },
-    displayDescription(item) {
-      if (this.searchScopes[this.searchScopeIndex].value === 'flavors') {
-        return item.definition;
-      }
-      if (this.searchScopes[this.searchScopeIndex].value === 'packages') {
-        return '查看这个写法关联的义项';
-      }
-      return item.concept_text || '未填写普通话概念';
-    },
-    displayMeta(item) {
-      if (this.searchScopes[this.searchScopeIndex].value === 'flavors') {
-        return `${item.variants.length} 个变体 · ${item.package_links.length} 个写法`;
-      }
-      if (this.searchScopes[this.searchScopeIndex].value === 'packages') {
-        const typeText = item.package_type || 'uncertain';
-        return `${item.flavors.length} 个义项 · ${typeText}`;
-      }
-      const location = item.dialect_detail
-        ? item.dialect_detail.name
-        : [item.county, item.town].filter(Boolean).join('-');
-      return `${location || '未标产地'} · ${item.nameplates.length} 张铭牌`;
-    },
-    openItem(item) {
-      const scope = this.searchScopes[this.searchScopeIndex].value;
+    openItem(scope, item) {
       const urls = {
         flavors: `/pages/flavors/details?id=${item.id}`,
         packages: `/pages/packages/details?id=${item.id}`,
-        cans: `/pages/cans/details?id=${item.id}`,
       };
-      const url = urls[scope];
-      uni.navigateTo({ url });
+      uni.navigateTo({ url: urls[scope] });
+    },
+    toCreateCan() {
+      uni.navigateTo({ url: '/pages/cans/create' });
     },
   },
 };
@@ -277,28 +289,8 @@ export default {
   font-size: 26rpx;
 }
 
-.tabs {
-  display: flex;
-  gap: 16rpx;
-  padding: 22rpx 28rpx 0;
-}
-
-.tab {
-  padding: 12rpx 24rpx;
-  border-radius: 999rpx;
-  background: #fff;
-  border: 1px solid #d9dfd5;
-  color: #526158;
-}
-
-.tab.active {
-  color: #fff;
-  background: #1f5c43;
-  border-color: #1f5c43;
-}
-
 .list {
-  height: calc(100vh - 170rpx);
+  height: calc(100vh - 96rpx);
   padding: 24rpx 28rpx;
   box-sizing: border-box;
 }
@@ -306,31 +298,33 @@ export default {
 .result-card {
   background: #fff;
   border: 1px solid #e1e6dc;
-  border-radius: 14rpx;
+  border-radius: 12rpx;
   padding: 24rpx;
   margin-bottom: 18rpx;
+}
+
+.type {
+  color: #1f5c43;
+  font-size: 24rpx;
+  margin-bottom: 8rpx;
 }
 
 .title {
   font-size: 34rpx;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .description {
   margin-top: 10rpx;
   color: #425148;
+  line-height: 1.5;
 }
 
 .meta {
   margin-top: 14rpx;
   color: #7a867d;
   font-size: 24rpx;
-}
-
-.empty {
-  padding: 80rpx 20rpx;
-  text-align: center;
-  color: #7a867d;
 }
 
 .quick-section {

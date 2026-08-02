@@ -1,5 +1,7 @@
 from django.http import JsonResponse
 
+from utils.exceptions.payload import api_error_payload, request_id
+
 
 class CommonException(Exception):
     """
@@ -14,5 +16,9 @@ class CommonException(Exception):
     def __str__(self):
         return self.msg
 
-    def response(self):
-        return JsonResponse({"msg": self.msg}, status=self.status)
+    def response(self, request=None):
+        rid = request_id(request) if request else ""
+        return JsonResponse(
+            api_error_payload(self.msg, self.status, rid=rid),
+            status=self.status,
+        )

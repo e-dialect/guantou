@@ -9,6 +9,55 @@ export function uploadFile(file) {
   return upload(file);
 }
 
+export function chooseAudioFile() {
+  return new Promise((resolve, reject) => {
+    const success = (res) => {
+      const file = (res.tempFiles && res.tempFiles[0]) || {};
+      const path = (res.tempFilePaths && res.tempFilePaths[0]) || file.path || '';
+      if (!path) {
+        reject(new Error('未选择音频文件'));
+        return;
+      }
+      resolve({
+        path,
+        name: file.name || path.split('/').pop() || '本地音频',
+        size: file.size || 0,
+      });
+    };
+    const fail = (error) => {
+      reject(error);
+    };
+
+    // #ifdef H5
+    if (typeof uni.chooseFile === 'function') {
+      uni.chooseFile({
+        count: 1,
+        type: 'all',
+        extension: ['.mp3', '.wav', '.m4a', '.aac'],
+        success,
+        fail,
+      });
+      return;
+    }
+    // #endif
+
+    // #ifndef H5
+    if (typeof uni.chooseMessageFile === 'function') {
+      uni.chooseMessageFile({
+        count: 1,
+        type: 'file',
+        extension: ['mp3', 'wav', 'm4a', 'aac'],
+        success,
+        fail,
+      });
+      return;
+    }
+    // #endif
+
+    reject(new Error('当前环境暂不支持选择本地音频'));
+  });
+}
+
 /**
  * 选择并上传图片
  * @param maxNumber 最大数量

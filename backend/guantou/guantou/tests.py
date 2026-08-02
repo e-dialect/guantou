@@ -56,6 +56,86 @@ class GuantouApiTests(TestCase):
         self.assertEqual(can.status, Can.Status.PENDING)
         self.assertTrue(can.primary_nameplate.is_primary)
 
+    def test_create_can_without_candidate_nameplate(self):
+        response = self.client.post(
+            "/api/cans/",
+            {
+                "audio_url": "https://example.com/plain.mp3",
+                "dialect": self.child.id,
+                "concept_text": "knee",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        can = Can.objects.get(id=response.data["id"])
+        self.assertEqual(can.recorder, self.user)
+        self.assertEqual(can.status, Can.Status.UNLABELED)
+        self.assertEqual(can.nameplates.count(), 0)
+
+    def test_create_can_with_initial_nameplate_creates_related_objects(self):
+        response = self.client.post(
+            "/api/cans/",
+            {
+                "audio_url": "https://example.com/knee.mp3",
+                "dialect": self.child.id,
+                "concept_text": "knee",
+                "initial_nameplate": {
+                    "text_content": "khnee",
+                    "definition": "kneecap",
+                    "package_type": Package.PackageType.PHONETIC,
+                    "evidence_level": Nameplate.EvidenceLevel.COMMUNITY,
+                    "source_citation": "elder",
+                },
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        can = Can.objects.get(id=response.data["id"])
+        plate = can.primary_nameplate
+        self.assertIsNotNone(plate)
+        self.assertEqual(can.status, Can.Status.PENDING)
+        self.assertEqual(plate.text_content, "khnee")
+        self.assertEqual(plate.package.package_type, Package.PackageType.PHONETIC)
+        self.assertEqual(plate.flavor.definition, "kneecap")
+        self.assertEqual(plate.creator, self.user)
+
+    def test_create_can_for_existing_flavor_creates_variant(self):
+        response = self.client.post(
+            "/api/cans/",
+            {
+                "audio_url": "https://example.com/flavor.mp3",
+                "dialect": self.child.id,
+                "flavor": self.flavor.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        can = Can.objects.get(id=response.data["id"])
+        self.assertEqual(can.flavor_variant.flavor, self.flavor)
+        self.assertEqual(can.flavor_variant.audio_url, can.audio_url)
+        self.assertEqual(can.concept_text, self.flavor.name)
+
+    def test_validation_errors_use_unified_shape(self):
+        response = self.client.post(
+            "/api/cans/",
+            {
+                "dialect": self.child.id,
+                "concept_text": "knee",
+            },
+            format="json",
+            HTTP_X_REQUEST_ID="test-request-id",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data["code"], "validation_error")
+        self.assertIn("msg", response.data)
+        self.assertIn("message", response.data)
+        self.assertIn("details", response.data)
+        self.assertEqual(response.data["request_id"], "test-request-id")
+
     def test_vote_promotes_strongest_nameplate(self):
         can = Can.objects.create(
             audio_url="https://example.com/audio.mp3",

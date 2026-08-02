@@ -283,6 +283,7 @@ LOGGING = {
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10240
 
 REST_FRAMEWORK = {
+    "EXCEPTION_HANDLER": "utils.exceptions.handler.drf_exception_handler",
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "guantou.authentication.HeaderTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",

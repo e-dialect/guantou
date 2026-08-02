@@ -39,45 +39,34 @@
       class="list"
       @scrolltolower="loadMore"
     >
-      <view
+      <CanCard
         v-for="item in cans"
         :key="item.id"
-        class="can-card"
-        @tap="toDetail(item.id)"
-      >
-        <view class="card-head">
-          <text class="label">
-            {{ primaryText(item) }}
-          </text>
-          <text class="status">
-            {{ statusText(item.status) }}
-          </text>
-        </view>
-        <view class="concept">
-          {{ item.concept_text || '未填写普通话概念' }}
-        </view>
-        <view class="meta">
-          {{ locationText(item) }} · {{ item.nameplates.length }} 张铭牌 · {{ item.views }} 次查看
-        </view>
-      </view>
+        :can="item"
+        @open="toDetail"
+      />
+      <EmptyState
+        v-if="loadingStatus === 'noMore' && !cans.length"
+        title="还没有罐头"
+        description="先装一罐乡音，后面的人就能继续贴铭牌。"
+        action-text="装一罐"
+        @action="toCreate"
+      />
       <uni-load-more :status="loadingStatus" />
     </scroll-view>
   </view>
 </template>
 
 <script>
+import CanCard from '@/components/CanCard.vue';
+import EmptyState from '@/components/EmptyState.vue';
 import { listCans } from '@/services/guantou';
 
-const statusLabels = {
-  unlabeled: '无标',
-  pending: '待校验',
-  tentative: '社区暂定',
-  verified: '正品认证',
-  disputed: '争议',
-  rejected: '已驳回',
-};
-
 export default {
+  components: {
+    CanCard,
+    EmptyState,
+  },
   data() {
     return {
       page: 1,
@@ -105,16 +94,6 @@ export default {
     this.refresh();
   },
   methods: {
-    statusText(status) {
-      return statusLabels[status] || status;
-    },
-    primaryText(item) {
-      return item.primary_nameplate ? item.primary_nameplate.text_content : '无标罐头';
-    },
-    locationText(item) {
-      if (item.dialect_detail) return item.dialect_detail.name;
-      return [item.county, item.town].filter(Boolean).join('-') || '未标产地';
-    },
     async refresh() {
       this.page = 1;
       this.loadingStatus = 'loading';
@@ -207,42 +186,4 @@ export default {
   box-sizing: border-box;
 }
 
-.can-card {
-  background: #fff;
-  border: 1px solid #e1e6dc;
-  border-radius: 14rpx;
-  padding: 24rpx;
-  margin-bottom: 18rpx;
-}
-
-.card-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 16rpx;
-  align-items: center;
-}
-
-.label {
-  font-size: 34rpx;
-  font-weight: 700;
-}
-
-.status {
-  font-size: 24rpx;
-  color: #1f5c43;
-  background: #e8f1eb;
-  padding: 6rpx 14rpx;
-  border-radius: 999rpx;
-}
-
-.concept {
-  margin-top: 14rpx;
-  color: #33463b;
-}
-
-.meta {
-  margin-top: 14rpx;
-  color: #7a867d;
-  font-size: 24rpx;
-}
 </style>
