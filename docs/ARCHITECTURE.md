@@ -38,6 +38,30 @@ v1 只实现可追溯的主张与权重，不实现 AI 聚类或自动正字裁�
 
 读接口默认开放，写接口需要旧系统 `token` header。后端通过 `guantou.authentication.HeaderTokenAuthentication` 复用现有 JWT 解析逻辑。
 
+后端可以按领域拆分 Django app，不要求所有模型和接口都塞进 `guantou` app。新增 app 时应同时补齐 `apps.py`、`urls.py`、service 层和聚合入口；跨领域编排优先放在 service 层，不把复杂业务直接堆在 view 或 serializer 里。
+
+异常响应由 `utils.exceptions` 统一处理。DRF 校验错误、自定义业务异常和普通 Django 中间件异常都应返回同一结构：
+
+```json
+{
+  "msg": "错误提示",
+  "message": "错误提示",
+  "code": "validation_error",
+  "details": {},
+  "request_id": "..."
+}
+```
+
+`X-Request-ID` 请求头会透传到响应头和错误 payload；没有传入时后端生成一个新的 id。前端页面只消费 `msg/message/code/details/request_id`，不要为单个页面发明新的错误格式。
+
+## 前端边界
+
+页面只负责页面状态、表单交互和导航；接口访问统一进入 `src/services/`，底层 HTTP 统一经过 `src/utils/httpClient.js`。后续新增页面时，优先复用已有 service 或在同目录新增领域 service，不在 `.vue` 页面中散落 `uni.request`。
+
+用户反馈统一进入 `src/services/feedback.js`。加载态、成功提示、错误 toast 和后续可能接入的全局消息通知，都从这里扩展；业务 service 返回结构化数据和异常，不直接替页面决定复杂交互。
+
+罐头相关页面优先复用 `CanCard`、`NameplateCard`、`EmptyState`、`ResultSection`、`AudioCapture` 这些基础组件。新增列表、详情、创建流程时，先判断是否可以扩展这些组件的 props 和事件，而不是复制一份视觉结构。
+
 ## 状态机
 
 `Can.status`：

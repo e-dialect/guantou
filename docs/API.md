@@ -23,6 +23,22 @@
 
 写接口需要在 header 中传入旧系统的 `token`。
 
+## 错误响应
+
+后端统一返回可被前端 service 层消费的错误结构：
+
+```json
+{
+  "msg": "请先登录",
+  "message": "请先登录",
+  "code": "not_authenticated",
+  "details": {},
+  "request_id": "..."
+}
+```
+
+前端应优先展示 `msg` 或 `message`，并在排查问题时把 `request_id` 带给后端。客户端传入 `X-Request-ID` 时，后端会在响应头 `X-Request-ID` 和错误 payload 中透传；未传入时后端自动生成。
+
 ## 数据约定
 
 - `Nameplate` 是用户主张，创建时必须尽量同时给出 `flavor`（义项）和 `package`（写法）；没有明确写法时可以先记录 `text_content`，后续再补写法。

@@ -41,10 +41,10 @@ describe('file upload helpers', () => {
     });
 
     await expect(fileService.chooseAndUploadImages(1)).resolves.toEqual([]);
-    expect(uni.showToast).toHaveBeenCalledWith({
+    expect(uni.showToast).toHaveBeenCalledWith(expect.objectContaining({
       title: 'cancelled',
       icon: 'none',
-    });
+    }));
   });
 
   it('chooseAndUploadAnImage unwraps first url', async () => {

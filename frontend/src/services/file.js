@@ -1,4 +1,5 @@
 import { upload } from '@/utils/httpClient';
+import { notify } from '@/services/feedback';
 
 /**
  * 上传文件
@@ -74,18 +75,12 @@ export async function chooseAndUploadImages(maxNumber = 1) {
           );
           resolve(uploaded);
         } catch (error) {
-          uni.showToast({
-            title: error.message || '上传失败',
-            icon: 'none',
-          });
+          notify({ title: error.message || '上传失败' });
           resolve([]);
         }
       },
       fail: (err) => {
-        uni.showToast({
-          title: err.errMsg || '选择图片失败',
-          icon: 'none',
-        });
+        notify({ title: err.errMsg || '选择图片失败' });
         resolve([]);
       },
     });

@@ -2,6 +2,8 @@ import uuid
 
 from rest_framework import status
 
+REQUEST_ID_ATTR = "_guantou_request_id"
+
 ERROR_CODES = {
     status.HTTP_400_BAD_REQUEST: "bad_request",
     status.HTTP_401_UNAUTHORIZED: "unauthorized",
@@ -14,7 +16,12 @@ ERROR_CODES = {
 def request_id(request):
     if not request:
         return ""
-    return request.META.get("HTTP_X_REQUEST_ID") or str(uuid.uuid4())
+    current = getattr(request, REQUEST_ID_ATTR, "")
+    if current:
+        return current
+    generated = request.META.get("HTTP_X_REQUEST_ID") or str(uuid.uuid4())
+    setattr(request, REQUEST_ID_ATTR, generated)
+    return generated
 
 
 def api_error_payload(message, status_code, details=None, code=None, rid=""):

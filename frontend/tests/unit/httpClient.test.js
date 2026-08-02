@@ -78,10 +78,10 @@ describe('httpClient compatibility wrappers', () => {
       message: '未登录',
     });
 
-    expect(uni.showToast).toHaveBeenCalledWith({
+    expect(uni.showToast).toHaveBeenCalledWith(expect.objectContaining({
       title: '未登录',
       icon: 'error',
-    });
+    }));
     expect(toLoginPage).not.toHaveBeenCalled();
     vi.runAllTimers();
     expect(toLoginPage).toHaveBeenCalledTimes(1);
@@ -148,10 +148,10 @@ describe('httpClient compatibility wrappers', () => {
       message: 'server failed',
     });
 
-    expect(uni.showToast).toHaveBeenCalledWith({
+    expect(uni.showToast).toHaveBeenCalledWith(expect.objectContaining({
       title: 'server failed',
       icon: 'error',
-    });
+    }));
   });
 
   it('upload uses the shared token and parses JSON response data', async () => {

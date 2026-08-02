@@ -135,6 +135,7 @@ class GuantouApiTests(TestCase):
         self.assertIn("message", response.data)
         self.assertIn("details", response.data)
         self.assertEqual(response.data["request_id"], "test-request-id")
+        self.assertEqual(response["X-Request-ID"], "test-request-id")
 
     def test_vote_promotes_strongest_nameplate(self):
         can = Can.objects.create(

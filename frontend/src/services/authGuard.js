@@ -1,4 +1,5 @@
 import { toLoginPage } from '@/routers/login';
+import { notify } from '@/services/feedback';
 
 export const PROTECTED_ACTIONS = {
   record_can: '录一罐',
@@ -66,10 +67,7 @@ export function requireAuth(action, context = {}) {
   if (!isProtectedAction(action)) return true;
   if (isLoggedIn()) return true;
   saveInterceptIntent({ action, context });
-  uni.showToast({
-    title: '请先登录',
-    icon: 'none',
-  });
+  notify({ title: '请先登录' });
   toLoginPage();
   return false;
 }

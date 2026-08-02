@@ -38,10 +38,10 @@ describe('authGuard', () => {
   it('stores intercept intent and redirects protected anonymous actions', () => {
     expect(authGuard.requireAuth('record_can', { page: 'test' })).toBe(false);
 
-    expect(uni.showToast).toHaveBeenCalledWith({
+    expect(uni.showToast).toHaveBeenCalledWith(expect.objectContaining({
       title: '请先登录',
       icon: 'none',
-    });
+    }));
     expect(toLoginPage).toHaveBeenCalledTimes(1);
     expect(authGuard.peekInterceptIntent()).toMatchObject({
       action: 'record_can',
