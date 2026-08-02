@@ -43,13 +43,13 @@ class SiteSettingsTests(TestCase):
         )
         token = generate_token(self.admin)
         response = self.client.put(
-            "/api/site-settings/featured-announcements",
+            "/site-settings/featured-announcements",
             data='{"featured_announcements": [%d, %d]}' % (second.id, first.id),
             content_type="application/json",
             HTTP_TOKEN=token,
         )
         self.assertEqual(response.status_code, 200)
-        response = self.client.get("/api/site-settings/featured-announcements")
+        response = self.client.get("/site-settings/featured-announcements")
         self.assertEqual(response.status_code, 200)
         ids = [
             item["announcement"]["id"]

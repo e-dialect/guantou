@@ -23,7 +23,7 @@ describe('guantou service canning helpers', () => {
       label: { text_content: '' },
     })).resolves.toEqual({ id: 1 });
 
-    expect(request.post).toHaveBeenCalledWith('/api/cans/', {
+    expect(request.post).toHaveBeenCalledWith('/cans/', {
       concept_text: 'knee',
       audio_url: 'https://example.test/a.mp3',
       initial_nameplate: undefined,
@@ -38,7 +38,7 @@ describe('guantou service canning helpers', () => {
       label: { text_content: 'khnee', definition: 'kneecap' },
     });
 
-    expect(request.post).toHaveBeenCalledWith('/api/cans/', {
+    expect(request.post).toHaveBeenCalledWith('/cans/', {
       concept_text: 'knee',
       initial_nameplate: {
         text_content: 'khnee',
@@ -55,7 +55,7 @@ describe('guantou service canning helpers', () => {
       flavorId: 9,
     });
 
-    expect(request.post).toHaveBeenCalledWith('/api/cans/', {
+    expect(request.post).toHaveBeenCalledWith('/cans/', {
       dialect: 1,
       audio_url: 'https://example.test/a.mp3',
       flavor: 9,
@@ -71,6 +71,6 @@ describe('guantou service canning helpers', () => {
       cans: [],
     });
 
-    expect(request.get).toHaveBeenCalledWith('/api/search/', { search: 'moon' });
+    expect(request.get).toHaveBeenCalledWith('/search/', { search: 'moon' });
   });
 });

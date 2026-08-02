@@ -28,7 +28,7 @@ class GuantouApiTests(TestCase):
 
     def test_create_can_and_nameplate(self):
         can_res = self.client.post(
-            "/api/cans/",
+            "/cans/",
             {
                 "audio_url": "https://example.com/audio.mp3",
                 "dialect": self.child.id,
@@ -41,7 +41,7 @@ class GuantouApiTests(TestCase):
         self.assertEqual(can_res.status_code, 201)
         can_id = can_res.data["id"]
         plate_res = self.client.post(
-            f"/api/cans/{can_id}/nameplates/",
+            f"/cans/{can_id}/nameplates/",
             {
                 "flavor": self.flavor.id,
                 "package": self.package.id,
@@ -58,7 +58,7 @@ class GuantouApiTests(TestCase):
 
     def test_create_can_without_candidate_nameplate(self):
         response = self.client.post(
-            "/api/cans/",
+            "/cans/",
             {
                 "audio_url": "https://example.com/plain.mp3",
                 "dialect": self.child.id,
@@ -75,7 +75,7 @@ class GuantouApiTests(TestCase):
 
     def test_create_can_with_initial_nameplate_creates_related_objects(self):
         response = self.client.post(
-            "/api/cans/",
+            "/cans/",
             {
                 "audio_url": "https://example.com/knee.mp3",
                 "dialect": self.child.id,
@@ -103,7 +103,7 @@ class GuantouApiTests(TestCase):
 
     def test_create_can_for_existing_flavor_creates_variant(self):
         response = self.client.post(
-            "/api/cans/",
+            "/cans/",
             {
                 "audio_url": "https://example.com/flavor.mp3",
                 "dialect": self.child.id,
@@ -120,7 +120,7 @@ class GuantouApiTests(TestCase):
 
     def test_validation_errors_use_unified_shape(self):
         response = self.client.post(
-            "/api/cans/",
+            "/cans/",
             {
                 "dialect": self.child.id,
                 "concept_text": "knee",
@@ -161,7 +161,7 @@ class GuantouApiTests(TestCase):
             weight=2,
         )
         vote_res = self.client.post(
-            f"/api/nameplates/{strong.id}/vote/", {"delta": 1}, format="json"
+            f"/nameplates/{strong.id}/vote/", {"delta": 1}, format="json"
         )
         self.assertEqual(vote_res.status_code, 200)
         weak.refresh_from_db()
@@ -190,10 +190,10 @@ class GuantouApiTests(TestCase):
         )
 
         first_res = self.client.post(
-            f"/api/nameplates/{plate.id}/vote/", {"delta": 1}, format="json"
+            f"/nameplates/{plate.id}/vote/", {"delta": 1}, format="json"
         )
         second_res = self.client.post(
-            f"/api/nameplates/{plate.id}/vote/", {"delta": 1}, format="json"
+            f"/nameplates/{plate.id}/vote/", {"delta": 1}, format="json"
         )
 
         self.assertEqual(first_res.status_code, 200)
@@ -218,14 +218,10 @@ class GuantouApiTests(TestCase):
             package=self.package,
         )
 
-        self.client.post(
-            f"/api/nameplates/{plate.id}/vote/", {"delta": 1}, format="json"
-        )
+        self.client.post(f"/nameplates/{plate.id}/vote/", {"delta": 1}, format="json")
         other_client = APIClient()
         other_client.force_authenticate(user=other_user)
-        other_client.post(
-            f"/api/nameplates/{plate.id}/vote/", {"delta": 1}, format="json"
-        )
+        other_client.post(f"/nameplates/{plate.id}/vote/", {"delta": 1}, format="json")
 
         plate.refresh_from_db()
         self.assertEqual(plate.weight, 2)
@@ -238,7 +234,7 @@ class GuantouApiTests(TestCase):
             dialect=self.child,
             visibility=True,
         )
-        response = self.client.get("/api/cans/", {"dialect": self.root.id})
+        response = self.client.get("/cans/", {"dialect": self.root.id})
         self.assertEqual(response.status_code, 200)
         ids = [item["id"] for item in response.data["results"]]
         self.assertIn(can.id, ids)
@@ -279,13 +275,13 @@ class GuantouApiTests(TestCase):
         self.assertCountEqual(
             list(moon.packages.values_list("text", flat=True)), ["月亮", "月光"]
         )
-        response = self.client.get("/api/cans/", {"flavor": moon.id})
+        response = self.client.get("/cans/", {"flavor": moon.id})
         self.assertEqual(response.status_code, 200)
         ids = [item["id"] for item in response.data["results"]]
         self.assertIn(can.id, ids)
 
     def test_package_detail_includes_related_flavors(self):
-        response = self.client.get(f"/api/packages/{self.package.id}/")
+        response = self.client.get(f"/packages/{self.package.id}/")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["text"], "行")

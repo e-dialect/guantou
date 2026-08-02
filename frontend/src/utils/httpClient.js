@@ -117,7 +117,7 @@ export function upload(file, options = {}) {
   showLoading(resolvedOptions);
   return new Promise((resolve, reject) => {
     uni.uploadFile({
-      url: `${BASE_URL}${options.url || '/api/files'}`,
+      url: `${BASE_URL}${options.url || '/files'}`,
       filePath: file,
       name: options.name || 'file',
       header: authHeaders(resolvedOptions.auth),

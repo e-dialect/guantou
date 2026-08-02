@@ -34,9 +34,9 @@ v1 只实现可追溯的主张与权重，不实现 AI 聚类或自动正字裁�
 
 ## API 边界
 
-新 API 统一挂载在 `/api/` 下，由 DRF router 暴露资源。旧词典式 `/words`、`/pronunciation`、`/characters` 入口不存在。
+业务接口直接挂载在根路径，由 DRF router 暴露资源。项目当前没有单独的服务端页面路由，继续保留 `/api/` 前缀收益不大，反而会和既有 `/users`、`/login`、`/files` 等入口形成两套心智模型。旧词典式 `/words`、`/pronunciation`、`/characters` 入口不存在。
 
-用户、登录、公告、站点配置、文件和通知的 canonical 入口也统一挂在 `/api/` 下。无 `/api` 前缀的旧入口只作为兼容别名保留，新增前端 service、测试和文档都应使用 `/api/...`。
+新增前端 service、测试和文档都应使用根路径，例如 `/cans/`、`/search/`、`/users`、`/login`、`/files`。如果未来后端需要同时承载传统网页或多版本公开 API，再统一迁移到 `/api/v1/` 这类版本化前缀。
 
 读接口默认开放，写接口需要旧系统 `token` header。后端通过 `guantou.authentication.HeaderTokenAuthentication` 复用现有 JWT 解析逻辑。
 

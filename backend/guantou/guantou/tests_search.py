@@ -47,7 +47,7 @@ class SearchApiTests(TestCase):
         )
 
     def test_aggregate_search_returns_grouped_results(self):
-        response = self.client.get("/api/search/", {"q": "moon"})
+        response = self.client.get("/search/", {"q": "moon"})
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["keyword"], "moon")

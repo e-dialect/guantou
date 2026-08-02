@@ -14,17 +14,17 @@ test('H5 app renders home page', async ({ page }) => {
 });
 
 test('frontend nginx proxies site settings API', async ({ request }) => {
-  const response = await request.get('/api/site-settings/carousel');
+  const response = await request.get('/site-settings/carousel');
   expect(response.status()).toBe(200);
   const body = await response.json();
   expect(Array.isArray(body.carousel)).toBe(true);
 });
 
 test('protected APIs remain protected through frontend proxy', async ({ request }) => {
-  const files = await request.get('/api/files');
+  const files = await request.get('/files');
   expect(files.status()).toBe(401);
 
-  const notifications = await request.get('/api/notifications');
+  const notifications = await request.get('/notifications');
   expect(notifications.status()).toBe(401);
 });
 
