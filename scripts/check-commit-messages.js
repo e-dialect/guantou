@@ -7,6 +7,7 @@ const allowedTypes = [
   'fix',
   'docs',
   'test',
+  'style',
   'refactor',
   'build',
   'ci',
