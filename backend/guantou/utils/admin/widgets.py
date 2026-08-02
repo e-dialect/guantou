@@ -511,8 +511,7 @@ class IPAKeyboardWidget(forms.TextInput):
         )
 
         # JavaScript for keyboard functionality
-        js = format_html(
-            """
+        js = format_html("""
         <script>
         (function() {{
             if (!window.toggleIPAKeyboard) {{
@@ -562,7 +561,6 @@ class IPAKeyboardWidget(forms.TextInput):
             }}
         }})();
         </script>
-        """
-        )
+        """)
 
         return mark_safe(css + html + keyboard_html + js)

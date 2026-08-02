@@ -4,7 +4,6 @@ from django.urls import path, include
 from user import views as user
 from files.views import open_file_url
 
-
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include("guantou.urls")),

@@ -4,7 +4,6 @@ from urllib.parse import urlparse
 from utils.exceptions.types.not_found import NotFoundException
 from files.storage import download_file, random_str
 
-
 DEFAULT_AVATAR = "https://cos.edialect.top/website/默认头像.jpg"
 TRUSTED_AVATAR_DOMAINS = {
     "api.pxm.edialect.top",
