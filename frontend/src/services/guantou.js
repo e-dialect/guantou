@@ -82,6 +82,6 @@ export async function createCanForFlavor({ can, flavorId }) {
   });
 }
 
-export async function searchGuantou(search) {
-  return request.get('/search/', { search });
+export async function searchGuantou(search, options = {}) {
+  return request.get('/search/', { search, ...options });
 }

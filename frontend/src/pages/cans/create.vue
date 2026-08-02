@@ -1,165 +1,149 @@
 <template>
-  <view class="page">
-    <view class="topbar">
-      <text
-        class="back"
-        @tap="goBack"
-      >
-        ‹
-      </text>
-      <text class="title">
-        {{ pageTitle }}
-      </text>
-    </view>
-
-    <scroll-view
-      scroll-y
-      class="content"
+  <PageShell :title="pageTitle">
+    <view
+      v-if="!targetFlavor.id"
+      class="mode-tabs"
     >
       <view
-        v-if="!targetFlavor.id"
-        class="mode-tabs"
+        :class="['mode-tab', mode === 'free' ? 'active' : '']"
+        @tap="switchMode('free')"
       >
-        <view
-          :class="['mode-tab', mode === 'free' ? 'active' : '']"
-          @tap="switchMode('free')"
-        >
-          自由装罐
-        </view>
-        <view
-          :class="['mode-tab', mode === 'flavor' ? 'active' : '']"
-          @tap="switchMode('flavor')"
-        >
-          为义项补录音
-        </view>
+        自由装罐
       </view>
-
       <view
-        v-if="mode === 'flavor'"
-        class="target-flavor"
+        :class="['mode-tab', mode === 'flavor' ? 'active' : '']"
+        @tap="switchMode('flavor')"
       >
-        正在为「{{ targetFlavor.name || '已有义项' }}」补录一版方言
+        为义项补录音
+      </view>
+    </view>
+
+    <view
+      v-if="mode === 'flavor'"
+      class="target-flavor"
+    >
+      正在为「{{ targetFlavor.name || '已有义项' }}」补录一版方言
+    </view>
+
+    <uni-forms label-position="top">
+      <uni-forms-item label="普通话概念">
+        <input
+          v-model="form.concept_text"
+          class="field"
+          :disabled="mode === 'flavor'"
+          placeholder="例如：膝盖、祖母、走路"
+          maxlength="20"
+        >
+      </uni-forms-item>
+      <uni-forms-item label="方言点">
+        <picker
+          :range="dialects"
+          range-key="name"
+          @change="onDialectChange"
+        >
+          <view class="select">
+            {{ dialectLabel }}
+          </view>
+        </picker>
+      </uni-forms-item>
+
+      <AudioCapture
+        :audio="audio"
+        @change="onAudioChange"
+        @clear="clearAudio"
+      />
+
+      <view class="optional-head">
+        <text>补充信息（选填）</text>
+        <text
+          class="optional-toggle"
+          @tap="optionalOpen = !optionalOpen"
+        >
+          {{ optionalOpen ? '收起' : '展开' }}
+        </text>
       </view>
 
-      <uni-forms label-position="top">
-        <uni-forms-item label="普通话概念">
+      <view v-if="optionalOpen">
+        <uni-forms-item label="候选写法">
           <input
-            v-model="form.concept_text"
+            v-model="label.text_content"
             class="field"
-            :disabled="mode === 'flavor'"
-            placeholder="例如：膝盖、祖母、走路"
-            maxlength="20"
+            maxlength="10"
+            placeholder="不确定正字可先空着"
           >
         </uni-forms-item>
-        <uni-forms-item label="方言点">
+        <uni-forms-item label="释义">
+          <textarea
+            v-model="label.definition"
+            class="textarea"
+            maxlength="50"
+            placeholder="这个词是什么意思？"
+          />
+        </uni-forms-item>
+        <uni-forms-item label="写法类型">
           <picker
-            :range="dialects"
-            range-key="name"
-            @change="onDialectChange"
+            :range="packageTypes"
+            range-key="label"
+            @change="onPackageTypeChange"
           >
             <view class="select">
-              {{ dialectLabel }}
+              {{ packageTypeLabel }}
             </view>
           </picker>
         </uni-forms-item>
-
-        <AudioCapture
-          :audio="audio"
-          @change="onAudioChange"
-          @clear="clearAudio"
-        />
-
-        <view class="optional-head">
-          <text>补充信息（选填）</text>
-          <text
-            class="optional-toggle"
-            @tap="optionalOpen = !optionalOpen"
+        <uni-forms-item label="证据等级">
+          <picker
+            :range="evidenceLevels"
+            range-key="label"
+            @change="onEvidenceChange"
           >
-            {{ optionalOpen ? '收起' : '展开' }}
-          </text>
-        </view>
-
-        <view v-if="optionalOpen">
-          <uni-forms-item label="候选写法">
-            <input
-              v-model="label.text_content"
-              class="field"
-              maxlength="10"
-              placeholder="不确定正字可先空着"
-            >
-          </uni-forms-item>
-          <uni-forms-item label="释义">
-            <textarea
-              v-model="label.definition"
-              class="textarea"
-              maxlength="50"
-              placeholder="这个词是什么意思？"
-            />
-          </uni-forms-item>
-          <uni-forms-item label="写法类型">
-            <picker
-              :range="packageTypes"
-              range-key="label"
-              @change="onPackageTypeChange"
-            >
-              <view class="select">
-                {{ packageTypeLabel }}
-              </view>
-            </picker>
-          </uni-forms-item>
-          <uni-forms-item label="证据等级">
-            <picker
-              :range="evidenceLevels"
-              range-key="label"
-              @change="onEvidenceChange"
-            >
-              <view class="select">
-                {{ evidenceLabel }}
-              </view>
-            </picker>
-          </uni-forms-item>
-          <uni-forms-item label="产地">
-            <view class="split">
-              <input
-                v-model="form.county"
-                class="field"
-                placeholder="县区"
-              >
-              <input
-                v-model="form.town"
-                class="field"
-                placeholder="乡镇/社区"
-              >
+            <view class="select">
+              {{ evidenceLabel }}
             </view>
-          </uni-forms-item>
-          <uni-forms-item label="来源说明">
+          </picker>
+        </uni-forms-item>
+        <uni-forms-item label="产地">
+          <view class="split">
             <input
-              v-model="form.source_note"
+              v-model="form.county"
               class="field"
-              maxlength="50"
-              placeholder="比如：听奶奶说的"
+              placeholder="县区"
             >
-          </uni-forms-item>
-        </view>
-      </uni-forms>
-
-      <view class="form-hint">
-        不会写正字也没关系，先录下来最重要。
+            <input
+              v-model="form.town"
+              class="field"
+              placeholder="乡镇/社区"
+            >
+          </view>
+        </uni-forms-item>
+        <uni-forms-item label="来源说明">
+          <input
+            v-model="form.source_note"
+            class="field"
+            maxlength="50"
+            placeholder="比如：听奶奶说的"
+          >
+        </uni-forms-item>
       </view>
+    </uni-forms>
 
-      <button
-        class="primary-button"
-        :disabled="submitting || !canSubmit"
-        @tap="submit"
-      >
-        {{ submitting ? '提交中...' : '封存这罐乡音' }}
-      </button>
-    </scroll-view>
-  </view>
+    <view class="form-hint">
+      不会写正字也没关系，先录下来最重要。
+    </view>
+
+    <button
+      class="primary-button"
+      :disabled="submitting || !canSubmit"
+      @tap="submit"
+    >
+      {{ submitting ? '提交中...' : '封存这罐乡音' }}
+    </button>
+  </PageShell>
 </template>
 
 <script>
 import AudioCapture from '@/components/AudioCapture.vue';
+import PageShell from '@/components/PageShell.vue';
 import { uploadFile } from '@/services/file';
 import {
   createCanForFlavor,
@@ -200,6 +184,7 @@ function initialLabel() {
 export default {
   components: {
     AudioCapture,
+    PageShell,
   },
   data() {
     return {
@@ -333,9 +318,6 @@ export default {
       }
       uni.showToast({ title: '请从义项详情进入补录音', icon: 'none' });
       this.mode = 'free';
-    },
-    goBack() {
-      uni.navigateBack();
     },
     onPackageTypeChange(e) {
       this.label.package_type = this.packageTypes[e.detail.value].value;

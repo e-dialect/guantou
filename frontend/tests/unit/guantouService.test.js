@@ -73,4 +73,15 @@ describe('guantou service canning helpers', () => {
 
     expect(request.get).toHaveBeenCalledWith('/search/', { search: 'moon' });
   });
+
+  it('passes aggregate search options for suggestions', async () => {
+    request.get.mockResolvedValue({ flavors: [], packages: [], cans: [] });
+
+    await guantou.searchGuantou('moon', { limit: 5 });
+
+    expect(request.get).toHaveBeenCalledWith('/search/', {
+      search: 'moon',
+      limit: 5,
+    });
+  });
 });

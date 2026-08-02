@@ -64,7 +64,9 @@ v1 只实现可追溯的主张与权重，不实现 AI 聚类或自动正字裁�
 
 用户反馈统一进入 `src/services/feedback.js`。加载态、成功提示、错误 toast 和后续可能接入的全局消息通知，都从这里扩展；业务 service 返回结构化数据和异常，不直接替页面决定复杂交互。
 
-罐头相关页面优先复用 `CanCard`、`NameplateCard`、`EmptyState`、`ResultSection`、`AudioCapture` 这些基础组件。新增列表、详情、创建流程时，先判断是否可以扩展这些组件的 props 和事件，而不是复制一份视觉结构。
+前端页面优先用共享组件搭骨架：`PageShell` 负责顶部栏和滚动区，`SectionBlock` 负责详情分区，`CanList` 负责罐头分页列表，`EntityCard` 负责义项/写法/集盒卡片，`SearchPanel` 负责搜索聚焦态，`NameplateComposer` 负责贴铭牌表单。新增列表、详情、创建流程时，先判断是否可以扩展这些组件的 props 和事件，而不是复制一份视觉结构。
+
+罐头相关页面继续复用 `CanCard`、`NameplateCard`、`EmptyState`、`ResultSection`、`AudioCapture`。首页、搜索页、罐头列表/详情、义项/写法/集盒页面是给后续贡献者参考的样板页面。
 
 ## 状态机
 

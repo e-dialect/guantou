@@ -1,40 +1,22 @@
 <template>
-  <view class="page">
-    <view class="topbar">
-      <text
-        class="back"
-        @tap="goBack"
-      >
-        ‹
-      </text>
-      <text class="title">
-        罐头详情
-      </text>
-    </view>
-    <scroll-view
-      v-if="can"
-      scroll-y
-      class="content"
-    >
-      <view class="hero">
-        <view class="label">
+  <PageShell title="罐头详情">
+    <template v-if="can">
+      <SectionBlock>
+        <view class="hero-title">
           {{ primaryText }}
         </view>
-        <view class="concept">
+        <view class="hero-copy">
           {{ can.concept_text || '未填写普通话概念' }}
         </view>
         <button
-          class="play"
+          class="primary-button"
           @tap="playAudio(can.audio_url)"
         >
           播放乡音
         </button>
-      </view>
+      </SectionBlock>
 
-      <view class="section">
-        <view class="section-title">
-          产地与状态
-        </view>
+      <SectionBlock title="产地与状态">
         <view class="row">
           <text>方言点</text><text>{{ dialectText }}</text>
         </view>
@@ -44,52 +26,41 @@
         <view class="row">
           <text>来源</text><text>{{ can.source_note || '未填写' }}</text>
         </view>
-      </view>
+      </SectionBlock>
 
-      <view class="section">
-        <view class="section-title">
-          铭牌
-        </view>
-        <EmptyState
-          v-if="!can.nameplates.length"
-          title="等待第一张铭牌"
-          description="可以先记录你的写法、释义和来源，不必一次判定唯一正解。"
-          action-text="贴第一张铭牌"
-          @action="focusNameplateInput"
-        />
+      <SectionBlock
+        title="铭牌"
+        :empty="!can.nameplates.length"
+        empty-title="等待第一张铭牌"
+        empty-description="可以先记录你的写法、释义和来源，不必一次判定唯一正解。"
+        empty-action-text="贴第一张铭牌"
+        @empty-action="focusNameplateInput"
+      >
         <NameplateCard
           v-for="plate in can.nameplates"
           :key="plate.id"
           :plate="plate"
           @support="vote"
         />
-        <view class="new-plate">
-          <input
-            v-model="newPlate.text_content"
-            :focus="nameplateInputFocused"
-            class="field"
-            placeholder="补一张铭牌"
-          >
-          <textarea
-            v-model="newPlate.definition"
-            class="textarea"
-            placeholder="说明你的判断"
-          />
-          <button
-            class="submit"
-            @tap="submitNameplate"
-          >
-            贴上铭牌
-          </button>
-        </view>
-      </view>
-    </scroll-view>
-  </view>
+      </SectionBlock>
+
+      <SectionBlock title="补一张铭牌">
+        <NameplateComposer
+          ref="composer"
+          :focus="nameplateInputFocused"
+          :submitting="submittingNameplate"
+          @submit="submitNameplate"
+        />
+      </SectionBlock>
+    </template>
+  </PageShell>
 </template>
 
 <script>
-import EmptyState from '@/components/EmptyState.vue';
 import NameplateCard from '@/components/NameplateCard.vue';
+import NameplateComposer from '@/components/NameplateComposer.vue';
+import PageShell from '@/components/PageShell.vue';
+import SectionBlock from '@/components/SectionBlock.vue';
 import { createNameplate, getCan, voteNameplate } from '@/services/guantou';
 import { requireAuth } from '@/services/authGuard';
 import { playAudio } from '@/utils/audio';
@@ -105,15 +76,17 @@ const statusLabels = {
 
 export default {
   components: {
-    EmptyState,
     NameplateCard,
+    NameplateComposer,
+    PageShell,
+    SectionBlock,
   },
   data() {
     return {
       id: 0,
       can: null,
       nameplateInputFocused: false,
-      newPlate: { text_content: '', definition: '' },
+      submittingNameplate: false,
     };
   },
   computed: {
@@ -144,18 +117,16 @@ export default {
       await voteNameplate(id, 1);
       await this.refresh();
     },
-    async submitNameplate() {
+    async submitNameplate(payload) {
       if (!requireAuth('nameplate_create', { page: 'can_detail', canId: this.id })) return;
-      if (!this.newPlate.text_content) {
-        uni.showToast({ title: '请填写铭牌文字', icon: 'none' });
-        return;
+      this.submittingNameplate = true;
+      try {
+        await createNameplate(this.id, payload);
+        this.$refs.composer.reset();
+        await this.refresh();
+      } finally {
+        this.submittingNameplate = false;
       }
-      await createNameplate(this.id, this.newPlate);
-      this.newPlate = { text_content: '', definition: '' };
-      await this.refresh();
-    },
-    goBack() {
-      uni.navigateBack();
     },
     focusNameplateInput() {
       this.nameplateInputFocused = false;
@@ -168,95 +139,30 @@ export default {
 </script>
 
 <style scoped>
-.page {
-  min-height: 100vh;
-  background: #f6f7f3;
-  color: #1d2a24;
-}
-
-.topbar {
-  height: 96rpx;
-  display: flex;
-  align-items: center;
-  padding: 0 28rpx;
-  background: #fff;
-  border-bottom: 1px solid #e8ebe4;
-}
-
-.back {
-  font-size: 56rpx;
-  width: 54rpx;
-}
-
-.title {
-  font-size: 34rpx;
-  font-weight: 700;
-}
-
-.content {
-  height: calc(100vh - 96rpx);
-  padding: 28rpx;
-  box-sizing: border-box;
-}
-
-.hero,
-.section {
-  background: #fff;
-  border: 1px solid #e1e6dc;
-  border-radius: 14rpx;
-  padding: 28rpx;
-  margin-bottom: 20rpx;
-}
-
-.label {
+.hero-title {
   font-size: 46rpx;
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
-.concept {
+.hero-copy {
   margin-top: 10rpx;
   color: #56645b;
 }
 
-.play,
-.submit {
+.primary-button {
   margin-top: 24rpx;
   background: #1f5c43;
-  color: #fff;
+  color: #ffffff;
   border-radius: 12rpx;
-}
-
-.section-title {
-  font-size: 30rpx;
-  font-weight: 700;
-  margin-bottom: 14rpx;
 }
 
 .row {
   display: flex;
   justify-content: space-between;
+  gap: 20rpx;
   padding: 14rpx 0;
   color: #425148;
   border-bottom: 1px solid #eef1eb;
-}
-
-.new-plate {
-  margin-top: 22rpx;
-  display: grid;
-  gap: 14rpx;
-}
-
-.field,
-.textarea {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid #d9dfd5;
-  border-radius: 12rpx;
-  background: #fff;
-  padding: 20rpx;
-}
-
-.textarea {
-  min-height: 120rpx;
 }
 </style>

@@ -1,62 +1,61 @@
 <template>
-  <view class="page">
-    <view class="topbar">
-      <text
-        class="back"
-        @tap="goBack"
-      >
-        ‹
-      </text><text class="title">
-        集盒详情
-      </text>
-    </view>
-    <scroll-view
-      v-if="shelf"
-      scroll-y
-      class="content"
-    >
-      <view class="section">
+  <PageShell title="集盒详情">
+    <template v-if="shelf">
+      <SectionBlock>
         <view class="name">
           {{ shelf.title }}
         </view>
         <view class="definition">
           {{ shelf.description || '暂无简介' }}
         </view>
-      </view>
-      <view class="section">
-        <view class="section-title">
-          义项
-        </view>
-        <view
+      </SectionBlock>
+
+      <SectionBlock
+        title="义项"
+        :empty="!shelf.flavors.length"
+        empty-title="暂无义项"
+      >
+        <EntityCard
           v-for="flavor in shelf.flavors"
           :key="flavor.id"
-          class="item"
-          @tap="toFlavor(flavor.id)"
-        >
-          {{ flavor.name }}
-        </view>
-      </view>
-      <view class="section">
-        <view class="section-title">
-          罐头
-        </view>
-        <view
+          type="义项"
+          :title="flavor.name"
+          :description="flavor.definition || '暂无释义'"
+          :item="flavor"
+          @open="toFlavor(flavor.id)"
+        />
+      </SectionBlock>
+
+      <SectionBlock
+        title="罐头"
+        :empty="!shelf.cans.length"
+        empty-title="暂无罐头"
+      >
+        <CanCard
           v-for="can in shelf.cans"
           :key="can.id"
-          class="item"
-          @tap="toCan(can.id)"
-        >
-          {{ can.primary_nameplate ? can.primary_nameplate.text_content : can.concept_text }}
-        </view>
-      </view>
-    </scroll-view>
-  </view>
+          :can="can"
+          @open="toCan"
+        />
+      </SectionBlock>
+    </template>
+  </PageShell>
 </template>
 
 <script>
+import CanCard from '@/components/CanCard.vue';
+import EntityCard from '@/components/EntityCard.vue';
+import PageShell from '@/components/PageShell.vue';
+import SectionBlock from '@/components/SectionBlock.vue';
 import { getShelf } from '@/services/guantou';
 
 export default {
+  components: {
+    CanCard,
+    EntityCard,
+    PageShell,
+    SectionBlock,
+  },
   data() {
     return { shelf: null };
   },
@@ -70,71 +69,20 @@ export default {
     toCan(id) {
       uni.navigateTo({ url: `/pages/cans/details?id=${id}` });
     },
-    goBack() {
-      uni.navigateBack();
-    },
   },
 };
 </script>
 
 <style scoped>
-.page {
-  min-height: 100vh;
-  background: #f6f7f3;
-  color: #1d2a24;
-}
-
-.topbar {
-  height: 96rpx;
-  display: flex;
-  align-items: center;
-  padding: 0 28rpx;
-  background: #fff;
-  border-bottom: 1px solid #e8ebe4;
-}
-
-.back {
-  font-size: 56rpx;
-  width: 54rpx;
-}
-
-.title {
-  font-size: 34rpx;
-  font-weight: 700;
-}
-
-.content {
-  height: calc(100vh - 96rpx);
-  padding: 28rpx;
-  box-sizing: border-box;
-}
-
-.section {
-  background: #fff;
-  border: 1px solid #e1e6dc;
-  border-radius: 14rpx;
-  padding: 28rpx;
-  margin-bottom: 20rpx;
-}
-
 .name {
   font-size: 42rpx;
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .definition {
   margin-top: 14rpx;
   color: #425148;
-}
-
-.section-title {
-  font-weight: 700;
-  margin-bottom: 16rpx;
-}
-
-.item {
-  padding: 18rpx 0;
-  border-bottom: 1px solid #eef1eb;
-  color: #1f5c43;
+  line-height: 1.5;
 }
 </style>

@@ -1,21 +1,7 @@
 <template>
-  <view class="page">
-    <view class="topbar">
-      <text
-        class="back"
-        @tap="goBack"
-      >
-        ‹
-      </text><text class="title">
-        义项详情
-      </text>
-    </view>
-    <scroll-view
-      v-if="flavor"
-      scroll-y
-      class="content"
-    >
-      <view class="section">
+  <PageShell title="义项详情">
+    <template v-if="flavor">
+      <SectionBlock>
         <view class="name">
           {{ flavor.name }}
         </view>
@@ -28,23 +14,28 @@
         >
           用我的方言录一版
         </button>
-      </view>
-      <view class="section">
-        <view class="section-title">
-          写法
-        </view>
+      </SectionBlock>
+
+      <SectionBlock
+        title="写法"
+        :empty="!flavor.package_links.length"
+        empty-title="暂无关联写法"
+      >
         <text
           v-for="link in flavor.package_links"
           :key="link.id"
           class="tag"
+          @tap="toPackage(link.package.id)"
         >
           {{ link.package.text }}
         </text>
-      </view>
-      <view class="section">
-        <view class="section-title">
-          读音变体
-        </view>
+      </SectionBlock>
+
+      <SectionBlock
+        title="读音变体"
+        :empty="!flavor.variants.length"
+        empty-title="暂无读音变体"
+      >
         <view
           v-for="variant in flavor.variants"
           :key="variant.id"
@@ -53,55 +44,54 @@
           <text>{{ variant.dialect_detail ? variant.dialect_detail.name : '未标方言点' }}</text>
           <text>{{ variant.romanization || variant.ipa || '未标音' }}</text>
         </view>
-      </view>
-      <view class="section">
-        <view class="section-title">
-          相关罐头
-        </view>
-        <CanCard
-          v-for="can in relatedCans"
-          :key="can.id"
-          :can="can"
+      </SectionBlock>
+
+      <SectionBlock title="相关罐头">
+        <CanList
+          :fetcher="listCans"
+          :query="{ flavor: id }"
+          :scroll="false"
+          empty-title="还没有相关罐头"
+          empty-description="可以用自己的方言为这个义项补录一版。"
+          empty-action-text="补录乡音"
           @open="toCan"
+          @empty-action="toCreateForFlavor"
         />
-        <EmptyState
-          v-if="!relatedCans.length"
-          title="还没有相关罐头"
-          description="可以用自己的方言为这个义项补录一版。"
-          action-text="补录乡音"
-          @action="toCreateForFlavor"
-        />
-      </view>
-    </scroll-view>
-  </view>
+      </SectionBlock>
+    </template>
+  </PageShell>
 </template>
 
 <script>
-import CanCard from '@/components/CanCard.vue';
-import EmptyState from '@/components/EmptyState.vue';
+import CanList from '@/components/CanList.vue';
+import PageShell from '@/components/PageShell.vue';
+import SectionBlock from '@/components/SectionBlock.vue';
 import { requireAuth } from '@/services/authGuard';
 import { getFlavor, listCans } from '@/services/guantou';
 
 export default {
   components: {
-    CanCard,
-    EmptyState,
+    CanList,
+    PageShell,
+    SectionBlock,
   },
   data() {
-    return { flavor: null, id: 0, relatedCans: [] };
+    return { flavor: null, id: 0 };
   },
   async onLoad(options) {
     this.id = options.id;
     await this.refresh();
   },
   methods: {
+    listCans,
     async refresh() {
       this.flavor = await getFlavor(this.id);
-      const res = await listCans({ flavor: this.id });
-      this.relatedCans = res.results || res;
     },
     toCan(id) {
       uni.navigateTo({ url: `/pages/cans/details?id=${id}` });
+    },
+    toPackage(id) {
+      uni.navigateTo({ url: `/pages/packages/details?id=${id}` });
     },
     toCreateForFlavor() {
       if (!requireAuth('record_can', { page: 'flavor_detail', flavorId: this.id })) return;
@@ -109,66 +99,21 @@ export default {
         url: `/pages/cans/create?flavor=${this.id}&flavor_name=${encodeURIComponent(this.flavor.name)}`,
       });
     },
-    goBack() {
-      uni.navigateBack();
-    },
   },
 };
 </script>
 
 <style scoped>
-.page {
-  min-height: 100vh;
-  background: #f6f7f3;
-  color: #1d2a24;
-}
-
-.topbar {
-  height: 96rpx;
-  display: flex;
-  align-items: center;
-  padding: 0 28rpx;
-  background: #fff;
-  border-bottom: 1px solid #e8ebe4;
-}
-
-.back {
-  font-size: 56rpx;
-  width: 54rpx;
-}
-
-.title {
-  font-size: 34rpx;
-  font-weight: 700;
-}
-
-.content {
-  height: calc(100vh - 96rpx);
-  padding: 28rpx;
-  box-sizing: border-box;
-}
-
-.section {
-  background: #fff;
-  border: 1px solid #e1e6dc;
-  border-radius: 14rpx;
-  padding: 28rpx;
-  margin-bottom: 20rpx;
-}
-
 .name {
   font-size: 42rpx;
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .definition {
   margin-top: 14rpx;
   color: #425148;
-}
-
-.section-title {
-  font-weight: 700;
-  margin-bottom: 16rpx;
+  line-height: 1.5;
 }
 
 .tag {
@@ -183,15 +128,15 @@ export default {
 .primary-button {
   margin-top: 24rpx;
   background: #1f5c43;
-  color: #fff;
+  color: #ffffff;
   border-radius: 12rpx;
 }
 
 .variant {
   display: flex;
   justify-content: space-between;
+  gap: 20rpx;
   padding: 16rpx 0;
   border-bottom: 1px solid #eef1eb;
 }
-
 </style>
