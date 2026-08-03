@@ -35,7 +35,7 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-新业务代码优先放在 `guantou` app。`announcements` 只负责站内公告；`siteconfig` 负责后台可编辑的运营配置；邮箱验证码归入 `user`，文件上传归入 `files`，站内通知归入 `inbox`。部署环境变量仍由 `config/settings.py` 读取，不放入数据库。
+后端应用按领域划分，不要求所有新代码都塞进 `guantou` app。罐头、铭牌、义项、写法、集盒等核心实体归入 `guantou`；账户归入 `user`；公告归入 `announcements`；后台可编辑运营配置归入 `siteconfig`；邮箱验证码归入 `user`；文件上传归入 `files`；站内通知归入 `inbox`。更完整的边界说明见 `docs/BACKEND_GUIDE.md`。部署环境变量仍由 `config/settings.py` 读取，不放入数据库。
 
 离线方言材料处理脚本放在根目录 `tools/materials/`。跨方言通用逻辑进入 `common/`，莆仙话拼音、IPA 和旧表格清洗逻辑进入 `puxian/`。这些脚本不属于 Django 后端运行依赖。
 
@@ -53,7 +53,7 @@ yarn dev:h5
 VITE_BACKEND_URL=http://localhost:8000 yarn dev:h5
 ```
 
-新页面优先使用 `src/services/guantou.js` 调用 `/api/` 资源接口，不再引入词典式旧客户端流程。
+新页面优先使用 `src/services/guantou.js` 调用 `/api/` 资源接口，不再引入词典式旧客户端流程。页面、服务层和组件约定见 `docs/FRONTEND_GUIDE.md`。
 
 ## 前端工具边界
 

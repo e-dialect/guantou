@@ -2,6 +2,16 @@
 
 乡声集盒是由原前后端仓库合并后的单一仓库。新功能应优先围绕 `docs/PRODUCT_DESIGN.md` 和 `guantou` 新实体实现；方言材料处理脚本按地域放在 `tools/materials/`，不进入 Django 运行路径。
 
+这份文件只保留所有贡献者都需要知道的规则。第一次参与项目，建议按下面顺序阅读：
+
+- `docs/CONTRIBUTOR_ONBOARDING.md`：从选 issue 到发 PR 的新手路线图，也说明不同难度的任务应该读多少代码。
+- `docs/FRONTEND_GUIDE.md`：uni-app/Vue3 前端目录结构、页面写法、服务层和通用反馈约定。
+- `docs/BACKEND_GUIDE.md`：Django 后端目录结构、应用边界、API 路由、权限认证和全局异常行为。
+- `docs/ARCHITECTURE.md`：罐头、铭牌、义项、写法、集盒等核心模型关系。
+- `docs/PRODUCT_DESIGN.md`：产品语言和用户体验目标。
+
+如果你只是修正文案、样式或一个很小的 bug，先读 `CONTRIBUTOR_ONBOARDING.md` 就够了；如果要新增页面，请读前端指南；如果要新增接口、模型或数据导入逻辑，请读后端指南和架构说明。
+
 ## 分支与提交
 
 - 分支命名建议使用 `feat/...`、`fix/...`、`docs/...`、`refactor/...`。
@@ -51,3 +61,7 @@ make check
 - 不再为旧 `/words`、`/pronunciation` API 增加新客户端功能。
 - 涉及方言材料导入或清洗时，先在 `tools/materials/README.md` 说明适用方言、输入输出和依赖，再新增或调整脚本。
 - 新文档只维护根目录 `README.md` 和 `docs/`，不要在子仓库目录继续新增分散说明。
+
+## 参考来源
+
+本仓库的协作规范继承 e-dialect 组织级贡献说明的基本原则：尊重开源许可证、认领 issue、使用清晰分支和 Conventional Commits、通过 PR 评审合并。旧仓库 `hinghwa-dict-web`、`hinghwa-dict-uni-app`、`hinghwa-dict-backend` 只作为迁移历史参考；新代码应以本仓库 `docs/` 和当前目录结构为准。
