@@ -13,8 +13,15 @@ from utils.exceptions.types.unauthorized import (
 )
 
 
-def token_pass(headers: dict, user_id=0):
-    token = headers.get("token")
+def get_authorization_token(request):
+    authorization = request.headers.get("Authorization", "")
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        return ""
+    return token.strip()
+
+
+def token_pass(token, user_id=0):
     if not token:
         raise UnauthorizedException()
 
@@ -41,7 +48,7 @@ def token_pass(headers: dict, user_id=0):
 
 
 def token_user(token):
-    token_pass({"token": token})
+    token_pass(token)
     info = jwt.decode(token, settings.JWT_KEY, algorithms=["HS256"])
     return User.objects.get(id=info["id"])
 
@@ -72,16 +79,20 @@ def generate_token(user: User):
 
 def get_request_user(request):
     try:
-        token = request.headers["token"]
+        token = get_authorization_token(request)
         info = jwt.decode(token, settings.JWT_KEY, algorithms=["HS256"])
         if info["exp"] < timezone.now().timestamp():
-            return AnonymousUser()
+            request.user = AnonymousUser()
+            return request.user
         user = User.objects.get(id=info["id"])
         if user.username != info["username"]:
-            return AnonymousUser()
+            request.user = AnonymousUser()
+            return request.user
+        request.user = user
         return user
     except Exception:
-        return AnonymousUser()
+        request.user = AnonymousUser()
+        return request.user
 
 
 def check_request_user(request, user_id, message="无权操作！"):

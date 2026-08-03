@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from pydub import AudioSegment as audio
 
-from user.tokens import token_check
+from user.tokens import get_authorization_token, token_check
 
 from .storage import delete_file, random_str, upload_file
 
@@ -25,7 +25,7 @@ def file_extension(uploaded_file, file_type):
 
 @csrf_exempt
 def files(request):
-    user = token_check(request.headers.get("token"))
+    user = token_check(get_authorization_token(request))
     if not user:
         return JsonResponse({}, status=401)
     if request.method == "POST":

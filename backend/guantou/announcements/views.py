@@ -2,7 +2,7 @@ import demjson3
 from django.http import JsonResponse
 from django.views import View
 
-from user.tokens import token_check
+from user.tokens import get_authorization_token, token_check
 from utils.exceptions.types.not_found import AnnouncementNotFoundException
 from user.dto.user_simple import user_simple
 from utils.collections import order_by_id_list
@@ -32,7 +32,7 @@ class SearchAnnouncement(View):
         )
 
     def post(self, request) -> JsonResponse:
-        user = token_check(request.headers.get("token"), -1)
+        user = token_check(get_authorization_token(request), -1)
         if not user:
             return JsonResponse({}, status=401)
         form = AnnouncementForm(demjson3.decode(request.body))
@@ -72,7 +72,7 @@ def get_announcement(id):
 class ManageAnnouncement(View):
     def get(self, request, id) -> JsonResponse:
         announcement = get_announcement(id)
-        user = token_check(request.headers.get("token"))
+        user = token_check(get_authorization_token(request))
         if not announcement.visibility and not (
             user and (user.is_superuser or user == announcement.author)
         ):
@@ -90,7 +90,7 @@ class ManageAnnouncement(View):
 
     def put(self, request, id) -> JsonResponse:
         announcement = get_announcement(id)
-        user = token_check(request.headers.get("token"))
+        user = token_check(get_authorization_token(request))
         if not (user and (user.is_superuser or user == announcement.author)):
             return JsonResponse({}, status=401)
         data = demjson3.decode(request.body).get(
@@ -106,7 +106,7 @@ class ManageAnnouncement(View):
 
     def delete(self, request, id) -> JsonResponse:
         announcement = get_announcement(id)
-        user = token_check(request.headers.get("token"))
+        user = token_check(get_authorization_token(request))
         if not (user and (user.is_superuser or user == announcement.author)):
             return JsonResponse({}, status=401)
         announcement.delete()
@@ -116,7 +116,7 @@ class ManageAnnouncement(View):
 class ManageAnnouncementVisibility(View):
     def put(self, request, id) -> JsonResponse:
         announcement = get_announcement(id)
-        user = token_check(request.headers.get("token"), -1)
+        user = token_check(get_authorization_token(request), -1)
         if not user:
             return JsonResponse({}, status=401)
         body = demjson3.decode(request.body)

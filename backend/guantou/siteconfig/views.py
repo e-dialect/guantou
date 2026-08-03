@@ -5,7 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 from announcements.dto.announcement import announcement_normal
 from announcements.models import Announcement
 from user.dto.user_simple import user_simple
-from user.tokens import token_check
+from user.tokens import get_authorization_token, token_check
 from utils.collections import order_by_id_list
 
 from .models import SiteSettings
@@ -24,7 +24,7 @@ def ordered_visible_announcements(ids):
 
 
 def admin_user_from_request(request):
-    return token_check(request.headers.get("token"), -1)
+    return token_check(get_authorization_token(request), -1)
 
 
 @csrf_exempt

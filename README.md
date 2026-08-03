@@ -19,6 +19,7 @@
 - [历史视觉/交互参考](docs/references/README.md)
 - [架构说明](docs/ARCHITECTURE.md)
 - [API 约定](docs/API.md)
+- [身份、游客与审计开发指南](docs/AUTH_AUDIT_GUIDE.md)
 - [开发指南](docs/DEVELOPMENT.md)
 - [测试说明](docs/TESTING.md)
 - [部署说明](docs/DEPLOYMENT.md)
@@ -86,8 +87,8 @@ make setup
 
 ```bash
 cd backend/guantou
-python manage.py test guantou announcements user siteconfig files inbox
-black --check announcements guantou user siteconfig files inbox utils config
+python manage.py test guantou announcements user siteconfig files inbox audit
+black --check announcements guantou user siteconfig files inbox audit utils config
 
 cd ../../frontend
 yarn lint

@@ -356,11 +356,16 @@ class Nameplate(models.Model):
         return self.text_content
 
     def promote_to_primary(self):
-        Nameplate.objects.filter(can=self.can).exclude(id=self.id).update(
-            is_primary=False
-        )
-        self.is_primary = True
-        self.save(update_fields=["is_primary", "updated_at"])
+        for nameplate in (
+            Nameplate.objects.filter(can=self.can, is_primary=True)
+            .exclude(id=self.id)
+            .iterator()
+        ):
+            nameplate.is_primary = False
+            nameplate.save(update_fields=["is_primary", "updated_at"])
+        if not self.is_primary:
+            self.is_primary = True
+            self.save(update_fields=["is_primary", "updated_at"])
 
     class Meta:
         ordering = ["can_id", "-is_primary", "-weight", "id"]

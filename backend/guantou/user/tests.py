@@ -1,8 +1,10 @@
 from unittest.mock import patch
 
+from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.test import Client, TestCase, override_settings
 
+from .tokens import generate_token
 from .verification import check_email_code, email_cache_key
 
 
@@ -31,3 +33,35 @@ class EmailVerificationTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 400)
+
+
+class BearerTokenTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(username="collector", password="pw")
+
+    def test_login_and_refresh_token_with_authorization_bearer(self):
+        response = self.client.post(
+            "/login",
+            data='{"username": "collector", "password": "pw"}',
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        token = response.json()["token"]
+
+        response = self.client.put(
+            "/login",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["id"], self.user.id)
+        self.assertIn("token", response.json())
+
+    def test_refresh_token_rejects_legacy_token_header(self):
+        response = self.client.put(
+            "/login",
+            HTTP_TOKEN=generate_token(self.user),
+        )
+
+        self.assertEqual(response.status_code, 401)

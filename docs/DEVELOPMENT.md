@@ -67,8 +67,8 @@ VITE_BACKEND_URL=http://localhost:8000 yarn dev:h5
 
 `src/utils/httpClient.js` 是统一请求内核。`src/utils/request.js` 和 `src/utils/rawRequest.js` 保留为兼容包装：
 
-- `request`：用于普通业务请求，默认带 token，错误会提示，401 会跳登录。
-- `rawRequest`：用于登录、注册、刷新 token 等流程，默认带 token，但错误静默，不自动跳登录。
+- `request`：用于普通业务请求，默认带 `Authorization: Bearer <token>` 和 `X-Visitor-ID`，错误会提示，401 会跳登录。
+- `rawRequest`：用于登录、注册、刷新 token 等流程，默认带 `Authorization: Bearer <token>` 和 `X-Visitor-ID`，但错误静默，不自动跳登录。
 
 登录、注册、微信登录/注册等公开入口必须显式传 `{ auth: false }`，避免浏览器或小程序本地残留的旧 token 污染 public 请求。刷新 token、加载当前用户信息等需要登录态的流程继续使用默认 `auth: true`。
 

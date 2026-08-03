@@ -32,7 +32,9 @@ pages/*.vue
   -> uni.request / uni.uploadFile
 ```
 
-常规页面使用 `utils/request.js`，它默认带 token、显示 loading、401 时跳登录页。需要静默请求或自己处理错误时使用 `utils/rawRequest.js`。
+常规页面使用 `utils/request.js`，它默认带 `Authorization: Bearer <token>`、发送 `X-Visitor-ID`、显示 loading、401 时跳登录页。需要静默请求或自己处理错误时使用 `utils/rawRequest.js`。
+
+`utils/httpClient.js` 会保存响应头里的 `X-Visitor-ID` 到本地 `visitor_id`，并在后续请求中继续发送。游客身份只用于访问追踪；受保护动作仍然通过 `authGuard.requireAuth(...)` 拦截并引导登录。
 
 新实体服务放在 `frontend/src/services/guantou.js`。目前资源实体统一走根路径，不使用 api 前缀：
 

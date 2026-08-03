@@ -28,7 +28,9 @@
 - `/files...`
 - `/notifications...`
 
-写接口需要在 header 中传入旧系统的 `token`。
+写接口需要在 header 中传入 `Authorization: Bearer <jwt>`。前端也会随请求传入 `X-Visitor-ID`；未传时后端会生成匿名访客 ID 并在响应头回写 `X-Visitor-ID`。
+
+匿名访客只用于访问追踪和审计归因，不具备写权限。游客创建罐头、贴铭牌、投票、上传文件等操作仍会返回未登录错误。
 
 ## 错误响应
 

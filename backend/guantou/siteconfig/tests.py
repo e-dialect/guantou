@@ -8,6 +8,10 @@ from user.tokens import generate_token
 from .models import SiteSettings
 
 
+def bearer(user):
+    return f"Bearer {generate_token(user)}"
+
+
 class SiteSettingsTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_superuser(
@@ -41,12 +45,11 @@ class SiteSettingsTests(TestCase):
             content="",
             visibility=True,
         )
-        token = generate_token(self.admin)
         response = self.client.put(
             "/site-settings/featured-announcements",
             data='{"featured_announcements": [%d, %d]}' % (second.id, first.id),
             content_type="application/json",
-            HTTP_TOKEN=token,
+            HTTP_AUTHORIZATION=bearer(self.admin),
         )
         self.assertEqual(response.status_code, 200)
         response = self.client.get("/site-settings/featured-announcements")

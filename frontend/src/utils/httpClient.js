@@ -14,6 +14,9 @@ const DEFAULT_OPTIONS = {
   loadingTitle: '加载中',
 };
 
+const TOKEN_STORAGE_KEY = 'token';
+const VISITOR_STORAGE_KEY = 'visitor_id';
+
 function resolveOptions(options = {}) {
   return {
     ...DEFAULT_OPTIONS,
@@ -23,14 +26,25 @@ function resolveOptions(options = {}) {
 
 function authHeaders(enabled) {
   if (!enabled) return {};
+  const token = uni.getStorageSync(TOKEN_STORAGE_KEY);
+  if (!token) return {};
   return {
-    token: uni.getStorageSync('token'),
+    Authorization: `Bearer ${token}`,
+  };
+}
+
+function visitorHeaders() {
+  const visitorId = uni.getStorageSync(VISITOR_STORAGE_KEY);
+  if (!visitorId) return {};
+  return {
+    'X-Visitor-ID': visitorId,
   };
 }
 
 function buildHeaders(options) {
   return {
     'content-type': 'application/json',
+    ...visitorHeaders(),
     ...authHeaders(options.auth),
   };
 }
@@ -71,6 +85,18 @@ function notifyError(error, options) {
   }
 }
 
+function responseHeaderValue(headers, key) {
+  if (!headers) return '';
+  return headers[key] || headers[key.toLowerCase()] || headers[key.toUpperCase()] || '';
+}
+
+function persistVisitorId(res) {
+  const visitorId = responseHeaderValue(res && res.header, 'X-Visitor-ID');
+  if (visitorId) {
+    uni.setStorageSync(VISITOR_STORAGE_KEY, visitorId);
+  }
+}
+
 export function request(method = 'GET', url = '', data = {}, options = {}) {
   const resolvedOptions = resolveOptions(options);
   showLoading(resolvedOptions);
@@ -82,6 +108,7 @@ export function request(method = 'GET', url = '', data = {}, options = {}) {
       header: buildHeaders(resolvedOptions),
       dataType: 'json',
     }).then((res) => {
+      persistVisitorId(res);
       hideLoading(resolvedOptions);
       if (res.statusCode >= 200 && res.statusCode < 400) {
         resolve(res.data);
@@ -120,8 +147,12 @@ export function upload(file, options = {}) {
       url: `${BASE_URL}${options.url || '/files'}`,
       filePath: file,
       name: options.name || 'file',
-      header: authHeaders(resolvedOptions.auth),
+      header: {
+        ...visitorHeaders(),
+        ...authHeaders(resolvedOptions.auth),
+      },
     }).then((res) => {
+      persistVisitorId(res);
       hideLoading(resolvedOptions);
       if (res.statusCode >= 200 && res.statusCode < 400) {
         resolve(parseUploadResponseData(res.data));

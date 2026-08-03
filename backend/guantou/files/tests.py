@@ -9,6 +9,10 @@ from django.test import Client, TestCase, override_settings
 from user.tokens import generate_token
 
 
+def bearer(user):
+    return f"Bearer {generate_token(user)}"
+
+
 class FileApiTests(TestCase):
     def setUp(self):
         self.media_root = tempfile.mkdtemp()
@@ -30,7 +34,20 @@ class FileApiTests(TestCase):
         response = self.client.post(
             "/files",
             {"file": file},
-            HTTP_TOKEN=generate_token(self.user),
+            HTTP_AUTHORIZATION=bearer(self.user),
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["url"], upload_file.return_value)
+
+    @patch("files.views.upload_file")
+    def test_upload_rejects_legacy_token_header(self, upload_file):
+        upload_file.return_value = "https://cos.test.edialect.top/files/image/1/x.png"
+        file = SimpleUploadedFile("cover.png", b"image", content_type="image/png")
+
+        response = self.client.post(
+            "/files",
+            {"file": file},
+            HTTP_TOKEN=generate_token(self.user),
+        )
+
+        self.assertEqual(response.status_code, 401)

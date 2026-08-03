@@ -5,7 +5,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from user.dto.user_all import user_all
 from user.passwords import validate_password_policy
-from user.tokens import generate_token, token_check
+from user.tokens import generate_token, get_authorization_token, token_check
 from user.avatar import upload_avatar
 from user.verification import check_email_code
 from .forms import UserForm
@@ -83,7 +83,7 @@ def login(request):
             else:
                 return JsonResponse({}, status=401)
         elif request.method == "PUT":
-            token = request.headers.get("token")
+            token = get_authorization_token(request)
             if not token:
                 return JsonResponse({}, status=401)
             user = token_check(token)

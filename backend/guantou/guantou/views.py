@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import F, Q
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -317,7 +317,9 @@ class NameplateViewSet(viewsets.ModelViewSet):
                 nameplate=nameplate, user=request.user
             )
             if created:
-                Nameplate.objects.filter(id=nameplate.id).update(weight=F("weight") + 1)
+                nameplate = Nameplate.objects.select_for_update().get(id=nameplate.id)
+                nameplate.weight += 1
+                nameplate.save(update_fields=["weight", "updated_at"])
                 nameplate.refresh_from_db()
         strongest = nameplate.can.nameplates.order_by("-weight", "id").first()
         if strongest:

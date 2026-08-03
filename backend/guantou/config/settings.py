@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "announcements",
     "user",
     "guantou",
+    "audit",
     "siteconfig",
     "files",
     "inbox",
@@ -49,6 +50,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "utils.exceptions.middleware.ExceptionMiddleware",
+    "audit.middleware.VisitorTrackingMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -164,9 +166,13 @@ CORS_ALLOW_HEADERS = (
     "user-agent",
     "x-csrftoken",
     "x-requested-with",
+    "x-visitor-id",
     "Pragma",
-    "x-token",
-    "token",
+)
+
+CORS_EXPOSE_HEADERS = (
+    "X-Request-ID",
+    "X-Visitor-ID",
 )
 
 CSRF_TRUSTED_ORIGINS = [
@@ -285,7 +291,7 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 10240
 REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "utils.exceptions.handler.drf_exception_handler",
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "guantou.authentication.HeaderTokenAuthentication",
+        "guantou.authentication.BearerTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [

@@ -38,7 +38,9 @@ v1 只实现可追溯的主张与权重，不实现 AI 聚类或自动正字裁�
 
 新增前端 service、测试和文档都应使用根路径，例如 `/cans/`、`/search/`、`/users`、`/login`、`/files`。如果未来后端需要同时承载传统网页或多版本公开接口，应先在 issue 中重新讨论版本化和兼容策略，不要在本阶段自行加路径前缀。
 
-读接口默认开放，写接口需要旧系统 `token` header。后端通过 `guantou.authentication.HeaderTokenAuthentication` 复用现有 JWT 解析逻辑。
+读接口默认开放，写接口需要 `Authorization: Bearer <jwt>`。后端通过 `guantou.authentication.BearerTokenAuthentication` 复用现有 JWT 解析逻辑。
+
+匿名访客和审计属于跨领域基础设施，放在 `audit` app。`AnonymousVisitor` 通过 `X-Visitor-ID` 追踪游客访问但不授予写权限；`VisitorEvent` 记录 API 访问；`ObjectChangeLog` 通过 signals 记录 `guantou` 核心模型的 create/update/delete。
 
 后端可以按领域拆分 Django app，不要求所有模型和接口都塞进 `guantou` app。新增 app 时应同时补齐 `apps.py`、`urls.py`、service 层和聚合入口；跨领域编排优先放在 service 层，不把复杂业务直接堆在 view 或 serializer 里。
 

@@ -3,6 +3,11 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from .models import Can, Dialect, Flavor, Nameplate, NameplateSupport, Package
+from user.tokens import generate_token
+
+
+def bearer(user):
+    return f"Bearer {generate_token(user)}"
 
 
 class GuantouApiTests(TestCase):
@@ -315,6 +320,43 @@ class GuantouApiTests(TestCase):
         self.assertEqual(response.data["text"], "行")
         self.assertEqual(len(response.data["flavors"]), 1)
         self.assertEqual(response.data["flavors"][0]["name"], "行走")
+
+
+class BearerAuthenticationApiTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="collector", password="pw")
+        self.dialect = Dialect.objects.create(name="Puxian", code="puxian")
+
+    def test_bearer_token_authenticates_drf_write_request(self):
+        client = APIClient()
+        response = client.post(
+            "/cans/",
+            {
+                "audio_url": "https://example.com/audio.mp3",
+                "dialect": self.dialect.id,
+                "concept_text": "moon",
+            },
+            format="json",
+            HTTP_AUTHORIZATION=bearer(self.user),
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Can.objects.get(id=response.data["id"]).recorder, self.user)
+
+    def test_legacy_token_header_no_longer_authenticates_drf_write_request(self):
+        client = APIClient()
+        response = client.post(
+            "/cans/",
+            {
+                "audio_url": "https://example.com/audio.mp3",
+                "dialect": self.dialect.id,
+                "concept_text": "moon",
+            },
+            format="json",
+            HTTP_TOKEN=generate_token(self.user),
+        )
+
+        self.assertEqual(response.status_code, 401)
 
 
 class CanTransitionTests(TestCase):

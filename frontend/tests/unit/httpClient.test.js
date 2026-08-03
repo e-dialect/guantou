@@ -10,8 +10,15 @@ const request = (await import('@/utils/request')).default;
 const rawRequest = (await import('@/utils/rawRequest')).default;
 
 function installUniMock() {
+  const storage = {
+    token: 'stored-token',
+    visitor_id: 'stored-visitor',
+  };
   global.uni = {
-    getStorageSync: vi.fn((key) => (key === 'token' ? 'stored-token' : '')),
+    getStorageSync: vi.fn((key) => storage[key] || ''),
+    setStorageSync: vi.fn((key, value) => {
+      storage[key] = value;
+    }),
     request: vi.fn(),
     uploadFile: vi.fn(),
     showLoading: vi.fn(),
@@ -26,7 +33,7 @@ describe('httpClient compatibility wrappers', () => {
     vi.useRealTimers();
   });
 
-  it('request wrapper keeps token header and resolves JSON data', async () => {
+  it('request wrapper sends Bearer token and resolves JSON data', async () => {
     uni.request.mockResolvedValue({
       statusCode: 200,
       data: { ok: true },
@@ -40,7 +47,8 @@ describe('httpClient compatibility wrappers', () => {
       data: { page: 1 },
       header: expect.objectContaining({
         'content-type': 'application/json',
-        token: 'stored-token',
+        Authorization: 'Bearer stored-token',
+        'X-Visitor-ID': 'stored-visitor',
       }),
     }));
     expect(uni.showLoading).toHaveBeenCalledWith({ title: '加载中', mask: true });
@@ -61,6 +69,7 @@ describe('httpClient compatibility wrappers', () => {
     expect(uni.request).toHaveBeenCalledWith(expect.objectContaining({
       header: {
         'content-type': 'application/json',
+        'X-Visitor-ID': 'stored-visitor',
       },
     }));
     expect(uni.showLoading).not.toHaveBeenCalled();
@@ -122,6 +131,7 @@ describe('httpClient compatibility wrappers', () => {
     uni.request.mockResolvedValue({
       statusCode: 200,
       data: { token: 'new-token' },
+      header: { 'X-Visitor-ID': 'response-visitor' },
     });
 
     await expect(rawRequest.post('/login', { username: 'a' }, { auth: false })).resolves.toEqual({
@@ -133,8 +143,10 @@ describe('httpClient compatibility wrappers', () => {
       url: 'http://localhost:8000/login',
       header: {
         'content-type': 'application/json',
+        'X-Visitor-ID': 'stored-visitor',
       },
     }));
+    expect(uni.setStorageSync).toHaveBeenCalledWith('visitor_id', 'response-visitor');
   });
 
   it('rawRequest still accepts legacy boolean silent argument', async () => {
@@ -169,7 +181,8 @@ describe('httpClient compatibility wrappers', () => {
       filePath: '/tmp/audio.mp3',
       name: 'file',
       header: {
-        token: 'stored-token',
+        Authorization: 'Bearer stored-token',
+        'X-Visitor-ID': 'stored-visitor',
       },
     }));
     expect(uni.showLoading).toHaveBeenCalledWith({ title: '上传中……', mask: true });

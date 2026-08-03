@@ -6,7 +6,7 @@ from django.http import JsonResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from user.tokens import get_request_user, token_check
+from user.tokens import get_authorization_token, get_request_user, token_check
 from utils.exceptions.types.bad_request import BadRequestException
 from utils.exceptions.types.unauthorized import UnauthorizedException
 
@@ -77,7 +77,7 @@ def manage_notification(request, id):
         return JsonResponse({}, status=404)
     if request.method != "GET":
         return JsonResponse({}, status=405)
-    token = request.headers.get("token")
+    token = get_authorization_token(request)
     user1 = token_check(token, notification.actor_id)
     user2 = token_check(token, notification.recipient_id)
     if not (user1 or user2):
@@ -89,7 +89,7 @@ def manage_notification(request, id):
 
 @csrf_exempt
 def mark_notifications_read(request):
-    user = token_check(request.headers.get("token"))
+    user = token_check(get_authorization_token(request))
     if not user:
         return JsonResponse({}, status=401)
     if request.method != "PUT":

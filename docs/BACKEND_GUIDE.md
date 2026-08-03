@@ -87,12 +87,16 @@ config/urls.py
 
 DRF 默认配置在 `config/settings.py`：
 
-- `HeaderTokenAuthentication`：复用旧系统 `token` header。
+- `BearerTokenAuthentication`：读取 `Authorization: Bearer <jwt>`。
 - `SessionAuthentication`：保留 Django 会话认证。
 - `IsAuthenticatedOrReadOnly`：默认读开放，写需要登录。
 - 默认分页：`PageNumberPagination`，每页 15 条。
 
 具体 ViewSet 可以覆盖全局权限。例如 `Can`、`Nameplate`、`Flavor` 使用 `IsOwnerOrAdmin` 限制修改/删除只能由创建者或管理员执行；投票、贴铭牌、状态流转等 action 也会单独声明权限。不要为了一个接口修改全局 settings，应该在具体 ViewSet 或 action 上显式声明 `permission_classes`。
+
+匿名游客由 `audit.AnonymousVisitor` 追踪。后端读取或生成 `X-Visitor-ID`，挂到 `request.visitor`，并在响应头回写同名 header。游客只用于访问/审计归因，不创建 Django `User`，也不能绕过写接口登录要求。
+
+对象审计由 `audit.ObjectChangeLog` 自动记录 `guantou` 核心模型的 create/update/delete。访问行为由 `audit.VisitorEvent` 记录；`Can.views` 这类读取计数更新不会写入对象变更审计。
 
 ## 全局异常行为
 
@@ -164,8 +168,8 @@ python manage.py makemigrations --check --dry-run
 cd backend/guantou
 python manage.py check
 python manage.py makemigrations --check --dry-run
-python manage.py test guantou announcements user siteconfig files inbox
-black --check announcements guantou user siteconfig files inbox utils config
+python manage.py test guantou announcements user siteconfig files inbox audit
+black --check announcements guantou user siteconfig files inbox audit utils config
 ```
 
 ## 什么时候先写方案
