@@ -1,6 +1,6 @@
 # 乡声集盒 API
 
-所有新接口挂载在 `/api/`，分页使用 DRF 默认结构：
+所有资源实体接口挂载在根路径，不使用 api 前缀。分页使用 DRF 默认结构：
 
 ```json
 {
@@ -13,13 +13,13 @@
 
 ## 资源
 
-- `GET/POST /api/dialects/`
-- `GET/POST /api/packages/`
-- `GET/POST /api/flavors/`
-- `GET/POST /api/flavor-variants/`
-- `GET/POST /api/cans/`
-- `GET/POST /api/nameplates/`
-- `GET/POST /api/shelves/`
+- `GET/POST /dialects/`
+- `GET/POST /packages/`
+- `GET/POST /flavors/`
+- `GET/POST /flavor-variants/`
+- `GET/POST /cans/`
+- `GET/POST /nameplates/`
+- `GET/POST /shelves/`
 
 写接口需要在 header 中传入旧系统的 `token`。
 
@@ -36,7 +36,7 @@
 创建罐头：
 
 ```http
-POST /api/cans/
+POST /cans/
 ```
 
 ```json
@@ -52,12 +52,12 @@ POST /api/cans/
 
 常用查询：
 
-- `/api/cans/?status=unlabeled`
-- `/api/cans/?needs_label=true`
-- `/api/cans/?dialect=1`
-- `/api/cans/?flavor=1`
-- `/api/cans/?mine=true`
-- `/api/cans/?search=膝盖`
+- `/cans/?status=unlabeled`
+- `/cans/?needs_label=true`
+- `/cans/?dialect=1`
+- `/cans/?flavor=1`
+- `/cans/?mine=true`
+- `/cans/?search=膝盖`
 
 `dialect` 查询遵循“查父含子，查子不含父”。
 
@@ -66,7 +66,7 @@ POST /api/cans/
 给某个罐头贴铭牌：
 
 ```http
-POST /api/cans/{can_id}/nameplates/
+POST /cans/{can_id}/nameplates/
 ```
 
 ```json
@@ -83,7 +83,7 @@ POST /api/cans/{can_id}/nameplates/
 给铭牌投票：
 
 ```http
-POST /api/nameplates/{nameplate_id}/vote/
+POST /nameplates/{nameplate_id}/vote/
 ```
 
 ```json
@@ -141,9 +141,9 @@ POST /api/nameplates/{nameplate_id}/vote/
 
 常用查询：
 
-- `/api/flavors/?search=膝盖`
-- `/api/flavors/?package=1`
-- `/api/flavor-variants/?flavor=1&dialect=2`
-- `/api/packages/?search=行`
+- `/flavors/?search=膝盖`
+- `/flavors/?package=1`
+- `/flavor-variants/?flavor=1&dialect=2`
+- `/packages/?search=行`
 
 搜索写法时，前端应展示该写法关联的义项列表；进入义项详情后，再展示方言点变体和相关罐头。

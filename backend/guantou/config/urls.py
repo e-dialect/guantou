@@ -6,7 +6,7 @@ from files.views import open_file_url
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/", include("guantou.urls")),
+    path("", include("guantou.urls")),
     path("users/", include("user.urls", namespace="users")),
     path("login/", include("user.urls", namespace="login")),
     path("users", user.router_users),

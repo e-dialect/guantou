@@ -103,7 +103,7 @@ black --check announcements guantou user siteconfig files inbox utils config
 ## 一个接口 PR 应该怎么做
 
 1. 先确认实体属于哪个 app。罐头、铭牌、义项、写法、集盒优先在 `guantou`；账户在 `user`；通知在 `inbox`；文件在 `files`。
-2. 新实体资源优先挂在 `/api/` 的 DRF router 下，历史账户/文件接口不要随意改路径。
+2. 新实体资源优先挂在根路径的 DRF router 下，例如 `/cans/`、`/flavors/`，历史账户/文件接口不要随意改路径。
 3. 业务校验尽量放在 serializer 或 service，视图层负责组织请求和响应。
 4. 抛业务错误时使用 `utils.exceptions.types` 下的异常类型，不要返回临时格式。
 5. 修改模型后必须检查迁移。

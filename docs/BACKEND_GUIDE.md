@@ -1,6 +1,6 @@
 # 后端开发指南
 
-后端使用 Django + Django REST Framework。目录来自旧 `hinghwa-dict-backend`，但现在是单仓库结构：旧系统能力继续可用，新罐头体系优先走 `guantou` app 和 `/api/` router。
+后端使用 Django + Django REST Framework。目录来自旧 `hinghwa-dict-backend`，但现在是单仓库结构：旧系统能力继续可用，新罐头体系优先走 `guantou` app 和根路径资源 router。
 
 ## 目录结构
 
@@ -56,16 +56,16 @@ config/urls.py
 
 当前根路由在 `backend/guantou/config/urls.py`。
 
-新罐头体系资源挂在 `/api/`：
+新罐头体系资源挂在根路径，不使用 api 前缀：
 
 ```text
-/api/cans/
-/api/flavors/
-/api/flavor-variants/
-/api/packages/
-/api/nameplates/
-/api/shelves/
-/api/dialects/
+/cans/
+/flavors/
+/flavor-variants/
+/packages/
+/nameplates/
+/shelves/
+/dialects/
 ```
 
 这些资源由 `backend/guantou/guantou/urls.py` 的 DRF `DefaultRouter` 暴露。新增同类实体时，优先注册到这个 router。
@@ -81,7 +81,7 @@ config/urls.py
 /notifications
 ```
 
-不要随意迁移旧接口路径，否则会影响现有客户端。新增罐头体系接口也不要再新增根路径，避免 API 风格继续分裂。
+不要随意迁移旧接口路径，否则会影响现有客户端。新增罐头体系接口继续使用根路径资源名，不要再新增 api 前缀，避免 API 风格继续分裂。
 
 ## 认证与权限
 

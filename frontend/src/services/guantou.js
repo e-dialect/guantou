@@ -1,63 +1,63 @@
 import request from '@/utils/request';
 
 export function listDialects(params = {}) {
-  return request.get('/api/dialects/', params);
+  return request.get('/dialects/', params);
 }
 
 export function listCans(params = {}) {
-  return request.get('/api/cans/', params);
+  return request.get('/cans/', params);
 }
 
 export function getCan(id) {
-  return request.get(`/api/cans/${id}/`);
+  return request.get(`/cans/${id}/`);
 }
 
 export function createCan(can) {
-  return request.post('/api/cans/', can);
+  return request.post('/cans/', can);
 }
 
 export function listPackages(params = {}) {
-  return request.get('/api/packages/', params);
+  return request.get('/packages/', params);
 }
 
 export function getPackage(id) {
-  return request.get(`/api/packages/${id}/`);
+  return request.get(`/packages/${id}/`);
 }
 
 export function createPackage(payload) {
-  return request.post('/api/packages/', payload);
+  return request.post('/packages/', payload);
 }
 
 export function listFlavors(params = {}) {
-  return request.get('/api/flavors/', params);
+  return request.get('/flavors/', params);
 }
 
 export function getFlavor(id) {
-  return request.get(`/api/flavors/${id}/`);
+  return request.get(`/flavors/${id}/`);
 }
 
 export function createFlavor(payload) {
-  return request.post('/api/flavors/', payload);
+  return request.post('/flavors/', payload);
 }
 
 export function createFlavorVariant(payload) {
-  return request.post('/api/flavor-variants/', payload);
+  return request.post('/flavor-variants/', payload);
 }
 
 export function listShelves(params = {}) {
-  return request.get('/api/shelves/', params);
+  return request.get('/shelves/', params);
 }
 
 export function getShelf(id) {
-  return request.get(`/api/shelves/${id}/`);
+  return request.get(`/shelves/${id}/`);
 }
 
 export function createNameplate(canId, payload) {
-  return request.post(`/api/cans/${canId}/nameplates/`, payload);
+  return request.post(`/cans/${canId}/nameplates/`, payload);
 }
 
 export function voteNameplate(nameplateId, delta = 1) {
-  return request.post(`/api/nameplates/${nameplateId}/vote/`, { delta });
+  return request.post(`/nameplates/${nameplateId}/vote/`, { delta });
 }
 
 export async function createCanWithNameplate({ can, label }) {

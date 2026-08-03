@@ -9,7 +9,7 @@
 ## 当前结构
 
 - 后端新增 `guantou` 业务 app，核心实体为 `Can / Nameplate / Flavor / Package / Dialect / Shelf`。
-- API 新入口为 `/api/`，使用 Django REST Framework 的 `ModelViewSet` 和 router。
+- 资源实体 API 使用根路径，例如 `/cans/`、`/flavors/`、`/packages/`，并由 Django REST Framework 的 `ModelViewSet` 和 router 暴露。
 - 前端第一屏改为“集盒 / 装罐 / 图鉴 / 我的”，新增装罐、罐头详情、图鉴、集盒页面。
 - 本仓库按新项目初始化处理，不保留旧词典 API；材料处理脚本按地域归档在 `tools/materials/`，少量前端迁移兼容层仅在测试保护下暂存。
 

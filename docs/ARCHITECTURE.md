@@ -34,7 +34,7 @@ v1 只实现可追溯的主张与权重，不实现 AI 聚类或自动正字裁�
 
 ## API 边界
 
-新 API 统一挂载在 `/api/` 下，由 DRF router 暴露资源。旧词典式 `/words`、`/pronunciation`、`/characters` 入口不存在。
+资源实体 API 统一挂载在根路径下，由 DRF router 暴露资源，例如 `/cans/`、`/flavors/`、`/packages/`、`/shelves/`。不要再为新资源增加 api 前缀。旧词典式 `/words`、`/pronunciation`、`/characters` 入口不存在。
 
 读接口默认开放，写接口需要旧系统 `token` header。后端通过 `guantou.authentication.HeaderTokenAuthentication` 复用现有 JWT 解析逻辑。
 

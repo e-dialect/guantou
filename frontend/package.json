@@ -42,7 +42,7 @@
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:e2e:h5": "playwright test",
-    "wait:e2e:h5": "wait-on http-get://localhost:8181 http-get://localhost:8181/site-settings/carousel http-get://localhost:8181/api/cans/",
+    "wait:e2e:h5": "wait-on http-get://localhost:8181 http-get://localhost:8181/site-settings/carousel http-get://localhost:8181/cans/",
     "build-dev:h5": "node scripts/preview-base.js run -- uni build -m development",
     "preview-base:replace": "node scripts/preview-base.js replace",
     "preview-base:restore": "node scripts/preview-base.js restore"

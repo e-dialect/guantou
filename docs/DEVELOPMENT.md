@@ -22,7 +22,7 @@ docker compose up --build
 - 前端：`http://localhost:8181`
 - 后端：`http://localhost:8000`
 
-后端 SQLite、媒体文件和日志挂载在 `data/backend/`。Docker H5 默认通过同源 `/api/` 访问后端；如果要模拟独立 API 子域名，可设置 `FRONTEND_BACKEND_URL`。
+后端 SQLite、媒体文件和日志挂载在 `data/backend/`。Docker H5 默认通过同源根路径访问后端资源接口；如果要模拟独立 API 子域名，可设置 `FRONTEND_BACKEND_URL`。
 
 ## 后端本地运行
 
@@ -53,7 +53,7 @@ yarn dev:h5
 VITE_BACKEND_URL=http://localhost:8000 yarn dev:h5
 ```
 
-新页面优先使用 `src/services/guantou.js` 调用 `/api/` 资源接口，不再引入词典式旧客户端流程。页面、服务层和组件约定见 `docs/FRONTEND_GUIDE.md`。
+新页面优先使用 `src/services/guantou.js` 调用根路径资源接口，不再引入词典式旧客户端流程，也不要新增 api 前缀。页面、服务层和组件约定见 `docs/FRONTEND_GUIDE.md`。
 
 ## 前端工具边界
 

@@ -11,7 +11,7 @@ docker compose up --build
 
 - `BACKEND_PORT`：后端映射端口，默认 `8000`。
 - `FRONTEND_PORT`：前端映射端口，默认 `8181`。
-- `FRONTEND_BACKEND_URL`：前端运行时访问的后端地址；留空时使用同源 `/api/`，由前端 nginx 代理到后端容器。独立后端子域名部署时可设置为 `https://api.example.com`。
+- `FRONTEND_BACKEND_URL`：前端运行时访问的后端地址；留空时使用同源资源路径，由前端 nginx 代理到后端容器。独立后端子域名部署时可设置为 `https://api.example.com`。
 - `SECRET_KEY`、`JWT_KEY`：Django 和旧 token 兼容所需密钥。
 - `APP_SECRET`：微信小程序密钥；旧拼写 `APP_SECRECT` 暂时兼容，但不建议继续新增使用。
 后端数据目录为 `data/backend/`。生产部署前应配置真实密钥、对象存储和邮件参数。

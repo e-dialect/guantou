@@ -34,14 +34,14 @@ pages/*.vue
 
 常规页面使用 `utils/request.js`，它默认带 token、显示 loading、401 时跳登录页。需要静默请求或自己处理错误时使用 `utils/rawRequest.js`。
 
-新实体服务放在 `frontend/src/services/guantou.js`。目前新资源统一走 `/api/`：
+新实体服务放在 `frontend/src/services/guantou.js`。目前资源实体统一走根路径，不使用 api 前缀：
 
-- `/api/cans/`
-- `/api/flavors/`
-- `/api/packages/`
-- `/api/shelves/`
-- `/api/nameplates/`
-- `/api/dialects/`
+- `/cans/`
+- `/flavors/`
+- `/packages/`
+- `/shelves/`
+- `/nameplates/`
+- `/dialects/`
 
 账户、登录、通知、文件等旧系统接口仍保留根路径，例如 `/users`、`/login`、`/notifications`、`/files`。新增罐头体系接口时不要继续扩大这种混合历史形态。
 
@@ -115,7 +115,7 @@ pages/*.vue
 页面不要重复弹同类错误。需要自己控制提示时，把请求设为 silent，然后在页面中处理：
 
 ```js
-rawRequest.get('/api/cans/', params, { silent: true });
+rawRequest.get('/cans/', params, { silent: true });
 ```
 
 ## 搜索与列表
