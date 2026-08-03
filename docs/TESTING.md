@@ -33,13 +33,14 @@ yarn wait:e2e:h5
 yarn test:e2e:h5
 ```
 
-H5 E2E 使用 Playwright，默认访问 `http://localhost:8181`。`yarn wait:e2e:h5` 会等待 H5 首页、前端代理后的站点配置接口和罐头 API 都可访问，避免容器冷启动时 nginx 已启动但 Django 仍在迁移导致的短暂 502。测试覆盖首页渲染、站点配置代理、受保护 API 的未登录行为和主要页面可达性。
+H5 E2E 使用 Playwright，默认访问 `http://localhost:8181`。普通 Docker Compose 下，`yarn wait:e2e:h5` 会等待 H5 首页、后端站点配置接口和罐头 API 都可访问，避免容器冷启动时前端 nginx 已启动但 Django 仍在迁移导致测试过早开始。测试覆盖首页渲染、后端接口可达性、受保护 API 的未登录行为和主要页面可达性。
 
 ## Docker
 
 ```bash
 docker compose config
 docker compose build backend frontend
+docker compose -f docker-compose.traefik.yml config
 ```
 
 根目录 compose 必须能直接构建后端和前端镜像。后端镜像使用 Python 3.12，容器启动时自动执行数据库迁移。

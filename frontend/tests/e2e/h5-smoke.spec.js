@@ -13,18 +13,20 @@ test('H5 app renders home page', async ({ page }) => {
   expect(consoleErrors).toEqual([]);
 });
 
-test('frontend nginx proxies site settings API', async ({ request }) => {
-  const response = await request.get('/site-settings/carousel');
+const backendURL = process.env.E2E_BACKEND_URL || 'http://localhost:8000';
+
+test('backend site settings API is reachable', async ({ request }) => {
+  const response = await request.get(`${backendURL}/site-settings/carousel`);
   expect(response.status()).toBe(200);
   const body = await response.json();
   expect(Array.isArray(body.carousel)).toBe(true);
 });
 
-test('protected APIs remain protected through frontend proxy', async ({ request }) => {
-  const files = await request.get('/files');
+test('protected backend APIs remain protected', async ({ request }) => {
+  const files = await request.get(`${backendURL}/files`);
   expect(files.status()).toBe(401);
 
-  const notifications = await request.get('/notifications');
+  const notifications = await request.get(`${backendURL}/notifications`);
   expect(notifications.status()).toBe(401);
 });
 

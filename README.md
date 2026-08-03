@@ -28,7 +28,7 @@
 
 ## Docker 启动
 
-根目录是唯一 Docker 入口：
+普通 Docker Compose 会启动前端静态 nginx 和后端 Django，前端通过 `FRONTEND_BACKEND_URL` 访问后端：
 
 ```bash
 cp .env.example .env
@@ -39,6 +39,14 @@ docker compose up --build
 
 - 前端：http://localhost:8181
 - 后端：http://localhost:8000
+
+如果想用单入口同源路由，可以启动 Traefik 版本：
+
+```bash
+docker compose -f docker-compose.traefik.yml up --build
+```
+
+默认访问 `http://localhost:8181`，Traefik 会把资源接口转发到后端，把其余路径转发到前端静态站点。
 
 后端容器启动时会自动执行数据库迁移，运行数据默认挂载到 `data/backend/`。
 

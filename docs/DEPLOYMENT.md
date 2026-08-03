@@ -1,17 +1,35 @@
 # 部署说明
 
-## 本地/单机 Docker
+## 普通 Docker Compose
 
 ```bash
 cp .env.example .env
 docker compose up --build
 ```
 
+该模式下前端 nginx 只提供静态 H5，不反向代理后端。H5 默认访问 `FRONTEND_BACKEND_URL=http://localhost:8000`，适合本机开发和快速检查。
+
+## Traefik 单入口 Compose
+
+```bash
+cp .env.example .env
+docker compose -f docker-compose.traefik.yml up --build
+```
+
+默认入口为 `http://localhost:8181`。Traefik 负责路由：
+
+- `/cans/`、`/flavors/`、`/packages/`、`/search/`、`/users`、`/files` 等后端路径转发到 Django。
+- 其他路径转发到前端静态 nginx。
+
+生产部署也建议采用这个职责划分：前端 nginx 只 serve 静态文件，Traefik 或其他网关统一负责后端路由、TLS、域名和中间件。不要在前端镜像里维护后端反向代理规则。
+
 主要环境变量：
 
 - `BACKEND_PORT`：后端映射端口，默认 `8000`。
 - `FRONTEND_PORT`：前端映射端口，默认 `8181`。
-- `FRONTEND_BACKEND_URL`：前端运行时访问的后端地址；留空时使用同源资源路径，由前端 nginx 代理到后端容器。独立后端子域名部署时可设置为 `https://api.example.com`。
+- `TRAEFIK_PORT`：Traefik 单入口端口，默认 `8181`。
+- `FRONTEND_BACKEND_URL`：普通 Compose 下前端运行时访问的后端地址，默认 `http://localhost:8000`。
+- `TRAEFIK_FRONTEND_BACKEND_URL`：Traefik Compose 下前端运行时访问的后端地址；留空表示使用同源根路径，由 Traefik 负责路由。独立后端子域名部署时可设置为 `https://api.example.com`。
 - `SECRET_KEY`、`JWT_KEY`：Django 和旧 token 兼容所需密钥。
 - `APP_SECRET`：微信小程序密钥；旧拼写 `APP_SECRECT` 暂时兼容，但不建议继续新增使用。
 后端数据目录为 `data/backend/`。生产部署前应配置真实密钥、对象存储和邮件参数。

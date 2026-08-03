@@ -22,7 +22,15 @@ docker compose up --build
 - 前端：`http://localhost:8181`
 - 后端：`http://localhost:8000`
 
-后端 SQLite、媒体文件和日志挂载在 `data/backend/`。Docker H5 默认通过同源根路径访问后端资源接口；如果要模拟独立 API 子域名，可设置 `FRONTEND_BACKEND_URL`。
+后端 SQLite、媒体文件和日志挂载在 `data/backend/`。普通 Docker Compose 下，前端 nginx 只提供静态文件，H5 通过 `FRONTEND_BACKEND_URL` 访问后端，默认是 `http://localhost:8000`。
+
+如果想用单入口同源路由，可启动 Traefik 版本：
+
+```bash
+docker compose -f docker-compose.traefik.yml up --build
+```
+
+Traefik 会把 `/cans/`、`/flavors/`、`/search/`、`/users` 等后端路径转发到 Django，其余路径转发到前端静态站点。
 
 ## 后端本地运行
 

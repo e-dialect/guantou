@@ -1,4 +1,19 @@
 services:
+  traefik:
+    image: traefik:v3.1
+    container_name: ${TRAEFIK_CONTAINER:-guantou-traefik}
+    restart: unless-stopped
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "${TRAEFIK_PORT:-8181}:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - guantou
+
   backend:
     build:
       context: ./backend/guantou
@@ -25,8 +40,6 @@ services:
       SQLITE_PATH: /data/db.sqlite3
       MEDIA_ROOT: /data/media
       LOG_DIR: /data/logs
-    ports:
-      - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./data/backend:/data
     healthcheck:
@@ -41,6 +54,12 @@ services:
       timeout: 3s
       retries: 24
       start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.guantou-backend.entrypoints=web"
+      - "traefik.http.routers.guantou-backend.priority=100"
+      - "traefik.http.routers.guantou-backend.rule=PathPrefix(`/admin`) || PathPrefix(`/dialects`) || PathPrefix(`/packages`) || PathPrefix(`/flavors`) || PathPrefix(`/flavor-variants`) || PathPrefix(`/cans`) || PathPrefix(`/nameplates`) || PathPrefix(`/shelves`) || PathPrefix(`/search`) || PathPrefix(`/users`) || PathPrefix(`/login`) || PathPrefix(`/announcements`) || PathPrefix(`/site-settings`) || PathPrefix(`/files`) || PathPrefix(`/notifications`)"
+      - "traefik.http.services.guantou-backend.loadbalancer.server.port=8000"
     networks:
       - guantou
 
@@ -51,15 +70,19 @@ services:
     container_name: ${FRONTEND_CONTAINER:-guantou-frontend}
     restart: unless-stopped
     environment:
-      VITE_BACKEND_URL: ${FRONTEND_BACKEND_URL:-http://localhost:8000}
-    ports:
-      - "${FRONTEND_PORT:-8181}:80"
+      VITE_BACKEND_URL: ${TRAEFIK_FRONTEND_BACKEND_URL:-}
     depends_on:
       backend:
         condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.guantou-frontend.entrypoints=web"
+      - "traefik.http.routers.guantou-frontend.priority=1"
+      - "traefik.http.routers.guantou-frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.services.guantou-frontend.loadbalancer.server.port=80"
     networks:
       - guantou
 
 networks:
   guantou:
-    name: ${COMPOSE_PROJECT_NAME:-guantou}-network
+    name: ${COMPOSE_PROJECT_NAME:-guantou}-traefik-network
