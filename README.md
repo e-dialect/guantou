@@ -40,13 +40,18 @@ docker compose up --build
 - 前端：http://localhost:8181
 - 后端：http://localhost:8000
 
-如果想用单入口同源路由，可以启动 Traefik 版本：
+如果想用本地域名分流，可以启动 Traefik 版本：
 
 ```bash
 docker compose -f docker-compose.traefik.yml up --build
 ```
 
-默认访问 `http://localhost:8181`，Traefik 会把资源接口转发到后端，把其余路径转发到前端静态站点。
+默认访问：
+
+- 前端：http://guantou.localhost
+- 后端：http://api.guantou.localhost
+
+Traefik 只按域名分流，不按 path 前缀分流。前端 nginx 已配置 SPA fallback，直接打开 `http://guantou.localhost/pages/cans/index` 这类页面路径也会返回 H5 入口。
 
 后端容器启动时会自动执行数据库迁移，运行数据默认挂载到 `data/backend/`。
 
@@ -92,6 +97,7 @@ yarn build:mp-weixin
 
 cd ..
 docker compose config
+docker compose -f docker-compose.traefik.yml config
 ```
 
 ## 产品原则

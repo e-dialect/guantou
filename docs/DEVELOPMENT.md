@@ -24,13 +24,13 @@ docker compose up --build
 
 后端 SQLite、媒体文件和日志挂载在 `data/backend/`。普通 Docker Compose 下，前端 nginx 只提供静态文件，H5 通过 `FRONTEND_BACKEND_URL` 访问后端，默认是 `http://localhost:8000`。
 
-如果想用单入口同源路由，可启动 Traefik 版本：
+如果想用接近生产的本地域名分流，可启动 Traefik 版本：
 
 ```bash
 docker compose -f docker-compose.traefik.yml up --build
 ```
 
-Traefik 会把 `/cans/`、`/flavors/`、`/search/`、`/users` 等后端路径转发到 Django，其余路径转发到前端静态站点。
+默认访问 `http://guantou.localhost`，后端访问 `http://api.guantou.localhost`。Traefik 按 host 分流，不按 path 前缀分流。前端 nginx 保留 H5 history fallback，因此直接打开 `/pages/...` 下的任意页面路径也会返回前端入口。
 
 ## 后端本地运行
 

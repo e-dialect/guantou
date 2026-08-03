@@ -35,6 +35,12 @@ yarn test:e2e:h5
 
 H5 E2E 使用 Playwright，默认访问 `http://localhost:8181`。普通 Docker Compose 下，`yarn wait:e2e:h5` 会等待 H5 首页、后端站点配置接口和罐头 API 都可访问，避免容器冷启动时前端 nginx 已启动但 Django 仍在迁移导致测试过早开始。测试覆盖首页渲染、后端接口可达性、受保护 API 的未登录行为和主要页面可达性。
 
+Traefik 域名分流模式可以用下面的环境变量手测同一套 E2E：
+
+```bash
+E2E_BASE_URL=http://guantou.localhost E2E_BACKEND_URL=http://api.guantou.localhost yarn test:e2e:h5
+```
+
 ## Docker
 
 ```bash
