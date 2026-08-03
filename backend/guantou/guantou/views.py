@@ -5,6 +5,8 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from utils.exceptions.types.bad_request import BadRequestException
+from utils.exceptions.types.forbidden import ForbiddenException
 
 from .models import (
     Can,
@@ -225,35 +227,23 @@ class CanViewSet(viewsets.ModelViewSet):
         reason = request.data.get("reason", "")
 
         if action_name not in CAN_TRANSITIONS:
-            return Response(
-                {"detail": f"未知操作: {action_name}"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise BadRequestException(f"未知操作: {action_name}")
 
         # 权限检查：verify/reject 仅 is_staff 或该 Can 的 verifier 可执行
         if action_name in STAFF_ONLY_ACTIONS:
             if not (request.user.is_staff or can.verifier == request.user):
-                return Response(
-                    {"detail": "您没有权限执行此操作"},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+                raise ForbiddenException("您没有权限执行此操作")
         else:
             # submit/dispute/restore 允许创建者或 staff 操作
             if not (request.user.is_staff or can.recorder == request.user):
-                return Response(
-                    {"detail": "您没有权限执行此操作"},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+                raise ForbiddenException("您没有权限执行此操作")
 
         # 检查状态转换是否合法
         allowed_transitions = CAN_TRANSITIONS[action_name]
         current_status = can.status
         if current_status not in allowed_transitions:
-            return Response(
-                {
-                    "detail": f"不允许从 {current_status} 转换到 {action_name} 的目标状态"
-                },
-                status=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestException(
+                f"不允许从 {current_status} 转换到 {action_name} 的目标状态"
             )
 
         new_status = allowed_transitions[current_status]

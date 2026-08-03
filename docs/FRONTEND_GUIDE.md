@@ -42,6 +42,7 @@ pages/*.vue
 - `/shelves/`
 - `/nameplates/`
 - `/dialects/`
+- `/search/`
 
 账户、登录、通知、文件等旧系统接口仍保留根路径，例如 `/users`、`/login`、`/notifications`、`/files`。新增罐头体系接口时不要继续扩大这种混合历史形态。
 
@@ -120,13 +121,14 @@ rawRequest.get('/cans/', params, { silent: true });
 
 ## 搜索与列表
 
-当前搜索页按分类调用已有实体列表接口，例如 `listFlavors({ search })`、`listPackages({ search })`、`listCans({ search })`。不要为了搜索单独新建前端请求内核，也不要为了少量跨表查询新增独立 Django app。
+当前搜索页通过 `searchGuantou(keyword, options)` 调用 `/search/` 聚合搜索，返回 `flavors`、`packages`、`cans` 三组结果。建议搜索页使用这个入口；单资源列表筛选仍走各自服务函数，例如 `listFlavors({ search })`、`listPackages({ search })`、`listCans({ search })`。
 
 搜索页通常负责：
 
 - 输入框状态。
+- 300ms 左右防抖联想，联想请求传 `limit: 5`。
 - 热门词和历史记录。
-- 分类切换或分组结果展示。
+- 分组结果展示。
 - 点击结果跳到对应详情页。
 
 列表页要把查询条件保存在页面状态里，分页参数通过服务函数传给后端。不要在多个页面复制一套分页计算，重复后再抽组件或 composable。

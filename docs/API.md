@@ -73,6 +73,23 @@ POST /cans/
 }
 ```
 
+创建时可以同时提交初始铭牌，后端会在同一个事务里创建写法、义项和主铭牌。自由装罐页优先使用这种方式，避免先创建无铭牌罐头再补写法时出现半成品数据：
+
+```json
+{
+  "audio_url": "https://example.com/audio.mp3",
+  "dialect": 1,
+  "concept_text": "膝盖",
+  "initial_nameplate": {
+    "text_content": "膝盖",
+    "definition": "大腿与小腿连接处",
+    "package_type": "orthodox",
+    "evidence_level": 1,
+    "source_citation": "本人记忆"
+  }
+}
+```
+
 常用查询：
 
 - `/cans/?status=unlabeled`
@@ -124,6 +141,31 @@ POST /nameplates/{nameplate_id}/vote/
 - `source_citation`：文献、田野记录、长辈确认等来源说明。
 - `weight`：投票和管理动作累积后的展示权重。
 - `is_primary`：当前罐头默认展示的铭牌。
+
+## 状态流转
+
+罐头状态流转通过 action 端点完成：
+
+```http
+POST /cans/{can_id}/transition/
+```
+
+```json
+{
+  "action": "submit",
+  "reason": "社区确认"
+}
+```
+
+当前支持的动作：
+
+- `submit`：`pending` -> `tentative`
+- `verify`：`tentative` -> `verified`
+- `dispute`：`tentative` -> `disputed`
+- `reject`：`pending` 或 `disputed` -> `rejected`
+- `restore`：`rejected` -> `pending`
+
+`verify` 和 `reject` 需要管理员或被分配的 verifier；其他流转需要创建者或管理员。非法流转和权限不足会返回统一错误结构。
 
 ## 义项与写法
 

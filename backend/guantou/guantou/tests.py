@@ -416,7 +416,9 @@ class CanTransitionTests(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 400)
-        self.assertIn("不允许从", res.data["detail"])
+        body = res.json()
+        self.assertIn("不允许从", body["msg"])
+        self.assertEqual(body["code"], "bad_request")
 
     def test_illegal_transition_submit_from_unlabeled(self):
         """非法转换：从 unlabeled 调 submit 返回 400（必须先经过 pending）"""

@@ -92,7 +92,7 @@ DRF 默认配置在 `config/settings.py`：
 - `IsAuthenticatedOrReadOnly`：默认读开放，写需要登录。
 - 默认分页：`PageNumberPagination`，每页 15 条。
 
-如果某个接口必须公开写入或完全禁止匿名读，不要在全局 settings 里改，应该在具体 ViewSet 上显式声明 `permission_classes`。
+具体 ViewSet 可以覆盖全局权限。例如 `Can`、`Nameplate`、`Flavor` 使用 `IsOwnerOrAdmin` 限制修改/删除只能由创建者或管理员执行；投票、贴铭牌、状态流转等 action 也会单独声明权限。不要为了一个接口修改全局 settings，应该在具体 ViewSet 或 action 上显式声明 `permission_classes`。
 
 ## 全局异常行为
 
@@ -104,15 +104,22 @@ DRF 默认配置在 `config/settings.py`：
 - `KeyError` 转成缺少必要参数的 400 响应。
 - `ValueError` 转成参数值异常的 400 响应。
 - `CommonException` 及其子类直接返回自己的 JSON 响应。
-- 未识别异常会打印 `repr(exception)`，然后返回 `CommonException` 的 500 响应。
+- DRF `ValidationError`、认证失败、权限不足、404 等由 `utils.exceptions.handler.drf_exception_handler` 归一化。
+- 未识别异常会写入后端日志，然后返回 `CommonException` 的 500 响应。
 
-异常响应当前使用统一字段：
+异常响应当前使用统一字段，前端优先展示 `msg` 或 `message`：
 
 ```json
 {
-  "msg": "错误信息"
+  "msg": "错误信息",
+  "message": "错误信息",
+  "code": "bad_request",
+  "details": {},
+  "request_id": "..."
 }
 ```
+
+`ExceptionMiddleware` 会为请求生成或透传 `X-Request-ID`，并把它写回响应头；排查线上问题时，前端和后端都应保留这个 id。
 
 业务代码里不要临时返回另一套错误格式。需要表达业务错误时，优先使用 `utils.exceptions.types` 下的类型：
 
@@ -122,7 +129,7 @@ DRF 默认配置在 `config/settings.py`：
 - `NotFoundException`
 - `CommonException`
 
-注意：DRF serializer validation error 会先由 DRF 处理，格式可能不是 `{"msg": ...}`。如果后续要进一步统一 DRF 异常，应该单独做一个小 PR，补测试后再改全局行为。
+如果必须直接返回 `Response`，只用于成功响应或已经约定好的业务数据；错误分支优先抛统一异常，让前端 service 层拿到稳定结构。
 
 ## 模型与迁移
 

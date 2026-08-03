@@ -47,6 +47,7 @@ Docker：
 
 ```bash
 docker compose config
+docker compose -f docker-compose.traefik.yml config
 docker compose build backend frontend
 ```
 
