@@ -1,60 +1,39 @@
 <template>
-  <view class="page">
-    <view class="topbar">
-      <text
-        class="back"
-        @tap="goBack"
-      >
-        ‹
-      </text><text class="title">
-        写法详情
-      </text>
-    </view>
-    <scroll-view
-      v-if="pkg"
-      scroll-y
-      class="content"
-    >
-      <view class="section">
+  <PageShell title="写法详情">
+    <template v-if="pkg">
+      <SectionBlock>
         <view class="name">
           {{ pkg.text }}
         </view>
         <view class="definition">
           {{ packageTypeText }}
         </view>
-      </view>
-      <view class="section">
-        <view class="section-title">
-          关联义项
-        </view>
-        <view
+      </SectionBlock>
+
+      <SectionBlock
+        title="关联义项"
+        :empty="!pkg.flavors.length"
+        empty-title="暂无关联义项"
+      >
+        <EntityCard
           v-for="flavor in pkg.flavors"
           :key="flavor.id"
-          class="flavor-card"
-          @tap="toFlavor(flavor.id)"
-        >
-          <view class="flavor-name">
-            {{ flavor.name }}
-          </view>
-          <view class="flavor-definition">
-            {{ flavor.definition || '暂无释义' }}
-          </view>
-          <view class="flavor-meta">
-            {{ mandarinText(flavor) }}
-          </view>
-        </view>
-        <view
-          v-if="!pkg.flavors.length"
-          class="empty"
-        >
-          暂无关联义项
-        </view>
-      </view>
-    </scroll-view>
-  </view>
+          type="义项"
+          :title="flavor.name"
+          :description="flavor.definition || '暂无释义'"
+          :meta="mandarinText(flavor)"
+          :item="flavor"
+          @open="toFlavor(flavor.id)"
+        />
+      </SectionBlock>
+    </template>
+  </PageShell>
 </template>
 
 <script>
+import EntityCard from '@/components/EntityCard.vue';
+import PageShell from '@/components/PageShell.vue';
+import SectionBlock from '@/components/SectionBlock.vue';
 import { getPackage } from '@/services/guantou';
 
 const packageTypeLabels = {
@@ -67,6 +46,11 @@ const packageTypeLabels = {
 };
 
 export default {
+  components: {
+    EntityCard,
+    PageShell,
+    SectionBlock,
+  },
   data() {
     return { pkg: null };
   },
@@ -85,92 +69,19 @@ export default {
     toFlavor(id) {
       uni.navigateTo({ url: `/pages/flavors/details?id=${id}` });
     },
-    goBack() {
-      uni.navigateBack();
-    },
   },
 };
 </script>
 
 <style scoped>
-.page {
-  min-height: 100vh;
-  background: #f6f7f3;
-  color: #1d2a24;
-}
-
-.topbar {
-  height: 96rpx;
-  display: flex;
-  align-items: center;
-  padding: 0 28rpx;
-  background: #fff;
-  border-bottom: 1px solid #e8ebe4;
-}
-
-.back {
-  font-size: 56rpx;
-  width: 54rpx;
-}
-
-.title {
-  font-size: 34rpx;
-  font-weight: 700;
-}
-
-.content {
-  height: calc(100vh - 96rpx);
-  padding: 28rpx;
-  box-sizing: border-box;
-}
-
-.section {
-  background: #fff;
-  border: 1px solid #e1e6dc;
-  border-radius: 14rpx;
-  padding: 28rpx;
-  margin-bottom: 20rpx;
-}
-
 .name {
   font-size: 48rpx;
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .definition {
   margin-top: 14rpx;
   color: #425148;
-}
-
-.section-title {
-  font-weight: 700;
-  margin-bottom: 16rpx;
-}
-
-.flavor-card {
-  padding: 18rpx 0;
-  border-bottom: 1px solid #eef1eb;
-}
-
-.flavor-name {
-  font-size: 32rpx;
-  font-weight: 700;
-  color: #1f5c43;
-}
-
-.flavor-definition {
-  margin-top: 8rpx;
-  color: #425148;
-}
-
-.flavor-meta {
-  margin-top: 8rpx;
-  color: #7a867d;
-  font-size: 24rpx;
-}
-
-.empty {
-  color: #7a867d;
-  padding: 18rpx 0;
 }
 </style>

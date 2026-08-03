@@ -277,6 +277,9 @@ class Can(models.Model):
         blank=True,
         verbose_name="审核人",
     )
+    transition_log = models.JSONField(
+        default=list, blank=True, verbose_name="状态转换日志"
+    )
     metadata = models.JSONField(default=dict, blank=True, verbose_name="扩展信息")
     views = models.PositiveIntegerField(default=0, verbose_name="访问量")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")

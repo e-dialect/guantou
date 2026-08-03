@@ -34,9 +34,39 @@ v1 只实现可追溯的主张与权重，不实现 AI 聚类或自动正字裁�
 
 ## API 边界
 
-资源实体 API 统一挂载在根路径下，由 DRF router 暴露资源，例如 `/cans/`、`/flavors/`、`/packages/`、`/shelves/`。不要再为新资源增加 api 前缀。旧词典式 `/words`、`/pronunciation`、`/characters` 入口不存在。
+业务接口直接挂载在根路径，由 DRF router 暴露资源。项目当前没有单独的服务端页面路由，继续保留 api 前缀收益不大，反而会和既有 `/users`、`/login`、`/files` 等入口形成两套心智模型。旧词典式 `/words`、`/pronunciation`、`/characters` 入口不存在。
+
+新增前端 service、测试和文档都应使用根路径，例如 `/cans/`、`/search/`、`/users`、`/login`、`/files`。如果未来后端需要同时承载传统网页或多版本公开接口，应先在 issue 中重新讨论版本化和兼容策略，不要在本阶段自行加路径前缀。
 
 读接口默认开放，写接口需要旧系统 `token` header。后端通过 `guantou.authentication.HeaderTokenAuthentication` 复用现有 JWT 解析逻辑。
+
+后端可以按领域拆分 Django app，不要求所有模型和接口都塞进 `guantou` app。新增 app 时应同时补齐 `apps.py`、`urls.py`、service 层和聚合入口；跨领域编排优先放在 service 层，不把复杂业务直接堆在 view 或 serializer 里。
+
+聚合搜索目前只是罐头、义项和写法的横向读取能力，归入 `guantou` 的 view/service，不单独拆 app。只有当搜索拥有独立索引、同步任务、权限模型或外部检索后端时，才值得拆出专门 app。
+
+异常响应由 `utils.exceptions` 统一处理。DRF 校验错误、自定义业务异常和普通 Django 中间件异常都应返回同一结构：
+
+```json
+{
+  "msg": "错误提示",
+  "message": "错误提示",
+  "code": "validation_error",
+  "details": {},
+  "request_id": "..."
+}
+```
+
+`X-Request-ID` 请求头会透传到响应头和错误 payload；没有传入时后端生成一个新的 id。前端页面只消费 `msg/message/code/details/request_id`，不要为单个页面发明新的错误格式。
+
+## 前端边界
+
+页面只负责页面状态、表单交互和导航；接口访问统一进入 `src/services/`，底层 HTTP 统一经过 `src/utils/httpClient.js`。后续新增页面时，优先复用已有 service 或在同目录新增领域 service，不在 `.vue` 页面中散落 `uni.request`。
+
+用户反馈统一进入 `src/services/feedback.js`。加载态、成功提示、错误 toast 和后续可能接入的全局消息通知，都从这里扩展；业务 service 返回结构化数据和异常，不直接替页面决定复杂交互。
+
+前端页面优先用共享组件搭骨架：`PageShell` 负责顶部栏和滚动区，`SectionBlock` 负责详情分区，`CanList` 负责罐头分页列表，`EntityCard` 负责义项/写法/集盒卡片，`SearchPanel` 负责搜索聚焦态，`NameplateComposer` 负责贴铭牌表单。新增列表、详情、创建流程时，先判断是否可以扩展这些组件的 props 和事件，而不是复制一份视觉结构。
+
+罐头相关页面继续复用 `CanCard`、`NameplateCard`、`EmptyState`、`ResultSection`、`AudioCapture`。首页、搜索页、罐头列表/详情、义项/写法/集盒页面是给后续贡献者参考的样板页面。
 
 ## 状态机
 

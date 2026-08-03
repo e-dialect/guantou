@@ -10,6 +10,8 @@ const fileService = await import('@/services/file');
 function installUniMock() {
   global.uni = {
     chooseImage: vi.fn(),
+    chooseFile: vi.fn(),
+    chooseMessageFile: vi.fn(),
     showToast: vi.fn(),
   };
 }
@@ -39,10 +41,10 @@ describe('file upload helpers', () => {
     });
 
     await expect(fileService.chooseAndUploadImages(1)).resolves.toEqual([]);
-    expect(uni.showToast).toHaveBeenCalledWith({
+    expect(uni.showToast).toHaveBeenCalledWith(expect.objectContaining({
       title: 'cancelled',
       icon: 'none',
-    });
+    }));
   });
 
   it('chooseAndUploadAnImage unwraps first url', async () => {
@@ -54,5 +56,20 @@ describe('file upload helpers', () => {
     });
 
     await expect(fileService.chooseAndUploadAnImage()).resolves.toBe('https://example.test/one.png');
+  });
+
+  it('chooseAudioFile returns a selected local audio path', async () => {
+    uni.chooseFile.mockImplementation(({ success }) => {
+      success({
+        tempFilePaths: ['/tmp/audio.mp3'],
+        tempFiles: [{ name: 'audio.mp3', size: 12, path: '/tmp/audio.mp3' }],
+      });
+    });
+
+    await expect(fileService.chooseAudioFile()).resolves.toEqual({
+      path: '/tmp/audio.mp3',
+      name: 'audio.mp3',
+      size: 12,
+    });
   });
 });

@@ -1,144 +1,89 @@
 <template>
-  <view class="page">
-    <view class="topbar">
-      <text
-        class="back"
-        @tap="goBack"
-      >
-        ‹
-      </text>
-      <input
-        v-model="keywords"
-        class="search"
-        placeholder="搜索义项、写法、罐头"
-        :focus="true"
-        confirm-type="search"
-        @confirm="search"
-      >
-      <button
-        class="button"
-        @tap="search"
-      >
-        搜索
-      </button>
-    </view>
-
-    <view class="tabs">
-      <view
-        v-for="(scope, index) in searchScopes"
-        :key="scope.value"
-        :class="['tab', index === searchScopeIndex ? 'active' : '']"
-        @tap="checkout(index)"
-      >
-        {{ scope.label }}
-      </view>
-    </view>
-
-    <scroll-view
-      scroll-y
-      class="list"
-    >
-      <view
-        v-if="!hasSearched"
-        class="empty"
-      >
-        输入义项、写法、罐头铭牌或普通话概念
-      </view>
-      <view
-        v-if="!hasSearched"
-        class="quick-section"
-      >
-        <view class="quick-title">
-          热门搜索
-        </view>
-        <view class="tag-row">
-          <text
-            v-for="tag in hotTags"
-            :key="tag"
-            class="tag"
-            @tap="searchKeyword(tag)"
-          >
-            {{ tag }}
-          </text>
-        </view>
-      </view>
-      <view
-        v-if="!hasSearched && historyList.length"
-        class="quick-section"
-      >
-        <view class="quick-title">
-          搜索历史
-        </view>
-        <view class="tag-row">
-          <text
-            v-for="item in historyList"
-            :key="item"
-            class="tag"
-            @tap="searchKeyword(item)"
-          >
-            {{ item }}
-          </text>
-        </view>
-      </view>
-      <view
-        v-for="item in results"
-        :key="item.id"
-        class="result-card"
-        @tap="openItem(item)"
-      >
-        <view class="title">
-          {{ displayTitle(item) }}
-        </view>
-        <view class="description">
-          {{ displayDescription(item) }}
-        </view>
-        <view class="meta">
-          {{ displayMeta(item) }}
-        </view>
-      </view>
-      <view
-        v-if="hasSearched && !results.length"
-        class="empty"
-      >
-        没有找到结果
-      </view>
-    </scroll-view>
-  </view>
+  <SearchPanel
+    v-model="keywords"
+    :hot-tags="hotTags"
+    :history-list="historyList"
+    :suggestions="suggestions"
+    :results="results"
+    :has-searched="hasSearched"
+    @search="search"
+    @suggest="suggest"
+    @update:model-value="onKeywordInput"
+    @open="openItem"
+    @open-can="openCan"
+    @create-can="toCreateCan"
+    @back="goBack"
+  />
 </template>
 
 <script>
-import { listCans, listFlavors, listPackages } from '@/services/guantou';
+import SearchPanel from '@/components/SearchPanel.vue';
 import { APP_NAME } from '@/const/branding';
+import { searchGuantou } from '@/services/guantou';
 import { defaultMessage } from '@/services/shareMessages';
 
+function emptyResults() {
+  return {
+    flavors: [],
+    packages: [],
+    cans: [],
+  };
+}
+
+function flattenSuggestions(results) {
+  const flavors = (results.flavors || []).map((item) => ({
+    id: item.id,
+    scope: 'flavors',
+    type: '义项',
+    title: item.name,
+    description: item.definition,
+    meta: `${(item.variants || []).length} 个变体`,
+  }));
+  const packages = (results.packages || []).map((item) => ({
+    id: item.id,
+    scope: 'packages',
+    type: '写法',
+    title: item.text,
+    description: '查看这个写法关联的义项',
+    meta: `${(item.flavors || []).length} 个义项`,
+  }));
+  const cans = (results.cans || []).map((item) => ({
+    id: item.id,
+    scope: 'cans',
+    type: '罐头',
+    title: item.primary_nameplate ? item.primary_nameplate.text_content : item.concept_text,
+    description: item.concept_text || '未填写普通话概念',
+    meta: item.dialect_detail ? item.dialect_detail.name : '未标方言点',
+  }));
+  return [...flavors, ...packages, ...cans].slice(0, 5);
+}
+
 export default {
+  components: {
+    SearchPanel,
+  },
   data() {
     return {
       hasSearched: false,
-      searchScopeIndex: 0,
       hotTags: ['月亮', '膝盖', '祖母', '行', '杀', '吃饭'],
       historyList: [],
-      searchScopes: [
-        { label: '义项', value: 'flavors' },
-        { label: '写法', value: 'packages' },
-        { label: '罐头', value: 'cans' },
-      ],
       keywords: '',
-      results: [],
+      lastSearchedKeyword: '',
+      suggestions: [],
+      results: emptyResults(),
     };
   },
   onLoad(option) {
     this.loadHistory();
-    if (option.index) this.searchScopeIndex = Number(option.index);
     if (option.keywords || option.key) {
       this.keywords = option.keywords || option.key;
-      this.search();
+      this.search(this.keywords);
     }
   },
   onShareAppMessage() {
     return {
       title: `${APP_NAME}：${this.keywords || '搜索'}`,
-      path: `/pages/search?index=${this.searchScopeIndex}&keywords=${this.keywords}`,
+      path: `/pages/search?keywords=${this.keywords}`,
       ...defaultMessage(),
     };
   },
@@ -146,30 +91,29 @@ export default {
     goBack() {
       uni.navigateBack();
     },
-    checkout(index) {
-      this.searchScopeIndex = index;
-      if (this.hasSearched) this.search();
-    },
-    async search() {
-      const search = this.keywords.trim();
+    async search(keyword = this.keywords) {
+      const search = String(keyword || '').trim();
       if (!search) {
         uni.showToast({ title: '请输入搜索内容', icon: 'none' });
         return;
       }
-      const scope = this.searchScopes[this.searchScopeIndex].value;
-      const searchers = {
-        flavors: listFlavors,
-        packages: listPackages,
-        cans: listCans,
-      };
-      const res = await searchers[scope]({ search });
-      this.results = res.results || res;
+      this.keywords = search;
+      this.results = await searchGuantou(search);
+      this.suggestions = [];
       this.hasSearched = true;
+      this.lastSearchedKeyword = search;
       this.recordHistory(search);
     },
-    searchKeyword(keyword) {
-      this.keywords = keyword;
-      this.search();
+    async suggest(keyword) {
+      if (this.hasSearched) return;
+      const results = await searchGuantou(keyword, { limit: 5 });
+      this.suggestions = flattenSuggestions(results);
+    },
+    onKeywordInput(value) {
+      if (!this.hasSearched) return;
+      if (String(value || '').trim() === this.lastSearchedKeyword) return;
+      this.hasSearched = false;
+      this.results = emptyResults();
     },
     loadHistory() {
       try {
@@ -188,173 +132,23 @@ export default {
         data: JSON.stringify(this.historyList),
       });
     },
-    displayTitle(item) {
-      if (this.searchScopes[this.searchScopeIndex].value === 'flavors') {
-        return item.name;
-      }
-      if (this.searchScopes[this.searchScopeIndex].value === 'packages') {
-        return item.text;
-      }
-      return item.primary_nameplate
-        ? item.primary_nameplate.text_content
-        : (item.concept_text || '无标罐头');
-    },
-    displayDescription(item) {
-      if (this.searchScopes[this.searchScopeIndex].value === 'flavors') {
-        return item.definition;
-      }
-      if (this.searchScopes[this.searchScopeIndex].value === 'packages') {
-        return '查看这个写法关联的义项';
-      }
-      return item.concept_text || '未填写普通话概念';
-    },
-    displayMeta(item) {
-      if (this.searchScopes[this.searchScopeIndex].value === 'flavors') {
-        return `${item.variants.length} 个变体 · ${item.package_links.length} 个写法`;
-      }
-      if (this.searchScopes[this.searchScopeIndex].value === 'packages') {
-        const typeText = item.package_type || 'uncertain';
-        return `${item.flavors.length} 个义项 · ${typeText}`;
-      }
-      const location = item.dialect_detail
-        ? item.dialect_detail.name
-        : [item.county, item.town].filter(Boolean).join('-');
-      return `${location || '未标产地'} · ${item.nameplates.length} 张铭牌`;
+    openCan(id) {
+      uni.navigateTo({ url: `/pages/cans/details?id=${id}` });
     },
     openItem(item) {
-      const scope = this.searchScopes[this.searchScopeIndex].value;
+      if (item.scope === 'cans') {
+        this.openCan(item.id);
+        return;
+      }
       const urls = {
         flavors: `/pages/flavors/details?id=${item.id}`,
         packages: `/pages/packages/details?id=${item.id}`,
-        cans: `/pages/cans/details?id=${item.id}`,
       };
-      const url = urls[scope];
-      uni.navigateTo({ url });
+      uni.navigateTo({ url: urls[item.scope] });
+    },
+    toCreateCan() {
+      uni.navigateTo({ url: '/pages/cans/create' });
     },
   },
 };
 </script>
-
-<style scoped>
-.page {
-  min-height: 100vh;
-  background: #f6f7f3;
-  color: #1d2a24;
-}
-
-.topbar {
-  height: 96rpx;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 16rpx;
-  padding: 0 28rpx;
-  background: #fff;
-  border-bottom: 1px solid #e8ebe4;
-}
-
-.back {
-  font-size: 56rpx;
-  width: 44rpx;
-}
-
-.search {
-  background: #f6f7f3;
-  border: 1px solid #d9dfd5;
-  border-radius: 999rpx;
-  padding: 16rpx 22rpx;
-  font-size: 28rpx;
-}
-
-.button {
-  margin: 0;
-  height: 60rpx;
-  line-height: 60rpx;
-  padding: 0 24rpx;
-  border-radius: 999rpx;
-  background: #1f5c43;
-  color: #fff;
-  font-size: 26rpx;
-}
-
-.tabs {
-  display: flex;
-  gap: 16rpx;
-  padding: 22rpx 28rpx 0;
-}
-
-.tab {
-  padding: 12rpx 24rpx;
-  border-radius: 999rpx;
-  background: #fff;
-  border: 1px solid #d9dfd5;
-  color: #526158;
-}
-
-.tab.active {
-  color: #fff;
-  background: #1f5c43;
-  border-color: #1f5c43;
-}
-
-.list {
-  height: calc(100vh - 170rpx);
-  padding: 24rpx 28rpx;
-  box-sizing: border-box;
-}
-
-.result-card {
-  background: #fff;
-  border: 1px solid #e1e6dc;
-  border-radius: 14rpx;
-  padding: 24rpx;
-  margin-bottom: 18rpx;
-}
-
-.title {
-  font-size: 34rpx;
-  font-weight: 700;
-}
-
-.description {
-  margin-top: 10rpx;
-  color: #425148;
-}
-
-.meta {
-  margin-top: 14rpx;
-  color: #7a867d;
-  font-size: 24rpx;
-}
-
-.empty {
-  padding: 80rpx 20rpx;
-  text-align: center;
-  color: #7a867d;
-}
-
-.quick-section {
-  margin-bottom: 30rpx;
-}
-
-.quick-title {
-  margin-bottom: 16rpx;
-  color: #2f4638;
-  font-weight: 700;
-}
-
-.tag-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14rpx;
-}
-
-.tag {
-  background: #fff;
-  border: 1px solid #d9dfd5;
-  border-radius: 999rpx;
-  color: #1f5c43;
-  padding: 12rpx 20rpx;
-  font-size: 26rpx;
-}
-</style>

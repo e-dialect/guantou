@@ -11,6 +11,7 @@ from .models import (
     Package,
     Shelf,
 )
+from .services import create_can_submission
 
 
 class UserLiteSerializer(serializers.Serializer):
@@ -253,6 +254,13 @@ class CanSerializer(serializers.ModelSerializer):
     )
     nameplates = NameplateSerializer(many=True, read_only=True)
     primary_nameplate = serializers.SerializerMethodField()
+    initial_nameplate = serializers.DictField(write_only=True, required=False)
+    flavor = serializers.PrimaryKeyRelatedField(
+        queryset=Flavor.objects.all(),
+        write_only=True,
+        required=False,
+        allow_null=True,
+    )
 
     class Meta:
         model = Can
@@ -274,10 +282,13 @@ class CanSerializer(serializers.ModelSerializer):
             "status",
             "visibility",
             "verifier",
+            "transition_log",
             "metadata",
             "views",
             "nameplates",
             "primary_nameplate",
+            "initial_nameplate",
+            "flavor",
             "created_at",
             "updated_at",
         ]
@@ -286,6 +297,7 @@ class CanSerializer(serializers.ModelSerializer):
             "recorder",
             "visibility",
             "verifier",
+            "transition_log",
             "views",
             "nameplates",
             "primary_nameplate",
@@ -300,10 +312,16 @@ class CanSerializer(serializers.ModelSerializer):
         return NameplateSerializer(primary, context=self.context).data
 
     def create(self, validated_data):
+        initial_nameplate = validated_data.pop("initial_nameplate", None)
+        flavor = validated_data.pop("flavor", None)
         request = self.context.get("request")
-        if request and request.user and request.user.is_authenticated:
-            validated_data["recorder"] = request.user
-        return super().create(validated_data)
+        user = request.user if request else None
+        return create_can_submission(
+            user=user,
+            can_data=validated_data,
+            initial_nameplate=initial_nameplate,
+            flavor=flavor,
+        )
 
 
 class ShelfSerializer(serializers.ModelSerializer):

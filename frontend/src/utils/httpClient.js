@@ -1,5 +1,10 @@
 import { BASE_URL } from '@/const/urls';
 import { toLoginPage } from '@/routers/login';
+import {
+  hideLoading as hideGlobalLoading,
+  notifyError as notifyGlobalError,
+  showLoading as showGlobalLoading,
+} from '@/services/feedback';
 
 const DEFAULT_OPTIONS = {
   auth: true,
@@ -32,15 +37,12 @@ function buildHeaders(options) {
 
 function showLoading(options) {
   if (!options.loading) return;
-  uni.showLoading({
-    title: options.loadingTitle,
-    mask: true,
-  });
+  showGlobalLoading(options.loadingTitle);
 }
 
 function hideLoading(options) {
   if (!options.loading) return;
-  uni.hideLoading();
+  hideGlobalLoading();
 }
 
 export function createApiError(error) {
@@ -61,48 +63,11 @@ export function createApiError(error) {
 
 function notifyError(error, options) {
   if (options.silent) return;
-  switch (error.statusCode) {
-    case 401:
-      uni.showToast({
-        title: error.message || '请先登录！',
-        icon: 'error',
-      });
-      if (options.redirectOnUnauthorized) {
-        setTimeout(() => {
-          toLoginPage();
-        }, 1000);
-      }
-      break;
-    case 403:
-      uni.showToast({
-        title: error.message || '没有权限！',
-        icon: 'error',
-      });
-      break;
-    case 404:
-      uni.showToast({
-        title: error.message || '请求资源不存在',
-        icon: 'error',
-      });
-      break;
-    case 500:
-      uni.showToast({
-        title: error.message || '服务器内部错误',
-        icon: 'error',
-      });
-      break;
-    case 0:
-      uni.showToast({
-        title: '网络错误',
-        icon: 'error',
-      });
-      break;
-    default:
-      uni.showToast({
-        title: error.message || `错误代码${error.statusCode}`,
-        icon: 'error',
-      });
-      break;
+  notifyGlobalError(error);
+  if (error.statusCode === 401 && options.redirectOnUnauthorized) {
+    setTimeout(() => {
+      toLoginPage();
+    }, 1000);
   }
 }
 
