@@ -12,7 +12,7 @@ django-environ==0.14.0
 # Data Processing
 numpy>=1.26.0,<2.0.0  # Python 3.12+ compatible, avoid numpy 2.x for compatibility
 requests
-requests_toolbelt==0.10.1
+requests_toolbelt==1.0.0
 
 # Audio Processing
 pydub==0.25.1
