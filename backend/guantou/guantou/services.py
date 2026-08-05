@@ -1,4 +1,4 @@
-from django.db import transaction
+﻿from django.db import transaction
 from django.db.models import Q
 
 from .models import Can, Flavor, FlavorPackage, FlavorVariant, Nameplate, Package
@@ -159,3 +159,39 @@ def create_can_submission(*, user, can_data, initial_nameplate=None, flavor=None
     if initial_nameplate:
         create_initial_nameplate(can, initial_nameplate, user)
     return can
+
+
+# ---------------------------------------------------------------------------
+# Transition log schema validation
+# ---------------------------------------------------------------------------
+
+TRANSITION_LOG_EVENT_KEYS = frozenset({"from", "to", "by", "at", "reason"})
+
+
+def validate_transition_log_event(event):
+    """Validate a single transition_log event dict.
+
+    Returns a list of error strings (empty = valid).
+    """
+    errors = []
+    if not isinstance(event, dict):
+        return ["event is not a dict"]
+    missing = TRANSITION_LOG_EVENT_KEYS - set(event.keys())
+    if missing:
+        errors.append("missing keys: {}".format(", ".join(sorted(missing))))
+    from_status = event.get("from")
+    to_status = event.get("to")
+    if from_status is not None and from_status not in Can.Status.values:
+        errors.append("invalid 'from' status: {}".format(from_status))
+    if to_status is not None and to_status not in Can.Status.values:
+        errors.append("invalid 'to' status: {}".format(to_status))
+    if not isinstance(event.get("by"), int):
+        errors.append("'by' must be an integer user ID")
+    return errors
+
+
+def normalize_transition_log(transition_log):
+    """Return only valid transition_log events, silently dropping malformed ones."""
+    if not isinstance(transition_log, list):
+        return []
+    return [e for e in transition_log if not validate_transition_log_event(e)]

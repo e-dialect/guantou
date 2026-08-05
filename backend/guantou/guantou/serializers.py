@@ -11,7 +11,7 @@ from .models import (
     Package,
     Shelf,
 )
-from .services import create_can_submission
+from .services import create_can_submission, normalize_transition_log
 
 
 class UserLiteSerializer(serializers.Serializer):
@@ -134,6 +134,9 @@ class FlavorVariantSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_by", "created_at", "updated_at"]
 
+    def get_transition_log(self, obj):
+        return normalize_transition_log(obj.transition_log)
+
     def create(self, validated_data):
         request = self.context.get("request")
         if request and request.user and request.user.is_authenticated:
@@ -169,6 +172,9 @@ class FlavorSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "created_by", "created_at", "updated_at"]
+
+    def get_transition_log(self, obj):
+        return normalize_transition_log(obj.transition_log)
 
     def create(self, validated_data):
         package_ids = validated_data.pop("package_ids", [])
@@ -233,6 +239,9 @@ class NameplateSerializer(serializers.ModelSerializer):
             return False
         return NameplateSupport.objects.filter(nameplate=obj, user=user).exists()
 
+    def get_transition_log(self, obj):
+        return normalize_transition_log(obj.transition_log)
+
     def create(self, validated_data):
         request = self.context.get("request")
         if request and request.user and request.user.is_authenticated:
@@ -261,6 +270,7 @@ class CanSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
+    transition_log = serializers.SerializerMethodField()
 
     class Meta:
         model = Can
@@ -282,13 +292,13 @@ class CanSerializer(serializers.ModelSerializer):
             "status",
             "visibility",
             "verifier",
-            "transition_log",
             "metadata",
             "views",
             "nameplates",
             "primary_nameplate",
             "initial_nameplate",
             "flavor",
+            "transition_log",
             "created_at",
             "updated_at",
         ]
@@ -297,7 +307,6 @@ class CanSerializer(serializers.ModelSerializer):
             "recorder",
             "visibility",
             "verifier",
-            "transition_log",
             "views",
             "nameplates",
             "primary_nameplate",
@@ -310,6 +319,9 @@ class CanSerializer(serializers.ModelSerializer):
         if not primary:
             return None
         return NameplateSerializer(primary, context=self.context).data
+
+    def get_transition_log(self, obj):
+        return normalize_transition_log(obj.transition_log)
 
     def create(self, validated_data):
         initial_nameplate = validated_data.pop("initial_nameplate", None)
@@ -360,6 +372,9 @@ class ShelfSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "creator", "created_at", "updated_at"]
+
+    def get_transition_log(self, obj):
+        return normalize_transition_log(obj.transition_log)
 
     def create(self, validated_data):
         flavors = validated_data.pop("flavors", [])

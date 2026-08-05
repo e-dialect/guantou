@@ -19,7 +19,7 @@ from .models import (
     Shelf,
 )
 from .permissions import IsOwnerOrAdmin
-from .services import aggregate_search
+from .services import aggregate_search, validate_transition_log_event
 from .serializers import (
     CanSerializer,
     DialectSerializer,
@@ -256,6 +256,11 @@ class CanViewSet(viewsets.ModelViewSet):
             "at": timezone.now().isoformat(),
             "reason": reason,
         }
+        errors = validate_transition_log_event(log_entry)
+        if errors:
+            raise BadRequestException(
+                "invalid transition_log entry: " + "; ".join(errors)
+            )
         can.transition_log.append(log_entry)
         can.status = new_status
 

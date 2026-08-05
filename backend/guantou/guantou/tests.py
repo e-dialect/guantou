@@ -568,3 +568,150 @@ class IsOwnerOrAdminPermissionTests(TestCase):
         client = self._client_for(self.user_b)
         res = client.get(f"/cans/{self.can.id}/")
         self.assertEqual(res.status_code, 200)
+
+
+class TransitionLogSchemaTests(TestCase):
+    """transition_log schema validation and normalization."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester", password="pw")
+        self.dialect = Dialect.objects.create(name="Puxian", code="puxian")
+
+    def _valid_event(self, **overrides):
+        event = {
+            "from": "pending",
+            "to": "tentative",
+            "by": self.user.id,
+            "at": "2025-01-01T00:00:00",
+            "reason": "test",
+        }
+        event.update(overrides)
+        return event
+
+    # -- validate_transition_log_event --
+
+    def test_valid_event_passes(self):
+        from .services import validate_transition_log_event
+
+        self.assertEqual(validate_transition_log_event(self._valid_event()), [])
+
+    def test_missing_keys_reported(self):
+        from .services import validate_transition_log_event
+
+        errors = validate_transition_log_event({"from": "pending"})
+        self.assertTrue(any("missing keys" in e for e in errors))
+
+    def test_invalid_from_status_reported(self):
+        from .services import validate_transition_log_event
+
+        event = self._valid_event()
+        event["from"] = "nonexistent"
+        errors = validate_transition_log_event(event)
+        self.assertTrue(any("invalid 'from' status" in e for e in errors))
+
+    def test_invalid_to_status_reported(self):
+        from .services import validate_transition_log_event
+
+        errors = validate_transition_log_event(self._valid_event(to="nonexistent"))
+        self.assertTrue(any("invalid 'to' status" in e for e in errors))
+
+    def test_non_dict_event_reported(self):
+        from .services import validate_transition_log_event
+
+        errors = validate_transition_log_event("not a dict")
+        self.assertEqual(errors, ["event is not a dict"])
+
+    def test_non_int_by_reported(self):
+        from .services import validate_transition_log_event
+
+        errors = validate_transition_log_event(self._valid_event(by="user_1"))
+        self.assertTrue(any("'by' must be an integer" in e for e in errors))
+
+    # -- normalize_transition_log --
+
+    def test_normalize_drops_malformed_events(self):
+        from .services import normalize_transition_log
+
+        valid = self._valid_event()
+        mixed = [
+            valid,
+            {"from": "pending"},
+            "not a dict",
+            self._valid_event(to="verified", reason="ok"),
+        ]
+        result = normalize_transition_log(mixed)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0], valid)
+        self.assertEqual(result[1]["to"], "verified")
+
+    def test_normalize_non_list_returns_empty(self):
+        from .services import normalize_transition_log
+
+        self.assertEqual(normalize_transition_log(None), [])
+        self.assertEqual(normalize_transition_log("string"), [])
+
+    def test_normalize_empty_list_returns_empty(self):
+        from .services import normalize_transition_log
+
+        self.assertEqual(normalize_transition_log([]), [])
+
+    # -- serializer integration --
+
+    def test_serializer_normalizes_transition_log(self):
+        can = Can.objects.create(
+            audio_url="https://example.com/audio.mp3",
+            recorder=self.user,
+            dialect=self.dialect,
+        )
+        can.transition_log = [
+            {
+                "from": "pending",
+                "to": "tentative",
+                "by": self.user.id,
+                "at": "2025-01-01T00:00:00",
+                "reason": "ok",
+            },
+            {"malformed": True},
+            {
+                "from": "tentative",
+                "to": "verified",
+                "by": self.user.id,
+                "at": "2025-01-02T00:00:00",
+                "reason": "approved",
+            },
+        ]
+        can.save(update_fields=["transition_log"])
+        client = APIClient()
+        client.force_authenticate(user=self.user)
+        res = client.get(f"/cans/{can.id}/")
+        self.assertEqual(res.status_code, 200)
+        logs = res.data["transition_log"]
+        self.assertEqual(len(logs), 2)
+        self.assertEqual(logs[0]["from"], "pending")
+        self.assertEqual(logs[1]["to"], "verified")
+
+    def test_serializer_handles_legacy_empty_log(self):
+        can = Can.objects.create(
+            audio_url="https://example.com/audio.mp3",
+            recorder=self.user,
+            dialect=self.dialect,
+        )
+        client = APIClient()
+        client.force_authenticate(user=self.user)
+        res = client.get(f"/cans/{can.id}/")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data["transition_log"], [])
+
+    def test_serializer_handles_legacy_all_malformed(self):
+        can = Can.objects.create(
+            audio_url="https://example.com/audio.mp3",
+            recorder=self.user,
+            dialect=self.dialect,
+        )
+        can.transition_log = [{"bad": "data"}, "string_in_list"]
+        can.save(update_fields=["transition_log"])
+        client = APIClient()
+        client.force_authenticate(user=self.user)
+        res = client.get(f"/cans/{can.id}/")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data["transition_log"], [])

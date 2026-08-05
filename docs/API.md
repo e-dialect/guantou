@@ -168,6 +168,22 @@ POST /cans/{can_id}/transition/
 - `restore`：`rejected` -> `pending`
 
 `verify` 和 `reject` 需要管理员或被分配的 verifier；其他流转需要创建者或管理员。非法流转和权限不足会返回统一错误结构。
+﻿
+## 过渡日志
+
+每次状态流转都会在 `transition_log` 中追加一条事件记录，schema 如下：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `from` | string | 转换前状态，值为 Can.Status 枚举 |
+| `to` | string | 转换后状态 |
+| `by` | integer | 操作者用户 ID |
+| `at` | string | ISO 8601 时间 |
+| `reason` | string | 操作原因（可为空字符串） |
+
+客户端不应直接写入 `transition_log`；该字段由服务端状态流转端点自动维护。
+序列化输出时，不合法的历史条目会被静默过滤，只返回符合 schema 的有效事件。
+空列表或全畸形条目均返回 `[]`。
 
 ## 义项与写法
 
