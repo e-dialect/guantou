@@ -1459,17 +1459,17 @@
     "@vue/shared" "3.4.21"
     estree-walker "2.0.2"
 
-"@dcloudio/uni-mp-harmony@3.0.0-4080720251210001":
-  version "3.0.0-4080720251210001"
-  resolved "https://registry.npmjs.org/@dcloudio/uni-mp-harmony/-/uni-mp-harmony-3.0.0-4080720251210001.tgz"
-  integrity sha512-4KIbSWNQYmJiEVeoo0mgxS6nqpcPcUEZH4dy6yi09CD5VoN1raRglHLGUU0du4DSH/9MfjTmcIIaru14po2v6Q==
+"@dcloudio/uni-mp-harmony@3.0.0-5010520260709002":
+  version "3.0.0-5010520260709002"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-mp-harmony/-/uni-mp-harmony-3.0.0-5010520260709002.tgz#5f489b0d4ddb1177f19b254be0c62167a8237cdc"
+  integrity sha512-tnTnalKVJGNKZ+AfXjGfSANGCTW70vBAMefS2OdjS7VSFHbWFeabyMt5wrdR9YFT6F74mb5+b/tgTHCOe1MH2w==
   dependencies:
-    "@dcloudio/uni-cli-shared" "3.0.0-4080720251210001"
-    "@dcloudio/uni-mp-toutiao" "3.0.0-4080720251210001"
-    "@dcloudio/uni-mp-vite" "3.0.0-4080720251210001"
-    "@dcloudio/uni-mp-vue" "3.0.0-4080720251210001"
-    "@dcloudio/uni-quickapp-webview" "3.0.0-4080720251210001"
-    "@dcloudio/uni-shared" "3.0.0-4080720251210001"
+    "@dcloudio/uni-cli-shared" "3.0.0-5010520260709002"
+    "@dcloudio/uni-mp-toutiao" "3.0.0-5010520260709002"
+    "@dcloudio/uni-mp-vite" "3.0.0-5010520260709002"
+    "@dcloudio/uni-mp-vue" "3.0.0-5010520260709002"
+    "@dcloudio/uni-quickapp-webview" "3.0.0-5010520260709002"
+    "@dcloudio/uni-shared" "3.0.0-5010520260709002"
     "@vue/shared" "3.4.21"
 
 "@dcloudio/uni-mp-jd@3.0.0-4080720251210001":
@@ -1534,6 +1534,19 @@
     "@dcloudio/uni-mp-vite" "3.0.0-4080720251210001"
     "@dcloudio/uni-mp-vue" "3.0.0-4080720251210001"
     "@dcloudio/uni-shared" "3.0.0-4080720251210001"
+    "@vue/compiler-core" "3.4.21"
+    "@vue/shared" "3.4.21"
+
+"@dcloudio/uni-mp-toutiao@3.0.0-5010520260709002":
+  version "3.0.0-5010520260709002"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-mp-toutiao/-/uni-mp-toutiao-3.0.0-5010520260709002.tgz#c076217ee6d0fe028cd6aa5c23efe7d365bc3290"
+  integrity sha512-i0sHzJYvh72hSNbszA/e7j1lTc7DTKBcxuxQODhr/GeJ/5aiwZnhnO6okZMaYmtMBFkS6+8BuoQHiZrnlgxEZQ==
+  dependencies:
+    "@dcloudio/uni-cli-shared" "3.0.0-5010520260709002"
+    "@dcloudio/uni-mp-compiler" "3.0.0-5010520260709002"
+    "@dcloudio/uni-mp-vite" "3.0.0-5010520260709002"
+    "@dcloudio/uni-mp-vue" "3.0.0-5010520260709002"
+    "@dcloudio/uni-shared" "3.0.0-5010520260709002"
     "@vue/compiler-core" "3.4.21"
     "@vue/shared" "3.4.21"
 
@@ -1669,6 +1682,17 @@
     "@dcloudio/uni-mp-vite" "3.0.0-4080720251210001"
     "@dcloudio/uni-mp-vue" "3.0.0-4080720251210001"
     "@dcloudio/uni-shared" "3.0.0-4080720251210001"
+    "@vue/shared" "3.4.21"
+
+"@dcloudio/uni-quickapp-webview@3.0.0-5010520260709002":
+  version "3.0.0-5010520260709002"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-quickapp-webview/-/uni-quickapp-webview-3.0.0-5010520260709002.tgz#1c73bbbaa355d6ac9fdf589092b677141f09fbe5"
+  integrity sha512-FNUcqr3xOFgLzq3KUBBNsRcszzBHjHCLdjo7xGVajzXe5y+efwlL69WUz15rMNs9oSoms+610BGHRYd+f6GxYA==
+  dependencies:
+    "@dcloudio/uni-cli-shared" "3.0.0-5010520260709002"
+    "@dcloudio/uni-mp-vite" "3.0.0-5010520260709002"
+    "@dcloudio/uni-mp-vue" "3.0.0-5010520260709002"
+    "@dcloudio/uni-shared" "3.0.0-5010520260709002"
     "@vue/shared" "3.4.21"
 
 "@dcloudio/uni-shared@3.0.0-4080720251210001":
