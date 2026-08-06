@@ -1472,16 +1472,16 @@
     "@dcloudio/uni-shared" "3.0.0-5010520260709002"
     "@vue/shared" "3.4.21"
 
-"@dcloudio/uni-mp-jd@3.0.0-4080720251210001":
-  version "3.0.0-4080720251210001"
-  resolved "https://registry.npmjs.org/@dcloudio/uni-mp-jd/-/uni-mp-jd-3.0.0-4080720251210001.tgz"
-  integrity sha512-gUPsQcAUgrnbnivp+43PBliojKyolTLDVnCvpMQAbOrA0IlrZSMbKhl2sGZTlqBPH0tNjYSLjKmQvw0Mi2sBqg==
+"@dcloudio/uni-mp-jd@3.0.0-5010520260709002":
+  version "3.0.0-5010520260709002"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-mp-jd/-/uni-mp-jd-3.0.0-5010520260709002.tgz#41167aab552cf7e3ce9437311f8dcd64707953e8"
+  integrity sha512-+k1zkIjrJ+jCL9iYuLQelIXNYG59ZdwUsEpmRiycTV+w3UxWnPOm1XcviQHFGIbRZxslhh6h3TaxCAzU3kp30w==
   dependencies:
-    "@dcloudio/uni-cli-shared" "3.0.0-4080720251210001"
-    "@dcloudio/uni-mp-compiler" "3.0.0-4080720251210001"
-    "@dcloudio/uni-mp-vite" "3.0.0-4080720251210001"
-    "@dcloudio/uni-mp-vue" "3.0.0-4080720251210001"
-    "@dcloudio/uni-shared" "3.0.0-4080720251210001"
+    "@dcloudio/uni-cli-shared" "3.0.0-5010520260709002"
+    "@dcloudio/uni-mp-compiler" "3.0.0-5010520260709002"
+    "@dcloudio/uni-mp-vite" "3.0.0-5010520260709002"
+    "@dcloudio/uni-mp-vue" "3.0.0-5010520260709002"
+    "@dcloudio/uni-shared" "3.0.0-5010520260709002"
     "@vue/shared" "3.4.21"
 
 "@dcloudio/uni-mp-kuaishou@3.0.0-4080720251210001":
