@@ -68,7 +68,7 @@
     "@rollup/plugin-alias": "^4.0.3",
     "marked": "^4.0.18",
     "postcss": "^8.1.0",
-    "vue": "^3.4.21"
+    "vue": "^3.5.40"
   },
   "devDependencies": {
     "@dcloudio/types": "^3.4.8",
