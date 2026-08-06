@@ -197,6 +197,7 @@ export default {
         name: '',
       },
       optionalOpen: false,
+      draftDialectName: '',
       dialects: [],
       audio: {
         path: '',
@@ -231,10 +232,12 @@ export default {
     },
     dialectLabel() {
       const dialect = this.dialects.find((item) => item.id === this.form.dialect);
-      return dialect ? dialect.name : '请选择方言点';
+      return dialect ? dialect.name : (this.draftDialectName || '请选择方言点');
     },
     canSubmit() {
-      const hasConcept = this.mode === 'flavor' || this.form.concept_text.trim();
+      const hasConcept = this.mode === 'flavor'
+        ? Boolean(this.targetFlavor.id)
+        : this.form.concept_text.trim();
       return Boolean(hasConcept && this.form.dialect && this.audio.path);
     },
     pageTitle() {
@@ -252,19 +255,24 @@ export default {
     },
   },
   async onLoad(options = {}) {
-    await this.loadDialects();
     await this.resolveMode(options);
     this.restoreDraftIfNeeded(options);
+    await this.loadDialects();
+  },
+  onHide() {
+    this.persistDirtyDraft('page_hidden');
   },
   onUnload() {
-    if (!this.submitted && this.isDirty) {
-      this.saveDraft('leave_page');
-    }
+    this.persistDirtyDraft('leave_page');
   },
   methods: {
     async loadDialects() {
-      const res = await listDialects();
-      this.dialects = res.results || res;
+      try {
+        const res = await listDialects();
+        this.dialects = res.results || res;
+      } catch (error) {
+        uni.showToast({ title: '方言点加载失败，可稍后重试', icon: 'none' });
+      }
     },
     async resolveMode(options) {
       if (options.flavor) {
@@ -287,7 +295,13 @@ export default {
         this.restoreDraft(options.draft);
         return;
       }
-      const latestDraft = listCanDrafts()[0];
+      const drafts = listCanDrafts();
+      const latestDraft = this.targetFlavor.id
+        ? drafts.find((draft) => (
+          draft.mode === 'flavor'
+          && String(draft.targetFlavor?.id || '') === String(this.targetFlavor.id)
+        ))
+        : drafts[0];
       if (!latestDraft) return;
       uni.showModal({
         title: '发现未完成草稿',
@@ -301,11 +315,15 @@ export default {
       const draft = getCanDraft(id);
       if (!draft) return;
       this.draftId = draft.id;
-      this.mode = draft.mode || 'free';
+      const flavorDraft = draft.mode === 'flavor' && draft.targetFlavor?.id;
+      this.mode = flavorDraft ? 'flavor' : 'free';
       this.form = { ...initialForm(), ...draft.form };
       this.label = { ...initialLabel(), ...draft.label };
       this.audio = draft.audio || this.audio;
-      this.targetFlavor = draft.targetFlavor || this.targetFlavor;
+      this.draftDialectName = draft.dialectName || '';
+      this.targetFlavor = flavorDraft
+        ? draft.targetFlavor
+        : { id: '', name: '' };
       this.optionalOpen = Boolean(
         this.label.text_content || this.label.definition || this.form.source_note,
       );
@@ -328,6 +346,7 @@ export default {
     onDialectChange(e) {
       const dialect = this.dialects[e.detail.value];
       this.form.dialect = dialect.id;
+      this.draftDialectName = dialect.name;
       this.form.county = this.form.county || dialect.county || '';
       this.form.town = this.form.town || dialect.town || '';
     },
@@ -349,15 +368,23 @@ export default {
         id: this.draftId,
         mode: this.mode,
         targetFlavor: this.targetFlavor,
+        dialectName: this.dialectLabel === '请选择方言点' ? '' : this.dialectLabel,
         audio: this.audio,
         reason,
       });
       this.draftId = draft.id;
       return draft;
     },
+    persistDirtyDraft(reason) {
+      if (!this.submitted && this.isDirty) this.saveDraft(reason);
+    },
     validateForm() {
       if (this.mode !== 'flavor' && !this.form.concept_text.trim()) {
         uni.showToast({ title: '先写一个普通话概念', icon: 'none' });
+        return false;
+      }
+      if (this.mode === 'flavor' && !this.targetFlavor.id) {
+        uni.showToast({ title: '请重新选择要补录的义项', icon: 'none' });
         return false;
       }
       if (!this.form.dialect) {

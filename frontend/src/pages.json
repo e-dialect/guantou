@@ -17,6 +17,10 @@
       "style": {}
     },
     {
+      "path": "pages/cans/drafts",
+      "style": {}
+    },
+    {
       "path": "pages/cans/details",
       "style": {}
     },

@@ -56,6 +56,15 @@
       </view>
       <view
         class="menu-item"
+        @tap="toDrafts"
+      >
+        草稿箱
+        <text class="menu-meta">
+          {{ draftsCount }} 条
+        </text>
+      </view>
+      <view
+        class="menu-item"
         @tap="toMailsPage"
       >
         我的消息
@@ -107,6 +116,7 @@ import {
   toUserInfoPage,
 } from '@/routers/user';
 import { toMailsPage } from '@/routers/mail';
+import { listCanDrafts } from '@/services/canDrafts';
 
 const app = getApp();
 
@@ -121,6 +131,7 @@ export default {
       cansCount: 0,
       flavorsCount: 0,
       nameplatesCount: 0,
+      draftsCount: 0,
       unreadMailsCount: 0,
       wechatBindText: '绑定微信',
       isBinding: false,
@@ -134,12 +145,21 @@ export default {
   beforeMount() {
     this.getInfo();
   },
+  onShow() {
+    this.refreshDraftsCount();
+  },
   methods: {
     toMailsPage,
     toChangePasswordPage,
     toUserInfoPage,
     toCreate() {
       uni.navigateTo({ url: '/pages/cans/create' });
+    },
+    toDrafts() {
+      uni.navigateTo({ url: '/pages/cans/drafts' });
+    },
+    refreshDraftsCount() {
+      this.draftsCount = listCanDrafts().length;
     },
     toMineCans() {
       uni.navigateTo({ url: '/pages/cans/index?mine=true' });
@@ -294,5 +314,10 @@ export default {
   background: #9b3a2d;
   border-radius: 18rpx;
   font-size: 22rpx;
+}
+
+.menu-meta {
+  color: #6c776e;
+  font-size: 26rpx;
 }
 </style>

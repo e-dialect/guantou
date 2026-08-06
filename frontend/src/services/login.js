@@ -1,7 +1,25 @@
 import { toIndexPage } from '@/routers';
 import { toMePage } from '@/routers/user';
 import { toLoginPage } from '@/routers/login';
+import {
+  clearInterceptIntent,
+  peekInterceptIntent,
+} from '@/services/authGuard';
 import rawRequest from '../utils/rawRequest';
+
+export function resumeInterruptedPageAfterLogin() {
+  const pages = getCurrentPages();
+  const previousPage = pages.length > 1 ? pages[pages.length - 2] : null;
+  const previousRoute = previousPage ? previousPage.route : '';
+  const interruptedIntent = peekInterceptIntent();
+  const previousIsCanCreate = previousRoute === 'pages/cans/create'
+    || previousRoute === '/pages/cans/create';
+
+  if (!interruptedIntent && !previousIsCanCreate) return false;
+  clearInterceptIntent();
+  uni.navigateBack({ delta: 1 });
+  return true;
+}
 
 /**
  * 加载用户信息到 app.globalData
@@ -27,6 +45,7 @@ export async function afterLogin(res) {
   uni.setStorageSync('token', res.token);
   uni.setStorageSync('id', res.id);
   await loadUserInfo();
+  if (resumeInterruptedPageAfterLogin()) return;
   // #ifdef H5
   toIndexPage(true);
   // #endif
