@@ -1,0 +1,7 @@
+extends:
+  - recommended
+
+# Django REST Framework 的既有 canonical route 使用尾斜杠；这是项目路由约定，
+# 并非 OpenAPI 合法性问题。其余 recommended 规则继续启用。
+rules:
+  no-path-trailing-slash: off

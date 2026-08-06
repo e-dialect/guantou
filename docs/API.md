@@ -1,255 +1,42 @@
-# 乡声集盒 API
+# API 文档
 
-所有业务接口直接挂载在根路径，不使用 api 前缀。分页使用 DRF 默认结构：
+本目录描述乡声集盒的**预期 API v1 契约**。它是产品与接口设计目标，不表示当前代码已经全部实现。
 
-```json
-{
-  "count": 1,
-  "next": null,
-  "previous": null,
-  "results": []
-}
-```
+## 权威顺序
 
-## 资源
+1. [`api/v1/openapi.yaml`](api/v1/openapi.yaml)：字段、类型、必填项、路径、状态码与鉴权的规范性来源。
+2. [`api/v1/README.md`](api/v1/README.md)：中文语义、典型流程与使用示例。
+3. [`ARCHITECTURE.md`](ARCHITECTURE.md)：系统边界和领域模型。
+4. [`adr/0001-dialect-pronunciation-model.md`](adr/0001-dialect-pronunciation-model.md)：方言层级与读音模型的设计依据。
+5. [`adr/0002-nameplate-as-attestation.md`](adr/0002-nameplate-as-attestation.md)：铭牌、录音与词典资料的边界和来源规则。
 
-- `GET/POST /dialects/`
-- `GET/POST /packages/`
-- `GET/POST /flavors/`
-- `GET/POST /flavor-variants/`
-- `GET/POST /cans/`
-- `GET/POST /nameplates/`
-- `GET/POST /shelves/`
-- `GET /search/`
-- `GET /search/suggest/`
-- `/users...`
-- `/login...`
-- `/announcements...`
-- `/site-settings...`
-- `/files...`
-- `/notifications...`
+发生冲突时以前一项为准。实现代码、测试或旧讨论稿不能反向覆盖已经确认的 v1 契约；如需改变契约，应同时修改 OpenAPI、中文说明和相关 ADR。
 
-写接口需要在 header 中传入 `Authorization: Bearer <jwt>`。前端也会随请求传入 `X-Visitor-ID`；未传时后端会生成匿名访客 ID 并在响应头回写 `X-Visitor-ID`。
+## 版本管理
 
-匿名访客只用于访问追踪和审计归因，不具备写权限。游客创建罐头、贴铭牌、投票、上传文件等操作仍会返回未登录错误。
+- v1 使用根路径，例如 `/cans/`、`/flavors/`、`/pronunciations/`，不在 URL 中增加 `/api/v1/`。
+- v1 正式冻结前可以继续完善；冻结后的兼容性补充仍更新 `v1/`。
+- 冻结后的破坏性变更新建 `docs/api/v2/`，不得静默改变 v1 的字段或语义。
+- 只维护 YAML 契约，不提交内容相同的 JSON 副本。Apifox 等工具直接导入 `openapi.yaml`。
+- 不在契约中记录 PR、issue 或实现进度；这些信息由 Git 与项目管理工具维护。
 
-## 错误响应
+## 核心约定摘要
 
-后端统一返回可被前端 service 层消费的错误结构：
+- 写接口使用 `Authorization: Bearer <token>`。
+- 客户端可传 `X-Visitor-ID`；服务端在缺失时生成并通过同名响应头返回。匿名访客只用于访问追踪和审计归因，不具备写权限。
+- 错误响应使用 `{ code, message, data, request_id }`，其中数字 `code` 与 HTTP 状态码一致。
+- `Package` 是规范化写法，`Flavor` 是标准化义项，`Pronunciation` 表示“某写法在某义项、某方言下的一种读音”，`Can` 保存实际录音证据。
+- `Nameplate` 是连接 Can 与 Package、Flavor、Dialect、Pronunciation 的可查询资料主张，并保存原样内容和来源。
+- `Dialect` 是按需建立的方言关系树；限定码从根到叶书写，如 `闽.莆仙.仙游.游洋`，同级人工顺序使用 `sort_order`。
+- 列表统一使用 `{ count, next, previous, results }` 分页结构，时间统一使用 RFC 3339。
+- `/search/suggest/` 的已实现容错、可见性、去重和排序规则已经纳入 v1 契约，详见 OpenAPI 与中文说明。
 
-```json
-{
-  "msg": "请先登录",
-  "message": "请先登录",
-  "code": "not_authenticated",
-  "details": {},
-  "request_id": "..."
-}
-```
+## 维护检查
 
-前端应优先展示 `msg` 或 `message`，并在排查问题时把 `request_id` 带给后端。客户端传入 `X-Request-ID` 时，后端会在响应头 `X-Request-ID` 和错误 payload 中透传；未传入时后端自动生成。
+修改 API 设计时至少检查：
 
-## 数据约定
-
-- `Nameplate` 是用户主张，创建时必须尽量同时给出 `flavor`（义项）和 `package`（写法）；没有明确写法时可以先记录 `text_content`，后续再补写法。
-- `Flavor` 表示义项/概念，不直接承载县镇读音差异。
-- `FlavorVariant` 表示义项在某方言点的读音，不负责决定正字。
-- `Package` 是检索入口，`package_type` 用于区分正字、借字、俗写、拟音等写法。
-- `sandhi_info` 只存结构化变调说明，v1 不做自动推导。
-
-## 罐头
-
-创建罐头：
-
-```http
-POST /cans/
-```
-
-```json
-{
-  "audio_url": "https://example.com/audio.mp3",
-  "dialect": 1,
-  "concept_text": "膝盖",
-  "source_note": "本人记忆，家中长辈确认",
-  "county": "莆田",
-  "town": "游洋"
-}
-```
-
-创建时可以同时提交初始铭牌，后端会在同一个事务里创建写法、义项和主铭牌。自由装罐页优先使用这种方式，避免先创建无铭牌罐头再补写法时出现半成品数据：
-
-```json
-{
-  "audio_url": "https://example.com/audio.mp3",
-  "dialect": 1,
-  "concept_text": "膝盖",
-  "initial_nameplate": {
-    "text_content": "膝盖",
-    "definition": "大腿与小腿连接处",
-    "package_type": "orthodox",
-    "evidence_level": 1,
-    "source_citation": "本人记忆"
-  }
-}
-```
-
-常用查询：
-
-- `/cans/?status=unlabeled`
-- `/cans/?needs_label=true`
-- `/cans/?dialect=1`
-- `/cans/?flavor=1`
-- `/cans/?mine=true`
-- `/cans/?search=膝盖`
-
-`dialect` 查询遵循“查父含子，查子不含父”。
-
-## 铭牌
-
-给某个罐头贴铭牌：
-
-```http
-POST /cans/{can_id}/nameplates/
-```
-
-```json
-{
-  "flavor": 1,
-  "package": 1,
-  "text_content": "膝盖",
-  "definition": "大腿与小腿连接处",
-  "evidence_level": 1,
-  "source_citation": "本人记忆"
-}
-```
-
-给铭牌投票：
-
-```http
-POST /nameplates/{nameplate_id}/vote/
-```
-
-```json
-{ "delta": 1 }
-```
-
-投票后后端会重新选择该罐头权重最高的铭牌作为主铭牌。
-
-铭牌字段语义：
-
-- `text_content`：用户实际写在牌面上的文字。
-- `flavor`：这张铭牌主张的义项。
-- `package`：这张铭牌主张的写法入口。
-- `evidence_level`：证据强度，值越高表示越可靠。
-- `source_citation`：文献、田野记录、长辈确认等来源说明。
-- `weight`：投票和管理动作累积后的展示权重。
-- `is_primary`：当前罐头默认展示的铭牌。
-
-## 状态流转
-
-罐头状态流转通过 action 端点完成：
-
-```http
-POST /cans/{can_id}/transition/
-```
-
-```json
-{
-  "action": "submit",
-  "reason": "社区确认"
-}
-```
-
-当前支持的动作：
-
-- `submit`：`pending` -> `tentative`
-- `verify`：`tentative` -> `verified`
-- `dispute`：`tentative` -> `disputed`
-- `reject`：`pending` 或 `disputed` -> `rejected`
-- `restore`：`rejected` -> `pending`
-
-`verify` 和 `reject` 需要管理员或被分配的 verifier；其他流转需要创建者或管理员。非法流转和权限不足会返回统一错误结构。
-
-## 义项与写法
-
-创建写法：
-
-```json
-{
-  "text": "行",
-  "package_type": "orthodox"
-}
-```
-
-创建义项：
-
-```json
-{
-  "name": "行走",
-  "definition": "走路",
-  "mandarin": ["走路"],
-  "package_ids": [1]
-}
-```
-
-创建变体：
-
-```json
-{
-  "flavor": 1,
-  "dialect": 2,
-  "ipa": "hing23",
-  "romanization": "hing2",
-  "sandhi_info": {
-    "rule_description": "仅记录，不自动推导",
-    "changes": []
-  }
-}
-```
-
-常用查询：
-
-- `/flavors/?search=膝盖`
-- `/flavors/?package=1`
-- `/flavor-variants/?flavor=1&dialect=2`
-- `/packages/?search=行`
-
-搜索写法时，前端应展示该写法关联的义项列表；进入义项详情后，再展示方言点变体和相关罐头。
-
-## 聚合搜索
-
-聚合搜索属于罐头核心领域，不单独拆 Django app：
-
-```http
-GET /search/?q=膝盖&limit=8
-```
-
-返回 `flavors`、`packages`、`cans` 三组结果。它不会改变外键检索方式；单资源筛选仍走 `/flavors/?package=...`、`/cans/?flavor=...` 等资源列表参数。
-
-## 搜索联想
-
-为搜索框聚焦态与实时联想提供轻量建议接口（防抖由前端自行处理）：
-
-```http
-GET /search/suggest/?q=吃&limit=5
-```
-
-参数：
-
-- `q`：strip 后为空返回空建议（不报错）；超过 50 字符截断。
-- `limit`：每类条数上限，默认 5，clamp 到 1~10；非数字回退默认值。
-
-建议来源三类：`flavor`（义项，匹配 name/definition/mandarin）、`package`（写法，匹配 text）、`nameplate`（铭牌，匹配 text_content/definition，仅返回挂在可见罐头上的铭牌，可见性规则同 `/cans/` 列表）。同一文本按 flavor > package > nameplate 优先级去重，前缀匹配排在包含匹配之前。
-
-响应示例：
-
-```json
-{
-  "keyword": "吃",
-  "suggestions": [
-    { "type": "flavor", "id": 3, "text": "吃早饭", "sub": "义项 · 普通话: 吃早饭" },
-    { "type": "package", "id": 11, "text": "食", "sub": "写法" },
-    { "type": "nameplate", "id": 42, "text": "食", "sub": "铭牌 · 罐头 #17" }
-  ]
-}
-```
+1. OpenAPI 中的路径、schema 和示例是否一致。
+2. 中文说明是否仍与 OpenAPI 和 ADR 一致。
+3. 新的嵌套响应是否只使用 Ref/Card，避免递归嵌套 Detail。
+4. `npx --yes @redocly/cli@1.34.5 lint --config docs/api/redocly.yaml docs/api/v1/openapi.yaml` 是否通过。
+5. `git diff --check` 是否通过。

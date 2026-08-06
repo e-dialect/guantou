@@ -31,12 +31,14 @@
 | 产品品牌 | - | 乡声集盒 | 应用名称，可继续调整，不影响模型/API |
 | 核心动作 | - | 装罐 | 用户录入一段方言语音 |
 | 录音实体 | `Can` | 罐头 | 一条具体方言录音，是数据原子 |
-| 用户判断 | `Nameplate` | 铭牌 | 某个用户对某条罐头的写法、义项、释义、来源判断 |
+| 资料主张 | `Nameplate` | 铭牌 | 某个用户或资料来源对某条罐头的写法、义项、方言、读音和出处判断 |
 | 语义节点 | `Flavor` | 义项 | 解决“同字不同义”和跨地区同义检索 |
 | 文字入口 | `Package` | 写法 | 用户可能搜索或书写出来的字面形式 |
+| 方言读音 | `Pronunciation` | 读音 | 某写法表达某义项时，在某方言下的一种规范化读法 |
+| 方言节点 | `Dialect` | 方言/地方话 | 按需建立的方言关系树节点，不等同于行政区划 |
 | 主题集合 | `Shelf` | 集盒/盒子 | 按主题组织义项或罐头，代码暂不改名 |
 
-代码命名保持 `Can / Nameplate / Flavor / Package / Shelf` 稳定。不要回退到旧系统的 `Word/List` 命名，也不要因为品牌文案变化频繁迁移模型、API 或路由。
+代码命名保持 `Can / Nameplate / Flavor / Package / Pronunciation / Dialect / Shelf` 稳定。不要回退到旧系统的 `Word/List` 命名，也不要因为品牌文案变化频繁迁移模型、API 或路由。
 
 ## 2. 核心模型关系
 
@@ -46,7 +48,10 @@
 Can 1 - N Nameplate
 Nameplate -> Flavor
 Nameplate -> Package
+Nameplate -> Dialect
+Nameplate -> Pronunciation（可选）
 Flavor N - N Package
+Pronunciation -> Package + Flavor + Dialect
 Shelf N - N Flavor / Can
 ```
 
@@ -54,7 +59,11 @@ Shelf N - N Flavor / Can
 
 `Package` 负责写法入口，例如“行”“杀”“刣”“月光”“月娘”。它让用户搜索同一个字面形式时，能够看到不同义项。
 
-`Nameplate` 是具体到某条录音的用户主张。它同时指向一个 `Flavor` 和一个 `Package`，并保存释义、证据来源、权重和是否主铭牌。
+`Pronunciation` 负责读音，例如“Package=行、Flavor=行走动作、Dialect=仙游片时读作什么”。同一个 Package + Flavor 可以因方言不同而有不同读音，同一个组合在同一方言下也可以保留文白异读或争议记录。
+
+`Dialect` 只表达方言关系。莆田、仙游、游洋等地区名只有在确实用来指称一种地方话时才成为节点；没有语言资料的行政层级不预建。限定码按根到叶显示，例如 `闽.莆仙.仙游.游洋`，同级顺序由人工 `sort_order` 控制。
+
+`Nameplate` 是具体到某条录音、可独立查询和引用的资料主张。它可以同时指向 `Package / Flavor / Dialect / Pronunciation`，并保存来源中的原样写法、释义、读音转写、结构化出处、权重和是否主铭牌。系统创建者与书籍作者、讲述人等资料责任者分开记录。
 
 示例：
 
@@ -63,15 +72,23 @@ Flavor「月亮」
 ├─ Package「月亮」
 ├─ Package「月光」
 ├─ Package「月娘」
-└─ 通过 Nameplate 连接到全国各地方言录音 Can
+└─ 通过 Pronunciation 连接到各方言读音，再连接录音 Can
+```
+
+```text
+Package「行」 + Flavor「行走动作」
+├─ Pronunciation（莆田片，读音 A）← Nameplate → Can #101 / #102
+└─ Pronunciation（仙游片，读音 B）← Nameplate → Can #205
 ```
 
 ```text
 Can #1 某地方言录音
-├─ Nameplate A：Package「杀」 + Flavor「宰杀」 + 注解甲
-├─ Nameplate B：Package「刣」 + Flavor「宰杀」 + 注解乙
-└─ Nameplate C：Package「杀」 + Flavor「打/伤害」 + 注解丙
+├─ Nameplate A：创作者自述；Package「杀」 + Flavor「宰杀」
+├─ Nameplate B：某方言志第 42 页；Package「刣」 + Flavor「宰杀」 + Pronunciation A
+└─ Nameplate C：田野记录；Package「杀」 + Flavor「打/伤害」 + Dialect B
 ```
+
+商品类比中，Can 是同一件可播放的商品本体，Nameplate 是不同贡献者或资料来源为它提供的一版可追溯商品说明。词典类比中，Package、Flavor、Dialect、Pronunciation 是规范化词典节点，Nameplate 是把真实录音和这些节点连接起来的 attestation。两种类比都要求铭牌独立存在，而不是覆盖 Can 的一组字段。
 
 首期暂不解决 `Flavor` 标准化难题，只允许人工创建/选择义项。后续再做合并建议、同义归并、AI 推荐和管理员审核。
 
@@ -93,7 +110,7 @@ Can #1 某地方言录音
 | 旧系统 | 新系统 | 迁移说明 |
 | --- | --- | --- |
 | `Word` | `Flavor + Package + Nameplate` | 旧词条里“字面词形”和“义项”混在一起，新系统拆开 |
-| `Pronunciation` | `Can + FlavorVariant` | 旧发音成为录音罐头，并可挂到某个义项变体 |
+| 旧 `Pronunciation` | `Pronunciation + Can + Nameplate` | 规范化读音迁入 Pronunciation；实际音频迁为 Can；原词典或采集依据迁为连接两者的 Nameplate |
 | `List` | `Shelf` | 旧词单迁移为主题集盒 |
 | `Application` | 后续审核/修订申请 | 首期不恢复完整申请系统，只保留治理参考 |
 | `Character` | 材料/检索参考 | 单字不作为新系统核心一等实体 |
@@ -134,6 +151,8 @@ Can #1 某地方言录音
 - 主要区展示主铭牌、普通话概念、方言点、录音者和播放按钮。
 - 铭牌区展示所有用户主张；支持数最高的铭牌成为主铭牌。
 - 同一录音可以有多个铭牌；写法相同但释义、义项或来源不同，也可以作为不同铭牌存在。
+- 每张铭牌可进入独立详情，展示关联的写法、义项、方言、规范读音、原样转写、创建者和结构化来源；书籍页码、田野编号等出处必须可复制和复查。
+- 铭牌集合支持按罐头、写法、义项、方言、读音、创建者和来源类型筛选，供资料整理和审核使用；不要求全部成为首期底部导航入口。
 - 主铭牌卡片应比普通铭牌更突出，但文案避免暗示“唯一正确答案”。
 - 铭牌支持按钮使用“支持”，不要使用“点赞”或“反对/踩”。
 
@@ -141,6 +160,7 @@ Can #1 某地方言录音
 
 - 图鉴按 `Flavor` 组织，展示“同一个意思在不同地方怎么说”。
 - 义项详情显示关联写法、方言变体、相关罐头。
+- 这里的“方言变体”具体指按 Dialect 分组的 Pronunciation，不再使用 `FlavorVariant` 模型。
 - 例如 `Flavor=月亮` 可以检索全国各地方言里的月亮说法。
 - 义项详情可以借鉴旧词典式页面的紧凑信息结构：义项标题、关联写法、方言点统计、相关罐头、补录音入口。
 - 如果后续加入例句，例句属于义项或铭牌的补充材料，不改变 `Flavor / Package / Nameplate` 的基本关系。
@@ -216,6 +236,8 @@ Can #1 某地方言录音
 | `rejected` | 已驳回 |
 
 首期创建罐头后默认为 `unlabeled`。贴第一张铭牌后进入 `pending`。更复杂的状态流转后续由专门 issue 落地。
+
+`Pronunciation.status` 使用 `draft / verified / disputed / rejected`。认证状态属于规范化读音，不替代 Can 的可见性或 Nameplate 的社区主张。
 
 页面状态要求：
 

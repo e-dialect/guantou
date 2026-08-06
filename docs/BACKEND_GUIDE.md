@@ -1,5 +1,7 @@
 # 后端开发指南
 
+> 本文主要记录当前代码结构与迁移期实现。预期 API v1 的路径、字段和领域语义以 [`API.md`](API.md) 为准；当前代码中的 `FlavorVariant`、旧 token 格式或旧错误体不能反向定义 v1 契约。
+
 后端使用 Django + Django REST Framework。目录来自旧 `hinghwa-dict-backend`，但现在是单仓库结构：旧系统能力继续可用，新罐头体系优先走 `guantou` app 和根路径资源 router。
 
 ## 目录结构
