@@ -197,6 +197,7 @@ export default {
     return {
       submitting: false,
       submitted: false,
+      draftAccessBlocked: false,
       draftId: '',
       draftOwnerScope: getCanDraftOwnerScope(),
       draftSavePromise: null,
@@ -277,22 +278,38 @@ export default {
     await this.loadDialects();
   },
   onShow() {
-    const currentOwnerScope = getCanDraftOwnerScope();
-    if (
-      this.draftId
-      && this.draftOwnerScope.startsWith('anonymous:')
-      && currentOwnerScope.startsWith('user:')
-    ) {
-      this.draftOwnerScope = currentOwnerScope;
-    }
+    this.ensureCurrentDraftOwner();
   },
   onHide() {
     this.persistDirtyDraft('page_hidden');
   },
   onUnload() {
-    this.persistDirtyDraft('leave_page');
+    this.persistDirtyDraft('leave_page').finally(() => {
+      releaseDraftAudioUrl(this.audio);
+    });
   },
   methods: {
+    ensureCurrentDraftOwner() {
+      if (this.draftAccessBlocked) return false;
+      const currentOwnerScope = getCanDraftOwnerScope();
+      const previousOwnerIsUser = this.draftOwnerScope.startsWith('user:');
+      const currentOwnerIsUser = currentOwnerScope.startsWith('user:');
+      if (
+        previousOwnerIsUser
+        && currentOwnerIsUser
+        && this.draftOwnerScope !== currentOwnerScope
+      ) {
+        this.draftAccessBlocked = true;
+        releaseDraftAudioUrl(this.audio);
+        uni.showToast({ title: '该草稿属于其他账号', icon: 'none' });
+        uni.reLaunch({ url: '/pages/index?status=me' });
+        return false;
+      }
+      if (this.draftOwnerScope.startsWith('anonymous:') && currentOwnerIsUser) {
+        this.draftOwnerScope = currentOwnerScope;
+      }
+      return true;
+    },
     async loadDialects() {
       try {
         const res = await listDialects();
@@ -343,6 +360,7 @@ export default {
       if (!draft) return;
       this.draftId = draft.id;
       this.draftOwnerScope = draft.ownerScope;
+      this.draftAccessBlocked = false;
       const flavorDraft = draft.mode === 'flavor' && draft.targetFlavor?.id;
       this.mode = flavorDraft ? 'flavor' : 'free';
       this.form = { ...initialForm(), ...draft.form };
@@ -398,33 +416,58 @@ export default {
         invalid: false,
       };
       this.form.duration_ms = 0;
-      if (this.draftId) this.saveDraft('audio_cleared');
+      if (this.draftId) {
+        this.saveDraft('audio_cleared').catch(() => {
+          uni.showToast({ title: '草稿保存失败，请稍后重试', icon: 'none' });
+        });
+      }
+    },
+    adoptPersistedDraftAudio(sourcePath, persistedAudio) {
+      if (
+        !persistedAudio?.persisted
+        || !persistedAudio.available
+        || this.audio.path !== sourcePath
+      ) return;
+      this.audio = {
+        ...this.audio,
+        ...persistedAudio,
+        path: persistedAudio.path || this.audio.path,
+      };
     },
     async saveDraft(reason) {
       if (!this.draftId) this.draftId = createCanDraftId();
-      const form = { ...this.form };
-      const label = { ...this.label };
-      const meta = {
-        id: this.draftId,
-        ownerScope: this.draftOwnerScope,
-        mode: this.mode,
-        targetFlavor: { ...this.targetFlavor },
-        dialectName: this.dialectLabel === '请选择方言点' ? '' : this.dialectLabel,
-        audio: { ...this.audio },
-        reason,
-      };
       const previousSave = this.draftSavePromise || Promise.resolve();
-      const pendingSave = previousSave
+      const saveTask = previousSave
         .catch(() => {})
-        .then(() => saveCanDraft(form, label, meta));
-      this.draftSavePromise = pendingSave;
-      const draft = await pendingSave;
-      this.draftId = draft.id;
-      this.draftOwnerScope = draft.ownerScope;
-      return draft;
+        .then(async () => {
+          const form = { ...this.form };
+          const label = { ...this.label };
+          const meta = {
+            id: this.draftId,
+            ownerScope: this.draftOwnerScope,
+            mode: this.mode,
+            targetFlavor: { ...this.targetFlavor },
+            dialectName: this.dialectLabel === '请选择方言点' ? '' : this.dialectLabel,
+            audio: { ...this.audio },
+            reason,
+          };
+          let draft;
+          try {
+            draft = await saveCanDraft(form, label, meta);
+          } catch (error) {
+            this.adoptPersistedDraftAudio(meta.audio.path, error.persistedDraftAudio);
+            throw error;
+          }
+          this.draftId = draft.id;
+          this.draftOwnerScope = draft.ownerScope;
+          this.adoptPersistedDraftAudio(meta.audio.path, draft.audio);
+          return draft;
+        });
+      this.draftSavePromise = saveTask;
+      return saveTask;
     },
     persistDirtyDraft(reason) {
-      if (!this.submitted && this.isDirty) {
+      if (!this.submitted && !this.draftAccessBlocked && this.isDirty) {
         return this.saveDraft(reason).catch(() => {
           uni.showToast({ title: '草稿保存失败，请稍后重试', icon: 'none' });
         });
@@ -454,9 +497,16 @@ export default {
       return true;
     },
     async submit() {
+      if (!this.ensureCurrentDraftOwner()) return;
       if (!this.validateForm()) return;
       if (!isLoggedIn()) {
-        const draft = await this.saveDraft('login_required');
+        let draft;
+        try {
+          draft = await this.saveDraft('login_required');
+        } catch (error) {
+          uni.showToast({ title: '草稿保存失败，请稍后重试', icon: 'none' });
+          return;
+        }
         requireAuth('record_can', {
           page: 'can_create',
           returnRoute: '/pages/cans/create',
@@ -470,6 +520,8 @@ export default {
 
       this.submitting = true;
       try {
+        if (this.draftSavePromise) await this.draftSavePromise.catch(() => {});
+        if (!this.ensureCurrentDraftOwner()) return;
         const uploaded = await uploadFile(this.audio.path);
         const canPayload = {
           ...this.form,
@@ -490,7 +542,26 @@ export default {
         releaseDraftAudioUrl(this.audio);
         uni.redirectTo({ url: `/pages/cans/details?id=${can.id}` });
       } catch (error) {
-        const draft = await this.saveDraft(error.code || error.message || 'submit_failed');
+        let draft;
+        try {
+          draft = await this.saveDraft(error.code || error.message || 'submit_failed');
+        } catch (draftError) {
+          if (error.statusCode === 401) {
+            saveInterceptIntent({
+              action: 'record_can',
+              context: {
+                page: 'can_create',
+                returnRoute: '/pages/cans/create',
+                mode: this.mode,
+                flavorId: this.targetFlavor.id || undefined,
+                draftId: this.draftId,
+                ownerScope: this.draftOwnerScope,
+              },
+            });
+          }
+          uni.showToast({ title: '提交失败，草稿也未能保存', icon: 'none' });
+          return;
+        }
         if (error.statusCode === 401) {
           saveInterceptIntent({
             action: 'record_can',

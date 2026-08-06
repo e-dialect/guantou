@@ -97,10 +97,18 @@ describe('can draft audio persistence', () => {
   });
 
   it('uses the persistent file API outside H5 and removes the saved file', async () => {
+    const availablePaths = new Set(['wxfile://temp.mp3']);
     globalThis.uni = {
       getSystemInfoSync: vi.fn(() => ({ uniPlatform: 'mp-weixin' })),
-      saveFile: vi.fn(({ success }) => success({ savedFilePath: 'wxfile://saved.mp3' })),
-      getSavedFileInfo: vi.fn(({ success }) => success({ size: 12 })),
+      saveFile: vi.fn(({ tempFilePath, success }) => {
+        availablePaths.delete(tempFilePath);
+        availablePaths.add('wxfile://saved.mp3');
+        success({ savedFilePath: 'wxfile://saved.mp3' });
+      }),
+      getSavedFileInfo: vi.fn(({ filePath, success, fail }) => {
+        if (availablePaths.has(filePath)) success({ size: 12 });
+        else fail(new Error('file does not exist'));
+      }),
       removeSavedFile: vi.fn(({ success }) => success({})),
     };
 
@@ -114,6 +122,10 @@ describe('can draft audio persistence', () => {
       storage: 'saved-file',
       persisted: true,
     });
+    const persistedAgain = await persistDraftAudio(persisted, 'audio-2');
+    expect(persistedAgain.path).toBe('wxfile://saved.mp3');
+    expect(uni.saveFile).toHaveBeenCalledTimes(1);
+    expect(availablePaths.has('wxfile://temp.mp3')).toBe(false);
     await expect(isDraftAudioAvailable(persisted)).resolves.toBe(true);
     await removeDraftAudio(persisted);
     expect(uni.removeSavedFile).toHaveBeenCalledWith(expect.objectContaining({

@@ -109,4 +109,20 @@ describe('can draft box', () => {
 
     expect(wrapper.text()).toContain('录音已失效，请重录');
   });
+
+  it('reports a local storage failure when deleting a draft', async () => {
+    removeCanDraft.mockRejectedValueOnce(new Error('storage full'));
+    uni.showModal.mockImplementation(({ success }) => success({ confirm: true }));
+    const wrapper = mountDrafts();
+    await wrapper.vm.loadDrafts();
+    await wrapper.vm.$nextTick();
+
+    await wrapper.find('.delete-button').trigger('tap');
+    await wrapper.vm.$nextTick();
+
+    expect(uni.showToast).toHaveBeenCalledWith({
+      title: '草稿删除失败，请稍后重试',
+      icon: 'none',
+    });
+  });
 });

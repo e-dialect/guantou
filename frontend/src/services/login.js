@@ -34,7 +34,8 @@ export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageS
   if (intendedOwner.startsWith('user:') && intendedOwner !== `user:${loggedInUserId}`) {
     clearInterceptIntent();
     uni.showToast({ title: '该草稿属于其他账号', icon: 'none' });
-    return false;
+    toMePage(true);
+    return true;
   }
   clearInterceptIntent();
   uni.navigateBack({ delta: 1 });

@@ -59,16 +59,11 @@ function parseDrafts(raw, key, ownerScope) {
   }
 }
 
-function migrateLegacyDrafts(ownerScope) {
+function discardUnscopedLegacyDrafts() {
   const legacy = uni.getStorageSync(LEGACY_STORAGE_KEY);
   if (!legacy) return;
-  const key = storageKey(ownerScope);
-  const existing = parseDrafts(uni.getStorageSync(key), key, ownerScope);
-  const migrated = parseDrafts(legacy, LEGACY_STORAGE_KEY, ownerScope);
-  const merged = [...existing, ...migrated]
-    .filter((draft, index, drafts) => drafts.findIndex((item) => item.id === draft.id) === index)
-    .slice(0, 20);
-  uni.setStorageSync(key, JSON.stringify(merged));
+  // Legacy records have no trustworthy owner. Assigning them to the current
+  // session could expose another account's draft on a shared device.
   uni.removeStorageSync(LEGACY_STORAGE_KEY);
 }
 
@@ -89,7 +84,7 @@ export function createDraftPayload(form, label, meta = {}) {
 }
 
 export function listCanDrafts(ownerScope = getCanDraftOwnerScope()) {
-  migrateLegacyDrafts(ownerScope);
+  discardUnscopedLegacyDrafts();
   const key = storageKey(ownerScope);
   return parseDrafts(uni.getStorageSync(key), key, ownerScope)
     .filter((draft) => draft.ownerScope === ownerScope);
@@ -128,7 +123,7 @@ export async function saveCanDraft(form, label, meta = {}) {
       invalid: true,
     };
   }
-  if (
+  const shouldRemoveExistingAudio = (
     existing?.audio
     && (
       !audio
@@ -136,9 +131,7 @@ export async function saveCanDraft(form, label, meta = {}) {
       || existing.audio.storage !== audio.storage
       || existing.audio.path !== audio.path
     )
-  ) {
-    await removeDraftAudio(existing.audio);
-  }
+  );
   const draft = createDraftPayload(form, label, {
     ...meta,
     id,
@@ -149,7 +142,13 @@ export async function saveCanDraft(form, label, meta = {}) {
   const drafts = storedDrafts.filter((item) => item.id !== draft.id);
   const retainedDrafts = [draft, ...drafts].slice(0, 20);
   const evictedDrafts = [draft, ...drafts].slice(20);
-  uni.setStorageSync(storageKey(ownerScope), JSON.stringify(retainedDrafts));
+  try {
+    uni.setStorageSync(storageKey(ownerScope), JSON.stringify(retainedDrafts));
+  } catch (error) {
+    if (error && typeof error === 'object') error.persistedDraftAudio = audio;
+    throw error;
+  }
+  if (shouldRemoveExistingAudio) await removeDraftAudio(existing.audio);
   await Promise.all(evictedDrafts.map((item) => removeDraftAudio(item.audio)));
   return draft;
 }

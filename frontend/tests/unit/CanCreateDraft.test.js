@@ -33,8 +33,12 @@ vi.mock('@/services/canDraftAudio', () => ({
 
 import CanCreate from '@/pages/cans/create.vue';
 import { uploadFile } from '@/services/file';
-import { listDialects } from '@/services/guantou';
-import { getCanDraftWithAudio, saveCanDraft } from '@/services/canDrafts';
+import { createCanWithNameplate, listDialects } from '@/services/guantou';
+import {
+  getCanDraftOwnerScope,
+  getCanDraftWithAudio,
+  saveCanDraft,
+} from '@/services/canDrafts';
 import { saveInterceptIntent } from '@/services/authGuard';
 
 function mountCreate() {
@@ -64,15 +68,24 @@ function mountCreate() {
 describe('can creation draft recovery', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    uploadFile.mockReset();
+    createCanWithNameplate.mockReset();
+    getCanDraftOwnerScope.mockReturnValue('user:7');
     globalThis.uni = {
       redirectTo: vi.fn(),
+      reLaunch: vi.fn(),
       showModal: vi.fn(),
       showToast: vi.fn(),
     };
     saveCanDraft.mockImplementation(async (form, label, meta) => ({
       id: meta.id || 'draft-1',
       ownerScope: meta.ownerScope || 'user:7',
-      audio: meta.audio?.path ? { available: true } : null,
+      audio: meta.audio?.path ? {
+        ...meta.audio,
+        persisted: true,
+        storage: 'saved-file',
+        available: true,
+      } : null,
     }));
   });
 
@@ -124,6 +137,58 @@ describe('can creation draft recovery', () => {
       title: '提交失败，已保存草稿',
       icon: 'none',
     });
+  });
+
+  it('uploads the persistent path after saving moves a temporary mini-program file', async () => {
+    const availablePaths = new Set(['wxfile://temp.mp3']);
+    saveCanDraft.mockImplementation(async (form, label, meta) => {
+      if (meta.audio.path === 'wxfile://temp.mp3') {
+        availablePaths.delete('wxfile://temp.mp3');
+        availablePaths.add('wxfile://saved.mp3');
+      }
+      return {
+        id: meta.id,
+        ownerScope: meta.ownerScope,
+        audio: {
+          ...meta.audio,
+          path: 'wxfile://saved.mp3',
+          storage: 'saved-file',
+          persisted: true,
+          available: true,
+        },
+      };
+    });
+    uploadFile.mockImplementation(async (path) => {
+      if (!availablePaths.has(path)) throw new Error('file does not exist');
+      return { url: '/media/saved.mp3' };
+    });
+    createCanWithNameplate.mockResolvedValue({ id: 21 });
+    const wrapper = mountCreate();
+    wrapper.vm.dialects = [{ id: 1, name: '游洋话' }];
+    wrapper.vm.form.concept_text = '膝盖';
+    wrapper.vm.form.dialect = 1;
+
+    wrapper.vm.onAudioChange({
+      path: 'wxfile://temp.mp3',
+      name: 'voice.mp3',
+      origin: 'record',
+    });
+    const audioChangeSave = wrapper.vm.draftSavePromise;
+    const pageHideSave = wrapper.vm.persistDirtyDraft('page_hidden');
+    await Promise.all([audioChangeSave, pageHideSave]);
+    await wrapper.vm.submit();
+
+    expect(wrapper.vm.audio.path).toBe('wxfile://saved.mp3');
+    expect(saveCanDraft).toHaveBeenLastCalledWith(
+      expect.any(Object),
+      expect.any(Object),
+      expect.objectContaining({
+        audio: expect.objectContaining({ path: 'wxfile://saved.mp3' }),
+      }),
+    );
+    expect(saveCanDraft).toHaveBeenCalledTimes(2);
+    expect(uploadFile).toHaveBeenCalledWith('wxfile://saved.mp3');
+    expect(uni.redirectTo).toHaveBeenCalledWith({ url: '/pages/cans/details?id=21' });
   });
 
   it('still restores drafts when dialect loading fails', async () => {
@@ -198,6 +263,26 @@ describe('can creation draft recovery', () => {
     expect(wrapper.vm.canSubmit).toBe(false);
     expect(uni.showToast).toHaveBeenCalledWith({
       title: '草稿录音已失效，请重新录制',
+      icon: 'none',
+    });
+  });
+
+  it('blocks submission and closes the page when another account is now signed in', async () => {
+    const wrapper = mountCreate();
+    wrapper.vm.draftId = 'draft-1';
+    wrapper.vm.draftOwnerScope = 'user:7';
+    wrapper.vm.form.concept_text = '膝盖';
+    wrapper.vm.form.dialect = 1;
+    wrapper.vm.audio = { path: '/saved/a.mp3', persisted: true, available: true };
+    getCanDraftOwnerScope.mockReturnValue('user:8');
+
+    await wrapper.vm.submit();
+
+    expect(wrapper.vm.draftAccessBlocked).toBe(true);
+    expect(uploadFile).not.toHaveBeenCalled();
+    expect(uni.reLaunch).toHaveBeenCalledWith({ url: '/pages/index?status=me' });
+    expect(uni.showToast).toHaveBeenCalledWith({
+      title: '该草稿属于其他账号',
       icon: 'none',
     });
   });

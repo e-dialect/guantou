@@ -19,6 +19,7 @@ describe('login draft resume', () => {
     globalThis.uni = {
       getStorageSync: vi.fn((key) => (key === 'id' ? '7' : '')),
       navigateBack: vi.fn(),
+      reLaunch: vi.fn(),
       showToast: vi.fn(),
     };
     globalThis.getCurrentPages = vi.fn(() => [
@@ -73,9 +74,10 @@ describe('login draft resume', () => {
       },
     });
 
-    expect(resumeInterruptedPageAfterLogin('7')).toBe(false);
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(true);
     expect(clearInterceptIntent).toHaveBeenCalledTimes(1);
     expect(uni.navigateBack).not.toHaveBeenCalled();
+    expect(uni.reLaunch).toHaveBeenCalledWith({ url: '/pages/index?status=me' });
     expect(uni.showToast).toHaveBeenCalledWith({
       title: '该草稿属于其他账号',
       icon: 'none',

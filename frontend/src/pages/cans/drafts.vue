@@ -116,9 +116,13 @@ export default {
         confirmColor: '#9b3a2d',
         success: async (res) => {
           if (!res.confirm) return;
-          await removeCanDraft(draft.id);
-          await this.loadDrafts();
-          uni.showToast({ title: '草稿已删除', icon: 'success' });
+          try {
+            await removeCanDraft(draft.id);
+            await this.loadDrafts();
+            uni.showToast({ title: '草稿已删除', icon: 'success' });
+          } catch (error) {
+            uni.showToast({ title: '草稿删除失败，请稍后重试', icon: 'none' });
+          }
         },
       });
     },

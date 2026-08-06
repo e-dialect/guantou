@@ -143,4 +143,46 @@ describe('canDrafts', () => {
     expect(canDrafts.listCanDrafts()).toEqual([]);
     expect(uni.removeStorageSync).toHaveBeenCalledWith('can_drafts:user:7');
   });
+
+  it('discards ownerless legacy drafts instead of assigning them to the current account', () => {
+    storage.can_drafts = JSON.stringify([{
+      id: 'legacy-draft',
+      form: { concept_text: 'another user draft' },
+    }]);
+
+    expect(canDrafts.listCanDrafts()).toEqual([]);
+    expect(storage.can_drafts).toBeUndefined();
+    expect(storage['can_drafts:user:7']).toBeUndefined();
+  });
+
+  it('keeps the previous recording when writing updated draft metadata fails', async () => {
+    await canDrafts.saveCanDraft(
+      { concept_text: 'first' },
+      {},
+      { id: 'draft-1', audio: { path: '/tmp/a.mp3' } },
+    );
+    audioMocks.removeDraftAudio.mockClear();
+    audioMocks.persistDraftAudio.mockResolvedValueOnce({
+      path: '/saved/replacement.mp3',
+      mediaId: 'can-draft-audio:draft-1',
+      storage: 'saved-file',
+      persisted: true,
+      available: true,
+    });
+    uni.setStorageSync.mockImplementation((key, value) => {
+      if (key === 'can_drafts:user:7') throw new Error('storage full');
+      storage[key] = value;
+    });
+
+    await expect(canDrafts.saveCanDraft(
+      { concept_text: 'updated' },
+      {},
+      { id: 'draft-1', audio: { path: '/tmp/replacement.mp3' } },
+    )).rejects.toMatchObject({
+      message: 'storage full',
+      persistedDraftAudio: expect.objectContaining({ path: '/saved/replacement.mp3' }),
+    });
+
+    expect(audioMocks.removeDraftAudio).not.toHaveBeenCalled();
+  });
 });
