@@ -5,41 +5,88 @@ vi.mock('@/services/authGuard', () => ({
   peekInterceptIntent: vi.fn(),
 }));
 
+vi.mock('@/services/canDrafts', () => ({
+  claimAnonymousCanDrafts: vi.fn(),
+  getCanDraftOwnerScope: vi.fn(() => 'anonymous:session-1'),
+}));
+
 import { clearInterceptIntent, peekInterceptIntent } from '@/services/authGuard';
 import { resumeInterruptedPageAfterLogin } from '@/services/login';
 
 describe('login draft resume', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    globalThis.uni = { navigateBack: vi.fn() };
+    globalThis.uni = {
+      getStorageSync: vi.fn((key) => (key === 'id' ? '7' : '')),
+      navigateBack: vi.fn(),
+      showToast: vi.fn(),
+    };
     globalThis.getCurrentPages = vi.fn(() => [
       { route: 'pages/cans/create' },
       { route: 'pages/login/login' },
     ]);
-    peekInterceptIntent.mockReturnValue(null);
+    peekInterceptIntent.mockReturnValue({
+      action: 'record_can',
+      context: {
+        page: 'can_create',
+        returnRoute: '/pages/cans/create',
+        ownerScope: 'anonymous:session-1',
+      },
+    });
   });
 
-  it('returns to a can form after an expired-login interruption', () => {
-    expect(resumeInterruptedPageAfterLogin()).toBe(true);
+  it('returns only to the adjacent can form for a matching intent', () => {
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(true);
     expect(clearInterceptIntent).toHaveBeenCalledTimes(1);
     expect(uni.navigateBack).toHaveBeenCalledWith({ delta: 1 });
   });
 
-  it('returns to an intercepted protected action', () => {
+  it('does not consume another protected action intent', () => {
+    peekInterceptIntent.mockReturnValue({
+      action: 'like',
+      context: { page: 'flavor_details' },
+    });
+
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(false);
+    expect(clearInterceptIntent).not.toHaveBeenCalled();
+    expect(uni.navigateBack).not.toHaveBeenCalled();
+  });
+
+  it('discards a stale can-create intent after login from an unrelated page stack', () => {
     getCurrentPages.mockReturnValue([
       { route: 'pages/flavors/details' },
       { route: 'pages/login/login' },
     ]);
-    peekInterceptIntent.mockReturnValue({ action: 'record_can' });
 
-    expect(resumeInterruptedPageAfterLogin()).toBe(true);
-    expect(uni.navigateBack).toHaveBeenCalledWith({ delta: 1 });
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(false);
+    expect(clearInterceptIntent).toHaveBeenCalledTimes(1);
+    expect(uni.navigateBack).not.toHaveBeenCalled();
+  });
+
+  it('blocks a draft that belongs to a different signed-in account', () => {
+    peekInterceptIntent.mockReturnValue({
+      action: 'record_can',
+      context: {
+        page: 'can_create',
+        returnRoute: '/pages/cans/create',
+        ownerScope: 'user:6',
+      },
+    });
+
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(false);
+    expect(clearInterceptIntent).toHaveBeenCalledTimes(1);
+    expect(uni.navigateBack).not.toHaveBeenCalled();
+    expect(uni.showToast).toHaveBeenCalledWith({
+      title: '该草稿属于其他账号',
+      icon: 'none',
+    });
   });
 
   it('uses the normal post-login destination without an interrupted action', () => {
-    getCurrentPages.mockReturnValue([{ route: 'pages/login/login' }]);
+    peekInterceptIntent.mockReturnValue(null);
 
-    expect(resumeInterruptedPageAfterLogin()).toBe(false);
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(false);
+    expect(clearInterceptIntent).not.toHaveBeenCalled();
     expect(uni.navigateBack).not.toHaveBeenCalled();
   });
 });

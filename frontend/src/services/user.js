@@ -173,7 +173,9 @@ export async function cancelBindingWechat(id) {
  * 清理登录状态
  */
 export function clearUserInfo() {
-  uni.clearStorageSync();
+  uni.removeStorageSync('token');
+  uni.removeStorageSync('id');
+  uni.removeStorageSync('auth_intercept_intent');
   const app = getApp();
   delete app.globalData.userInfo;
   delete app.globalData.contribution;

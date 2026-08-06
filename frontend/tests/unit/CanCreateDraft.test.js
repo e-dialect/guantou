@@ -13,20 +13,29 @@ vi.mock('@/services/guantou', () => ({
 }));
 
 vi.mock('@/services/authGuard', () => ({
+  isLoggedIn: vi.fn(() => true),
   requireAuth: vi.fn(() => true),
+  saveInterceptIntent: vi.fn(),
 }));
 
 vi.mock('@/services/canDrafts', () => ({
-  getCanDraft: vi.fn(),
+  createCanDraftId: vi.fn(() => 'draft-1'),
+  getCanDraftOwnerScope: vi.fn(() => 'user:7'),
+  getCanDraftWithAudio: vi.fn(),
   listCanDrafts: vi.fn(() => []),
   removeCanDraft: vi.fn(),
   saveCanDraft: vi.fn(),
 }));
 
+vi.mock('@/services/canDraftAudio', () => ({
+  releaseDraftAudioUrl: vi.fn(),
+}));
+
 import CanCreate from '@/pages/cans/create.vue';
 import { uploadFile } from '@/services/file';
 import { listDialects } from '@/services/guantou';
-import { getCanDraft, saveCanDraft } from '@/services/canDrafts';
+import { getCanDraftWithAudio, saveCanDraft } from '@/services/canDrafts';
+import { saveInterceptIntent } from '@/services/authGuard';
 
 function mountCreate() {
   return mount(CanCreate, {
@@ -60,12 +69,17 @@ describe('can creation draft recovery', () => {
       showModal: vi.fn(),
       showToast: vi.fn(),
     };
-    saveCanDraft.mockReturnValue({ id: 'draft-1' });
+    saveCanDraft.mockImplementation(async (form, label, meta) => ({
+      id: meta.id || 'draft-1',
+      ownerScope: meta.ownerScope || 'user:7',
+      audio: meta.audio?.path ? { available: true } : null,
+    }));
   });
 
   it('restores form and audio while keeping required-field validation', async () => {
-    getCanDraft.mockReturnValue({
+    getCanDraftWithAudio.mockResolvedValue({
       id: 'draft-1',
+      ownerScope: 'user:7',
       mode: 'free',
       targetFlavor: null,
       dialectName: '游洋话',
@@ -75,7 +89,7 @@ describe('can creation draft recovery', () => {
     });
     const wrapper = mountCreate();
 
-    wrapper.vm.restoreDraft('draft-1');
+    await wrapper.vm.restoreDraft('draft-1');
     await wrapper.vm.$nextTick();
 
     expect(wrapper.vm.form.concept_text).toBe('膝盖');
@@ -124,9 +138,30 @@ describe('can creation draft recovery', () => {
     });
   });
 
+  it('records an explicit return target when an expired token interrupts submission', async () => {
+    uploadFile.mockRejectedValue({ statusCode: 401, message: 'expired' });
+    const wrapper = mountCreate();
+    wrapper.vm.dialects = [{ id: 1, name: '游洋话' }];
+    wrapper.vm.form.concept_text = '膝盖';
+    wrapper.vm.form.dialect = 1;
+    wrapper.vm.audio = { path: '/tmp/knee.mp3', name: 'knee.mp3', origin: 'record' };
+
+    await wrapper.vm.submit();
+
+    expect(saveInterceptIntent).toHaveBeenCalledWith({
+      action: 'record_can',
+      context: expect.objectContaining({
+        page: 'can_create',
+        returnRoute: '/pages/cans/create',
+        ownerScope: 'user:7',
+      }),
+    });
+  });
+
   it('requires a valid flavor id after restoring supplementation mode', () => {
-    getCanDraft.mockReturnValue({
+    getCanDraftWithAudio.mockResolvedValue({
       id: 'draft-2',
+      ownerScope: 'user:7',
       mode: 'flavor',
       targetFlavor: null,
       form: { dialect: 1 },
@@ -135,9 +170,35 @@ describe('can creation draft recovery', () => {
     });
     const wrapper = mountCreate();
 
-    wrapper.vm.restoreDraft('draft-2');
+    return wrapper.vm.restoreDraft('draft-2').then(() => {
+      expect(wrapper.vm.mode).toBe('free');
+      expect(wrapper.vm.canSubmit).toBe(false);
+    });
+  });
 
-    expect(wrapper.vm.mode).toBe('free');
+  it('marks a missing persisted recording as invalid and blocks submission', async () => {
+    getCanDraftWithAudio.mockResolvedValue({
+      id: 'draft-3',
+      ownerScope: 'user:7',
+      mode: 'free',
+      form: { concept_text: '月亮', dialect: 1 },
+      label: {},
+      audio: {
+        path: '',
+        persisted: true,
+        available: false,
+        invalid: true,
+      },
+    });
+    const wrapper = mountCreate();
+
+    await wrapper.vm.restoreDraft('draft-3');
+
+    expect(wrapper.vm.audio.invalid).toBe(true);
     expect(wrapper.vm.canSubmit).toBe(false);
+    expect(uni.showToast).toHaveBeenCalledWith({
+      title: '草稿录音已失效，请重新录制',
+      icon: 'none',
+    });
   });
 });

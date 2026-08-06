@@ -54,7 +54,7 @@
 <script>
 import EmptyState from '@/components/EmptyState.vue';
 import PageShell from '@/components/PageShell.vue';
-import { listCanDrafts, removeCanDraft } from '@/services/canDrafts';
+import { listCanDraftsWithAudioStatus, removeCanDraft } from '@/services/canDrafts';
 
 function pad(value) {
   return String(value).padStart(2, '0');
@@ -74,8 +74,8 @@ export default {
     this.loadDrafts();
   },
   methods: {
-    loadDrafts() {
-      this.drafts = listCanDrafts();
+    async loadDrafts() {
+      this.drafts = await listCanDraftsWithAudioStatus();
     },
     modeLabel(draft) {
       return draft.mode === 'flavor' ? '义项补录' : '自由装罐';
@@ -90,7 +90,9 @@ export default {
     },
     draftMeta(draft) {
       const dialect = draft.dialectName || '未选择方言点';
-      const audio = draft.audio?.path ? '已保留录音' : '未录音';
+      let audio = '未录音';
+      if (draft.audio?.available) audio = '已保存录音';
+      if (draft.audio && !draft.audio.available) audio = '录音已失效，请重录';
       return `${dialect} · ${audio}`;
     },
     formatDate(timestamp) {
@@ -112,10 +114,10 @@ export default {
         title: '删除草稿',
         content: `确定删除“${this.draftTitle(draft)}”吗？`,
         confirmColor: '#9b3a2d',
-        success: (res) => {
+        success: async (res) => {
           if (!res.confirm) return;
-          removeCanDraft(draft.id);
-          this.loadDrafts();
+          await removeCanDraft(draft.id);
+          await this.loadDrafts();
           uni.showToast({ title: '草稿已删除', icon: 'success' });
         },
       });

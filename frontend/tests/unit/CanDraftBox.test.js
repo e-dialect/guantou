@@ -2,12 +2,12 @@ import { mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/services/canDrafts', () => ({
-  listCanDrafts: vi.fn(),
+  listCanDraftsWithAudioStatus: vi.fn(),
   removeCanDraft: vi.fn(),
 }));
 
 import CanDrafts from '@/pages/cans/drafts.vue';
-import { listCanDrafts, removeCanDraft } from '@/services/canDrafts';
+import { listCanDraftsWithAudioStatus, removeCanDraft } from '@/services/canDrafts';
 
 const sampleDraft = {
   id: 'draft moon/1',
@@ -16,7 +16,7 @@ const sampleDraft = {
   dialectName: '游洋话',
   form: { concept_text: '月亮', dialect: 1 },
   label: {},
-  audio: { path: '/tmp/moon.mp3' },
+  audio: { persisted: true, available: true },
   createdAt: new Date(2026, 7, 6, 8, 9).getTime(),
   updatedAt: new Date(2026, 7, 6, 10, 11).getTime(),
 };
@@ -42,7 +42,8 @@ function mountDrafts() {
 describe('can draft box', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    listCanDrafts.mockReturnValue([sampleDraft]);
+    listCanDraftsWithAudioStatus.mockResolvedValue([sampleDraft]);
+    removeCanDraft.mockResolvedValue();
     globalThis.uni = {
       navigateTo: vi.fn(),
       showModal: vi.fn(),
@@ -52,11 +53,11 @@ describe('can draft box', () => {
 
   it('lists drafts and opens one for editing', async () => {
     const wrapper = mountDrafts();
-    wrapper.vm.loadDrafts();
+    await wrapper.vm.loadDrafts();
     await wrapper.vm.$nextTick();
 
     expect(wrapper.text()).toContain('为「月亮」补录音');
-    expect(wrapper.text()).toContain('游洋话 · 已保留录音');
+    expect(wrapper.text()).toContain('游洋话 · 已保存录音');
 
     await wrapper.find('.continue-button').trigger('tap');
 
@@ -66,12 +67,12 @@ describe('can draft box', () => {
   });
 
   it('deletes a confirmed draft and refreshes the list', async () => {
-    listCanDrafts
-      .mockReturnValueOnce([sampleDraft])
-      .mockReturnValueOnce([]);
+    listCanDraftsWithAudioStatus
+      .mockResolvedValueOnce([sampleDraft])
+      .mockResolvedValueOnce([]);
     uni.showModal.mockImplementation(({ success }) => success({ confirm: true }));
     const wrapper = mountDrafts();
-    wrapper.vm.loadDrafts();
+    await wrapper.vm.loadDrafts();
     await wrapper.vm.$nextTick();
 
     await wrapper.find('.delete-button').trigger('tap');
@@ -86,13 +87,26 @@ describe('can draft box', () => {
   });
 
   it('offers a new can action when the draft box is empty', async () => {
-    listCanDrafts.mockReturnValue([]);
+    listCanDraftsWithAudioStatus.mockResolvedValue([]);
     const wrapper = mountDrafts();
-    wrapper.vm.loadDrafts();
+    await wrapper.vm.loadDrafts();
     await wrapper.vm.$nextTick();
 
     await wrapper.find('.empty-state').trigger('tap');
 
     expect(uni.navigateTo).toHaveBeenCalledWith({ url: '/pages/cans/create' });
+  });
+
+  it('shows when a persisted recording is no longer available', async () => {
+    listCanDraftsWithAudioStatus.mockResolvedValue([{
+      ...sampleDraft,
+      audio: { persisted: true, available: false },
+    }]);
+    const wrapper = mountDrafts();
+
+    await wrapper.vm.loadDrafts();
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain('录音已失效，请重录');
   });
 });

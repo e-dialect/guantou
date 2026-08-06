@@ -5,9 +5,13 @@ import {
   clearInterceptIntent,
   peekInterceptIntent,
 } from '@/services/authGuard';
+import {
+  claimAnonymousCanDrafts,
+  getCanDraftOwnerScope,
+} from '@/services/canDrafts';
 import rawRequest from '../utils/rawRequest';
 
-export function resumeInterruptedPageAfterLogin() {
+export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageSync('id')) {
   const pages = getCurrentPages();
   const previousPage = pages.length > 1 ? pages[pages.length - 2] : null;
   const previousRoute = previousPage ? previousPage.route : '';
@@ -15,7 +19,23 @@ export function resumeInterruptedPageAfterLogin() {
   const previousIsCanCreate = previousRoute === 'pages/cans/create'
     || previousRoute === '/pages/cans/create';
 
-  if (!interruptedIntent && !previousIsCanCreate) return false;
+  if (interruptedIntent?.action !== 'record_can') return false;
+  const isCanCreateIntent = interruptedIntent.context?.page === 'can_create'
+    && interruptedIntent.context?.returnRoute === '/pages/cans/create';
+  if (!isCanCreateIntent) {
+    clearInterceptIntent();
+    return false;
+  }
+  if (!previousIsCanCreate) {
+    clearInterceptIntent();
+    return false;
+  }
+  const intendedOwner = interruptedIntent.context?.ownerScope || '';
+  if (intendedOwner.startsWith('user:') && intendedOwner !== `user:${loggedInUserId}`) {
+    clearInterceptIntent();
+    uni.showToast({ title: '该草稿属于其他账号', icon: 'none' });
+    return false;
+  }
   clearInterceptIntent();
   uni.navigateBack({ delta: 1 });
   return true;
@@ -42,10 +62,14 @@ export async function afterLogin(res) {
     title: '登录成功',
     icon: 'success',
   });
+  const previousOwnerScope = getCanDraftOwnerScope();
   uni.setStorageSync('token', res.token);
   uni.setStorageSync('id', res.id);
+  if (previousOwnerScope.startsWith('anonymous:')) {
+    await claimAnonymousCanDrafts(res.id, previousOwnerScope);
+  }
   await loadUserInfo();
-  if (resumeInterruptedPageAfterLogin()) return;
+  if (resumeInterruptedPageAfterLogin(res.id)) return;
   // #ifdef H5
   toIndexPage(true);
   // #endif

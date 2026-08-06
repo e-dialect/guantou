@@ -25,7 +25,7 @@
         试听
       </button>
       <button
-        v-if="audio.path"
+        v-if="audio.path || audio.invalid"
         class="secondary-button danger"
         @tap="clearAudio"
       >
@@ -73,11 +73,13 @@ export default {
   computed: {
     titleText() {
       if (this.recording) return '录音中，松手完成';
+      if (this.audio.invalid) return '录音已失效，请重录';
       if (this.audio.path) return this.audio.name || '已准备好音频';
       return '按住录音';
     },
     subtitleText() {
       if (this.recording) return '最长 15 秒';
+      if (this.audio.invalid) return '草稿的其他内容已恢复';
       if (this.audio.path && this.audio.durationMs) {
         return `约 ${Math.max(1, Math.round(this.audio.durationMs / 1000))} 秒`;
       }
@@ -99,12 +101,15 @@ export default {
     }
   },
   methods: {
-    emitAudio(path, durationMs, origin, name = '') {
+    emitAudio(path, durationMs, origin, name = '', blob = null) {
       this.$emit('change', {
         path,
         name,
         durationMs,
         origin,
+        available: true,
+        invalid: false,
+        ...(blob ? { blob } : {}),
       });
     },
     clearTimer() {
@@ -141,7 +146,7 @@ export default {
           const durationMs = Date.now() - this.recordStartedAt;
           const blob = new Blob(chunks, { type: this.recorderManager.mimeType });
           const path = window.URL.createObjectURL(blob);
-          this.onRecordStop(path, durationMs);
+          this.onRecordStop(path, durationMs, blob);
         };
       }).catch(() => {
         this.recorderManager = null;
@@ -175,7 +180,7 @@ export default {
         uni.showToast({ title: '已自动截取前15秒', icon: 'none' });
       }
     },
-    onRecordStop(path, durationMs) {
+    onRecordStop(path, durationMs, blob = null) {
       this.recording = false;
       this.clearTimer();
       if (!path) return;
@@ -183,7 +188,13 @@ export default {
         uni.showToast({ title: '录音太短了，再试一次吧', icon: 'none' });
         return;
       }
-      this.emitAudio(path, Math.min(durationMs, MAX_DURATION_MS), 'record', '刚录好的乡音');
+      this.emitAudio(
+        path,
+        Math.min(durationMs, MAX_DURATION_MS),
+        'record',
+        '刚录好的乡音',
+        blob,
+      );
     },
     previewAudio() {
       playAudio(this.audio.path);
