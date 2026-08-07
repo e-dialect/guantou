@@ -19,7 +19,11 @@
 <script>
 import SearchPanel from '@/components/SearchPanel.vue';
 import { APP_NAME } from '@/const/branding';
-import { searchGuantou } from '@/services/guantou';
+import {
+  getNameplate,
+  searchGuantou,
+  suggestGuantou,
+} from '@/services/guantou';
 import { defaultMessage } from '@/services/shareMessages';
 
 function emptyResults() {
@@ -30,32 +34,25 @@ function emptyResults() {
   };
 }
 
-function flattenSuggestions(results) {
-  const flavors = (results.flavors || []).map((item) => ({
+function flattenSuggestions(response) {
+  const scopeByType = {
+    flavor: 'flavors',
+    package: 'packages',
+    nameplate: 'nameplates',
+  };
+  const labelByType = {
+    flavor: '义项',
+    package: '写法',
+    nameplate: '铭牌',
+  };
+  return (response.suggestions || []).map((item) => ({
     id: item.id,
-    scope: 'flavors',
-    type: '义项',
-    title: item.name,
-    description: item.definition,
-    meta: `${(item.variants || []).length} 个变体`,
-  }));
-  const packages = (results.packages || []).map((item) => ({
-    id: item.id,
-    scope: 'packages',
-    type: '写法',
+    scope: scopeByType[item.type],
+    type: labelByType[item.type],
     title: item.text,
-    description: '查看这个写法关联的义项',
-    meta: `${(item.flavors || []).length} 个义项`,
+    description: item.sub,
+    meta: '',
   }));
-  const cans = (results.cans || []).map((item) => ({
-    id: item.id,
-    scope: 'cans',
-    type: '罐头',
-    title: item.primary_nameplate ? item.primary_nameplate.text_content : item.concept_text,
-    description: item.concept_text || '未填写普通话概念',
-    meta: item.dialect_detail ? item.dialect_detail.name : '未标方言点',
-  }));
-  return [...flavors, ...packages, ...cans].slice(0, 5);
 }
 
 export default {
@@ -106,7 +103,7 @@ export default {
     },
     async suggest(keyword) {
       if (this.hasSearched) return;
-      const results = await searchGuantou(keyword, { limit: 5 });
+      const results = await suggestGuantou(keyword, { limit: 5 });
       this.suggestions = flattenSuggestions(results);
     },
     onKeywordInput(value) {
@@ -135,9 +132,14 @@ export default {
     openCan(id) {
       uni.navigateTo({ url: `/pages/cans/details?id=${id}` });
     },
-    openItem(item) {
+    async openItem(item) {
       if (item.scope === 'cans') {
         this.openCan(item.id);
+        return;
+      }
+      if (item.scope === 'nameplates') {
+        const nameplate = await getNameplate(item.id);
+        this.openCan(nameplate.can.id);
         return;
       }
       const urls = {

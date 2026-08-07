@@ -25,7 +25,7 @@ class SearchApiTests(TestCase):
         self.public_can = Can.objects.create(
             audio_url="https://example.com/moon.mp3",
             recorder=self.user,
-            dialect=self.dialect,
+            submitted_dialect=self.dialect,
             concept_text="moon",
             visibility=True,
         )
@@ -34,14 +34,16 @@ class SearchApiTests(TestCase):
             creator=self.user,
             flavor=self.flavor,
             package=self.package,
+            dialect=self.dialect,
             text_content="moon",
             definition="Earth satellite",
+            source={"type": "creator"},
             is_primary=True,
         )
         self.private_can = Can.objects.create(
             audio_url="https://example.com/private.mp3",
             recorder=self.other_user,
-            dialect=self.dialect,
+            submitted_dialect=self.dialect,
             concept_text="moon private",
             visibility=False,
         )
@@ -101,12 +103,14 @@ class SuggestSearchApiTests(TestCase):
             creator=self.owner,
             text_content="吃早",
             definition="吃早饭",
+            source={"type": "creator"},
         )
         self.private_nameplate = Nameplate.objects.create(
             can=self.private_can,
             creator=self.owner,
             text_content="吃独",
             definition="独自吃",
+            source={"type": "creator"},
         )
 
     def suggest(self, **params):
@@ -140,7 +144,11 @@ class SuggestSearchApiTests(TestCase):
         Flavor.objects.create(name="食", definition="进食", mandarin=["吃"])
         Package.objects.create(text="食", package_type=Package.PackageType.LOAN)
         Nameplate.objects.create(
-            can=self.public_can, creator=self.owner, text_content="食", definition="吃"
+            can=self.public_can,
+            creator=self.owner,
+            text_content="食",
+            definition="吃",
+            source={"type": "creator"},
         )
 
         response = self.suggest(q="食")

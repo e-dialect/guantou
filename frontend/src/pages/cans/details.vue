@@ -40,7 +40,8 @@
           v-for="plate in can.nameplates"
           :key="plate.id"
           :plate="plate"
-          @support="vote"
+          @support="support"
+          @unsupport="unsupport"
         />
       </SectionBlock>
 
@@ -61,7 +62,12 @@ import NameplateCard from '@/components/NameplateCard.vue';
 import NameplateComposer from '@/components/NameplateComposer.vue';
 import PageShell from '@/components/PageShell.vue';
 import SectionBlock from '@/components/SectionBlock.vue';
-import { createNameplate, getCan, voteNameplate } from '@/services/guantou';
+import {
+  createNameplate,
+  getCan,
+  supportNameplate,
+  unsupportNameplate,
+} from '@/services/guantou';
 import { requireAuth } from '@/services/authGuard';
 import { playAudio } from '@/utils/audio';
 
@@ -91,11 +97,14 @@ export default {
   },
   computed: {
     primaryText() {
-      return this.can.primary_nameplate ? this.can.primary_nameplate.text_content : '无标罐头';
+      return this.can.primary_nameplate ? this.can.primary_nameplate.display_text : '无标罐头';
     },
     dialectText() {
-      if (this.can.dialect_detail) return this.can.dialect_detail.name;
-      return [this.can.county, this.can.town].filter(Boolean).join('-') || '未标产地';
+      const primary = this.can.nameplates.find((plate) => plate.is_primary);
+      if (primary?.dialect) {
+        return primary.dialect.qualified_code;
+      }
+      return this.can.submitted_dialect?.qualified_code || '未标方言点';
     },
   },
   async onLoad(options) {
@@ -110,11 +119,14 @@ export default {
     async refresh() {
       this.can = await getCan(this.id);
     },
-    async vote(id) {
+    async support(id) {
       if (!requireAuth('nameplate_support', { page: 'can_detail', canId: this.id, nameplateId: id })) return;
-      const plate = this.can.nameplates.find((item) => item.id === id);
-      if (plate && plate.supported_by_current_user) return;
-      await voteNameplate(id, 1);
+      await supportNameplate(id);
+      await this.refresh();
+    },
+    async unsupport(id) {
+      if (!requireAuth('nameplate_support', { page: 'can_detail', canId: this.id, nameplateId: id })) return;
+      await unsupportNameplate(id);
       await this.refresh();
     },
     async submitNameplate(payload) {

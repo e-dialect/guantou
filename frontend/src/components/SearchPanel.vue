@@ -251,7 +251,7 @@ export default {
       this.$emit('search', keyword);
     },
     flavorMeta(item) {
-      return `${(item.variants || []).length} 个变体 · ${(item.package_links || []).length} 个写法`;
+      return `${(item.pronunciations || []).length} 个读音 · ${(item.package_links || []).length} 个写法`;
     },
     packageMeta(item) {
       return `${(item.flavors || []).length} 个义项 · ${item.package_type || 'uncertain'}`;

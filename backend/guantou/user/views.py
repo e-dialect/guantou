@@ -25,7 +25,7 @@ def router_users(request):
                 result = result.filter(username=request.GET["username"])
             users = []
             for user in result:
-                users.append(user_all(user))
+                users.append(user_all(user, private=False))
             return JsonResponse({"users": users}, status=200)
 
         # US0101 新建用户

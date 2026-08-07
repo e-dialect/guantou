@@ -1,7 +1,9 @@
 from django.db import transaction
 from django.db.models import Case, IntegerField, Q, Value, When
+from rest_framework import serializers
+from utils.exceptions.types.conflict import ConflictException
 
-from .models import Can, Flavor, FlavorPackage, FlavorVariant, Nameplate, Package
+from .models import Can, Flavor, FlavorPackage, Nameplate, Package, Pronunciation
 
 DEFAULT_SEARCH_LIMIT = 8
 MAX_SEARCH_LIMIT = 20
@@ -23,7 +25,7 @@ def result_limit(value, default=DEFAULT_SEARCH_LIMIT, maximum=MAX_SEARCH_LIMIT):
 
 def visible_cans_for_user(user):
     queryset = Can.objects.select_related(
-        "recorder", "dialect", "flavor_variant", "verifier"
+        "recorder", "submitted_dialect", "verifier"
     ).prefetch_related("nameplates")
     if user and user.is_authenticated and user.is_staff:
         return queryset
@@ -34,7 +36,7 @@ def visible_cans_for_user(user):
 
 def search_flavors(keyword, limit):
     return (
-        Flavor.objects.prefetch_related("packages", "variants")
+        Flavor.objects.prefetch_related("packages", "pronunciations")
         .filter(
             Q(name__icontains=keyword)
             | Q(definition__icontains=keyword)
@@ -170,6 +172,29 @@ def suggest_search(keyword, user=None, limit=SUGGEST_DEFAULT_LIMIT):
     return {"keyword": clean_keyword, "suggestions": suggestions}
 
 
+@transaction.atomic
+def elect_primary_nameplate(can):
+    candidates = (
+        Nameplate.objects.select_for_update()
+        .filter(
+            can=can,
+            status=Nameplate.Status.ACTIVE,
+            package__isnull=False,
+            flavor__isnull=False,
+            dialect__isnull=False,
+        )
+        .order_by("-weight", "id")
+    )
+    strongest = candidates.first()
+    Nameplate.objects.filter(can=can, is_primary=True).exclude(
+        pk=getattr(strongest, "pk", None)
+    ).update(is_primary=False)
+    if strongest and not strongest.is_primary:
+        strongest.is_primary = True
+        strongest.save(update_fields=["is_primary", "updated_at"])
+    return strongest
+
+
 def get_or_create_package(label):
     text = clean_text(label.get("text_content"))
     if not text:
@@ -184,9 +209,14 @@ def get_or_create_package(label):
 
 
 def get_or_create_submission_flavor(can, label, user, package):
-    flavor_id = label.get("flavor")
+    flavor_id = label.get("flavor_id")
     if flavor_id:
-        return Flavor.objects.filter(id=flavor_id).first()
+        flavor = Flavor.objects.filter(id=flavor_id).first()
+        if flavor is None:
+            raise serializers.ValidationError(
+                {"initial_nameplate": {"flavor_id": ["义项不存在"]}}
+            )
+        return flavor
 
     if not package:
         return None
@@ -204,20 +234,94 @@ def get_or_create_submission_flavor(can, label, user, package):
 
 def create_initial_nameplate(can, label, user):
     text_content = clean_text(label.get("text_content"))
-    if not text_content:
-        return None
+    pronunciation_text = clean_text(label.get("pronunciation_text"))
+    source = label.get("source")
+    if (
+        not isinstance(source, dict)
+        or source.get("type") not in Nameplate.SourceType.values
+    ):
+        raise serializers.ValidationError(
+            {"initial_nameplate": {"source": ["必须提供有效的 source.type"]}}
+        )
 
-    package = get_or_create_package(label)
-    flavor = get_or_create_submission_flavor(can, label, user, package)
+    pronunciation = None
+    pronunciation_id = label.get("pronunciation_id")
+    if pronunciation_id:
+        pronunciation = Pronunciation.objects.filter(id=pronunciation_id).first()
+        if pronunciation is None:
+            raise serializers.ValidationError(
+                {"initial_nameplate": {"pronunciation_id": ["读音不存在"]}}
+            )
+
+    package = pronunciation.package if pronunciation else None
+    if package is None and label.get("package_id"):
+        package = Package.objects.filter(id=label["package_id"]).first()
+        if package is None:
+            raise serializers.ValidationError(
+                {"initial_nameplate": {"package_id": ["写法不存在"]}}
+            )
+    if package is None:
+        package = get_or_create_package(label)
+
+    flavor = pronunciation.flavor if pronunciation else None
+    if flavor is None:
+        flavor = get_or_create_submission_flavor(can, label, user, package)
+
+    dialect = pronunciation.dialect if pronunciation else None
+    if dialect is None and label.get("dialect_id"):
+        from .models import Dialect
+
+        dialect = Dialect.objects.filter(id=label["dialect_id"]).first()
+        if dialect is None:
+            raise serializers.ValidationError(
+                {"initial_nameplate": {"dialect_id": ["方言点不存在"]}}
+            )
+    dialect = dialect or can.submitted_dialect
+
+    conflicts = {}
+    if (
+        pronunciation
+        and label.get("package_id")
+        and str(label["package_id"]) != str(pronunciation.package_id)
+    ):
+        conflicts["package_id"] = ["与 pronunciation_id 不一致"]
+    if (
+        pronunciation
+        and label.get("flavor_id")
+        and str(label["flavor_id"]) != str(pronunciation.flavor_id)
+    ):
+        conflicts["flavor_id"] = ["与 pronunciation_id 不一致"]
+    if (
+        pronunciation
+        and label.get("dialect_id")
+        and str(label["dialect_id"]) != str(pronunciation.dialect_id)
+    ):
+        conflicts["dialect_id"] = ["与 pronunciation_id 不一致"]
+    if conflicts:
+        raise ConflictException(
+            "初始铭牌外键与 pronunciation_id 不一致",
+            data={"fields": {"initial_nameplate": conflicts}},
+        )
+
+    if not any(
+        [package, flavor, dialect, pronunciation, text_content, pronunciation_text]
+    ):
+        raise serializers.ValidationError(
+            {"initial_nameplate": ["至少提供一个规范外键、原样写法或原样读音"]}
+        )
+
     nameplate = Nameplate.objects.create(
         can=can,
         flavor=flavor,
         package=package,
+        dialect=dialect,
+        pronunciation=pronunciation,
         creator=user,
         text_content=text_content,
         definition=clean_text(label.get("definition")) or can.concept_text,
+        pronunciation_text=pronunciation_text,
         evidence_level=label.get("evidence_level") or Nameplate.EvidenceLevel.MEMORY,
-        source_citation=clean_text(label.get("source_citation")),
+        source=source,
     )
     nameplate.promote_to_primary()
     if can.status == Can.Status.UNLABELED:
@@ -226,22 +330,9 @@ def create_initial_nameplate(can, label, user):
     return nameplate
 
 
-def create_flavor_variant_for_can(can_data, flavor, user):
-    return FlavorVariant.objects.create(
-        flavor=flavor,
-        dialect=can_data.get("dialect"),
-        audio_url=can_data.get("audio_url", ""),
-        audio_source=FlavorVariant.AudioSource.USER,
-        created_by=user if user and user.is_authenticated else None,
-    )
-
-
 @transaction.atomic
-def create_can_submission(*, user, can_data, initial_nameplate=None, flavor=None):
+def create_can_submission(*, user, can_data, initial_nameplate=None):
     data = dict(can_data)
-    if flavor:
-        data["flavor_variant"] = create_flavor_variant_for_can(data, flavor, user)
-        data["concept_text"] = data.get("concept_text") or flavor.name
     data["recorder"] = user
 
     can = Can.objects.create(**data)

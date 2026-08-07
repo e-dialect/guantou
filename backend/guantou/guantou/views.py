@@ -1,33 +1,43 @@
 from django.db import transaction
-from django.db.models import F, Q
+from django.db.models import Count, F, Q
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from utils.exceptions.types.bad_request import BadRequestException
+from utils.exceptions.types.conflict import ConflictException
 from utils.exceptions.types.forbidden import ForbiddenException
 
 from .models import (
     Can,
     Dialect,
     Flavor,
-    FlavorVariant,
     Nameplate,
     NameplateSupport,
     Package,
+    Pronunciation,
     Shelf,
 )
 from .permissions import IsOwnerOrAdmin
-from .services import aggregate_search, suggest_search
 from .serializers import (
+    CanCardSerializer,
     CanSerializer,
     DialectSerializer,
     FlavorSerializer,
-    FlavorVariantSerializer,
+    NameplateCardSerializer,
     NameplateSerializer,
     PackageSerializer,
+    PronunciationSerializer,
     ShelfSerializer,
+)
+from .services import (
+    aggregate_search,
+    elect_primary_nameplate,
+    suggest_search,
+    visible_cans_for_user,
 )
 
 
@@ -36,6 +46,17 @@ class CanWritePermission(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
         return bool(request.user and request.user.is_authenticated)
+
+
+def truthy(value):
+    return str(value).lower() in {"1", "true", "yes"}
+
+
+def dialect_ids(value, scope):
+    dialect = Dialect.objects.filter(id=value).first()
+    if dialect is None:
+        return []
+    return dialect.descendant_ids() if scope == "subtree" else [dialect.id]
 
 
 class AggregateSearchView(APIView):
@@ -60,7 +81,9 @@ class AggregateSearchView(APIView):
                 "packages": PackageSerializer(
                     results["packages"], many=True, context=context
                 ).data,
-                "cans": CanSerializer(results["cans"], many=True, context=context).data,
+                "cans": CanCardSerializer(
+                    results["cans"], many=True, context=context
+                ).data,
             }
         )
 
@@ -69,33 +92,64 @@ class SuggestSearchView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        # 联想字段少，服务层直接返回轻量 dict，不走嵌套 Serializer
-        results = suggest_search(
-            request.query_params.get("q", ""),
-            user=request.user,
-            limit=request.query_params.get("limit"),
+        return Response(
+            suggest_search(
+                request.query_params.get("q", ""),
+                user=request.user,
+                limit=request.query_params.get("limit"),
+            )
         )
-        return Response(results)
 
 
 class DialectViewSet(viewsets.ModelViewSet):
-    queryset = Dialect.objects.all()
+    http_method_names = ["get", "post", "patch", "head", "options"]
+    queryset = Dialect.objects.select_related("parent").prefetch_related("children")
     serializer_class = DialectSerializer
     permission_classes = [CanWritePermission]
-    search_fields = ["name", "code", "province", "city", "county", "town"]
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        parent = self.request.query_params.get("parent")
-        if parent is not None:
-            if parent == "null":
-                queryset = queryset.filter(parent__isnull=True)
-            else:
-                queryset = queryset.filter(parent_id=parent)
-        return queryset
+        if self.action == "list":
+            parent_id = self.request.query_params.get("parent_id")
+            queryset = (
+                queryset.filter(parent__isnull=True)
+                if parent_id is None
+                else queryset.filter(parent_id=parent_id)
+            )
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) | Q(code__icontains=search)
+            )
+        return queryset.order_by("sort_order", "id")
+
+    @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny])
+    def resolve(self, request):
+        qualified_code = request.query_params.get("qualified_code", "").strip()
+        if not qualified_code:
+            raise BadRequestException("qualified_code 不能为空")
+        segments = qualified_code.split(".")
+        node = Dialect.objects.filter(parent__isnull=True, code=segments[0]).first()
+        for segment in segments[1:]:
+            if node is None:
+                break
+            node = Dialect.objects.filter(parent=node, code=segment).first()
+        if node is None:
+            node = next(
+                (
+                    candidate
+                    for candidate in Dialect.objects.all().iterator()
+                    if qualified_code in (candidate.aliases or [])
+                ),
+                None,
+            )
+        if node is None:
+            raise NotFound("方言限定码不存在")
+        return Response(self.get_serializer(node).data)
 
 
 class PackageViewSet(viewsets.ModelViewSet):
+    http_method_names = ["get", "post", "patch", "head", "options"]
     queryset = Package.objects.prefetch_related("flavors")
     serializer_class = PackageSerializer
     permission_classes = [CanWritePermission]
@@ -112,7 +166,10 @@ class PackageViewSet(viewsets.ModelViewSet):
 
 
 class FlavorViewSet(viewsets.ModelViewSet):
-    queryset = Flavor.objects.prefetch_related("packages", "variants")
+    http_method_names = ["get", "post", "patch", "head", "options"]
+    queryset = Flavor.objects.prefetch_related(
+        "packages", "flavorpackage_set__package", "pronunciations"
+    )
     serializer_class = FlavorSerializer
     permission_classes = [IsOwnerOrAdmin]
 
@@ -126,65 +183,139 @@ class FlavorViewSet(viewsets.ModelViewSet):
                 | Q(mandarin__icontains=search)
                 | Q(packages__text__icontains=search)
             ).distinct()
-        package = self.request.query_params.get("package")
-        if package:
-            queryset = queryset.filter(packages__id=package)
-        dialect = self.request.query_params.get("dialect")
-        if dialect:
-            dialect_obj = Dialect.objects.filter(id=dialect).first()
-            if dialect_obj:
-                queryset = queryset.filter(
-                    variants__dialect_id__in=dialect_obj.descendant_ids()
-                ).distinct()
+        package_id = self.request.query_params.get("package_id")
+        if package_id:
+            queryset = queryset.filter(packages__id=package_id)
+        dialect_id = self.request.query_params.get("dialect_id")
+        if dialect_id:
+            ids = dialect_ids(
+                dialect_id, self.request.query_params.get("dialect_scope", "exact")
+            )
+            queryset = queryset.filter(pronunciations__dialect_id__in=ids).distinct()
         return queryset
 
 
-class FlavorVariantViewSet(viewsets.ModelViewSet):
-    queryset = FlavorVariant.objects.select_related("flavor", "dialect", "created_by")
-    serializer_class = FlavorVariantSerializer
-    permission_classes = [CanWritePermission]
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        flavor = self.request.query_params.get("flavor")
-        if flavor:
-            queryset = queryset.filter(flavor_id=flavor)
-        dialect = self.request.query_params.get("dialect")
-        if dialect:
-            dialect_obj = Dialect.objects.filter(id=dialect).first()
-            if dialect_obj:
-                queryset = queryset.filter(dialect_id__in=dialect_obj.descendant_ids())
-        status_value = self.request.query_params.get("status")
-        if status_value:
-            queryset = queryset.filter(status=status_value)
-        return queryset
-
-
-# 合法状态转换表：{action: {from_status: to_status}}
-CAN_TRANSITIONS = {
-    "submit": {"pending": "tentative"},
-    "verify": {"tentative": "verified"},
-    "dispute": {"tentative": "disputed"},
-    "reject": {
-        "pending": "rejected",
-        "disputed": "rejected",
-    },
-    "restore": {"rejected": "pending"},
-}
-
-# 需要 staff/verifier 权限的操作
-STAFF_ONLY_ACTIONS = {"verify", "reject"}
-
-
-class CanViewSet(viewsets.ModelViewSet):
-    queryset = Can.objects.select_related(
-        "recorder", "dialect", "flavor_variant", "verifier"
-    ).prefetch_related("nameplates")
-    serializer_class = CanSerializer
+class PronunciationViewSet(viewsets.ModelViewSet):
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+    queryset = Pronunciation.objects.select_related(
+        "package", "flavor", "dialect", "created_by"
+    )
+    serializer_class = PronunciationSerializer
     permission_classes = [IsOwnerOrAdmin]
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        for parameter in ("package_id", "flavor_id", "reading_type", "status"):
+            value = self.request.query_params.get(parameter)
+            if value:
+                queryset = queryset.filter(**{parameter: value})
+        dialect_id = self.request.query_params.get("dialect_id")
+        if dialect_id:
+            ids = dialect_ids(
+                dialect_id, self.request.query_params.get("dialect_scope", "exact")
+            )
+            queryset = queryset.filter(dialect_id__in=ids)
+        return queryset
+
+    def destroy(self, request, *args, **kwargs):
+        pronunciation = self.get_object()
+        if (
+            pronunciation.status == Pronunciation.Status.VERIFIED
+            or pronunciation.attestations.exists()
+        ):
+            raise ConflictException("已认证或被铭牌引用的读音不能删除")
+        return super().destroy(request, *args, **kwargs)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[permissions.IsAdminUser],
+    )
+    def transition(self, request, pk=None):
+        transitions = {
+            "verify": {
+                Pronunciation.Status.DRAFT: Pronunciation.Status.VERIFIED,
+                Pronunciation.Status.DISPUTED: Pronunciation.Status.VERIFIED,
+            },
+            "dispute": {
+                Pronunciation.Status.DRAFT: Pronunciation.Status.DISPUTED,
+                Pronunciation.Status.VERIFIED: Pronunciation.Status.DISPUTED,
+            },
+            "reject": {
+                Pronunciation.Status.DRAFT: Pronunciation.Status.REJECTED,
+                Pronunciation.Status.DISPUTED: Pronunciation.Status.REJECTED,
+            },
+            "restore": {Pronunciation.Status.REJECTED: Pronunciation.Status.DRAFT},
+        }
+        pronunciation = self.get_object()
+        action_name = request.data.get("action", "")
+        target = transitions.get(action_name, {}).get(pronunciation.status)
+        if target is None:
+            raise ConflictException("当前读音状态不允许该流转")
+        with transaction.atomic():
+            pronunciation = Pronunciation.objects.select_for_update().get(
+                pk=pronunciation.pk
+            )
+            pronunciation.status = target
+            canonical = (
+                bool(request.data.get("is_canonical"))
+                and target == Pronunciation.Status.VERIFIED
+            )
+            if canonical and not (
+                pronunciation.source_citation
+                or pronunciation.attestations.filter(
+                    status=Nameplate.Status.ACTIVE
+                ).exists()
+            ):
+                raise ConflictException("没有来源或录音证据的读音不能设为 canonical")
+            if canonical:
+                Pronunciation.objects.filter(
+                    package=pronunciation.package,
+                    flavor=pronunciation.flavor,
+                    dialect=pronunciation.dialect,
+                    reading_type=pronunciation.reading_type,
+                    is_canonical=True,
+                ).exclude(pk=pronunciation.pk).update(is_canonical=False)
+            pronunciation.is_canonical = canonical
+            pronunciation.save(update_fields=["status", "is_canonical", "updated_at"])
+        return Response(self.get_serializer(pronunciation).data)
+
+
+CAN_TRANSITIONS = {
+    "submit": {"pending": "tentative"},
+    "verify": {"tentative": "verified"},
+    "dispute": {"tentative": "disputed"},
+    "reject": {"pending": "rejected", "disputed": "rejected"},
+    "restore": {"rejected": "pending"},
+}
+STAFF_ONLY_ACTIONS = {"verify", "reject"}
+
+
+class CanViewSet(viewsets.ModelViewSet):
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+    queryset = (
+        Can.objects.select_related("recorder", "submitted_dialect", "verifier")
+        .prefetch_related(
+            "nameplates__package",
+            "nameplates__flavor",
+            "nameplates__dialect",
+            "nameplates__pronunciation",
+            "nameplates__creator",
+        )
+        .annotate(
+            nameplate_count=Count(
+                "nameplates", filter=Q(nameplates__status=Nameplate.Status.ACTIVE)
+            )
+        )
+    )
+    serializer_class = CanSerializer
+    permission_classes = [IsOwnerOrAdmin]
+
+    def get_serializer_class(self):
+        return CanCardSerializer if self.action == "list" else CanSerializer
+
+    def get_queryset(self):
+        queryset = self.queryset
         user = self.request.user
         if not (user and user.is_authenticated and user.is_staff):
             if user and user.is_authenticated:
@@ -196,21 +327,33 @@ class CanViewSet(viewsets.ModelViewSet):
         status_value = self.request.query_params.get("status")
         if status_value:
             queryset = queryset.filter(status=status_value)
-        needs_label = self.request.query_params.get("needs_label")
-        if needs_label == "true":
-            queryset = queryset.filter(nameplates__isnull=True)
-        dialect = self.request.query_params.get("dialect")
-        if dialect:
-            dialect_obj = Dialect.objects.filter(id=dialect).first()
-            if dialect_obj:
-                queryset = queryset.filter(dialect_id__in=dialect_obj.descendant_ids())
-        flavor = self.request.query_params.get("flavor")
-        if flavor:
+        if truthy(self.request.query_params.get("needs_label")):
+            queryset = queryset.filter(nameplate_count=0)
+        submitted_dialect_id = self.request.query_params.get("submitted_dialect_id")
+        if submitted_dialect_id:
+            queryset = queryset.filter(submitted_dialect_id=submitted_dialect_id)
+        dialect_id = self.request.query_params.get("dialect_id")
+        if dialect_id:
+            ids = dialect_ids(
+                dialect_id, self.request.query_params.get("dialect_scope", "exact")
+            )
             queryset = queryset.filter(
-                Q(flavor_variant__flavor_id=flavor) | Q(nameplates__flavor_id=flavor)
-            ).distinct()
-        mine = self.request.query_params.get("mine")
-        if mine == "true" and user and user.is_authenticated:
+                nameplates__status=Nameplate.Status.ACTIVE,
+                nameplates__dialect_id__in=ids,
+            )
+        flavor_id = self.request.query_params.get("flavor_id")
+        if flavor_id:
+            queryset = queryset.filter(
+                nameplates__status=Nameplate.Status.ACTIVE,
+                nameplates__flavor_id=flavor_id,
+            )
+        pronunciation_id = self.request.query_params.get("pronunciation_id")
+        if pronunciation_id:
+            queryset = queryset.filter(
+                nameplates__status=Nameplate.Status.ACTIVE,
+                nameplates__pronunciation_id=pronunciation_id,
+            )
+        if truthy(self.request.query_params.get("mine")) and user.is_authenticated:
             queryset = queryset.filter(recorder=user)
         search = self.request.query_params.get("search")
         if search:
@@ -218,139 +361,227 @@ class CanViewSet(viewsets.ModelViewSet):
                 Q(concept_text__icontains=search)
                 | Q(nameplates__text_content__icontains=search)
                 | Q(nameplates__definition__icontains=search)
-            ).distinct()
-        return queryset
+            )
+        return queryset.distinct().order_by("-created_at", "-id")
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        # 使用 F() 原子自增，避免并发下「先读后写」丢失计数；
-        # 只更新 views 字段，浏览量不刷新 updated_at，避免影响按更新时间排序。
         instance.views = F("views") + 1
         instance.save(update_fields=["views"])
-        # F() 赋值后内存值不是最新，序列化前需刷新
         instance.refresh_from_db(fields=["views"])
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
+        return Response(self.get_serializer(instance).data)
+
+    @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny])
+    def random(self, request):
+        queryset = self.get_queryset().filter(visibility=True).order_by("?")
+        instance = queryset.first()
+        if instance is None:
+            raise NotFound("暂无公开罐头")
+        return Response(CanSerializer(instance, context={"request": request}).data)
 
     @action(
         detail=True,
         methods=["post"],
-        url_path="transition",
         permission_classes=[permissions.IsAuthenticated],
     )
     def transition(self, request, pk=None):
         can = self.get_object()
         action_name = request.data.get("action", "")
         reason = request.data.get("reason", "")
-
         if action_name not in CAN_TRANSITIONS:
             raise BadRequestException(f"未知操作: {action_name}")
-
-        # 权限检查：verify/reject 仅 is_staff 或该 Can 的 verifier 可执行
         if action_name in STAFF_ONLY_ACTIONS:
             if not (request.user.is_staff or can.verifier == request.user):
                 raise ForbiddenException("您没有权限执行此操作")
-        else:
-            # submit/dispute/restore 允许创建者或 staff 操作
-            if not (request.user.is_staff or can.recorder == request.user):
-                raise ForbiddenException("您没有权限执行此操作")
-
-        # 检查状态转换是否合法
-        allowed_transitions = CAN_TRANSITIONS[action_name]
-        current_status = can.status
-        if current_status not in allowed_transitions:
-            raise BadRequestException(
-                f"不允许从 {current_status} 转换到 {action_name} 的目标状态"
-            )
-
-        new_status = allowed_transitions[current_status]
-
-        # 记录转换日志
-        log_entry = {
-            "from": current_status,
-            "to": new_status,
-            "by": request.user.id,
-            "at": timezone.now().isoformat(),
-            "reason": reason,
-        }
-        can.transition_log.append(log_entry)
+        elif not (request.user.is_staff or can.recorder == request.user):
+            raise ForbiddenException("您没有权限执行此操作")
+        new_status = CAN_TRANSITIONS[action_name].get(can.status)
+        if new_status is None:
+            raise ConflictException(f"不允许从 {can.status} 执行 {action_name}")
+        can.transition_log.append(
+            {
+                "from": can.status,
+                "to": new_status,
+                "by": request.user.id,
+                "at": timezone.now().isoformat(),
+                "reason": reason,
+            }
+        )
         can.status = new_status
-
-        # verify 时设置 verifier
         if action_name == "verify":
             can.verifier = request.user
-
         can.save(update_fields=["status", "transition_log", "verifier", "updated_at"])
+        return Response(self.get_serializer(can).data)
 
-        serializer = self.get_serializer(can)
-        return Response(serializer.data)
-
-    @action(
-        detail=True,
-        methods=["get", "post"],
-        url_path="nameplates",
-        permission_classes=[CanWritePermission],
-    )
+    @action(detail=True, methods=["get"], permission_classes=[permissions.AllowAny])
     def nameplates(self, request, pk=None):
         can = self.get_object()
-        if request.method == "GET":
-            serializer = NameplateSerializer(
-                can.nameplates.all(), many=True, context={"request": request}
-            )
-            return Response(serializer.data)
-        serializer = NameplateSerializer(
-            data={**request.data, "can": can.id}, context={"request": request}
+        queryset = can.nameplates.select_related(
+            "can", "package", "flavor", "dialect", "pronunciation", "creator"
         )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        page = self.paginate_queryset(queryset)
+        serializer = NameplateCardSerializer(
+            page if page is not None else queryset,
+            many=True,
+            context={"request": request},
+        )
+        return (
+            self.get_paginated_response(serializer.data)
+            if page is not None
+            else Response(serializer.data)
+        )
 
 
 class NameplateViewSet(viewsets.ModelViewSet):
-    queryset = Nameplate.objects.select_related("can", "flavor", "package", "creator")
+    # PUT 仅供幂等的 /support/ action；实体更新按契约只接受 PATCH。
+    http_method_names = [
+        "get",
+        "post",
+        "put",
+        "patch",
+        "delete",
+        "head",
+        "options",
+    ]
+    queryset = Nameplate.objects.select_related(
+        "can",
+        "can__recorder",
+        "package",
+        "flavor",
+        "dialect",
+        "pronunciation",
+        "creator",
+        "supersedes",
+    )
     serializer_class = NameplateSerializer
     permission_classes = [IsOwnerOrAdmin]
 
+    def get_serializer_class(self):
+        return NameplateCardSerializer if self.action == "list" else NameplateSerializer
+
+    def update(self, request, *args, **kwargs):
+        if request.method == "PUT":
+            from rest_framework.exceptions import MethodNotAllowed
+
+            raise MethodNotAllowed("PUT")
+        return super().update(request, *args, **kwargs)
+
     def get_queryset(self):
-        queryset = super().get_queryset()
-        can = self.request.query_params.get("can")
-        if can:
-            queryset = queryset.filter(can_id=can)
-        flavor = self.request.query_params.get("flavor")
-        if flavor:
-            queryset = queryset.filter(flavor_id=flavor)
-        package = self.request.query_params.get("package")
-        if package:
-            queryset = queryset.filter(package_id=package)
+        queryset = (
+            super()
+            .get_queryset()
+            .filter(can__in=visible_cans_for_user(self.request.user))
+        )
+        for parameter in (
+            "can_id",
+            "package_id",
+            "flavor_id",
+            "pronunciation_id",
+            "creator_id",
+            "status",
+        ):
+            value = self.request.query_params.get(parameter)
+            if value:
+                queryset = queryset.filter(**{parameter: value})
+        source_type = self.request.query_params.get("source_type")
+        if source_type:
+            queryset = queryset.filter(source__type=source_type)
+        dialect_id = self.request.query_params.get("dialect_id")
+        if dialect_id:
+            ids = dialect_ids(
+                dialect_id, self.request.query_params.get("dialect_scope", "exact")
+            )
+            queryset = queryset.filter(dialect_id__in=ids)
+        if "is_primary" in self.request.query_params:
+            queryset = queryset.filter(
+                is_primary=truthy(self.request.query_params["is_primary"])
+            )
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                Q(text_content__icontains=search)
+                | Q(definition__icontains=search)
+                | Q(pronunciation_text__icontains=search)
+                | Q(source__title__icontains=search)
+                | Q(source__attributed_to__icontains=search)
+            )
         return queryset
 
-    @action(
-        detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated]
-    )
-    def vote(self, request, pk=None):
+    def perform_create(self, serializer):
+        can = serializer.validated_data["can"]
+        user = self.request.user
+        if not (can.visibility or can.recorder_id == user.id or user.is_staff):
+            raise NotFound("罐头不存在或不可见")
+        serializer.save()
+
+    def destroy(self, request, *args, **kwargs):
         nameplate = self.get_object()
-        with transaction.atomic():
-            _, created = NameplateSupport.objects.get_or_create(
-                nameplate=nameplate, user=request.user
-            )
-            if created:
-                nameplate = Nameplate.objects.select_for_update().get(id=nameplate.id)
-                nameplate.weight += 1
-                nameplate.save(update_fields=["weight", "updated_at"])
-                nameplate.refresh_from_db()
-        strongest = nameplate.can.nameplates.order_by("-weight", "id").first()
-        if strongest:
-            strongest.promote_to_primary()
-        serializer = NameplateSerializer(
-            strongest or nameplate, context={"request": request}
+        can = nameplate.can
+        physical_delete = (
+            not can.visibility
+            and not nameplate.is_primary
+            and not nameplate.supports.exists()
+            and not hasattr(nameplate, "superseded_by")
         )
-        return Response(serializer.data)
+        if physical_delete:
+            nameplate.delete()
+        else:
+            nameplate.status = Nameplate.Status.WITHDRAWN
+            nameplate.is_primary = False
+            nameplate.save(update_fields=["status", "is_primary", "updated_at"])
+            elect_primary_nameplate(can)
+            pronunciation = nameplate.pronunciation
+            if (
+                pronunciation
+                and pronunciation.is_canonical
+                and not (
+                    pronunciation.source_citation
+                    or pronunciation.attestations.filter(
+                        status=Nameplate.Status.ACTIVE
+                    ).exists()
+                )
+            ):
+                pronunciation.is_canonical = False
+                pronunciation.save(update_fields=["is_canonical", "updated_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(
+        detail=True,
+        methods=["put", "delete"],
+        permission_classes=[permissions.IsAuthenticated],
+    )
+    def support(self, request, pk=None):
+        nameplate = self.get_object()
+        if nameplate.status != Nameplate.Status.ACTIVE:
+            raise ConflictException("只有 active 铭牌可以被支持")
+        with transaction.atomic():
+            nameplate = Nameplate.objects.select_for_update().get(pk=nameplate.pk)
+            if request.method == "PUT":
+                _, changed = NameplateSupport.objects.get_or_create(
+                    nameplate=nameplate, user=request.user
+                )
+            else:
+                deleted, _ = NameplateSupport.objects.filter(
+                    nameplate=nameplate, user=request.user
+                ).delete()
+                changed = bool(deleted)
+            if changed:
+                nameplate.weight = nameplate.supports.count()
+                nameplate.save(update_fields=["weight", "updated_at"])
+            elect_primary_nameplate(nameplate.can)
+        if request.method == "DELETE":
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        nameplate.refresh_from_db()
+        return Response(
+            NameplateSerializer(nameplate, context={"request": request}).data
+        )
 
 
 class ShelfViewSet(viewsets.ModelViewSet):
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
     queryset = Shelf.objects.prefetch_related("flavors", "cans")
     serializer_class = ShelfSerializer
-    permission_classes = [CanWritePermission]
+    permission_classes = [IsOwnerOrAdmin]
 
     def get_queryset(self):
         queryset = super().get_queryset()

@@ -40,11 +40,14 @@ pages/*.vue
 
 - `/cans/`
 - `/flavors/`
+- `/pronunciations/`
 - `/packages/`
 - `/shelves/`
 - `/nameplates/`
 - `/dialects/`
 - `/search/`
+
+装罐和个人资料的方言选择器复用同一个递归加载器，按服务端 `sort_order`、`id` 展示 `qualified_code`；前端不维护县/镇静态枚举。
 
 账户、登录、通知、文件等旧系统接口仍保留根路径，例如 `/users`、`/login`、`/notifications`、`/files`。新增罐头体系接口时不要继续扩大这种混合历史形态。
 
@@ -53,7 +56,7 @@ pages/*.vue
 - 列表：`listCans(params)`
 - 详情：`getCan(id)`
 - 创建：`createCan(payload)`
-- 行为：`voteNameplate(id, delta)`
+- 行为：`supportNameplate(id)` / `unsupportNameplate(id)`
 - 组合流程：`createCanWithNameplate(payload)`
 
 ## 页面写法
@@ -78,7 +81,7 @@ pages/*.vue
 - 顶部标题或返回入口。
 - 主体信息。
 - 相关列表，例如罐头详情里的铭牌、义项详情里的罐头。
-- 主要操作，例如贴铭牌、投票、补录音。
+- 主要操作，例如贴铭牌、支持铭牌、补录音。
 
 表单页至少包含：
 

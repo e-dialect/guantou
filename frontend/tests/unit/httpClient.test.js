@@ -79,12 +79,20 @@ describe('httpClient compatibility wrappers', () => {
     vi.useFakeTimers();
     uni.request.mockResolvedValue({
       statusCode: 401,
-      data: { msg: '未登录' },
+      data: {
+        code: 401,
+        message: '未登录',
+        data: { reason: 'token_expired' },
+        request_id: 'request-1',
+      },
     });
 
     await expect(request.get('/users/1')).rejects.toMatchObject({
       statusCode: 401,
+      code: 401,
       message: '未登录',
+      data: { reason: 'token_expired' },
+      requestId: 'request-1',
     });
 
     expect(uni.showToast).toHaveBeenCalledWith(expect.objectContaining({

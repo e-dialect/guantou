@@ -1,6 +1,6 @@
 # 后端开发指南
 
-> 本文主要记录当前代码结构与迁移期实现。预期 API v1 的路径、字段和领域语义以 [`API.md`](API.md) 为准；当前代码中的 `FlavorVariant`、旧 token 格式或旧错误体不能反向定义 v1 契约。
+> 本文记录当前代码结构。核心方言、读音、罐头、铭牌和错误处理已经按预期 API v1 落地；尚未覆盖的路径仍以 [`API.md`](API.md) 的契约和实现进度为准。
 
 后端使用 Django + Django REST Framework。目录来自旧 `hinghwa-dict-backend`，但现在是单仓库结构：旧系统能力继续可用，新罐头体系优先走 `guantou` app 和根路径资源 router。
 
@@ -9,7 +9,7 @@
 ```text
 backend/guantou/
   config/          Django 项目配置、根路由、settings。
-  guantou/         新罐头体系：罐头、铭牌、义项、写法、集盒、方言点。
+  guantou/         新罐头体系：罐头、铭牌、读音、义项、写法、集盒、方言点。
   user/            账户、登录、token、资料设置、旧用户接口。
   announcements/   公告。
   siteconfig/      站点配置。
@@ -31,6 +31,8 @@ backend/guantou/
 - 公告：`announcements`
 - 站点配置：`siteconfig`
 - 材料处理和迁移脚本：`tools/materials/`
+
+方言点统一使用 `guantou.Dialect` 的按需关系树。用户资料的默认方言也通过 `primary_dialect_id` 引用这棵树；迁移前县镇文本只保存在不可编辑的 `legacy_location` 中用于追溯，不再作为业务分类依据。
 
 新增 app 需要有真实领域边界，例如“审核工作流”未来可能独立；不要因为只有一个视图或一个搜索函数就新增 app。聚合搜索如果只是跨现有实体查询，优先放在已有实体 app 的 API 层或服务层，不要为了它单独建 `search` app。
 
@@ -63,7 +65,7 @@ config/urls.py
 ```text
 /cans/
 /flavors/
-/flavor-variants/
+/pronunciations/
 /packages/
 /nameplates/
 /shelves/
@@ -92,9 +94,9 @@ DRF 默认配置在 `config/settings.py`：
 - `BearerTokenAuthentication`：读取 `Authorization: Bearer <jwt>`。
 - `SessionAuthentication`：保留 Django 会话认证。
 - `IsAuthenticatedOrReadOnly`：默认读开放，写需要登录。
-- 默认分页：`PageNumberPagination`，每页 15 条。
+- 默认分页：`ApiPageNumberPagination`，每页 15 条，允许通过 `page_size` 调整，最大 100 条。
 
-具体 ViewSet 可以覆盖全局权限。例如 `Can`、`Nameplate`、`Flavor` 使用 `IsOwnerOrAdmin` 限制修改/删除只能由创建者或管理员执行；投票、贴铭牌、状态流转等 action 也会单独声明权限。不要为了一个接口修改全局 settings，应该在具体 ViewSet 或 action 上显式声明 `permission_classes`。
+具体 ViewSet 可以覆盖全局权限。例如 `Can`、`Nameplate`、`Flavor`、`Pronunciation`、`Shelf` 使用 `IsOwnerOrAdmin` 限制修改/删除只能由创建者或管理员执行；支持铭牌、贴铭牌、状态流转等 action 也会单独声明权限。Nameplate 查询必须经过其 Can 的可见性过滤，不能因独立集合或 Pronunciation 证据嵌套泄露私有录音。
 
 匿名游客由 `audit.AnonymousVisitor` 追踪。后端读取或生成 `X-Visitor-ID`，挂到 `request.visitor`，并在响应头回写同名 header。游客只用于访问/审计归因，不创建 Django `User`，也不能绕过写接口登录要求。
 
@@ -113,14 +115,13 @@ DRF 默认配置在 `config/settings.py`：
 - DRF `ValidationError`、认证失败、权限不足、404 等由 `utils.exceptions.handler.drf_exception_handler` 归一化。
 - 未识别异常会写入后端日志，然后返回 `CommonException` 的 500 响应。
 
-异常响应当前使用统一字段，前端优先展示 `msg` 或 `message`：
+异常响应统一使用 v1 字段：
 
 ```json
 {
-  "msg": "错误信息",
+  "code": 400,
   "message": "错误信息",
-  "code": "bad_request",
-  "details": {},
+  "data": {},
   "request_id": "..."
 }
 ```
@@ -133,6 +134,7 @@ DRF 默认配置在 `config/settings.py`：
 - `UnauthorizedException`
 - `ForbiddenException`
 - `NotFoundException`
+- `ConflictException`
 - `CommonException`
 
 如果必须直接返回 `Response`，只用于成功响应或已经约定好的业务数据；错误分支优先抛统一异常，让前端 service 层拿到稳定结构。
@@ -154,6 +156,8 @@ python manage.py makemigrations --check --dry-run
 - 用户可见文案和代码枚举分开。
 - 外键要想清楚删除行为，默认不要随意 `CASCADE` 删除用户内容。
 - 查询常用字段可以加索引，但要在 PR 里说明查询场景。
+
+`0004_api_v1_domain_model` 是有数据迁移的领域切换：旧 `FlavorVariant` 迁为 `Pronunciation`，旧 `Can.flavor_variant` 迁为 Nameplate attestation，旧方言行政字段进入 legacy metadata。后续不得重新引入这些旧字段；历史草稿兼容只允许存在于前端恢复边界。
 
 ## 测试建议
 

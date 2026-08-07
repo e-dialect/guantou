@@ -4,16 +4,49 @@ export function listDialects(params = {}) {
   return request.get('/dialects/', params);
 }
 
+function orderedDialects(items) {
+  return [...items].sort((left, right) => (
+    (left.sort_order || 0) - (right.sort_order || 0) || left.id - right.id
+  ));
+}
+
+async function collectPages(fetcher, params = {}, page = 1, collected = []) {
+  const response = await fetcher({ ...params, page, page_size: 100 });
+  const results = collected.concat(response.results || response || []);
+  return response.next
+    ? collectPages(fetcher, params, page + 1, results)
+    : results;
+}
+
+export async function listAllDialects() {
+  const roots = orderedDialects(await collectPages(listDialects));
+  const flattened = [];
+  function appendBranch(items, depth) {
+    return items.reduce(async (previous, item) => {
+      await previous;
+      const dialect = { ...item, depth };
+      flattened.push(dialect);
+      if (!dialect.children_count) return;
+      const children = orderedDialects(await collectPages(listDialects, {
+        parent_id: dialect.id,
+      }));
+      await appendBranch(children, depth + 1);
+    }, Promise.resolve());
+  }
+  await appendBranch(roots, 0);
+  return flattened;
+}
+
+export function resolveDialect(qualifiedCode) {
+  return request.get('/dialects/resolve/', { qualified_code: qualifiedCode });
+}
+
 export function listCans(params = {}) {
   return request.get('/cans/', params);
 }
 
 export function getCan(id) {
   return request.get(`/cans/${id}/`);
-}
-
-export function createCan(can) {
-  return request.post('/cans/', can);
 }
 
 export function createCanSubmission(payload) {
@@ -44,8 +77,16 @@ export function createFlavor(payload) {
   return request.post('/flavors/', payload);
 }
 
-export function createFlavorVariant(payload) {
-  return request.post('/flavor-variants/', payload);
+export function listPronunciations(params = {}) {
+  return request.get('/pronunciations/', params);
+}
+
+export function getPronunciation(id) {
+  return request.get(`/pronunciations/${id}/`);
+}
+
+export function createPronunciation(payload) {
+  return request.post('/pronunciations/', payload);
 }
 
 export function listShelves(params = {}) {
@@ -57,31 +98,75 @@ export function getShelf(id) {
 }
 
 export function createNameplate(canId, payload) {
-  return request.post(`/cans/${canId}/nameplates/`, payload);
+  return request.post('/nameplates/', { ...payload, can_id: Number(canId) });
 }
 
-export function voteNameplate(nameplateId, delta = 1) {
-  return request.post(`/nameplates/${nameplateId}/vote/`, { delta });
+export function getNameplate(id) {
+  return request.get(`/nameplates/${id}/`);
+}
+
+export function supportNameplate(nameplateId) {
+  return request.put(`/nameplates/${nameplateId}/support/`);
+}
+
+export function unsupportNameplate(nameplateId) {
+  return request.del(`/nameplates/${nameplateId}/support/`);
+}
+
+function normalizeCanPayload(can) {
+  const payload = { ...can };
+  if (!payload.submitted_dialect_id && payload.dialect) {
+    payload.submitted_dialect_id = payload.dialect;
+  }
+  delete payload.dialect;
+  delete payload.province;
+  delete payload.city;
+  delete payload.county;
+  delete payload.town;
+  return payload;
+}
+
+function hasNameplateClaim(label = {}) {
+  return Boolean(
+    String(label.text_content || '').trim()
+    || String(label.pronunciation_text || '').trim()
+    || label.package_id
+    || label.flavor_id
+    || label.dialect_id
+    || label.pronunciation_id,
+  );
 }
 
 export async function createCanWithNameplate({ can, label }) {
-  const labelText = (label.text_content || '').trim();
+  const normalizedCan = normalizeCanPayload(can);
+  const initialNameplate = hasNameplateClaim(label) ? {
+    ...label,
+    text_content: String(label.text_content || '').trim(),
+    pronunciation_text: String(label.pronunciation_text || '').trim(),
+    source: label.source || { type: 'creator' },
+  } : undefined;
   return createCanSubmission({
-    ...can,
-    initial_nameplate: labelText ? {
-      ...label,
-      text_content: labelText,
-    } : undefined,
+    ...normalizedCan,
+    initial_nameplate: initialNameplate,
   });
 }
 
 export async function createCanForFlavor({ can, flavorId }) {
+  const normalizedCan = normalizeCanPayload(can);
   return createCanSubmission({
-    ...can,
-    flavor: flavorId,
+    ...normalizedCan,
+    initial_nameplate: {
+      flavor_id: Number(flavorId),
+      dialect_id: normalizedCan.submitted_dialect_id,
+      source: { type: 'creator' },
+    },
   });
 }
 
-export async function searchGuantou(search, options = {}) {
-  return request.get('/search/', { search, ...options });
+export async function searchGuantou(q, options = {}) {
+  return request.get('/search/', { q, ...options });
+}
+
+export async function suggestGuantou(q, options = {}) {
+  return request.get('/search/suggest/', { q, ...options });
 }

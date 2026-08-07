@@ -2,7 +2,7 @@ from django.http import Http404
 from rest_framework import exceptions
 from rest_framework.views import exception_handler
 
-from .payload import ERROR_CODES, api_error_payload, request_id
+from .payload import api_error_payload, request_id
 
 
 def normalize_message(data, default_message):
@@ -13,15 +13,19 @@ def normalize_message(data, default_message):
     return default_message
 
 
-def normalize_details(data):
+def normalize_data(data, exc=None):
+    extra = getattr(exc, "data", None)
+    if extra:
+        return extra
     if isinstance(data, dict):
-        return {
+        fields = {
             key: value
             for key, value in data.items()
-            if key not in ["msg", "message", "code", "request_id"]
+            if key not in ["msg", "message", "code", "request_id", "data"]
         }
+        return {"fields": fields} if fields else data.get("data", {})
     if isinstance(data, list):
-        return {"non_field_errors": data}
+        return {"fields": {"non_field_errors": data}}
     return {}
 
 
@@ -34,25 +38,14 @@ def drf_exception_handler(exc, context):
             return None
         return response
 
-    if isinstance(exc, exceptions.ValidationError):
-        code = "validation_error"
-    elif isinstance(exc, exceptions.NotAuthenticated):
-        code = "not_authenticated"
-    elif isinstance(exc, exceptions.AuthenticationFailed):
-        code = "authentication_failed"
-    elif isinstance(exc, exceptions.PermissionDenied):
-        code = "permission_denied"
-    elif isinstance(exc, exceptions.NotFound):
-        code = "not_found"
-    else:
-        code = ERROR_CODES.get(response.status_code, "api_error")
-
-    message = normalize_message(response.data, str(exc))
+    default_message = (
+        "请求参数校验失败" if isinstance(exc, exceptions.ValidationError) else str(exc)
+    )
+    message = normalize_message(response.data, default_message)
     response.data = api_error_payload(
         message=message,
         status_code=response.status_code,
-        details=normalize_details(response.data),
-        code=code,
+        data=normalize_data(response.data, exc),
         rid=rid,
     )
     return response

@@ -5,9 +5,9 @@ from .models import (
     Dialect,
     Flavor,
     FlavorPackage,
-    FlavorVariant,
     Nameplate,
     Package,
+    Pronunciation,
     Shelf,
 )
 
@@ -15,7 +15,14 @@ from .models import (
 class NameplateInline(admin.TabularInline):
     model = Nameplate
     extra = 0
-    raw_id_fields = ("flavor", "package", "creator")
+    raw_id_fields = (
+        "flavor",
+        "package",
+        "dialect",
+        "pronunciation",
+        "creator",
+        "supersedes",
+    )
 
 
 class FlavorPackageInline(admin.TabularInline):
@@ -24,17 +31,17 @@ class FlavorPackageInline(admin.TabularInline):
     raw_id_fields = ("package",)
 
 
-class FlavorVariantInline(admin.TabularInline):
-    model = FlavorVariant
+class PronunciationInline(admin.TabularInline):
+    model = Pronunciation
     extra = 0
-    raw_id_fields = ("dialect", "created_by")
+    raw_id_fields = ("package", "dialect", "created_by")
 
 
 @admin.register(Dialect)
 class DialectAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "code", "parent", "region_level", "county", "town")
-    list_filter = ("region_level", "province", "city", "county")
-    search_fields = ("name", "code", "province", "city", "county", "town")
+    list_display = ("id", "name", "code", "parent", "kind", "sort_order")
+    list_filter = ("kind",)
+    search_fields = ("name", "code")
     raw_id_fields = ("parent",)
 
 
@@ -51,13 +58,14 @@ class FlavorAdmin(admin.ModelAdmin):
     list_filter = ("visibility", "geo_scope")
     search_fields = ("name", "definition")
     raw_id_fields = ("created_by",)
-    inlines = (FlavorPackageInline, FlavorVariantInline)
+    inlines = (FlavorPackageInline, PronunciationInline)
 
 
-@admin.register(FlavorVariant)
-class FlavorVariantAdmin(admin.ModelAdmin):
+@admin.register(Pronunciation)
+class PronunciationAdmin(admin.ModelAdmin):
     list_display = (
         "id",
+        "package",
         "flavor",
         "dialect",
         "romanization",
@@ -65,9 +73,9 @@ class FlavorVariantAdmin(admin.ModelAdmin):
         "is_canonical",
         "status",
     )
-    list_filter = ("status", "is_canonical", "audio_source")
+    list_filter = ("status", "is_canonical", "reading_type")
     search_fields = ("flavor__name", "romanization", "ipa", "dialect__name")
-    raw_id_fields = ("flavor", "dialect", "created_by")
+    raw_id_fields = ("package", "flavor", "dialect", "created_by")
 
 
 @admin.register(Can)
@@ -76,15 +84,15 @@ class CanAdmin(admin.ModelAdmin):
         "id",
         "concept_text",
         "recorder",
-        "dialect",
+        "submitted_dialect",
         "status",
         "visibility",
         "verifier",
         "created_at",
     )
-    list_filter = ("status", "visibility", "county", "town")
+    list_filter = ("status", "visibility")
     search_fields = ("concept_text", "source_note", "nameplates__text_content")
-    raw_id_fields = ("recorder", "dialect", "flavor_variant", "verifier")
+    raw_id_fields = ("recorder", "submitted_dialect", "verifier")
     inlines = (NameplateInline,)
 
 
@@ -96,13 +104,23 @@ class NameplateAdmin(admin.ModelAdmin):
         "text_content",
         "flavor",
         "package",
+        "dialect",
+        "pronunciation",
         "creator",
         "weight",
         "is_primary",
     )
-    list_filter = ("is_primary", "evidence_level")
-    search_fields = ("text_content", "definition", "source_citation")
-    raw_id_fields = ("can", "flavor", "package", "creator")
+    list_filter = ("status", "is_primary", "evidence_level")
+    search_fields = ("text_content", "definition", "pronunciation_text")
+    raw_id_fields = (
+        "can",
+        "flavor",
+        "package",
+        "dialect",
+        "pronunciation",
+        "creator",
+        "supersedes",
+    )
 
 
 @admin.register(Shelf)

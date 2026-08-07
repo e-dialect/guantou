@@ -11,12 +11,15 @@ class IsOwnerOrAdmin(permissions.BasePermission):
     - Can.recorder
     - Nameplate.creator
     - Flavor.created_by
+    - Shelf.creator
     """
 
     OWNER_FIELD_MAP = {
         "Can": "recorder",
         "Nameplate": "creator",
         "Flavor": "created_by",
+        "Pronunciation": "created_by",
+        "Shelf": "creator",
     }
 
     def has_permission(self, request, view):

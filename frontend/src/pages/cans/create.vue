@@ -80,6 +80,14 @@
             placeholder="这个词是什么意思？"
           />
         </uni-forms-item>
+        <uni-forms-item label="原样读音">
+          <input
+            v-model="label.pronunciation_text"
+            class="field"
+            maxlength="40"
+            placeholder="IPA、罗马字或其他原样转写"
+          >
+        </uni-forms-item>
         <uni-forms-item label="写法类型">
           <picker
             :range="packageTypes"
@@ -102,26 +110,53 @@
             </view>
           </picker>
         </uni-forms-item>
-        <uni-forms-item label="产地">
+        <uni-forms-item label="资料来源类型">
+          <picker
+            :range="sourceTypes"
+            range-key="label"
+            @change="onSourceTypeChange"
+          >
+            <view class="select">
+              {{ sourceTypeLabel }}
+            </view>
+          </picker>
+        </uni-forms-item>
+        <uni-forms-item label="资料责任者">
+          <input
+            v-model="label.source.attributed_to"
+            class="field"
+            maxlength="50"
+            placeholder="讲述人、作者、编者或采集者"
+          >
+        </uni-forms-item>
+        <uni-forms-item label="出处标题与位置">
           <view class="split">
             <input
-              v-model="form.county"
+              v-model="label.source.title"
               class="field"
-              placeholder="县区"
+              placeholder="书名、文章名或档案名"
             >
             <input
-              v-model="form.town"
+              v-model="label.source.locator"
               class="field"
-              placeholder="乡镇/社区"
+              placeholder="页码、条目号或录音编号"
             >
           </view>
         </uni-forms-item>
         <uni-forms-item label="来源说明">
           <input
-            v-model="form.source_note"
+            v-model="label.source.note"
             class="field"
             maxlength="50"
             placeholder="比如：听奶奶说的"
+          >
+        </uni-forms-item>
+        <uni-forms-item label="录音采集备注">
+          <input
+            v-model="form.source_note"
+            class="field"
+            maxlength="80"
+            placeholder="录音环境、设备或采集上下文（选填）"
           >
         </uni-forms-item>
       </view>
@@ -149,7 +184,7 @@ import {
   createCanForFlavor,
   createCanWithNameplate,
   getFlavor,
-  listDialects,
+  listAllDialects,
 } from '@/services/guantou';
 import {
   isLoggedIn,
@@ -170,9 +205,7 @@ function initialForm() {
   return {
     audio_url: '',
     concept_text: '',
-    dialect: null,
-    county: '',
-    town: '',
+    submitted_dialect_id: null,
     source_note: '',
     duration_ms: 0,
   };
@@ -182,9 +215,16 @@ function initialLabel() {
   return {
     text_content: '',
     definition: '',
+    pronunciation_text: '',
     package_type: 'uncertain',
     evidence_level: 1,
-    source_citation: '',
+    source: {
+      type: 'creator',
+      title: '',
+      attributed_to: '',
+      locator: '',
+      note: '',
+    },
   };
 }
 
@@ -233,6 +273,16 @@ export default {
         { label: '文献考据', value: 3 },
         { label: '官方认证', value: 4 },
       ],
+      sourceTypes: [
+        { label: '创作者自述', value: 'creator' },
+        { label: '口述', value: 'oral' },
+        { label: '田野记录', value: 'fieldwork' },
+        { label: '书籍', value: 'book' },
+        { label: '论文/文章', value: 'article' },
+        { label: '档案', value: 'archive' },
+        { label: '网页', value: 'web' },
+        { label: '其他', value: 'other' },
+      ],
     };
   },
   computed: {
@@ -242,9 +292,12 @@ export default {
     evidenceLabel() {
       return this.evidenceLevels.find((item) => item.value === this.label.evidence_level).label;
     },
+    sourceTypeLabel() {
+      return this.sourceTypes.find((item) => item.value === this.label.source.type)?.label || '其他';
+    },
     dialectLabel() {
-      const dialect = this.dialects.find((item) => item.id === this.form.dialect);
-      return dialect ? dialect.name : (this.draftDialectName || '请选择方言点');
+      const dialect = this.dialects.find((item) => item.id === this.form.submitted_dialect_id);
+      return dialect ? dialect.qualified_code : (this.draftDialectName || '请选择方言点');
     },
     canSubmit() {
       const hasConcept = this.mode === 'flavor'
@@ -252,7 +305,7 @@ export default {
         : this.form.concept_text.trim();
       return Boolean(
         hasConcept
-        && this.form.dialect
+        && this.form.submitted_dialect_id
         && this.audio.path
         && !this.audio.invalid,
       );
@@ -263,12 +316,13 @@ export default {
     isDirty() {
       return Boolean(
         this.form.concept_text
-        || this.form.dialect
+        || this.form.submitted_dialect_id
         || this.audio.path
         || this.audio.invalid
         || this.label.text_content
         || this.label.definition
-        || this.form.source_note,
+        || this.label.pronunciation_text
+        || this.label.source.note,
       );
     },
   },
@@ -312,8 +366,7 @@ export default {
     },
     async loadDialects() {
       try {
-        const res = await listDialects();
-        this.dialects = res.results || res;
+        this.dialects = await listAllDialects();
       } catch (error) {
         uni.showToast({ title: '方言点加载失败，可稍后重试', icon: 'none' });
       }
@@ -363,8 +416,29 @@ export default {
       this.draftAccessBlocked = false;
       const flavorDraft = draft.mode === 'flavor' && draft.targetFlavor?.id;
       this.mode = flavorDraft ? 'flavor' : 'free';
-      this.form = { ...initialForm(), ...draft.form };
-      this.label = { ...initialLabel(), ...draft.label };
+      const restoredForm = { ...draft.form };
+      if (!restoredForm.submitted_dialect_id && restoredForm.dialect) {
+        restoredForm.submitted_dialect_id = restoredForm.dialect;
+      }
+      delete restoredForm.dialect;
+      delete restoredForm.county;
+      delete restoredForm.town;
+      this.form = { ...initialForm(), ...restoredForm };
+      const restoredLabel = { ...draft.label };
+      const legacyCitation = restoredLabel.source_citation || '';
+      delete restoredLabel.source_citation;
+      this.label = {
+        ...initialLabel(),
+        ...restoredLabel,
+        source: {
+          ...initialLabel().source,
+          ...(restoredLabel.source || {}),
+          ...(legacyCitation && !restoredLabel.source ? {
+            type: 'other',
+            note: legacyCitation,
+          } : {}),
+        },
+      };
       this.audio = draft.audio || this.audio;
       if (draft.audio?.invalid) {
         uni.showToast({ title: '草稿录音已失效，请重新录制', icon: 'none' });
@@ -374,7 +448,10 @@ export default {
         ? draft.targetFlavor
         : { id: '', name: '' };
       this.optionalOpen = Boolean(
-        this.label.text_content || this.label.definition || this.form.source_note,
+        this.label.text_content
+        || this.label.definition
+        || this.label.pronunciation_text
+        || this.label.source.note,
       );
     },
     switchMode(mode) {
@@ -392,12 +469,13 @@ export default {
     onEvidenceChange(e) {
       this.label.evidence_level = this.evidenceLevels[e.detail.value].value;
     },
+    onSourceTypeChange(e) {
+      this.label.source.type = this.sourceTypes[e.detail.value].value;
+    },
     onDialectChange(e) {
       const dialect = this.dialects[e.detail.value];
-      this.form.dialect = dialect.id;
-      this.draftDialectName = dialect.name;
-      this.form.county = this.form.county || dialect.county || '';
-      this.form.town = this.form.town || dialect.town || '';
+      this.form.submitted_dialect_id = dialect.id;
+      this.draftDialectName = dialect.qualified_code;
     },
     onAudioChange(audio) {
       if (this.audio.path && this.audio.path !== audio.path) releaseDraftAudioUrl(this.audio);
@@ -483,7 +561,7 @@ export default {
         uni.showToast({ title: '请重新选择要补录的义项', icon: 'none' });
         return false;
       }
-      if (!this.form.dialect) {
+      if (!this.form.submitted_dialect_id) {
         uni.showToast({ title: '请选择方言点', icon: 'none' });
         return false;
       }

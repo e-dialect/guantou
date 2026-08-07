@@ -69,8 +69,7 @@ export default {
           avatar: '',
           nickname: '',
           username: '',
-          county: '',
-          town: '',
+          primary_dialect: null,
         },
         contribution: {
           cans_uploaded: 0,
@@ -82,9 +81,7 @@ export default {
   },
   computed: {
     locationText() {
-      return [this.userInfo.user.county, this.userInfo.user.town]
-        .filter(Boolean)
-        .join(' / ') || '未填写方言点';
+      return this.userInfo.user.primary_dialect?.qualified_code || '未填写方言点';
     },
   },
   async onLoad(options) {

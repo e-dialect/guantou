@@ -126,8 +126,7 @@ export default {
       id: '',
       avatar: '',
       nickname: '',
-      county: '',
-      town: '',
+      primaryDialect: null,
       cansCount: 0,
       flavorsCount: 0,
       nameplatesCount: 0,
@@ -139,7 +138,7 @@ export default {
   },
   computed: {
     locationText() {
-      return [this.county, this.town].filter(Boolean).join(' / ') || '未填写方言点';
+      return this.primaryDialect?.qualified_code || '未填写方言点';
     },
   },
   beforeMount() {
@@ -170,8 +169,7 @@ export default {
       this.id = userInfo.user.id;
       this.avatar = userInfo.user.avatar;
       this.nickname = userInfo.user.nickname || userInfo.user.username;
-      this.county = userInfo.user.county;
-      this.town = userInfo.user.town;
+      this.primaryDialect = userInfo.user.primary_dialect;
       this.cansCount = userInfo.contribution.cans_uploaded || 0;
       this.flavorsCount = userInfo.contribution.flavors_uploaded || 0;
       this.nameplatesCount = userInfo.contribution.nameplates || 0;
@@ -211,7 +209,7 @@ export default {
         }
         await this.getInfo();
       } catch (err) {
-        const msg = (err && (err.msg || (err.data && err.data.msg))) || '操作失败';
+        const msg = (err && err.message) || '操作失败';
         uni.showToast({ title: msg, icon: 'none' });
       } finally {
         this.isBinding = false;

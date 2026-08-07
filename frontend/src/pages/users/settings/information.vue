@@ -116,14 +116,13 @@
         发音默认地点
       </view>
       <picker
-        mode="multiSelector"
-        :value="multiIndex"
-        :range="multiArray"
-        @change="multiChange"
-        @columnchange="columnChange"
+        mode="selector"
+        :value="dialectIndex"
+        :range="dialectLabels"
+        @change="dialectChange"
       >
         <view class="picker text-grey">
-          <text>{{ multiArray[0][multiIndex[0]] }} {{ multiArray[1][multiIndex[1]] }}</text>
+          <text>{{ selectedDialectLabel }}</text>
         </view>
       </picker>
     </view>
@@ -133,27 +132,28 @@
 <script>
 import { changeUserInfo, getUserInfo } from '@/services/user';
 import { uploadFile } from '@/services/file';
+import { listAllDialects } from '@/services/guantou';
 import {
   toChangeEmailPage, toChangeNicknamePage, toChangePhonePage, toChangeUsernamePage,
 } from '@/routers/user';
 
 const app = getApp();
-const counties = ['城厢区', '涵江区', '荔城区', '秀屿区', '仙游县'];
-const towns = [
-  ['龙桥街道', '凤凰山街道', '霞林街道', '常太镇', '华亭镇', '灵川镇', '东海镇'],
-  ['涵东街道', '涵西街道', '三江口镇', '白塘镇', '国欢镇', '梧塘镇', '江口镇', '萩芦镇', '白沙镇', '庄边镇', '新县镇', '大洋乡'],
-  ['镇海街道', '拱辰街道', '西天尾镇', '黄石镇', '新度镇', '北高镇'],
-  ['笏石镇', '东庄镇', '忠门镇', '东埔镇', '东峤镇', '埭头镇', '平海镇', '南日镇', '湄洲镇', '山亭镇', '月塘乡'],
-  ['鲤城街道', '枫亭镇', '榜头镇', '郊尾镇', '度尾镇', '鲤南镇', '赖店镇', '盖尾镇', '园庄镇', '大济镇', '龙华镇', '钟山镇', '游洋镇', '西苑乡', '石苍乡', '社硎乡', '书峰乡', '菜溪乡'],
-];
 export default {
   data() {
     return {
       user: [],
       date: '未知',
-      multiIndex: [0, 0],
-      multiArray: [counties, towns[0]],
+      dialectIndex: -1,
+      dialectOptions: [],
     };
+  },
+  computed: {
+    dialectLabels() {
+      return this.dialectOptions.map((dialect) => dialect.qualified_code || dialect.name);
+    },
+    selectedDialectLabel() {
+      return this.dialectLabels[this.dialectIndex] || '未填写方言点';
+    },
   },
   onShow() {
     this.getInfo();
@@ -168,18 +168,17 @@ export default {
      * @returns {Promise<void>}
      */
     async getInfo() {
+      this.dialectOptions = await listAllDialects();
       const userInfo = await getUserInfo(app.globalData.id);
       this.user = { ...userInfo.user };
       if (userInfo.user.birthday) {
         this.date = userInfo.user.birthday;
       }
-      if (userInfo.user.birthday) {
-        const index0 = counties.indexOf(userInfo.user.county);
-        const index1 = towns[index0].indexOf(userInfo.user.town);
-        const { multiArray } = this;
-        multiArray[1] = towns[index0];
-        this.multiIndex = [index0, index1];
-        this.multiArray = multiArray;
+      if (userInfo.user.primary_dialect) {
+        const selectedIndex = this.dialectOptions.findIndex(
+          (dialect) => dialect.id === userInfo.user.primary_dialect.id,
+        );
+        this.dialectIndex = selectedIndex;
       }
     },
 
@@ -207,39 +206,16 @@ export default {
     },
 
     /**
-     * 更改区县选择
+     * 更改默认方言点
      * @returns {Promise<void>}
      */
-    async multiChange(e) {
-      this.multiIndex = e.detail.value;
+    async dialectChange(e) {
+      this.dialectIndex = Number(e.detail.value);
+      const dialect = this.dialectOptions[this.dialectIndex];
+      if (!dialect) return;
       const userInfo = await getUserInfo(app.globalData.id);
-      userInfo.user.county = this.multiArray[0][this.multiIndex[0]];
-      userInfo.user.town = this.multiArray[1][this.multiIndex[1]];
+      userInfo.user.primary_dialect_id = dialect.id;
       await changeUserInfo(app.globalData.id, userInfo.user);
-    },
-
-    /**
-     * 切换县区/乡镇列表
-     * @returns {Promise<void>}
-     */
-    columnChange(e) {
-      switch (e.detail.column) {
-        // 如果是修改县区
-        case 0:
-          this.multiArray[1] = [...towns[e.detail.value]]; // 更新乡镇列表
-          this.multiIndex = [e.detail.value, 0]; // 重置乡镇选择
-          break;
-        // 如果是修改乡镇
-        case 1:
-          this.multiIndex.splice(1, 1, e.detail.value);
-          break;
-        default:
-          uni.showToast({
-            title: '出错了',
-            icon: 'none',
-          });
-          break;
-      }
     },
   },
 };

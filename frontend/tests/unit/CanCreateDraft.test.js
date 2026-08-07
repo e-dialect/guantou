@@ -9,7 +9,7 @@ vi.mock('@/services/guantou', () => ({
   createCanForFlavor: vi.fn(),
   createCanWithNameplate: vi.fn(),
   getFlavor: vi.fn(),
-  listDialects: vi.fn(),
+  listAllDialects: vi.fn(),
 }));
 
 vi.mock('@/services/authGuard', () => ({
@@ -33,7 +33,7 @@ vi.mock('@/services/canDraftAudio', () => ({
 
 import CanCreate from '@/pages/cans/create.vue';
 import { uploadFile } from '@/services/file';
-import { createCanWithNameplate, listDialects } from '@/services/guantou';
+import { createCanWithNameplate, listAllDialects } from '@/services/guantou';
 import {
   getCanDraftOwnerScope,
   getCanDraftWithAudio,
@@ -115,18 +115,18 @@ describe('can creation draft recovery', () => {
   it('saves the unchanged form and recording when upload fails', async () => {
     uploadFile.mockRejectedValue(new Error('network failed'));
     const wrapper = mountCreate();
-    wrapper.vm.dialects = [{ id: 1, name: '游洋话' }];
+    wrapper.vm.dialects = [{ id: 1, name: '游洋话', qualified_code: '闽.莆仙.游洋' }];
     wrapper.vm.form.concept_text = '膝盖';
-    wrapper.vm.form.dialect = 1;
+    wrapper.vm.form.submitted_dialect_id = 1;
     wrapper.vm.audio = { path: '/tmp/knee.mp3', name: 'knee.mp3', origin: 'record' };
 
     await wrapper.vm.submit();
 
     expect(saveCanDraft).toHaveBeenCalledWith(
-      expect.objectContaining({ concept_text: '膝盖', dialect: 1 }),
+      expect.objectContaining({ concept_text: '膝盖', submitted_dialect_id: 1 }),
       expect.any(Object),
       expect.objectContaining({
-        dialectName: '游洋话',
+        dialectName: '闽.莆仙.游洋',
         audio: expect.objectContaining({ path: '/tmp/knee.mp3' }),
         reason: 'network failed',
       }),
@@ -164,9 +164,9 @@ describe('can creation draft recovery', () => {
     });
     createCanWithNameplate.mockResolvedValue({ id: 21 });
     const wrapper = mountCreate();
-    wrapper.vm.dialects = [{ id: 1, name: '游洋话' }];
+    wrapper.vm.dialects = [{ id: 1, name: '游洋话', qualified_code: '闽.莆仙.游洋' }];
     wrapper.vm.form.concept_text = '膝盖';
-    wrapper.vm.form.dialect = 1;
+    wrapper.vm.form.submitted_dialect_id = 1;
 
     wrapper.vm.onAudioChange({
       path: 'wxfile://temp.mp3',
@@ -192,7 +192,7 @@ describe('can creation draft recovery', () => {
   });
 
   it('still restores drafts when dialect loading fails', async () => {
-    listDialects.mockRejectedValue(new Error('offline'));
+    listAllDialects.mockRejectedValue(new Error('offline'));
     const wrapper = mountCreate();
 
     await expect(wrapper.vm.loadDialects()).resolves.toBeUndefined();
@@ -206,9 +206,9 @@ describe('can creation draft recovery', () => {
   it('records an explicit return target when an expired token interrupts submission', async () => {
     uploadFile.mockRejectedValue({ statusCode: 401, message: 'expired' });
     const wrapper = mountCreate();
-    wrapper.vm.dialects = [{ id: 1, name: '游洋话' }];
+    wrapper.vm.dialects = [{ id: 1, name: '游洋话', qualified_code: '闽.莆仙.游洋' }];
     wrapper.vm.form.concept_text = '膝盖';
-    wrapper.vm.form.dialect = 1;
+    wrapper.vm.form.submitted_dialect_id = 1;
     wrapper.vm.audio = { path: '/tmp/knee.mp3', name: 'knee.mp3', origin: 'record' };
 
     await wrapper.vm.submit();
@@ -272,7 +272,7 @@ describe('can creation draft recovery', () => {
     wrapper.vm.draftId = 'draft-1';
     wrapper.vm.draftOwnerScope = 'user:7';
     wrapper.vm.form.concept_text = '膝盖';
-    wrapper.vm.form.dialect = 1;
+    wrapper.vm.form.submitted_dialect_id = 1;
     wrapper.vm.audio = { path: '/saved/a.mp3', persisted: true, available: true };
     getCanDraftOwnerScope.mockReturnValue('user:8');
 

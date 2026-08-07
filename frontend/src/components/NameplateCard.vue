@@ -2,7 +2,7 @@
   <view :class="['plate', plate.is_primary ? 'primary-plate' : '']">
     <view class="plate-title">
       <text class="plate-text">
-        {{ plate.text_content }}
+        {{ plate.display_text || plate.text_content || '未命名铭牌' }}
       </text>
       <text
         v-if="plate.is_primary"
@@ -15,17 +15,26 @@
       {{ plate.definition || '暂无释义' }}
     </view>
     <view
-      v-if="plate.source_citation"
+      v-if="plate.pronunciation_text"
       class="plate-source"
     >
-      来源：{{ plate.source_citation }}
+      原样读音：{{ plate.pronunciation_text }}
+    </view>
+    <view class="plate-source">
+      来源：{{ sourceText }}
+    </view>
+    <view
+      v-if="plate.dialect"
+      class="plate-source"
+    >
+      方言：{{ plate.dialect.qualified_code || plate.dialect.name }}
     </view>
     <button
       class="vote"
-      :disabled="plate.supported_by_current_user"
-      @tap.stop="$emit('support', plate.id)"
+      :disabled="plate.status !== 'active'"
+      @tap.stop="$emit(plate.supported_by_current_user ? 'unsupport' : 'support', plate.id)"
     >
-      {{ plate.supported_by_current_user ? '已支持' : '支持这张铭牌' }} · {{ plate.weight || 0 }}
+      {{ plate.supported_by_current_user ? '取消支持' : '支持这张铭牌' }} · {{ plate.weight || 0 }}
     </button>
   </view>
 </template>
@@ -39,7 +48,19 @@ export default {
       required: true,
     },
   },
-  emits: ['support'],
+  emits: ['support', 'unsupport'],
+  computed: {
+    sourceText() {
+      const source = this.plate.source || {};
+      return [
+        source.title,
+        source.attributed_to,
+        source.locator,
+        source.note,
+        this.plate.source_type,
+      ].filter(Boolean).join(' · ') || '未注明';
+    },
+  },
 };
 </script>
 

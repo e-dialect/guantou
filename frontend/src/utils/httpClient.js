@@ -61,16 +61,19 @@ function hideLoading(options) {
 
 export function createApiError(error) {
   const statusCode = error && error.statusCode ? error.statusCode : 0;
-  const data = (error && error.data) || {};
-  const message = data.msg
-    || data.message
+  const payload = (error && error.data) || {};
+  const message = payload.message
+    || payload.msg
     || error.errMsg
     || error.message
     || '';
   return {
     statusCode,
+    code: payload.code || statusCode,
     message,
-    data,
+    data: payload.data || {},
+    requestId: payload.request_id || '',
+    payload,
     raw: error,
   };
 }

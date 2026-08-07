@@ -42,15 +42,14 @@ export default {
   computed: {
     primaryText() {
       return this.can.primary_nameplate
-        ? this.can.primary_nameplate.text_content
+        ? this.can.primary_nameplate.display_text
         : '等待铭牌';
     },
     locationText() {
-      if (this.can.dialect_detail) return this.can.dialect_detail.name;
-      return [this.can.county, this.can.town].filter(Boolean).join('-') || '未标产地';
+      return this.can.submitted_dialect?.qualified_code || '未标方言点';
     },
     nameplateCount() {
-      return Array.isArray(this.can.nameplates) ? this.can.nameplates.length : 0;
+      return this.can.nameplate_count || 0;
     },
   },
   methods: {

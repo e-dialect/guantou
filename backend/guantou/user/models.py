@@ -22,8 +22,20 @@ class UserInfo(models.Model):
         blank=True,
         verbose_name="头像",
     )
-    county = models.CharField(blank=True, max_length=100, verbose_name="县区")
-    town = models.CharField(blank=True, max_length=100, verbose_name="乡镇")
+    primary_dialect = models.ForeignKey(
+        "guantou.Dialect",
+        on_delete=models.SET_NULL,
+        related_name="primary_users",
+        null=True,
+        blank=True,
+        verbose_name="主要方言点",
+    )
+    legacy_location = models.JSONField(
+        default=dict,
+        blank=True,
+        editable=False,
+        verbose_name="迁移前行政地点",
+    )
     points_sum = models.IntegerField(default=0, verbose_name="总积分")
     points_now = models.IntegerField(default=0, verbose_name="当前积分")
 

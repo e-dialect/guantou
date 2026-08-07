@@ -27,8 +27,10 @@ class Manage(View):
             user.userinfo = UserInfo.objects.create(user=user, nickname=user.username)
             user.save()
 
+        request_user = get_request_user(request)
+        is_owner = request_user.id == id
         response = {
-            "user": user_all(user),
+            "user": user_all(user, private=is_owner),
             "contribution": {
                 "cans": Can.objects.filter(recorder=user, visibility=True).count(),
                 "cans_uploaded": Can.objects.filter(recorder=user).count(),
@@ -43,9 +45,8 @@ class Manage(View):
             },
         }
 
-        request_user = get_request_user(request)
         # 如果是本人额外返回邮件
-        if request_user.id == id:
+        if is_owner:
             sent = Notification.objects.filter(actor_id=id)
             received = Notification.objects.filter(recipient_id=id)
             unread = received.filter(unread=True)
@@ -71,12 +72,24 @@ class Manage(View):
         user = get_user_by_id(id)
         body = demjson3.decode(request.body)
         info = body["user"]
-        user_info_form = UserInfoForm(info)
-        if not user_info_form.is_valid:
-            raise ValueError
-        # update fields
-        for key in user_info_form.fields:
-            setattr(user.user_info, key, body["user"][key])
+        mutable_info = dict(info)
+        if "primary_dialect_id" in mutable_info:
+            mutable_info["primary_dialect"] = mutable_info.pop("primary_dialect_id")
+        elif isinstance(mutable_info.get("primary_dialect"), dict):
+            mutable_info["primary_dialect"] = mutable_info["primary_dialect"].get("id")
+        form_data = {
+            field: (
+                user.user_info.primary_dialect_id
+                if field == "primary_dialect"
+                else getattr(user.user_info, field)
+            )
+            for field in UserInfoForm.Meta.fields
+        }
+        form_data.update(mutable_info)
+        user_info_form = UserInfoForm(form_data, instance=user.user_info)
+        if not user_info_form.is_valid():
+            raise ValueError(user_info_form.errors)
+        user_info_form.save()
         # special fields
         if "avatar" in info:
             user.user_info.avatar = upload_avatar(user.id, info["avatar"])
@@ -85,7 +98,7 @@ class Manage(View):
 
         return JsonResponse(
             {
-                "user": user_all(user),
+                "user": user_all(user, private=True),
                 "token": generate_token(user),
             },
             status=200,
@@ -106,7 +119,7 @@ class ManagePassword(View):
         user.save()
         return JsonResponse(
             {
-                "user": user_all(user),
+                "user": user_all(user, private=True),
                 "token": generate_token(user),
             },
             status=200,
@@ -124,7 +137,7 @@ class ManageEmail(View):
             raise BadRequestException("验证码错误")
         user.email = body["email"]
         user.save()
-        return JsonResponse({"user": user_all(user)}, status=200)
+        return JsonResponse({"user": user_all(user, private=True)}, status=200)
 
     # US0306 解绑邮箱
     def delete(self, request, id) -> JsonResponse:
@@ -136,15 +149,15 @@ class ManageEmail(View):
             return JsonResponse({"msg": "未绑定微信，无法解绑邮箱"}, status=403)
         user.email = ""
         user.save()
-        return JsonResponse({"user": user_all(user)}, status=200)
+        return JsonResponse({"user": user_all(user, private=True)}, status=200)
 
 
 class ManagePoints(View):
     # US0204 获取用户积分信息
     def get(self, request, id) -> JsonResponse:
         user = get_user_by_id(id)
-        points_sum = int(user_all(user)["points_sum"])
-        points_now = int(user_all(user)["points_now"])
+        points_sum = int(user_all(user, private=True)["points_sum"])
+        points_now = int(user_all(user, private=True)["points_now"])
         return JsonResponse(
             {
                 "points_sum": points_sum,

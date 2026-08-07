@@ -52,7 +52,7 @@ class ObjectChangeLogTests(TestCase):
             "/cans/",
             data={
                 "audio_url": "https://example.com/audio.mp3",
-                "dialect": self.dialect.id,
+                "submitted_dialect_id": self.dialect.id,
                 "concept_text": "moon",
             },
             format="json",
@@ -102,7 +102,8 @@ class ObjectChangeLogTests(TestCase):
         can = Can.objects.create(
             audio_url="https://example.com/audio.mp3",
             recorder=self.user,
-            dialect=self.dialect,
+            submitted_dialect=self.dialect,
+            concept_text="moon",
             visibility=True,
         )
         ObjectChangeLog.objects.all().delete()

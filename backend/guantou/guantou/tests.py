@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from rest_framework.test import APIClient
 
@@ -6,876 +7,585 @@ from .models import (
     Can,
     Dialect,
     Flavor,
-    FlavorVariant,
+    FlavorPackage,
     Nameplate,
     NameplateSupport,
     Package,
+    Pronunciation,
+    Shelf,
 )
-from user.tokens import generate_token
+
+SOURCE = {"type": "creator"}
 
 
-def bearer(user):
-    return f"Bearer {generate_token(user)}"
-
-
-class GuantouApiTests(TestCase):
+class DomainFixture(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="collector", password="pw")
+        self.other = User.objects.create_user(username="other", password="pw")
+        self.staff = User.objects.create_user(
+            username="reviewer", password="pw", is_staff=True
+        )
         self.client = APIClient()
-        self.client.force_authenticate(user=self.user)
-        self.root = Dialect.objects.create(name="莆仙方言", code="puxian")
-        self.child = Dialect.objects.create(
-            name="游洋话",
-            code="puxian-youyang",
+        self.client.force_authenticate(self.user)
+        self.root = Dialect.objects.create(
+            name="闽语", code="闽", kind=Dialect.Kind.FAMILY, sort_order=10
+        )
+        self.group = Dialect.objects.create(
+            name="莆仙语",
+            code="莆仙",
             parent=self.root,
-            county="莆田",
-            town="游洋",
+            kind=Dialect.Kind.GROUP,
+            sort_order=10,
+        )
+        self.dialect = Dialect.objects.create(
+            name="游洋话",
+            code="游洋",
+            parent=self.group,
+            kind=Dialect.Kind.LOCAL_VARIETY,
+            sort_order=20,
         )
         self.package = Package.objects.create(
             text="行", package_type=Package.PackageType.ORTHODOX
         )
         self.flavor = Flavor.objects.create(
-            name="行走", definition="走路", created_by=self.user
-        )
-        self.flavor.packages.add(self.package)
-
-    def test_create_can_and_nameplate(self):
-        can_res = self.client.post(
-            "/cans/",
-            {
-                "audio_url": "https://example.com/audio.mp3",
-                "dialect": self.child.id,
-                "concept_text": "走路",
-                "county": "莆田",
-                "town": "游洋",
-            },
-            format="json",
-        )
-        self.assertEqual(can_res.status_code, 201)
-        can_id = can_res.data["id"]
-        plate_res = self.client.post(
-            f"/cans/{can_id}/nameplates/",
-            {
-                "flavor": self.flavor.id,
-                "package": self.package.id,
-                "text_content": "行",
-                "definition": "走路",
-            },
-            format="json",
-        )
-        self.assertEqual(plate_res.status_code, 201)
-        can = Can.objects.get(id=can_id)
-        self.assertEqual(can.recorder, self.user)
-        self.assertEqual(can.status, Can.Status.PENDING)
-        self.assertTrue(can.primary_nameplate.is_primary)
-
-    def test_authenticated_user_can_add_nameplate_to_public_can(self):
-        other_user = User.objects.create_user(username="labeler", password="pw")
-        can = Can.objects.create(
-            audio_url="https://example.com/audio.mp3",
-            recorder=self.user,
-            dialect=self.child,
-            concept_text="走路",
-            visibility=True,
-        )
-        client = APIClient()
-        client.force_authenticate(user=other_user)
-
-        response = client.post(
-            f"/cans/{can.id}/nameplates/",
-            {
-                "flavor": self.flavor.id,
-                "package": self.package.id,
-                "text_content": "趁行",
-                "definition": "走路",
-            },
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, 201)
-        plate = Nameplate.objects.get(id=response.data["id"])
-        self.assertEqual(plate.creator, other_user)
-        self.assertEqual(plate.can, can)
-
-    def test_create_can_without_candidate_nameplate(self):
-        response = self.client.post(
-            "/cans/",
-            {
-                "audio_url": "https://example.com/plain.mp3",
-                "dialect": self.child.id,
-                "concept_text": "knee",
-            },
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, 201)
-        can = Can.objects.get(id=response.data["id"])
-        self.assertEqual(can.recorder, self.user)
-        self.assertEqual(can.status, Can.Status.UNLABELED)
-        self.assertEqual(can.nameplates.count(), 0)
-
-    def test_create_can_with_initial_nameplate_creates_related_objects(self):
-        response = self.client.post(
-            "/cans/",
-            {
-                "audio_url": "https://example.com/knee.mp3",
-                "dialect": self.child.id,
-                "concept_text": "knee",
-                "initial_nameplate": {
-                    "text_content": "khnee",
-                    "definition": "kneecap",
-                    "package_type": Package.PackageType.PHONETIC,
-                    "evidence_level": Nameplate.EvidenceLevel.COMMUNITY,
-                    "source_citation": "elder",
-                },
-            },
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, 201)
-        can = Can.objects.get(id=response.data["id"])
-        plate = can.primary_nameplate
-        self.assertIsNotNone(plate)
-        self.assertEqual(can.status, Can.Status.PENDING)
-        self.assertEqual(plate.text_content, "khnee")
-        self.assertEqual(plate.package.package_type, Package.PackageType.PHONETIC)
-        self.assertEqual(plate.flavor.definition, "kneecap")
-        self.assertEqual(plate.creator, self.user)
-
-    def test_create_can_for_existing_flavor_creates_variant(self):
-        response = self.client.post(
-            "/cans/",
-            {
-                "audio_url": "https://example.com/flavor.mp3",
-                "dialect": self.child.id,
-                "flavor": self.flavor.id,
-            },
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, 201)
-        can = Can.objects.get(id=response.data["id"])
-        self.assertEqual(can.flavor_variant.flavor, self.flavor)
-        self.assertEqual(can.flavor_variant.audio_url, can.audio_url)
-        self.assertEqual(can.concept_text, self.flavor.name)
-
-    def test_validation_errors_use_unified_shape(self):
-        response = self.client.post(
-            "/cans/",
-            {
-                "dialect": self.child.id,
-                "concept_text": "knee",
-            },
-            format="json",
-            HTTP_X_REQUEST_ID="test-request-id",
-        )
-
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.data["code"], "validation_error")
-        self.assertIn("msg", response.data)
-        self.assertIn("message", response.data)
-        self.assertIn("details", response.data)
-        self.assertEqual(response.data["request_id"], "test-request-id")
-        self.assertEqual(response["X-Request-ID"], "test-request-id")
-
-    def test_vote_promotes_strongest_nameplate(self):
-        can = Can.objects.create(
-            audio_url="https://example.com/audio.mp3",
-            recorder=self.user,
-            dialect=self.child,
-            concept_text="走路",
-        )
-        weak = Nameplate.objects.create(
-            can=can,
-            creator=self.user,
-            text_content="行",
-            flavor=self.flavor,
-            package=self.package,
-            is_primary=True,
-        )
-        strong = Nameplate.objects.create(
-            can=can,
-            creator=self.user,
-            text_content="趁行",
-            flavor=self.flavor,
-            package=self.package,
-            weight=2,
-        )
-        vote_res = self.client.post(
-            f"/nameplates/{strong.id}/vote/", {"delta": 1}, format="json"
-        )
-        self.assertEqual(vote_res.status_code, 200)
-        weak.refresh_from_db()
-        strong.refresh_from_db()
-        self.assertFalse(weak.is_primary)
-        self.assertTrue(strong.is_primary)
-        self.assertEqual(strong.weight, 3)
-        self.assertTrue(
-            NameplateSupport.objects.filter(nameplate=strong, user=self.user).exists()
-        )
-        self.assertTrue(vote_res.data["supported_by_current_user"])
-
-    def test_repeated_vote_by_same_user_does_not_increment_weight(self):
-        can = Can.objects.create(
-            audio_url="https://example.com/audio.mp3",
-            recorder=self.user,
-            dialect=self.child,
-            concept_text="走路",
-        )
-        plate = Nameplate.objects.create(
-            can=can,
-            creator=self.user,
-            text_content="行",
-            flavor=self.flavor,
-            package=self.package,
-        )
-
-        first_res = self.client.post(
-            f"/nameplates/{plate.id}/vote/", {"delta": 1}, format="json"
-        )
-        second_res = self.client.post(
-            f"/nameplates/{plate.id}/vote/", {"delta": 1}, format="json"
-        )
-
-        self.assertEqual(first_res.status_code, 200)
-        self.assertEqual(second_res.status_code, 200)
-        plate.refresh_from_db()
-        self.assertEqual(plate.weight, 1)
-        self.assertEqual(NameplateSupport.objects.filter(nameplate=plate).count(), 1)
-
-    def test_different_users_can_support_same_nameplate_once_each(self):
-        other_user = User.objects.create_user(username="supporter", password="pw")
-        can = Can.objects.create(
-            audio_url="https://example.com/audio.mp3",
-            recorder=self.user,
-            dialect=self.child,
-            concept_text="走路",
-        )
-        plate = Nameplate.objects.create(
-            can=can,
-            creator=self.user,
-            text_content="行",
-            flavor=self.flavor,
-            package=self.package,
-        )
-
-        self.client.post(f"/nameplates/{plate.id}/vote/", {"delta": 1}, format="json")
-        other_client = APIClient()
-        other_client.force_authenticate(user=other_user)
-        other_client.post(f"/nameplates/{plate.id}/vote/", {"delta": 1}, format="json")
-
-        plate.refresh_from_db()
-        self.assertEqual(plate.weight, 2)
-        self.assertEqual(NameplateSupport.objects.filter(nameplate=plate).count(), 2)
-
-    def test_parent_dialect_filter_includes_children(self):
-        can = Can.objects.create(
-            audio_url="https://example.com/audio.mp3",
-            recorder=self.user,
-            dialect=self.child,
-            visibility=True,
-        )
-        response = self.client.get("/cans/", {"dialect": self.root.id})
-        self.assertEqual(response.status_code, 200)
-        ids = [item["id"] for item in response.data["results"]]
-        self.assertIn(can.id, ids)
-
-    def test_flavor_package_and_nameplate_model_national_lookup(self):
-        moon = Flavor.objects.create(
-            name="月亮",
-            definition="地球的天然卫星；夜晚可见的天体",
-            mandarin=["月亮"],
+            name="行走动作",
+            definition="步行移动",
+            mandarin=["走路"],
             created_by=self.user,
         )
-        yueliang = Package.objects.create(
-            text="月亮", package_type=Package.PackageType.ORTHODOX
-        )
-        yueguang = Package.objects.create(
-            text="月光", package_type=Package.PackageType.POPULAR
-        )
-        moon.packages.add(yueliang, yueguang)
-        can = Can.objects.create(
-            audio_url="https://example.com/moon.mp3",
-            recorder=self.user,
-            dialect=self.child,
-            concept_text="月亮",
-            visibility=True,
-        )
-        plate = Nameplate.objects.create(
-            can=can,
-            creator=self.user,
-            flavor=moon,
-            package=yueguang,
-            text_content="月光",
-            definition="月亮",
-            is_primary=True,
+        FlavorPackage.objects.create(
+            package=self.package,
+            flavor=self.flavor,
+            mapping_type=FlavorPackage.MappingType.PRIMARY,
         )
 
-        self.assertEqual(plate.flavor, moon)
-        self.assertEqual(plate.package, yueguang)
-        self.assertCountEqual(
-            list(moon.packages.values_list("text", flat=True)), ["月亮", "月光"]
+    def make_pronunciation(self, **overrides):
+        values = {
+            "package": self.package,
+            "flavor": self.flavor,
+            "dialect": self.dialect,
+            "ipa": "hiŋ²³",
+            "reading_type": Pronunciation.ReadingType.COLLOQUIAL,
+            "created_by": self.user,
+        }
+        values.update(overrides)
+        return Pronunciation.objects.create(**values)
+
+    def make_can(self, **overrides):
+        values = {
+            "audio_url": "https://example.test/walk.mp3",
+            "recorder": self.user,
+            "submitted_dialect": self.dialect,
+            "concept_text": "走路",
+            "visibility": True,
+        }
+        values.update(overrides)
+        return Can.objects.create(**values)
+
+    def make_nameplate(self, can=None, **overrides):
+        values = {
+            "can": can or self.make_can(),
+            "creator": self.user,
+            "package": self.package,
+            "flavor": self.flavor,
+            "dialect": self.dialect,
+            "text_content": "行",
+            "definition": "走路",
+            "source": SOURCE,
+        }
+        values.update(overrides)
+        return Nameplate.objects.create(**values)
+
+    def assert_error(self, response, status_code, field=None):
+        self.assertEqual(response.status_code, status_code)
+        self.assertEqual(response.data["code"], status_code)
+        self.assertEqual(set(response.data), {"code", "message", "data", "request_id"})
+        self.assertIsInstance(response.data["message"], str)
+        self.assertIsInstance(response.data["data"], dict)
+        if field:
+            self.assertIn(field, response.data["data"]["fields"])
+
+
+class DialectApiTests(DomainFixture):
+    def test_qualified_code_is_root_to_leaf(self):
+        self.assertEqual(self.dialect.qualified_code, "闽.莆仙.游洋")
+
+    def test_list_defaults_to_roots_and_children_use_explicit_order(self):
+        earlier = Dialect.objects.create(
+            name="莆田片",
+            code="莆田",
+            parent=self.group,
+            kind=Dialect.Kind.VARIETY,
+            sort_order=5,
         )
-        response = self.client.get("/cans/", {"flavor": moon.id})
+        roots = self.client.get("/dialects/")
+        self.assertEqual([item["id"] for item in roots.data["results"]], [self.root.id])
+
+        children = self.client.get("/dialects/", {"parent_id": self.group.id})
+        self.assertEqual(
+            [item["id"] for item in children.data["results"]],
+            [earlier.id, self.dialect.id],
+        )
+
+    def test_resolve_accepts_qualified_code_and_alias(self):
+        response = self.client.get(
+            "/dialects/resolve/", {"qualified_code": "闽.莆仙.游洋"}
+        )
+        self.assertEqual(response.data["id"], self.dialect.id)
+
+        self.dialect.aliases = ["min.puxian.youyang"]
+        self.dialect.save(update_fields=["aliases"])
+        alias = self.client.get(
+            "/dialects/resolve/", {"qualified_code": "min.puxian.youyang"}
+        )
+        self.assertEqual(alias.data["id"], self.dialect.id)
+
+    def test_reparent_preserves_old_qualified_code_as_alias(self):
+        new_parent = Dialect.objects.create(
+            name="仙游片",
+            code="仙游",
+            parent=self.group,
+            kind=Dialect.Kind.VARIETY,
+        )
+        response = self.client.patch(
+            f"/dialects/{self.dialect.id}/",
+            {"parent_id": new_parent.id},
+            format="json",
+        )
         self.assertEqual(response.status_code, 200)
-        ids = [item["id"] for item in response.data["results"]]
-        self.assertIn(can.id, ids)
+        self.dialect.refresh_from_db()
+        self.assertIn("闽.莆仙.游洋", self.dialect.aliases)
+        self.assertEqual(self.dialect.qualified_code, "闽.莆仙.仙游.游洋")
 
-    def test_package_detail_includes_related_flavors(self):
-        response = self.client.get(f"/packages/{self.package.id}/")
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["text"], "行")
-        self.assertEqual(len(response.data["flavors"]), 1)
-        self.assertEqual(response.data["flavors"][0]["name"], "行走")
-
-
-class BearerAuthenticationApiTests(TestCase):
-    def setUp(self):
-        self.user = User.objects.create_user(username="collector", password="pw")
-        self.dialect = Dialect.objects.create(name="Puxian", code="puxian")
-
-    def test_bearer_token_authenticates_drf_write_request(self):
-        client = APIClient()
-        response = client.post(
-            "/cans/",
-            {
-                "audio_url": "https://example.com/audio.mp3",
-                "dialect": self.dialect.id,
-                "concept_text": "moon",
-            },
-            format="json",
-            HTTP_AUTHORIZATION=bearer(self.user),
+    def test_sibling_code_is_unique_but_other_branches_can_reuse_it(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Dialect.objects.create(
+                name="重复",
+                code="游洋",
+                parent=self.group,
+                kind=Dialect.Kind.LOCAL_VARIETY,
+            )
+        other_root = Dialect.objects.create(
+            name="粤语", code="粤", kind=Dialect.Kind.FAMILY
         )
-
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(Can.objects.get(id=response.data["id"]).recorder, self.user)
-
-    def test_legacy_token_header_no_longer_authenticates_drf_write_request(self):
-        client = APIClient()
-        response = client.post(
-            "/cans/",
-            {
-                "audio_url": "https://example.com/audio.mp3",
-                "dialect": self.dialect.id,
-                "concept_text": "moon",
-            },
-            format="json",
-            HTTP_TOKEN=generate_token(self.user),
+        reused = Dialect.objects.create(
+            name="另一游洋",
+            code="游洋",
+            parent=other_root,
+            kind=Dialect.Kind.LOCAL_VARIETY,
         )
-
-        self.assertEqual(response.status_code, 401)
-
-
-class CanTransitionTests(TestCase):
-    """罐头状态转换端点测试"""
-
-    def setUp(self):
-        self.owner = User.objects.create_user(username="owner", password="pw")
-        self.other_user = User.objects.create_user(username="other", password="pw")
-        self.staff_user = User.objects.create_user(
-            username="staff", password="pw", is_staff=True
-        )
-        self.dialect = Dialect.objects.create(name="莆仙方言", code="puxian")
-        self.can = Can.objects.create(
-            audio_url="https://example.com/audio.mp3",
-            recorder=self.owner,
-            dialect=self.dialect,
-            status=Can.Status.PENDING,
-            visibility=True,
-        )
-
-    def _client_for(self, user):
-        client = APIClient()
-        client.force_authenticate(user=user)
-        return client
-
-    def test_staff_verify_legal_transition(self):
-        """合法转换：staff 用户执行 submit，pending→tentative，返回 200 + 完整 Can JSON"""
-        client = self._client_for(self.staff_user)
-        res = client.post(
-            f"/cans/{self.can.id}/transition/",
-            {"action": "submit", "reason": "社区确认"},
-            format="json",
-        )
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.data["status"], "tentative")
-        self.assertEqual(res.data["id"], self.can.id)
-        # 验证 transition_log 记录
-        self.can.refresh_from_db()
-        self.assertEqual(len(self.can.transition_log), 1)
-        log = self.can.transition_log[0]
-        self.assertEqual(log["from"], "pending")
-        self.assertEqual(log["to"], "tentative")
-        self.assertEqual(log["by"], self.staff_user.id)
-        self.assertEqual(log["reason"], "社区确认")
-        self.assertIn("at", log)
-
-    def test_staff_verify_after_submit(self):
-        """合法转换：staff 用户执行 verify，tentative→verified"""
-        self.can.status = Can.Status.TENTATIVE
-        self.can.save(update_fields=["status"])
-        client = self._client_for(self.staff_user)
-        res = client.post(
-            f"/cans/{self.can.id}/transition/",
-            {"action": "verify", "reason": ""},
-            format="json",
-        )
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.data["status"], "verified")
-        self.can.refresh_from_db()
-        self.assertEqual(self.can.verifier, self.staff_user)
-
-    def test_non_staff_verify_returns_403(self):
-        """权限拒绝：非 staff 用户调 verify 返回 403"""
-        self.can.status = Can.Status.TENTATIVE
-        self.can.save(update_fields=["status"])
-        client = self._client_for(self.other_user)
-        res = client.post(
-            f"/cans/{self.can.id}/transition/",
-            {"action": "verify"},
-            format="json",
-        )
-        self.assertEqual(res.status_code, 403)
-
-    def test_assigned_verifier_can_verify(self):
-        """被分配为 verifier 的非 staff 用户可以执行 verify"""
-        self.can.status = Can.Status.TENTATIVE
-        self.can.visibility = False
-        self.can.verifier = self.other_user
-        self.can.save(update_fields=["status", "visibility", "verifier"])
-        client = self._client_for(self.other_user)
-        res = client.post(
-            f"/cans/{self.can.id}/transition/",
-            {"action": "verify", "reason": "assigned review"},
-            format="json",
-        )
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.data["status"], "verified")
-        self.can.refresh_from_db()
-        self.assertEqual(self.can.verifier, self.other_user)
-
-    def test_illegal_transition_from_unlabeled(self):
-        """非法转换：从 unlabeled 直接调 verify 返回 400"""
-        self.can.status = Can.Status.UNLABELED
-        self.can.save(update_fields=["status"])
-        client = self._client_for(self.staff_user)
-        res = client.post(
-            f"/cans/{self.can.id}/transition/",
-            {"action": "verify"},
-            format="json",
-        )
-        self.assertEqual(res.status_code, 400)
-        body = res.json()
-        self.assertIn("不允许从", body["msg"])
-        self.assertEqual(body["code"], "bad_request")
-
-    def test_illegal_transition_submit_from_unlabeled(self):
-        """非法转换：从 unlabeled 调 submit 返回 400（必须先经过 pending）"""
-        self.can.status = Can.Status.UNLABELED
-        self.can.save(update_fields=["status"])
-        client = self._client_for(self.owner)
-        res = client.post(
-            f"/cans/{self.can.id}/transition/",
-            {"action": "submit"},
-            format="json",
-        )
-        self.assertEqual(res.status_code, 400)
-
-    def test_transition_log_accumulates(self):
-        """transition_log 正确记录多次操作"""
-        client = self._client_for(self.staff_user)
-        # pending -> tentative
-        client.post(
-            f"/cans/{self.can.id}/transition/",
-            {"action": "submit", "reason": "first"},
-            format="json",
-        )
-        # tentative -> verified
-        client.post(
-            f"/cans/{self.can.id}/transition/",
-            {"action": "verify", "reason": "second"},
-            format="json",
-        )
-        self.can.refresh_from_db()
-        self.assertEqual(len(self.can.transition_log), 2)
-        self.assertEqual(self.can.transition_log[0]["from"], "pending")
-        self.assertEqual(self.can.transition_log[0]["to"], "tentative")
-        self.assertEqual(self.can.transition_log[1]["from"], "tentative")
-        self.assertEqual(self.can.transition_log[1]["to"], "verified")
+        self.assertIsNotNone(reused.pk)
 
 
-class IsOwnerOrAdminPermissionTests(TestCase):
-    """对象级权限测试：PUT/DELETE 仅允许创建者或 staff"""
-
-    def setUp(self):
-        self.user_a = User.objects.create_user(username="userA", password="pw")
-        self.user_b = User.objects.create_user(username="userB", password="pw")
-        self.staff_user = User.objects.create_user(
-            username="admin", password="pw", is_staff=True
-        )
-        self.dialect = Dialect.objects.create(name="莆仙方言", code="puxian")
-        self.can = Can.objects.create(
-            audio_url="https://example.com/audio.mp3",
-            recorder=self.user_a,
-            dialect=self.dialect,
-            visibility=True,
-        )
-
-    def _client_for(self, user):
-        client = APIClient()
-        client.force_authenticate(user=user)
-        return client
-
-    def test_owner_can_put(self):
-        """用户 A 自己调 PUT 修改返回 200"""
-        client = self._client_for(self.user_a)
-        res = client.patch(
-            f"/cans/{self.can.id}/",
-            {"concept_text": "新概念"},
-            format="json",
-        )
-        self.assertEqual(res.status_code, 200)
-        self.can.refresh_from_db()
-        self.assertEqual(self.can.concept_text, "新概念")
-
-    def test_non_owner_put_returns_403(self):
-        """用户 A 创建的 Can，用户 B（非 staff）调 PUT 修改返回 403"""
-        client = self._client_for(self.user_b)
-        res = client.patch(
-            f"/cans/{self.can.id}/",
-            {"concept_text": "恶意修改"},
-            format="json",
-        )
-        self.assertEqual(res.status_code, 403)
-
-    def test_staff_can_put(self):
-        """staff 用户可以修改任何资源"""
-        client = self._client_for(self.staff_user)
-        res = client.patch(
-            f"/cans/{self.can.id}/",
-            {"concept_text": "管理员修改"},
-            format="json",
-        )
-        self.assertEqual(res.status_code, 200)
-
-    def test_non_owner_delete_returns_403(self):
-        """非创建者非 staff 删除返回 403"""
-        client = self._client_for(self.user_b)
-        res = client.delete(f"/cans/{self.can.id}/")
-        self.assertEqual(res.status_code, 403)
-
-    def test_owner_can_delete(self):
-        """创建者可以删除自己的资源"""
-        client = self._client_for(self.user_a)
-        res = client.delete(f"/cans/{self.can.id}/")
-        self.assertEqual(res.status_code, 204)
-
-    def test_get_not_restricted(self):
-        """任何登录用户都可以 GET"""
-        client = self._client_for(self.user_b)
-        res = client.get(f"/cans/{self.can.id}/")
-        self.assertEqual(res.status_code, 200)
-
-
-class CanViewCountTests(TestCase):
-    """罐头浏览量原子计数测试"""
-
-    def setUp(self):
-        self.owner = User.objects.create_user(username="owner", password="pw")
-        self.visitor = User.objects.create_user(username="visitor", password="pw")
-        self.dialect = Dialect.objects.create(name="莆仙方言", code="puxian")
-        self.can = Can.objects.create(
-            audio_url="https://example.com/audio.mp3",
-            recorder=self.owner,
-            dialect=self.dialect,
-            visibility=True,
-        )
-        self.client = APIClient()
-        self.client.force_authenticate(user=self.visitor)
-
-    def test_retrieve_increments_views_atomically(self):
-        """连续两次 retrieve 后 views == 初始值 + 2，且响应中为最新值"""
-        initial = self.can.views
-        for expected in (initial + 1, initial + 2):
-            res = self.client.get(f"/cans/{self.can.id}/")
-            self.assertEqual(res.status_code, 200)
-            self.assertEqual(res.data["views"], expected)
-        self.can.refresh_from_db()
-        self.assertEqual(self.can.views, initial + 2)
-
-    def test_retrieve_does_not_touch_updated_at(self):
-        """浏览只更新 views，不刷新 updated_at"""
-        before = Can.objects.values_list("updated_at", flat=True).get(pk=self.can.pk)
-        res = self.client.get(f"/cans/{self.can.id}/")
-        self.assertEqual(res.status_code, 200)
-        after = Can.objects.values_list("updated_at", flat=True).get(pk=self.can.pk)
-        self.assertEqual(before, after)
-
-
-class CanSubmissionContractTests(TestCase):
-    """POST /cans/ 装罐提交端到端 API 契约测试（#97）
-
-    通过 DRF APIClient 走真实路由，以现行 CanSerializer 输出为契约基准：
-    断言字段名与类型，防止前后端联调前的契约漂移。
-    """
-
-    # POST /cans/ 成功响应必须包含的契约字段
-    CAN_CONTRACT_FIELDS = (
-        "id",
-        "audio_url",
-        "dialect",
-        "concept_text",
-        "status",
-        "duration_ms",
-        "nameplates",
-        "primary_nameplate",
-        "flavor_variant",
-    )
-    CAN_STATUSES = {choice[0] for choice in Can.Status.choices}
-
-    def setUp(self):
-        self.user = User.objects.create_user(username="canner", password="pw")
-        self.dialect = Dialect.objects.create(name="莆仙方言", code="puxian")
-        self.flavor = Flavor.objects.create(
-            name="行走", definition="走路", created_by=self.user
-        )
-        self.client = APIClient()
-        self.client.force_authenticate(user=self.user)
-
-    def _assert_can_contract(self, data):
-        """断言响应包含契约字段且类型正确"""
-        for field in self.CAN_CONTRACT_FIELDS:
-            self.assertIn(field, data)
-        self.assertIsInstance(data["id"], int)
-        self.assertIsInstance(data["audio_url"], str)
-        self.assertIsInstance(data["concept_text"], str)
-        self.assertIsInstance(data["duration_ms"], int)
-        self.assertIsInstance(data["nameplates"], list)
-        self.assertIn(data["status"], self.CAN_STATUSES)
-        self.assertTrue(data["dialect"] is None or isinstance(data["dialect"], int))
-        self.assertTrue(
-            data["flavor_variant"] is None or isinstance(data["flavor_variant"], int)
-        )
-        self.assertTrue(
-            data["primary_nameplate"] is None
-            or isinstance(data["primary_nameplate"], dict)
-        )
-
-    def _assert_unified_error_shape(self, response, code):
-        """断言错误响应符合统一 shape：msg/message/code/details/request_id"""
-        for field in ("msg", "message", "code", "details", "request_id"):
-            self.assertIn(field, response.data)
-        self.assertEqual(response.data["code"], code)
-        self.assertEqual(response.data["request_id"], "contract-request-id")
-        self.assertEqual(response["X-Request-ID"], "contract-request-id")
-
-    def test_submit_free_canning_without_nameplate(self):
-        """自由装罐（无铭牌）→ 201，status == unlabeled"""
+class PronunciationApiTests(DomainFixture):
+    def test_create_requires_linked_package_flavor_and_three_foreign_keys(self):
         response = self.client.post(
-            "/cans/",
+            "/pronunciations/",
             {
-                "audio_url": "https://example.com/free.mp3",
-                "dialect": self.dialect.id,
-                "concept_text": "膝盖",
-                "duration_ms": 1500,
+                "package_id": self.package.id,
+                "flavor_id": self.flavor.id,
+                "dialect_id": self.dialect.id,
+                "ipa": "hiŋ²³",
+                "reading_type": "colloquial",
             },
             format="json",
         )
         self.assertEqual(response.status_code, 201)
-        self._assert_can_contract(response.data)
+        self.assertEqual(response.data["package"]["id"], self.package.id)
+        self.assertEqual(response.data["flavor"]["id"], self.flavor.id)
+        self.assertEqual(response.data["dialect"]["id"], self.dialect.id)
+
+        unrelated = Package.objects.create(
+            text="走", package_type=Package.PackageType.ORTHODOX
+        )
+        invalid = self.client.post(
+            "/pronunciations/",
+            {
+                "package_id": unrelated.id,
+                "flavor_id": self.flavor.id,
+                "dialect_id": self.dialect.id,
+                "ipa": "tsau",
+                "reading_type": "general",
+            },
+            format="json",
+        )
+        self.assert_error(invalid, 400, "package_id")
+
+    def test_canonical_transition_is_evidence_gated_and_unique(self):
+        first = self.make_pronunciation(source_citation="田野记录")
+        second = self.make_pronunciation(ipa="hiŋ⁵¹", source_citation="方言志")
+        self.client.force_authenticate(self.staff)
+
+        self.assertEqual(
+            self.client.post(
+                f"/pronunciations/{first.id}/transition/",
+                {"action": "verify", "is_canonical": True},
+                format="json",
+            ).status_code,
+            200,
+        )
+        self.client.post(
+            f"/pronunciations/{second.id}/transition/",
+            {"action": "verify", "is_canonical": True},
+            format="json",
+        )
+        first.refresh_from_db()
+        second.refresh_from_db()
+        self.assertFalse(first.is_canonical)
+        self.assertTrue(second.is_canonical)
+
+        no_evidence = self.make_pronunciation(ipa="hiŋ³³")
+        blocked = self.client.post(
+            f"/pronunciations/{no_evidence.id}/transition/",
+            {"action": "verify", "is_canonical": True},
+            format="json",
+        )
+        self.assert_error(blocked, 409)
+
+    def test_referenced_pronunciation_cannot_be_deleted(self):
+        pronunciation = self.make_pronunciation()
+        self.make_nameplate(pronunciation=pronunciation)
+        response = self.client.delete(f"/pronunciations/{pronunciation.id}/")
+        self.assert_error(response, 409)
+
+    def test_private_attestations_do_not_leak_through_pronunciation(self):
+        pronunciation = self.make_pronunciation()
+        public_plate = self.make_nameplate(pronunciation=pronunciation)
+        private_can = self.make_can(recorder=self.other, visibility=False)
+        private_plate = self.make_nameplate(
+            can=private_can, creator=self.other, pronunciation=pronunciation
+        )
+        self.client.force_authenticate(None)
+
+        response = self.client.get(f"/pronunciations/{pronunciation.id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["evidence_count"], 1)
+        ids = [item["id"] for item in response.data["attestations"]]
+        self.assertIn(public_plate.id, ids)
+        self.assertNotIn(private_plate.id, ids)
+
+
+class CanSubmissionApiTests(DomainFixture):
+    def payload(self, **overrides):
+        values = {
+            "audio_url": "https://example.test/new.mp3",
+            "submitted_dialect_id": self.dialect.id,
+            "concept_text": "走路",
+            "duration_ms": 1234,
+        }
+        values.update(overrides)
+        return values
+
+    def test_create_can_without_nameplate_keeps_recording_unlabeled(self):
+        response = self.client.post("/cans/", self.payload(), format="json")
+        self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data["status"], Can.Status.UNLABELED)
-        self.assertEqual(response.data["duration_ms"], 1500)
+        self.assertEqual(response.data["submitted_dialect"]["id"], self.dialect.id)
         self.assertEqual(response.data["nameplates"], [])
         self.assertIsNone(response.data["primary_nameplate"])
-        self.assertIsNone(response.data["flavor_variant"])
-        self.assertEqual(response.data["recorder"]["id"], self.user.id)
+        self.assertNotIn("flavor_variant", response.data)
 
-    def test_submit_free_canning_with_initial_nameplate(self):
-        """带 initial_nameplate 自由装罐 → 201，铭牌提升为主铭牌，unlabeled→pending 自动推进"""
+    def test_update_can_can_clear_submission_hint_but_not_replace_audio(self):
+        can = self.make_can()
+
+        cleared = self.client.patch(
+            f"/cans/{can.id}/", {"submitted_dialect_id": None}, format="json"
+        )
+        immutable = self.client.patch(
+            f"/cans/{can.id}/",
+            {"audio_url": "https://example.test/replaced.mp3"},
+            format="json",
+        )
+
+        self.assertEqual(cleared.status_code, 200)
+        self.assertIsNone(cleared.data["submitted_dialect"])
+        self.assert_error(immutable, 400, "audio_url")
+
+    def test_initial_nameplate_is_created_atomically_with_structured_source(self):
         response = self.client.post(
             "/cans/",
+            self.payload(
+                initial_nameplate={
+                    "text_content": "行",
+                    "definition": "走路",
+                    "package_type": "orthodox",
+                    "source": {
+                        "type": "book",
+                        "title": "仙游方言志",
+                        "locator": "42",
+                    },
+                }
+            ),
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["status"], Can.Status.PENDING)
+        plate = response.data["nameplates"][0]
+        self.assertEqual(plate["source"]["type"], "book")
+        self.assertEqual(plate["dialect"]["id"], self.dialect.id)
+        self.assertTrue(plate["is_complete"])
+        self.assertTrue(plate["is_primary"])
+
+    def test_existing_flavor_supplement_creates_nameplate_not_pronunciation(self):
+        response = self.client.post(
+            "/cans/",
+            self.payload(
+                initial_nameplate={
+                    "flavor_id": self.flavor.id,
+                    "dialect_id": self.dialect.id,
+                    "source": SOURCE,
+                }
+            ),
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Pronunciation.objects.count(), 0)
+        plate = response.data["nameplates"][0]
+        self.assertEqual(plate["flavor"]["id"], self.flavor.id)
+        self.assertIsNone(plate["package"])
+        self.assertFalse(plate["is_primary"])
+
+    def test_initial_pronunciation_link_uses_nameplate_as_evidence(self):
+        pronunciation = self.make_pronunciation()
+        response = self.client.post(
+            "/cans/",
+            self.payload(
+                initial_nameplate={
+                    "pronunciation_id": pronunciation.id,
+                    "source": {"type": "fieldwork", "locator": "R-001"},
+                }
+            ),
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        plate = response.data["nameplates"][0]
+        self.assertEqual(plate["pronunciation"]["id"], pronunciation.id)
+        self.assertEqual(plate["package"]["id"], self.package.id)
+
+    def test_initial_pronunciation_rejects_conflicting_foreign_keys_atomically(self):
+        pronunciation = self.make_pronunciation()
+        other_dialect = Dialect.objects.create(
+            name="另一方言点",
+            code="另一点",
+            parent=self.group,
+            kind=Dialect.Kind.LOCAL_VARIETY,
+        )
+
+        response = self.client.post(
+            "/cans/",
+            self.payload(
+                initial_nameplate={
+                    "pronunciation_id": pronunciation.id,
+                    "dialect_id": other_dialect.id,
+                    "source": SOURCE,
+                }
+            ),
+            format="json",
+        )
+
+        self.assert_error(response, 409)
+        self.assertEqual(Can.objects.count(), 0)
+
+    def test_invalid_requests_use_numeric_error_contract(self):
+        missing_audio = self.client.post(
+            "/cans/",
             {
-                "audio_url": "https://example.com/labeled.mp3",
-                "dialect": self.dialect.id,
+                "submitted_dialect_id": self.dialect.id,
                 "concept_text": "走路",
-                "initial_nameplate": {
-                    "text_content": "行",
-                    "definition": "走路",
-                    "package_type": Package.PackageType.ORTHODOX,
-                },
+            },
+            format="json",
+            HTTP_X_REQUEST_ID="contract-id",
+        )
+        self.assert_error(missing_audio, 400, "audio_url")
+        self.assertEqual(missing_audio.data["request_id"], "contract-id")
+        self.assertNotIn("msg", missing_audio.data)
+        self.assertNotIn("details", missing_audio.data)
+
+        missing_source = self.client.post(
+            "/cans/",
+            self.payload(initial_nameplate={"text_content": "行"}),
+            format="json",
+        )
+        self.assert_error(missing_source, 400, "initial_nameplate")
+
+    def test_anonymous_create_returns_401_with_same_contract(self):
+        self.client.force_authenticate(None)
+        response = self.client.post("/cans/", self.payload(), format="json")
+        self.assert_error(response, 401)
+
+
+class ShelfPermissionTests(DomainFixture):
+    def test_only_creator_or_staff_can_change_shelf(self):
+        shelf = Shelf.objects.create(
+            title="我的集盒",
+            slug="mine",
+            creator=self.user,
+        )
+        self.client.force_authenticate(self.other)
+
+        response = self.client.patch(
+            f"/shelves/{shelf.id}/", {"title": "被篡改"}, format="json"
+        )
+
+        self.assert_error(response, 403)
+        shelf.refresh_from_db()
+        self.assertEqual(shelf.title, "我的集盒")
+
+
+class NameplateApiTests(DomainFixture):
+    def test_collection_create_and_nested_get_contract(self):
+        can = self.make_can()
+        created = self.client.post(
+            "/nameplates/",
+            {
+                "can_id": can.id,
+                "package_id": self.package.id,
+                "flavor_id": self.flavor.id,
+                "dialect_id": self.dialect.id,
+                "text_content": "行",
+                "source": {"type": "oral", "attributed_to": "祖母"},
             },
             format="json",
         )
-        self.assertEqual(response.status_code, 201)
-        self._assert_can_contract(response.data)
-        self.assertEqual(response.data["status"], Can.Status.PENDING)
-        self.assertEqual(len(response.data["nameplates"]), 1)
-        primary = response.data["primary_nameplate"]
-        self.assertIsNotNone(primary)
-        self.assertTrue(primary["is_primary"])
-        self.assertEqual(primary["text_content"], "行")
-        # 铭牌连带创建 Package/Flavor 并落库
-        can = Can.objects.get(id=response.data["id"])
-        plate = can.nameplates.get()
-        self.assertTrue(plate.is_primary)
-        self.assertEqual(plate.creator, self.user)
-        self.assertIsNotNone(plate.package)
-        self.assertIsNotNone(plate.flavor)
-
-    def test_submit_repeated_nameplate_text_does_not_duplicate_package(self):
-        """重复提交相同写法文本 → Package 按 get_or_create 语义复用，不重复创建"""
-        payload = {
-            "audio_url": "https://example.com/dup.mp3",
-            "dialect": self.dialect.id,
-            "concept_text": "走路",
-            "initial_nameplate": {
-                "text_content": "行",
-                "definition": "走路",
-                "package_type": Package.PackageType.ORTHODOX,
-            },
-        }
-        first = self.client.post("/cans/", payload, format="json")
-        second = self.client.post("/cans/", payload, format="json")
-        self.assertEqual(first.status_code, 201)
-        self.assertEqual(second.status_code, 201)
+        self.assertEqual(created.status_code, 201)
+        nested = self.client.get(f"/cans/{can.id}/nameplates/")
+        self.assertEqual(nested.status_code, 200)
+        self.assertEqual(nested.data["count"], 1)
         self.assertEqual(
-            Package.objects.filter(
-                text="行", package_type=Package.PackageType.ORTHODOX
-            ).count(),
-            1,
+            self.client.post(
+                f"/cans/{can.id}/nameplates/", {}, format="json"
+            ).status_code,
+            405,
         )
 
-    def test_submit_repeated_nameplate_text_creates_new_flavor_each_time(self):
-        """现状固化：初始铭牌每次提交都新建 Flavor，未复用既有义项。
+    def test_private_can_nameplates_do_not_leak(self):
+        private = self.make_can(recorder=self.other, visibility=False)
+        plate = self.make_nameplate(can=private, creator=self.other)
+        self.client.force_authenticate(None)
+        ids = [item["id"] for item in self.client.get("/nameplates/").data["results"]]
+        self.assertNotIn(plate.id, ids)
+        self.assertEqual(self.client.get(f"/nameplates/{plate.id}/").status_code, 404)
 
-        与 #97 期望的 get_or_create 复用语义存在偏差，如需改为复用请单独开 issue，
-        修复后本用例应改为断言 Flavor 计数不变。
-        """
-        payload = {
-            "audio_url": "https://example.com/dup.mp3",
-            "dialect": self.dialect.id,
-            "concept_text": "走路",
-            "initial_nameplate": {
+    def test_pronunciation_conflict_returns_409(self):
+        pronunciation = self.make_pronunciation()
+        other_package = Package.objects.create(
+            text="走", package_type=Package.PackageType.ORTHODOX
+        )
+        response = self.client.post(
+            "/nameplates/",
+            {
+                "can_id": self.make_can().id,
+                "package_id": other_package.id,
+                "pronunciation_id": pronunciation.id,
+                "source": SOURCE,
+            },
+            format="json",
+        )
+        self.assert_error(response, 409, "package_id")
+
+    def test_support_is_idempotent_and_can_be_removed(self):
+        plate = self.make_nameplate()
+        first = self.client.put(f"/nameplates/{plate.id}/support/", {}, format="json")
+        second = self.client.put(f"/nameplates/{plate.id}/support/", {}, format="json")
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(NameplateSupport.objects.filter(nameplate=plate).count(), 1)
+        plate.refresh_from_db()
+        self.assertEqual(plate.weight, 1)
+
+        removed = self.client.delete(f"/nameplates/{plate.id}/support/")
+        self.assertEqual(removed.status_code, 204)
+        plate.refresh_from_db()
+        self.assertEqual(plate.weight, 0)
+
+    def test_referenced_claim_must_be_revised_instead_of_patched(self):
+        plate = self.make_nameplate()
+        plate.promote_to_primary()
+        blocked = self.client.patch(
+            f"/nameplates/{plate.id}/", {"definition": "新的解释"}, format="json"
+        )
+        self.assert_error(blocked, 409, "supersedes_id")
+
+        revision = self.client.post(
+            "/nameplates/",
+            {
+                "can_id": plate.can_id,
+                "package_id": self.package.id,
+                "flavor_id": self.flavor.id,
+                "dialect_id": self.dialect.id,
                 "text_content": "行",
-                "definition": "走路",
-                "package_type": Package.PackageType.ORTHODOX,
+                "definition": "新的解释",
+                "source": {"type": "article", "title": "校订稿"},
+                "supersedes_id": plate.id,
             },
-        }
-        first = self.client.post("/cans/", payload, format="json")
-        second = self.client.post("/cans/", payload, format="json")
-        self.assertEqual(first.status_code, 201)
-        self.assertEqual(second.status_code, 201)
-        first_flavor = first.data["nameplates"][0]["flavor"]
-        second_flavor = second.data["nameplates"][0]["flavor"]
-        self.assertIsNotNone(first_flavor)
-        self.assertIsNotNone(second_flavor)
-        self.assertNotEqual(first_flavor, second_flavor)
+            format="json",
+        )
+        self.assertEqual(revision.status_code, 201)
+        plate.refresh_from_db()
+        self.assertEqual(plate.status, Nameplate.Status.SUPERSEDED)
+        self.assertFalse(plate.is_primary)
+        self.assertTrue(revision.data["is_primary"])
 
-    def test_submit_supplement_recording_for_existing_flavor(self):
-        """补录音传 flavor id → 201，flavor_variant 自动创建，concept_text 回填义项名称"""
-        response = self.client.post(
-            "/cans/",
+    def test_delete_public_nameplate_is_soft_withdrawal(self):
+        plate = self.make_nameplate()
+        plate.promote_to_primary()
+        response = self.client.delete(f"/nameplates/{plate.id}/")
+        self.assertEqual(response.status_code, 204)
+        plate.refresh_from_db()
+        self.assertEqual(plate.status, Nameplate.Status.WITHDRAWN)
+        self.assertFalse(plate.is_primary)
+
+    def test_collection_filters_cover_source_and_normalized_links(self):
+        book = self.make_nameplate(source={"type": "book", "title": "方言志"})
+        self.make_nameplate(text_content="走", source={"type": "creator"})
+        response = self.client.get(
+            "/nameplates/",
             {
-                "audio_url": "https://example.com/variant.mp3",
-                "dialect": self.dialect.id,
-                "flavor": self.flavor.id,
+                "source_type": "book",
+                "package_id": self.package.id,
+                "flavor_id": self.flavor.id,
+                "dialect_id": self.dialect.id,
             },
-            format="json",
         )
-        self.assertEqual(response.status_code, 201)
-        self._assert_can_contract(response.data)
-        self.assertIsNotNone(response.data["flavor_variant"])
-        self.assertEqual(response.data["concept_text"], self.flavor.name)
-        variant = FlavorVariant.objects.get(id=response.data["flavor_variant"])
-        self.assertEqual(variant.flavor, self.flavor)
-        self.assertEqual(variant.dialect, self.dialect)
-        self.assertEqual(variant.audio_url, "https://example.com/variant.mp3")
-        self.assertEqual(variant.audio_source, FlavorVariant.AudioSource.USER)
-        self.assertEqual(variant.created_by, self.user)
+        self.assertEqual([item["id"] for item in response.data["results"]], [book.id])
 
-    def test_submit_with_initial_nameplate_and_flavor_combined(self):
-        """initial_nameplate 与 flavor 同时传入 → 两者均生效（现行实现无歧义）"""
+
+class CanQueryAndStateTests(DomainFixture):
+    def test_normalized_filters_use_active_nameplate_not_submission_hint(self):
+        other_dialect = Dialect.objects.create(
+            name="莆田话",
+            code="莆田",
+            parent=self.group,
+            kind=Dialect.Kind.LOCAL_VARIETY,
+        )
+        can = self.make_can(submitted_dialect=other_dialect)
+        self.make_nameplate(can=can, dialect=self.dialect)
+        by_claim = self.client.get("/cans/", {"dialect_id": self.dialect.id})
+        self.assertIn(can.id, [item["id"] for item in by_claim.data["results"]])
+        by_hint = self.client.get("/cans/", {"submitted_dialect_id": other_dialect.id})
+        self.assertIn(can.id, [item["id"] for item in by_hint.data["results"]])
+
+    def test_illegal_transition_returns_409(self):
+        can = self.make_can(status=Can.Status.UNLABELED)
         response = self.client.post(
-            "/cans/",
-            {
-                "audio_url": "https://example.com/combined.mp3",
-                "dialect": self.dialect.id,
-                "flavor": self.flavor.id,
-                "initial_nameplate": {
-                    "text_content": "行",
-                    "definition": "走路",
-                },
-            },
-            format="json",
+            f"/cans/{can.id}/transition/", {"action": "submit"}, format="json"
         )
-        self.assertEqual(response.status_code, 201)
-        self._assert_can_contract(response.data)
-        # flavor 路径：变体创建且 concept_text 回填
-        self.assertIsNotNone(response.data["flavor_variant"])
-        self.assertEqual(response.data["concept_text"], self.flavor.name)
-        # 初始铭牌路径：铭牌创建并提升，状态推进到 pending
-        self.assertEqual(response.data["status"], Can.Status.PENDING)
-        self.assertEqual(len(response.data["nameplates"]), 1)
-        self.assertTrue(response.data["primary_nameplate"]["is_primary"])
+        self.assert_error(response, 409)
 
-    def test_submit_without_authentication_returns_401(self):
-        """未登录提交 → 401，错误响应符合统一 shape"""
-        anon = APIClient()
-        response = anon.post(
-            "/cans/",
-            {
-                "audio_url": "https://example.com/anon.mp3",
-                "concept_text": "膝盖",
-            },
-            format="json",
-            HTTP_X_REQUEST_ID="contract-request-id",
+    def test_non_owner_cannot_edit_can(self):
+        can = self.make_can()
+        self.client.force_authenticate(self.other)
+        response = self.client.patch(
+            f"/cans/{can.id}/", {"source_note": "tamper"}, format="json"
         )
-        self.assertEqual(response.status_code, 401)
-        self._assert_unified_error_shape(response, "not_authenticated")
+        self.assert_error(response, 403)
 
-    def test_submit_missing_audio_url_returns_400(self):
-        """缺少必填 audio_url → 400，details 指明字段，错误 shape 统一"""
-        response = self.client.post(
-            "/cans/",
-            {"concept_text": "膝盖"},
-            format="json",
-            HTTP_X_REQUEST_ID="contract-request-id",
-        )
-        self.assertEqual(response.status_code, 400)
-        self._assert_unified_error_shape(response, "validation_error")
-        self.assertIn("audio_url", response.data["details"])
-
-    def test_submit_invalid_dialect_returns_400(self):
-        """非法 dialect 主键 → 400，错误 shape 统一"""
-        response = self.client.post(
-            "/cans/",
-            {
-                "audio_url": "https://example.com/bad-dialect.mp3",
-                "dialect": 999999,
-            },
-            format="json",
-            HTTP_X_REQUEST_ID="contract-request-id",
-        )
-        self.assertEqual(response.status_code, 400)
-        self._assert_unified_error_shape(response, "validation_error")
-        self.assertIn("dialect", response.data["details"])
-
-    def test_submit_without_concept_text_and_flavor_current_behavior(self):
-        """现状固化：concept_text 与 flavor 均缺失时返回 201 无标罐头。
-
-        #97 口径原期望 400；如契约需收紧为必填其一，请单独开 issue，
-        修复后本用例应改为断言 400。
-        """
-        response = self.client.post(
-            "/cans/",
-            {
-                "audio_url": "https://example.com/bare.mp3",
-                "dialect": self.dialect.id,
-            },
-            format="json",
-        )
-        self.assertEqual(response.status_code, 201)
-        self._assert_can_contract(response.data)
-        self.assertEqual(response.data["status"], Can.Status.UNLABELED)
-        self.assertEqual(response.data["concept_text"], "")
+    def test_retrieve_increments_views_without_touching_updated_at(self):
+        can = self.make_can()
+        previous_updated_at = can.updated_at
+        response = self.client.get(f"/cans/{can.id}/")
+        self.assertEqual(response.status_code, 200)
+        can.refresh_from_db()
+        self.assertEqual(can.views, 1)
+        self.assertEqual(can.updated_at, previous_updated_at)

@@ -11,8 +11,7 @@ class UserInfoForm(forms.ModelForm):
             "birthday",
             "telephone",
             "avatar",
-            "county",
-            "town",
+            "primary_dialect",
         )
 
 

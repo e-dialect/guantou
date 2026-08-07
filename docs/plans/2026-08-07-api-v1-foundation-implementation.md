@@ -25,6 +25,7 @@
 5. Nameplate 集合未按 Can 可见性隔离；旧 nested POST、vote POST 和筛选参数与契约不同。
 6. 全局错误同时返回 `msg/message`，使用字符串 `code` 和 `details`；目标是数字 HTTP `code`、单一 `message` 与 `data`。
 7. 前端继续消费 `dialect_detail`、`variants`、`source_citation`、`/vote/` 和聚合搜索模拟联想。
+8. 用户默认方言仍由莆田县镇静态枚举表示，且公开资料响应混入电话、邮箱等私有字段；目标是 `primary_dialect_id` 和明确的公开/私有投影。
 
 ## 迁移策略
 
@@ -36,6 +37,7 @@
 4. 对每个 `Can.flavor_variant`，复用或创建 Nameplate，并写入 package/flavor/dialect/pronunciation/source；随后移除 Can 到读音的直接外键。
 5. `Can.dialect` 原位重命名为 `submitted_dialect`；旧行政字段写入 `metadata.legacy_location` 后移除。
 6. 旧 `source_citation` 转换为结构化 source；无出处时标为 creator。
+7. 用户县镇资料唯一匹配现有 Dialect 时回填 `primary_dialect`，原值始终保存在只读 `legacy_location`；不根据行政地点擅自创建语言节点。
 
 ## 实现切片与验证
 

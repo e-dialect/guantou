@@ -5,10 +5,10 @@ from .views import (
     AggregateSearchView,
     CanViewSet,
     DialectViewSet,
-    FlavorVariantViewSet,
     FlavorViewSet,
     NameplateViewSet,
     PackageViewSet,
+    PronunciationViewSet,
     ShelfViewSet,
     SuggestSearchView,
 )
@@ -17,7 +17,7 @@ router = DefaultRouter()
 router.register("dialects", DialectViewSet, basename="dialect")
 router.register("packages", PackageViewSet, basename="package")
 router.register("flavors", FlavorViewSet, basename="flavor")
-router.register("flavor-variants", FlavorVariantViewSet, basename="flavor-variant")
+router.register("pronunciations", PronunciationViewSet, basename="pronunciation")
 router.register("cans", CanViewSet, basename="can")
 router.register("nameplates", NameplateViewSet, basename="nameplate")
 router.register("shelves", ShelfViewSet, basename="shelf")

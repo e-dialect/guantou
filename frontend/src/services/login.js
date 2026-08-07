@@ -116,7 +116,7 @@ async function registerWithWechatCode(code) {
     .catch((err) => {
       // 不在此处直接弹窗，保留原行为：提示给用户
       uni.showToast({
-        title: err.data && err.data.msg ? err.data.msg : (err.msg || '注册失败'),
+        title: err.message || '注册失败',
         icon: 'none',
       });
       throw err;
@@ -179,7 +179,7 @@ export async function mpLogin() {
               break;
             default:
               uni.showToast({
-                title: err.data.msg || '登录失败',
+                title: err.message || '登录失败',
               });
           }
         });
@@ -222,13 +222,13 @@ export async function normalLogin(username, password) {
     switch (err.statusCode) {
       case 401:
         uni.showToast({
-          title: err.data.msg || '用户名或密码错误',
+          title: err.message || '用户名或密码错误',
           icon: 'error',
         });
         break;
       default:
         uni.showToast({
-          title: err.data.msg || '登录失败',
+          title: err.message || '登录失败',
         });
     }
   });
@@ -256,7 +256,7 @@ export async function getLoginStatus() {
         uni.removeStorageSync('token');
         uni.removeStorageSync('id');
         uni.showToast({
-          title: err.data.msg || '登录已过期，请重新登录',
+          title: err.message || '登录已过期，请重新登录',
           icon: 'error',
         });
         break;

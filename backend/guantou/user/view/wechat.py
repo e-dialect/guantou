@@ -171,7 +171,7 @@ class WechatManage(View):
         user.save()
         return JsonResponse(
             {
-                "user": user_all(user),
+                "user": user_all(user, private=True),
                 "token": generate_token(user),
             },
             status=200,
