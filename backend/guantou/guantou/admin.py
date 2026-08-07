@@ -39,8 +39,7 @@ class PronunciationInline(admin.TabularInline):
 
 @admin.register(Dialect)
 class DialectAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "code", "parent", "kind", "sort_order")
-    list_filter = ("kind",)
+    list_display = ("id", "name", "code", "parent", "sort_order")
     search_fields = ("name", "code")
     raw_id_fields = ("parent",)
 
@@ -68,13 +67,20 @@ class PronunciationAdmin(admin.ModelAdmin):
         "package",
         "flavor",
         "dialect",
-        "romanization",
+        "base_romanization",
+        "surface_romanization",
         "ipa",
         "is_canonical",
         "status",
     )
     list_filter = ("status", "is_canonical", "reading_type")
-    search_fields = ("flavor__name", "romanization", "ipa", "dialect__name")
+    search_fields = (
+        "flavor__name",
+        "base_romanization",
+        "surface_romanization",
+        "ipa",
+        "dialect__name",
+    )
     raw_id_fields = ("package", "flavor", "dialect", "created_by")
 
 

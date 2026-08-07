@@ -1,5 +1,6 @@
 from django.db import transaction
 from rest_framework import serializers
+from utils.exceptions.payload import field_error
 from utils.exceptions.types.conflict import ConflictException
 
 from .models import (
@@ -40,7 +41,7 @@ class DialectRefSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Dialect
-        fields = ["id", "name", "code", "qualified_code", "kind", "sort_order"]
+        fields = ["id", "name", "code", "qualified_code", "sort_order"]
 
 
 class DialectSerializer(DialectRefSerializer):
@@ -70,7 +71,6 @@ class DialectSerializer(DialectRefSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "qualified_code", "created_at", "updated_at"]
-        extra_kwargs = {"kind": {"required": True}}
 
     def _expansions(self):
         request = self.context.get("request")
@@ -180,7 +180,8 @@ class PronunciationRefSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "ipa",
-            "romanization",
+            "base_romanization",
+            "surface_romanization",
             "tone_value",
             "reading_type",
             "status",
@@ -241,7 +242,8 @@ class PronunciationSerializer(serializers.ModelSerializer):
             "dialect",
             "dialect_id",
             "ipa",
-            "romanization",
+            "base_romanization",
+            "surface_romanization",
             "tone_value",
             "reading_type",
             "usage_note",
@@ -297,6 +299,21 @@ class PronunciationSerializer(serializers.ModelSerializer):
         ):
             raise serializers.ValidationError(
                 {"package_id": "该写法尚未与所选义项建立关联"}
+            )
+        sandhi_info = attrs.get(
+            "sandhi_info", getattr(self.instance, "sandhi_info", {})
+        )
+        base = attrs.get(
+            "base_romanization",
+            getattr(self.instance, "base_romanization", ""),
+        )
+        surface = attrs.get(
+            "surface_romanization",
+            getattr(self.instance, "surface_romanization", ""),
+        )
+        if sandhi_info and not (base and surface):
+            raise serializers.ValidationError(
+                {"sandhi_info": "填写变调信息时必须同时提供变调前和变调后罗马字"}
             )
         return attrs
 
@@ -529,7 +546,10 @@ class NameplateSerializer(NameplateCardSerializer):
             if conflicts:
                 raise ConflictException(
                     "铭牌外键与 pronunciation_id 不一致",
-                    data={"fields": conflicts},
+                    data={
+                        field: field_error(message, "relation_conflict")
+                        for field, message in conflicts.items()
+                    },
                 )
             attrs.setdefault("package", pronunciation.package)
             attrs.setdefault("flavor", pronunciation.flavor)
@@ -605,7 +625,9 @@ class NameplateSerializer(NameplateCardSerializer):
             raise ConflictException(
                 "该铭牌已有引用，请新建修订记录",
                 data={
-                    "fields": {"supersedes_id": ["使用 supersedes_id 创建新的修订记录"]}
+                    "supersedes_id": field_error(
+                        "使用 supersedes_id 创建新的修订记录", "immutable_claim"
+                    )
                 },
             )
         return super().update(instance, validated_data)

@@ -42,7 +42,7 @@
           class="variant"
         >
           <text>{{ pronunciation.dialect ? pronunciation.dialect.qualified_code : '未标方言点' }}</text>
-          <text>{{ pronunciation.romanization || pronunciation.ipa || '未标音' }}</text>
+          <text>{{ pronunciationLabel(pronunciation) }}</text>
         </view>
       </SectionBlock>
 
@@ -69,6 +69,15 @@ import SectionBlock from '@/components/SectionBlock.vue';
 import { requireAuth } from '@/services/authGuard';
 import { getFlavor, listCans } from '@/services/guantou';
 
+export function formatPronunciationLabel(pronunciation) {
+  const base = pronunciation.base_romanization;
+  const surface = pronunciation.surface_romanization;
+  if (base && surface && base !== surface) {
+    return `本调 ${base} → 变调 ${surface}`;
+  }
+  return surface || base || pronunciation.ipa || '未标音';
+}
+
 export default {
   components: {
     CanList,
@@ -84,6 +93,7 @@ export default {
   },
   methods: {
     listCans,
+    pronunciationLabel: formatPronunciationLabel,
     async refresh() {
       this.flavor = await getFlavor(this.id);
     },

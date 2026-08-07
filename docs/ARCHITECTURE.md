@@ -8,7 +8,7 @@
 
 `Flavor` 是语义核心，用户文案称为“义项”，例如“月亮”“银行机构”“行走动作”“祖母称谓”。它解决“同字不同义”和跨地区同义检索，粒度以义项为准，不以单个汉字或某一地读音为准。
 
-`Pronunciation` 是带语义消歧的方言读音记录，分别指向 `Package`、`Flavor` 和 `Dialect`，保存 IPA、拼音/罗马字、文白读、变调信息、来源和认证状态。它表达“这个写法在表示这个义项时，在这个方言下读作什么”。同一组合允许多个读音，以容纳文白异读、代际差异和争议记录。
+`Pronunciation` 是带语义消歧的方言读音记录，分别指向 `Package`、`Flavor` 和 `Dialect`，保存 IPA、变调前与变调后的罗马字、文白读、变调环境、来源和认证状态。它表达“这个写法在表示这个义项时，在这个方言下读作什么”。同一组合允许多个读音，以容纳文白异读、代际差异和争议记录。
 
 `Package` 是写法入口，表示正字、借字、俗写、拟音等用户可能搜索或书写出来的形式。`FlavorPackage` 记录义项和写法之间的主写法、同义写法、假借或争议关系；API 必须用带 `mapping_type` 的 `package_links` 保留该语义，不能只暴露无类型的多对多 ID。
 
@@ -29,7 +29,7 @@
 
 例如“行”这种多义字，`Package(text="行")` 可以连接“行走”“行业”“可以/好”等多个 `Flavor`；“月亮”这个 Flavor 也可以连接“月亮”“月光”“月娘”等多个 Package。用户搜索“行”时先进入写法，再看到其下不同义项；进入“行走”义项后，再按 Dialect 展示对应 Pronunciation 和录音证据。
 
-方言与读音的完整取舍见 [ADR-0001](adr/0001-dialect-pronunciation-model.md)，铭牌与证据边界见 [ADR-0002](adr/0002-nameplate-as-attestation.md)，字段级目标契约见 [API v1](api/v1/README.md)。
+方言与读音的完整取舍见 [ADR-0001](adr/0001-dialect-pronunciation-model.md)，铭牌与证据边界见 [ADR-0002](adr/0002-nameplate-as-attestation.md)，接口与异常边界见 [ADR-0003](adr/0003-api-response-conventions.md)，字段级目标契约见 [API v1](api/v1/README.md)。
 
 ## 治理边界
 
@@ -62,7 +62,7 @@ v1 只实现可追溯的主张与权重，不实现 AI 聚类或自动正字裁�
 }
 ```
 
-`code` 必须与 HTTP 状态码相同；同状态码下需要机器区分的原因放在 `data.reason`，字段错误放在 `data.fields`。`X-Request-ID` 请求头会透传到响应头和错误 payload；没有传入时后端生成一个新的 id。前端页面只消费 `message/code/data/request_id`，不要为单个页面发明新的错误格式。
+`code` 必须与 HTTP 状态码相同；同状态码下需要机器区分的原因放在 `data.reason`，字段错误直接放在 `data.<field>` 并包含字段级 `code/message`。`X-Request-ID` 请求头会透传到响应头和错误 payload；没有传入时后端生成一个新的 id。500 响应不得包含原异常信息，前端页面只消费 `message/code/data/request_id`，不要为单个页面发明新的错误格式。
 
 ## 前端边界
 

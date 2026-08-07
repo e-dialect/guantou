@@ -5,15 +5,6 @@ from django.conf import settings
 from django.db import migrations, models
 from django.db.models import Q
 
-KIND_MAP = {
-    "family": "family",
-    "dialect": "group",
-    "area": "variety",
-    "county": "local_variety",
-    "town": "local_variety",
-    "community": "local_variety",
-}
-
 
 def migrate_domain_data(apps, schema_editor):
     Dialect = apps.get_model("guantou", "Dialect")
@@ -37,9 +28,10 @@ def migrate_domain_data(apps, schema_editor):
         external_refs = dict(dialect.metadata or {})
         if legacy_location:
             external_refs["legacy_location"] = legacy_location
-        dialect.kind = KIND_MAP.get(dialect.region_level, "local_variety")
+        if dialect.region_level:
+            external_refs["legacy_region_level"] = dialect.region_level
         dialect.external_refs = external_refs
-        dialect.save(update_fields=["kind", "external_refs"])
+        dialect.save(update_fields=["external_refs"])
 
     uncategorized = None
     if Pronunciation.objects.filter(dialect__isnull=True).exists():
@@ -48,7 +40,6 @@ def migrate_domain_data(apps, schema_editor):
             code="待归类",
             defaults={
                 "name": "待归类",
-                "kind": "local_variety",
                 "sort_order": 999999,
                 "aliases": [],
                 "external_refs": {"migration": "legacy_missing_dialect"},
@@ -83,7 +74,15 @@ def migrate_domain_data(apps, schema_editor):
         pronunciation.package_id = link.package_id
         if pronunciation.dialect_id is None:
             pronunciation.dialect_id = uncategorized.id
-        if not pronunciation.reading_type:
+        if pronunciation.reading_type == "changed_tone":
+            pronunciation.reading_type = "other"
+            legacy_note = "旧数据 reading_type=changed_tone，需补充本调和变调后罗马字"
+            pronunciation.usage_note = (
+                f"{legacy_note}；{pronunciation.usage_note}"
+                if pronunciation.usage_note
+                else legacy_note
+            )
+        elif not pronunciation.reading_type:
             pronunciation.reading_type = "general"
         legacy_source = pronunciation.source_citation
         if pronunciation.audio_url:
@@ -97,6 +96,7 @@ def migrate_domain_data(apps, schema_editor):
                 "package",
                 "dialect",
                 "reading_type",
+                "usage_note",
                 "source_citation",
             ]
         )
@@ -167,23 +167,36 @@ def reverse_domain_data(apps, schema_editor):
     Can = apps.get_model("guantou", "Can")
     Nameplate = apps.get_model("guantou", "Nameplate")
 
-    reverse_kind = {
-        "family": "family",
-        "group": "dialect",
-        "variety": "area",
-        "local_variety": "community",
-    }
     for dialect in Dialect.objects.all().iterator():
-        dialect.region_level = reverse_kind.get(dialect.kind, "dialect")
+        dialect.region_level = (dialect.external_refs or {}).get(
+            "legacy_region_level", "dialect"
+        )
         legacy = (dialect.external_refs or {}).get("legacy_location", {})
         for field in ("province", "city", "county", "town"):
             setattr(dialect, field, legacy.get(field, ""))
         dialect.metadata = {
             key: value
             for key, value in (dialect.external_refs or {}).items()
-            if key != "legacy_location"
+            if key not in {"legacy_location", "legacy_region_level"}
         }
         dialect.save()
+
+    Pronunciation = apps.get_model("guantou", "Pronunciation")
+    changed_tone_note = "旧数据 reading_type=changed_tone，需补充本调和变调后罗马字"
+    for pronunciation in Pronunciation.objects.filter(
+        reading_type="other", usage_note__contains=changed_tone_note
+    ):
+        pronunciation.reading_type = "changed_tone"
+        pronunciation.usage_note = pronunciation.usage_note.replace(
+            f"{changed_tone_note}；", "", 1
+        ).replace(changed_tone_note, "", 1)
+        pronunciation.save(update_fields=["reading_type", "usage_note"])
+
+    for pronunciation in Pronunciation.objects.filter(surface_romanization="").exclude(
+        base_romanization=""
+    ):
+        pronunciation.surface_romanization = pronunciation.base_romanization
+        pronunciation.save(update_fields=["surface_romanization"])
 
     for can in Can.objects.all().iterator():
         legacy = (can.metadata or {}).get("legacy_location", {})
@@ -223,21 +236,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="dialect",
-            name="kind",
-            field=models.CharField(
-                choices=[
-                    ("family", "方言族"),
-                    ("group", "方言区"),
-                    ("variety", "方言片"),
-                    ("local_variety", "地方话"),
-                ],
-                default="local_variety",
-                max_length=20,
-                verbose_name="方言节点类型",
-            ),
-        ),
-        migrations.AddField(
-            model_name="dialect",
             name="sort_order",
             field=models.IntegerField(default=0, verbose_name="同级排序"),
         ),
@@ -259,6 +257,30 @@ class Migration(migrations.Migration):
         migrations.RenameModel(
             old_name="FlavorVariant",
             new_name="Pronunciation",
+        ),
+        migrations.RenameField(
+            model_name="pronunciation",
+            old_name="romanization",
+            new_name="surface_romanization",
+        ),
+        migrations.AddField(
+            model_name="pronunciation",
+            name="base_romanization",
+            field=models.CharField(
+                blank=True, max_length=120, verbose_name="变调前罗马字"
+            ),
+        ),
+        migrations.AlterField(
+            model_name="pronunciation",
+            name="surface_romanization",
+            field=models.CharField(
+                blank=True, max_length=120, verbose_name="变调后罗马字"
+            ),
+        ),
+        migrations.AlterField(
+            model_name="pronunciation",
+            name="tone_value",
+            field=models.CharField(blank=True, max_length=40, verbose_name="实际调值"),
         ),
         migrations.AddField(
             model_name="pronunciation",
@@ -294,7 +316,6 @@ class Migration(migrations.Migration):
                     ("general", "通用"),
                     ("literary", "文读"),
                     ("colloquial", "白读"),
-                    ("changed_tone", "变调"),
                     ("other", "其他"),
                 ],
                 default="general",

@@ -30,7 +30,7 @@ Accepted for the proposed API v1 design.
 - 同级展示顺序显式使用 `sort_order, id`；限定码可用于前缀过滤和支系聚合，但不能依赖 Unicode 字典序表达语言学顺序。
 - 节点按有证据的实际需求创建，不预建所有省市县镇。
 - 默认查询精确节点；包含后代必须显式使用 `dialect_scope=subtree`。
-- `kind` 仅作展示和校验提示，不决定树的深度或查询行为。
+- 节点不设置固定 `kind`；粒度完全由按需父子关系表达，未来需要外部分类时通过 taxonomy 或 `external_refs` 对齐。
 
 ### 读音模型
 
@@ -44,6 +44,8 @@ Accepted for the proposed API v1 design.
 
 Pronunciation 保存规范化音系描述和来源，不保存音频，也不直接持有 Can。`Nameplate.pronunciation_id` 可空，多张 Nameplate 把实际 Can 作为同一 Pronunciation 的带来源证据。无法确定读音的 Can 仍可先保存，再由 Nameplate 提出 Package、Flavor、Dialect 和读音主张。
 
+罗马字显式拆为 `base_romanization`（变调前/本调）和 `surface_romanization`（语流中的变调后形式），`sandhi_info` 只记录触发环境与规则。文读/白读属于 `reading_type`；是否发生变调是正交信息，不设置 `changed_tone` 类型。
+
 ## Consequences
 
 ### Positive
@@ -52,6 +54,7 @@ Pronunciation 保存规范化音系描述和来源，不保存音频，也不直
 - 同形异义、同义异读和同地多读法均可表达。
 - 根到叶限定码便于阅读、前缀解析和按需展开，又不依赖它作为主键。
 - 原始证据、社区主张和规范化词典记录相互关联但不会互相覆盖。
+- 读者无需解释 JSON 即可并列比较本调和变调后罗马字。
 
 ### Negative
 
@@ -75,6 +78,10 @@ Pronunciation 保存规范化音系描述和来源，不保存音频，也不直
 ### 将行政区和语言类别混入固定层级
 
 查询简单，但假设行政边界必然对应方言边界，并要求预建大量没有资料的节点，因此不采用。地区名可以用于命名方言节点，但节点语义必须仍是语言变体。
+
+### 在 Dialect 上保留 kind 或层级 tags
+
+可以提供展示标签，但当前没有独立查询或约束用途，反而会重新引入固定层级心智模型，因此 v1 删除。需要多套学术分类时另建 taxonomy 关系。
 
 ### Pronunciation 引用 FlavorPackage 中间表
 

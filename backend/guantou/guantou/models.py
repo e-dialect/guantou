@@ -6,12 +6,6 @@ from django.db import models
 class Dialect(models.Model):
     """按需展开的方言关系树节点，不等同于行政区划。"""
 
-    class Kind(models.TextChoices):
-        FAMILY = "family", "方言族"
-        GROUP = "group", "方言区"
-        VARIETY = "variety", "方言片"
-        LOCAL_VARIETY = "local_variety", "地方话"
-
     name = models.CharField(max_length=120, verbose_name="名称")
     code = models.CharField(max_length=32, verbose_name="同级短码")
     parent = models.ForeignKey(
@@ -21,12 +15,6 @@ class Dialect(models.Model):
         null=True,
         blank=True,
         verbose_name="父级方言点",
-    )
-    kind = models.CharField(
-        max_length=20,
-        choices=Kind.choices,
-        default=Kind.LOCAL_VARIETY,
-        verbose_name="方言节点类型",
     )
     sort_order = models.IntegerField(default=0, verbose_name="同级排序")
     aliases = models.JSONField(default=list, blank=True, verbose_name="历史限定码")
@@ -204,7 +192,6 @@ class Pronunciation(models.Model):
         GENERAL = "general", "通用"
         LITERARY = "literary", "文读"
         COLLOQUIAL = "colloquial", "白读"
-        CHANGED_TONE = "changed_tone", "变调"
         OTHER = "other", "其他"
 
     flavor = models.ForeignKey(
@@ -226,10 +213,13 @@ class Pronunciation(models.Model):
         verbose_name="方言点",
     )
     ipa = models.CharField(max_length=120, verbose_name="IPA")
-    romanization = models.CharField(
-        max_length=120, blank=True, verbose_name="拼音/罗马字"
+    base_romanization = models.CharField(
+        max_length=120, blank=True, verbose_name="变调前罗马字"
     )
-    tone_value = models.CharField(max_length=40, blank=True, verbose_name="调值")
+    surface_romanization = models.CharField(
+        max_length=120, blank=True, verbose_name="变调后罗马字"
+    )
+    tone_value = models.CharField(max_length=40, blank=True, verbose_name="实际调值")
     reading_type = models.CharField(
         max_length=20,
         choices=ReadingType.choices,
@@ -259,7 +249,7 @@ class Pronunciation(models.Model):
     def __str__(self):
         return (
             f"{self.package} / {self.flavor} / {self.dialect}: "
-            f"{self.romanization or self.ipa or '未标音'}"
+            f"{self.surface_romanization or self.base_romanization or self.ipa or '未标音'}"
         )
 
     def clean(self):
@@ -272,6 +262,12 @@ class Pronunciation(models.Model):
                 raise ValidationError(
                     {"package": "该写法尚未与所选义项建立 FlavorPackage 关联"}
                 )
+        if self.sandhi_info and not (
+            self.base_romanization and self.surface_romanization
+        ):
+            raise ValidationError(
+                {"sandhi_info": "填写变调信息时必须同时提供变调前和变调后罗马字"}
+            )
 
     class Meta:
         ordering = ["flavor_id", "dialect_id", "-is_canonical", "id"]

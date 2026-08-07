@@ -79,11 +79,7 @@ class UserPrimaryDialectTests(TestCase):
             nickname="采集者",
             telephone="13800000000",
         )
-        self.dialect = Dialect.objects.create(
-            name="游洋",
-            code="游洋",
-            kind=Dialect.Kind.LOCAL_VARIETY,
-        )
+        self.dialect = Dialect.objects.create(name="游洋", code="游洋")
 
     def test_public_profile_uses_dialect_ref_without_private_fields(self):
         response = self.client.get(f"/users/{self.user.id}")

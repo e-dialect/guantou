@@ -1,6 +1,7 @@
 from django.db import transaction
 from django.db.models import Case, IntegerField, Q, Value, When
 from rest_framework import serializers
+from utils.exceptions.payload import field_error
 from utils.exceptions.types.conflict import ConflictException
 
 from .models import Can, Flavor, FlavorPackage, Nameplate, Package, Pronunciation
@@ -300,7 +301,12 @@ def create_initial_nameplate(can, label, user):
     if conflicts:
         raise ConflictException(
             "初始铭牌外键与 pronunciation_id 不一致",
-            data={"fields": {"initial_nameplate": conflicts}},
+            data={
+                "initial_nameplate": {
+                    field: field_error(messages[0], "relation_conflict")
+                    for field, messages in conflicts.items()
+                }
+            },
         )
 
     if not any(

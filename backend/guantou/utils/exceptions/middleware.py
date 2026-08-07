@@ -1,13 +1,13 @@
-import logging
 import json
+import logging
 
 from django.core.paginator import EmptyPage
 from django.http import JsonResponse
 from django.middleware.common import MiddlewareMixin
 
 from .payload import api_error_payload, request_id
-from .types.common import CommonException
 from .types.bad_request import BadRequestException
+from .types.common import CommonException
 
 logger = logging.getLogger("log")
 
@@ -24,33 +24,57 @@ class ExceptionMiddleware(MiddlewareMixin):
             response["X-Request-ID"] = rid
         if response.status_code >= 400 and not hasattr(response, "data"):
             content_type = response.get("Content-Type", "")
+            payload = {}
             if "application/json" in content_type:
                 try:
                     payload = json.loads(response.content.decode(response.charset))
                 except (ValueError, UnicodeDecodeError):
                     payload = {}
-                if isinstance(payload, dict) and not (
-                    payload.get("code") == response.status_code
-                    and set(("message", "data", "request_id")).issubset(payload)
-                ):
-                    message = (
+            already_normalized = isinstance(payload, dict) and (
+                payload.get("code") == response.status_code
+                and set(("message", "data", "request_id")).issubset(payload)
+            )
+            if response.status_code >= 500:
+                if payload.get("message") != "服务器内部错误":
+                    logger.error(
+                        "Non-DRF server error response path=%s status=%s request_id=%s",
+                        request.path,
+                        response.status_code,
+                        rid,
+                    )
+                response.content = json.dumps(
+                    api_error_payload(
+                        "服务器内部错误", response.status_code, data={}, rid=rid
+                    ),
+                    ensure_ascii=False,
+                ).encode(response.charset)
+                response["Content-Type"] = "application/json"
+            elif not already_normalized:
+                message = (
+                    (
                         payload.get("message")
                         or payload.get("msg")
                         or payload.get("detail")
-                        or response.reason_phrase
                     )
-                    extra = {
+                    if isinstance(payload, dict)
+                    else None
+                ) or response.reason_phrase
+                extra = (
+                    {
                         key: value
                         for key, value in payload.items()
                         if key not in {"message", "msg", "detail", "code", "request_id"}
                     }
-                    data = {"fields": extra} if extra else {}
-                    response.content = json.dumps(
-                        api_error_payload(
-                            message, response.status_code, data=data, rid=rid
-                        ),
-                        ensure_ascii=False,
-                    ).encode(response.charset)
+                    if isinstance(payload, dict)
+                    else {}
+                )
+                response.content = json.dumps(
+                    api_error_payload(
+                        message, response.status_code, data=extra, rid=rid
+                    ),
+                    ensure_ascii=False,
+                ).encode(response.charset)
+                response["Content-Type"] = "application/json"
         return response
 
     def process_exception(self, request, exception) -> JsonResponse:

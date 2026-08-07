@@ -21,3 +21,7 @@ def api_error_payload(message, status_code, data=None, rid=""):
         "data": data or {},
         "request_id": rid,
     }
+
+
+def field_error(message, code="invalid"):
+    return {"code": str(code), "message": str(message)}

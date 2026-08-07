@@ -10,7 +10,6 @@ def dialect_ref(dialect):
         "name": dialect.name,
         "code": dialect.code,
         "qualified_code": dialect.qualified_code,
-        "kind": dialect.kind,
         "sort_order": dialect.sort_order,
     }
 

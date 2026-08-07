@@ -65,7 +65,7 @@ Authorization: Bearer <token>
 
 - `code` 是数字，必须等于 HTTP 状态码。
 - `message` 供用户或开发者阅读。
-- `data` 保存字段校验错误或冲突上下文；没有附加信息时为空对象。需要区分同一状态码下的业务原因时使用稳定的 `data.reason`，字段错误统一放入 `data.fields`，不再给顶层增加第二套 code。
+- `data` 保存字段校验错误或冲突上下文；没有附加信息时为空对象。需要区分同一状态码下的业务原因时使用稳定的 `data.reason`。字段错误直接放在 `data.<field>`，每项包含机器可读 `code` 和可展示 `message`，嵌套输入保持同样的嵌套结构。
 - `request_id` 用于排障，并通过响应头 `X-Request-ID` 同步返回。
 - 401 表示未认证或凭证失效；403 表示身份有效但无权操作；409 表示资源状态或唯一约束冲突。
 
@@ -81,7 +81,7 @@ Authorization: Bearer <token>
       └─ 游洋话
 ```
 
-每个节点包含稳定 `id`、同级唯一的短 `code`、`parent_id`、同级 `sort_order` 和只用于展示的 `kind`。短 code 默认使用社区熟悉的中文简称；规范限定码按**根到叶**拼接，例如 `闽.莆仙.仙游.游洋`。
+每个节点包含稳定 `id`、同级唯一的短 `code`、`parent_id` 和同级 `sort_order`。短 code 默认使用社区熟悉的中文简称；规范限定码按**根到叶**拼接，例如 `闽.莆仙.仙游.游洋`。节点不设置固定层级类型，按需树本身就是粒度表达。
 
 根到叶的形式便于阅读、前缀过滤和把同一支系聚在一起，但它不是主键，也不能代替人工顺序：数据库外键始终使用稳定 ID，同级展示按 `sort_order, id` 排列。改名或重新归类后，旧限定码保留为 alias；客户端不能把 Unicode 字典序当成语言学排序。
 
@@ -116,13 +116,16 @@ Flavor 与 Package 之间通过 `FlavorPackage` 关联，并保留 `primary / sy
   "flavor_id": 34,
   "dialect_id": 56,
   "ipa": "hiŋ²³",
-  "romanization": "hing2",
+  "base_romanization": "hing5",
+  "surface_romanization": "hing2",
   "tone_value": "23",
   "reading_type": "colloquial",
   "sandhi_info": {},
   "source_citation": "田野调查记录"
 }
 ```
+
+`base_romanization` 是变调前或孤立读法，`surface_romanization` 是当前语流环境中的实际形式；前端应并列展示二者。`tone_value` 也固定表示当前语流中的实际调值，避免它在本调与变调之间语义漂移。`sandhi_info` 只补充触发环境、位置或规则，不能替代这两个一等字段。文读/白读由 `reading_type` 表达，是否发生变调与它正交。
 
 虽然 Pronunciation 分别保存三个外键，服务端仍须验证 `package_id + flavor_id` 已存在关联。该三元组不唯一：同一方言可以存在文读、白读、代际差异或争议读音。每个 `reading_type` 最多有一条 `is_canonical=true` 的推荐记录，其他记录继续保留。
 

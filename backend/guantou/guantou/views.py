@@ -30,6 +30,7 @@ from .serializers import (
     NameplateCardSerializer,
     NameplateSerializer,
     PackageSerializer,
+    PronunciationCardSerializer,
     PronunciationSerializer,
     ShelfSerializer,
 )
@@ -202,6 +203,11 @@ class PronunciationViewSet(viewsets.ModelViewSet):
     )
     serializer_class = PronunciationSerializer
     permission_classes = [IsOwnerOrAdmin]
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return PronunciationCardSerializer
+        return super().get_serializer_class()
 
     def get_queryset(self):
         queryset = super().get_queryset()

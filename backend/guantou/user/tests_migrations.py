@@ -21,11 +21,7 @@ class PrimaryDialectMigrationTests(TransactionTestCase):
         Dialect = old_apps.get_model("guantou", "Dialect")
 
         user = User.objects.create(username="legacy-profile")
-        dialect = Dialect.objects.create(
-            name="游洋",
-            code="游洋",
-            kind="local_variety",
-        )
+        dialect = Dialect.objects.create(name="游洋", code="游洋")
         UserInfo.objects.create(
             user=user,
             nickname="旧用户",

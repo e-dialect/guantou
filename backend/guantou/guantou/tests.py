@@ -1,7 +1,15 @@
+import json
+
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
-from django.test import TestCase
+from django.http import JsonResponse
+from django.test import Client, RequestFactory, TestCase
+from rest_framework.exceptions import APIException
 from rest_framework.test import APIClient
+
+from utils.exceptions.handler import drf_exception_handler
+from utils.exceptions.middleware import ExceptionMiddleware
+from utils.exceptions.types.common import CommonException
 
 from .models import (
     Can,
@@ -27,21 +35,17 @@ class DomainFixture(TestCase):
         )
         self.client = APIClient()
         self.client.force_authenticate(self.user)
-        self.root = Dialect.objects.create(
-            name="闽语", code="闽", kind=Dialect.Kind.FAMILY, sort_order=10
-        )
+        self.root = Dialect.objects.create(name="闽语", code="闽", sort_order=10)
         self.group = Dialect.objects.create(
             name="莆仙语",
             code="莆仙",
             parent=self.root,
-            kind=Dialect.Kind.GROUP,
             sort_order=10,
         )
         self.dialect = Dialect.objects.create(
             name="游洋话",
             code="游洋",
             parent=self.group,
-            kind=Dialect.Kind.LOCAL_VARIETY,
             sort_order=20,
         )
         self.package = Package.objects.create(
@@ -103,7 +107,7 @@ class DomainFixture(TestCase):
         self.assertIsInstance(response.data["message"], str)
         self.assertIsInstance(response.data["data"], dict)
         if field:
-            self.assertIn(field, response.data["data"]["fields"])
+            self.assertIn(field, response.data["data"])
 
 
 class DialectApiTests(DomainFixture):
@@ -115,11 +119,11 @@ class DialectApiTests(DomainFixture):
             name="莆田片",
             code="莆田",
             parent=self.group,
-            kind=Dialect.Kind.VARIETY,
             sort_order=5,
         )
         roots = self.client.get("/dialects/")
         self.assertEqual([item["id"] for item in roots.data["results"]], [self.root.id])
+        self.assertNotIn("kind", roots.data["results"][0])
 
         children = self.client.get("/dialects/", {"parent_id": self.group.id})
         self.assertEqual(
@@ -145,7 +149,6 @@ class DialectApiTests(DomainFixture):
             name="仙游片",
             code="仙游",
             parent=self.group,
-            kind=Dialect.Kind.VARIETY,
         )
         response = self.client.patch(
             f"/dialects/{self.dialect.id}/",
@@ -163,21 +166,74 @@ class DialectApiTests(DomainFixture):
                 name="重复",
                 code="游洋",
                 parent=self.group,
-                kind=Dialect.Kind.LOCAL_VARIETY,
             )
-        other_root = Dialect.objects.create(
-            name="粤语", code="粤", kind=Dialect.Kind.FAMILY
-        )
+        other_root = Dialect.objects.create(name="粤语", code="粤")
         reused = Dialect.objects.create(
             name="另一游洋",
             code="游洋",
             parent=other_root,
-            kind=Dialect.Kind.LOCAL_VARIETY,
         )
         self.assertIsNotNone(reused.pk)
 
 
 class PronunciationApiTests(DomainFixture):
+    def test_list_uses_card_and_detail_expands_attestations(self):
+        pronunciation = Pronunciation.objects.create(
+            package=self.package,
+            flavor=self.flavor,
+            dialect=self.dialect,
+            ipa="hiŋ²³",
+            reading_type=Pronunciation.ReadingType.COLLOQUIAL,
+        )
+
+        listing = self.client.get("/pronunciations/")
+        detail = self.client.get(f"/pronunciations/{pronunciation.id}/")
+
+        self.assertEqual(listing.status_code, 200)
+        self.assertNotIn("attestations", listing.data["results"][0])
+        self.assertNotIn("sandhi_info", listing.data["results"][0])
+        self.assertEqual(detail.status_code, 200)
+        self.assertIn("attestations", detail.data)
+        self.assertIn("sandhi_info", detail.data)
+
+    def test_base_and_surface_romanization_are_first_class_fields(self):
+        response = self.client.post(
+            "/pronunciations/",
+            {
+                "package_id": self.package.id,
+                "flavor_id": self.flavor.id,
+                "dialect_id": self.dialect.id,
+                "ipa": "hiŋ²³",
+                "base_romanization": "hing5",
+                "surface_romanization": "hing2",
+                "reading_type": "colloquial",
+                "sandhi_info": {"position": "phrase_medial"},
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["base_romanization"], "hing5")
+        self.assertEqual(response.data["surface_romanization"], "hing2")
+        self.assertNotIn("romanization", response.data)
+
+    def test_sandhi_info_requires_both_romanization_forms(self):
+        response = self.client.post(
+            "/pronunciations/",
+            {
+                "package_id": self.package.id,
+                "flavor_id": self.flavor.id,
+                "dialect_id": self.dialect.id,
+                "ipa": "hiŋ²³",
+                "surface_romanization": "hing2",
+                "reading_type": "colloquial",
+                "sandhi_info": {"position": "phrase_medial"},
+            },
+            format="json",
+        )
+
+        self.assert_error(response, 400, "sandhi_info")
+
     def test_create_requires_linked_package_flavor_and_three_foreign_keys(self):
         response = self.client.post(
             "/pronunciations/",
@@ -369,7 +425,6 @@ class CanSubmissionApiTests(DomainFixture):
             name="另一方言点",
             code="另一点",
             parent=self.group,
-            kind=Dialect.Kind.LOCAL_VARIETY,
         )
 
         response = self.client.post(
@@ -399,6 +454,8 @@ class CanSubmissionApiTests(DomainFixture):
         )
         self.assert_error(missing_audio, 400, "audio_url")
         self.assertEqual(missing_audio.data["request_id"], "contract-id")
+        self.assertEqual(missing_audio.data["data"]["audio_url"]["code"], "required")
+        self.assertTrue(missing_audio.data["data"]["audio_url"]["message"])
         self.assertNotIn("msg", missing_audio.data)
         self.assertNotIn("details", missing_audio.data)
 
@@ -431,6 +488,47 @@ class ShelfPermissionTests(DomainFixture):
         self.assert_error(response, 403)
         shelf.refresh_from_db()
         self.assertEqual(shelf.title, "我的集盒")
+
+
+class ErrorContractTests(TestCase):
+    def test_internal_error_does_not_expose_original_exception(self):
+        response = CommonException(RuntimeError("database-password-secret")).response()
+        payload = json.loads(response.content)
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(payload["message"], "服务器内部错误")
+        self.assertNotIn("database-password-secret", response.content.decode())
+
+    def test_non_drf_404_is_normalized_to_json(self):
+        response = Client().get("/route-that-does-not-exist")
+        payload = response.json()
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(payload["code"], 404)
+        self.assertEqual(set(payload), {"code", "message", "data", "request_id"})
+        self.assertEqual(response["Content-Type"], "application/json")
+
+    def test_non_drf_500_payload_does_not_leak_original_message(self):
+        request = RequestFactory().get("/legacy-error")
+        response = ExceptionMiddleware(lambda unused_request: None).process_response(
+            request,
+            JsonResponse({"msg": "database-password-secret"}, status=500),
+        )
+        payload = json.loads(response.content)
+
+        self.assertEqual(payload["message"], "服务器内部错误")
+        self.assertEqual(payload["data"], {})
+        self.assertNotIn("database-password-secret", response.content.decode())
+
+    def test_drf_500_payload_does_not_leak_original_message(self):
+        request = RequestFactory().get("/api-error")
+        response = drf_exception_handler(
+            APIException("database-password-secret"), {"request": request}
+        )
+
+        self.assertEqual(response.data["message"], "服务器内部错误")
+        self.assertEqual(response.data["data"], {})
+        self.assertNotIn("database-password-secret", json.dumps(response.data))
 
 
 class NameplateApiTests(DomainFixture):
@@ -557,7 +655,6 @@ class CanQueryAndStateTests(DomainFixture):
             name="莆田话",
             code="莆田",
             parent=self.group,
-            kind=Dialect.Kind.LOCAL_VARIETY,
         )
         can = self.make_can(submitted_dialect=other_dialect)
         self.make_nameplate(can=can, dialect=self.dialect)

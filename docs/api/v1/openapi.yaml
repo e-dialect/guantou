@@ -1424,14 +1424,28 @@ components:
               pattern: "^[a-z0-9_]+$"
               description: 同一 HTTP 状态下需要程序区分原因时使用的稳定标识。
               example: token_expired
-            fields:
-              type: object
-              description: 字段校验错误；key 为请求字段名。
-              additionalProperties:
-                type: array
-                items: { type: string }
-          additionalProperties: true
+          additionalProperties:
+            oneOf:
+              - $ref: "#/components/schemas/FieldError"
+              - type: array
+                items: { $ref: "#/components/schemas/FieldError" }
+              - $ref: "#/components/schemas/FieldErrors"
         request_id: { type: string, example: 7f2c1a90-0000-4000-8000-000000000000 }
+
+    FieldError:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, example: required }
+        message: { type: string, example: 该字段是必填项。 }
+    FieldErrors:
+      type: object
+      additionalProperties:
+        oneOf:
+          - $ref: "#/components/schemas/FieldError"
+          - type: array
+            items: { $ref: "#/components/schemas/FieldError" }
+          - $ref: "#/components/schemas/FieldErrors"
 
     PageBase:
       type: object
@@ -1514,12 +1528,9 @@ components:
         expires_at: { type: string, format: date-time }
         user: { $ref: "#/components/schemas/UserRef" }
 
-    DialectKind:
-      type: string
-      enum: [family, group, variety, local_variety]
     DialectRef:
       type: object
-      required: [id, name, code, qualified_code, kind, sort_order]
+      required: [id, name, code, qualified_code, sort_order]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -1532,7 +1543,6 @@ components:
           type: string
           example: 闽.莆仙.仙游.游洋
           description: 从根到叶拼接的规范限定码；用于解析和前缀聚合，不作为外键。
-        kind: { $ref: "#/components/schemas/DialectKind" }
         sort_order:
           type: integer
           default: 0
@@ -1558,10 +1568,10 @@ components:
             description: { type: string }
             external_refs:
               type: object
-              additionalProperties: { type: string }
+              additionalProperties: true
     DialectWrite:
       type: object
-      required: [name, code, kind]
+      required: [name, code]
       properties:
         name: { type: string, maxLength: 120 }
         code:
@@ -1570,7 +1580,6 @@ components:
           maxLength: 32
           example: 游洋
         parent_id: { type: [integer, "null"] }
-        kind: { $ref: "#/components/schemas/DialectKind" }
         sort_order: { type: integer, default: 0 }
         aliases:
           type: array
@@ -1580,7 +1589,7 @@ components:
         description: { type: string }
         external_refs:
           type: object
-          additionalProperties: { type: string }
+          additionalProperties: true
     DialectPage:
       allOf:
         - $ref: "#/components/schemas/PageBase"
@@ -1720,7 +1729,7 @@ components:
 
     ReadingType:
       type: string
-      enum: [general, literary, colloquial, changed_tone, other]
+      enum: [general, literary, colloquial, other]
     PronunciationStatus:
       type: string
       enum: [draft, verified, disputed, rejected]
@@ -1730,8 +1739,15 @@ components:
       properties:
         id: { type: integer }
         ipa: { type: string }
-        romanization: { type: string }
-        tone_value: { type: string }
+        base_romanization:
+          type: string
+          description: 变调前或孤立读法的罗马字。
+        surface_romanization:
+          type: string
+          description: 当前语流环境中实际读出的罗马字。
+        tone_value:
+          type: string
+          description: 当前语流环境中的实际调值；无变调时即本调。
         reading_type: { $ref: "#/components/schemas/ReadingType" }
         status: { $ref: "#/components/schemas/PronunciationStatus" }
         is_canonical: { type: boolean }
@@ -1772,8 +1788,12 @@ components:
         flavor_id: { type: integer }
         dialect_id: { type: integer }
         ipa: { type: string, maxLength: 120 }
-        romanization: { type: string, maxLength: 120 }
-        tone_value: { type: string, maxLength: 40 }
+        base_romanization: { type: string, maxLength: 120 }
+        surface_romanization: { type: string, maxLength: 120 }
+        tone_value:
+          type: string
+          maxLength: 40
+          description: 当前语流环境中的实际调值；无变调时即本调。
         reading_type: { $ref: "#/components/schemas/ReadingType" }
         usage_note: { type: string }
         sandhi_info: { type: object, additionalProperties: true }

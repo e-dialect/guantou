@@ -126,6 +126,10 @@ DRF 默认配置在 `config/settings.py`：
 }
 ```
 
+字段校验错误直接位于 `data.<field>`，形如 `{"code": "required", "message": "该字段是必填项。"}`；嵌套输入保持嵌套。未处理异常只在服务端日志保留原文，500 客户端响应固定为通用消息并携带 `request_id`。
+
+生产默认 `DEBUG=false`；包括非 DRF 404 在内的所有 HTTP 错误都由异常中间件转换为 JSON。仅在本地 `.env` 显式设置 `DEBUG=true`。
+
 `ExceptionMiddleware` 会为请求生成或透传 `X-Request-ID`，并把它写回响应头；排查线上问题时，前端和后端都应保留这个 id。
 
 业务代码里不要临时返回另一套错误格式。需要表达业务错误时，优先使用 `utils.exceptions.types` 下的类型：
@@ -158,6 +162,8 @@ python manage.py makemigrations --check --dry-run
 - 查询常用字段可以加索引，但要在 PR 里说明查询场景。
 
 `0004_api_v1_domain_model` 是有数据迁移的领域切换：旧 `FlavorVariant` 迁为 `Pronunciation`，旧 `Can.flavor_variant` 迁为 Nameplate attestation，旧方言行政字段进入 legacy metadata。后续不得重新引入这些旧字段；历史草稿兼容只允许存在于前端恢复边界。
+
+`Dialect` 不设置固定层级 `kind`；粒度由按需父子树表达。`Pronunciation` 分别保存 `base_romanization` 与 `surface_romanization`，变调环境才进入 `sandhi_info`。
 
 ## 测试建议
 

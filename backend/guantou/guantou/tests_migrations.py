@@ -41,6 +41,8 @@ class ApiV1DomainMigrationTests(TransactionTestCase):
             flavor=flavor,
             dialect=dialect,
             ipa="hiŋ²³",
+            romanization="hing2",
+            reading_type="changed_tone",
             audio_url="https://example.test/legacy.mp3",
             audio_source="user",
             created_by=user,
@@ -93,6 +95,10 @@ class ApiV1DomainMigrationTests(TransactionTestCase):
         self.assertEqual(pronunciation.flavor_id, self.ids["flavor"])
         self.assertEqual(pronunciation.dialect_id, self.ids["dialect"])
         self.assertIn("legacy.mp3", pronunciation.source_citation)
+        self.assertEqual(pronunciation.surface_romanization, "hing2")
+        self.assertEqual(pronunciation.base_romanization, "")
+        self.assertEqual(pronunciation.reading_type, "other")
+        self.assertIn("changed_tone", pronunciation.usage_note)
 
         can = Can.objects.get(pk=self.ids["can"])
         self.assertEqual(can.submitted_dialect_id, self.ids["dialect"])
@@ -108,5 +114,18 @@ class ApiV1DomainMigrationTests(TransactionTestCase):
         self.assertTrue(plate.is_primary)
 
         dialect = Dialect.objects.get(pk=self.ids["dialect"])
-        self.assertEqual(dialect.kind, "local_variety")
+        self.assertEqual(dialect.external_refs["legacy_region_level"], "town")
         self.assertEqual(dialect.external_refs["legacy_location"]["town"], "游洋")
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        old_apps = executor.loader.project_state([self.migrate_from]).apps
+        legacy_variant = old_apps.get_model("guantou", "FlavorVariant").objects.get(
+            pk=self.ids["pronunciation"]
+        )
+        legacy_dialect = old_apps.get_model("guantou", "Dialect").objects.get(
+            pk=self.ids["dialect"]
+        )
+        self.assertEqual(legacy_variant.romanization, "hing2")
+        self.assertEqual(legacy_variant.reading_type, "changed_tone")
+        self.assertEqual(legacy_dialect.region_level, "town")

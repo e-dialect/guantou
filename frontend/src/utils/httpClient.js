@@ -63,7 +63,6 @@ export function createApiError(error) {
   const statusCode = error && error.statusCode ? error.statusCode : 0;
   const payload = (error && error.data) || {};
   const message = payload.message
-    || payload.msg
     || error.errMsg
     || error.message
     || '';
@@ -113,7 +112,7 @@ export function request(method = 'GET', url = '', data = {}, options = {}) {
     }).then((res) => {
       persistVisitorId(res);
       hideLoading(resolvedOptions);
-      if (res.statusCode >= 200 && res.statusCode < 400) {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
         resolve(res.data);
         return;
       }
@@ -157,7 +156,7 @@ export function upload(file, options = {}) {
     }).then((res) => {
       persistVisitorId(res);
       hideLoading(resolvedOptions);
-      if (res.statusCode >= 200 && res.statusCode < 400) {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
         resolve(parseUploadResponseData(res.data));
         return;
       }
