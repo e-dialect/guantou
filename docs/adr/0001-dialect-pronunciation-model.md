@@ -44,7 +44,7 @@ Accepted for the proposed API v1 design.
 
 Pronunciation 保存规范化音系描述和来源，不保存音频，也不直接持有 Can。`Nameplate.pronunciation_id` 可空，多张 Nameplate 把实际 Can 作为同一 Pronunciation 的带来源证据。无法确定读音的 Can 仍可先保存，再由 Nameplate 提出 Package、Flavor、Dialect 和读音主张。
 
-罗马字显式拆为 `base_romanization`（变调前/本调）和 `surface_romanization`（语流中的变调后形式），`sandhi_info` 只记录触发环境与规则。文读/白读属于 `reading_type`；是否发生变调是正交信息，不设置 `changed_tone` 类型。
+罗马字显式拆为 `base_romanization`（变调前/本调）和 `surface_romanization`（语流中的变调后形式），两者均包含各自的声调标记，不另存 `tone_value`。`sandhi_info` 只记录触发环境与规则。文读/白读属于 `reading_type`；是否发生变调是正交信息，不设置 `changed_tone` 类型。
 
 ## Consequences
 

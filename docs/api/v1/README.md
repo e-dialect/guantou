@@ -118,14 +118,13 @@ Flavor 与 Package 之间通过 `FlavorPackage` 关联，并保留 `primary / sy
   "ipa": "hiŋ²³",
   "base_romanization": "hing5",
   "surface_romanization": "hing2",
-  "tone_value": "23",
   "reading_type": "colloquial",
   "sandhi_info": {},
   "source_citation": "田野调查记录"
 }
 ```
 
-`base_romanization` 是变调前或孤立读法，`surface_romanization` 是当前语流环境中的实际形式；前端应并列展示二者。`tone_value` 也固定表示当前语流中的实际调值，避免它在本调与变调之间语义漂移。`sandhi_info` 只补充触发环境、位置或规则，不能替代这两个一等字段。文读/白读由 `reading_type` 表达，是否发生变调与它正交。
+`base_romanization` 是变调前或孤立读法，`surface_romanization` 是当前语流环境中的实际形式；二者自身包含声调标记，前端应并列展示，不另设 `tone_value` 制造第二套声调真相。`sandhi_info` 只补充触发环境、位置或规则，不能替代这两个一等字段。文读/白读由 `reading_type` 表达，是否发生变调与它正交。
 
 虽然 Pronunciation 分别保存三个外键，服务端仍须验证 `package_id + flavor_id` 已存在关联。该三元组不唯一：同一方言可以存在文读、白读、代际差异或争议读音。每个 `reading_type` 最多有一条 `is_canonical=true` 的推荐记录，其他记录继续保留。
 

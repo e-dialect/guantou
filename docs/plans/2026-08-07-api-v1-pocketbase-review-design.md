@@ -28,7 +28,7 @@
 - `surface_romanization`：特定语流环境中实际读出的变调后形式；
 - `sandhi_info`：触发词、位置、规则、语境等结构化补充。
 
-旧 `romanization` 最接近旧录音对应的实际读法，迁入 `surface_romanization`；`base_romanization` 留空等待有证据的整理，不复制旧值制造“未发生变调”的伪结论。`changed_tone` 不再作为 `reading_type`，因为文读/白读和是否发生变调是两个独立维度。
+旧 `romanization` 最接近旧录音对应的实际读法，迁入 `surface_romanization`；`base_romanization` 留空等待有证据的整理，不复制旧值制造“未发生变调”的伪结论。声调由这两个罗马字字段自身表达，不再另存 `tone_value`。`changed_tone` 不再作为 `reading_type`，因为文读/白读和是否发生变调是两个独立维度。
 
 ### PocketBase 只借鉴稳定边界
 

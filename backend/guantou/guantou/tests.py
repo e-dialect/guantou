@@ -216,6 +216,7 @@ class PronunciationApiTests(DomainFixture):
         self.assertEqual(response.data["base_romanization"], "hing5")
         self.assertEqual(response.data["surface_romanization"], "hing2")
         self.assertNotIn("romanization", response.data)
+        self.assertNotIn("tone_value", response.data)
 
     def test_sandhi_info_requires_both_romanization_forms(self):
         response = self.client.post(

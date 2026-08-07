@@ -219,7 +219,6 @@ class Pronunciation(models.Model):
     surface_romanization = models.CharField(
         max_length=120, blank=True, verbose_name="变调后罗马字"
     )
-    tone_value = models.CharField(max_length=40, blank=True, verbose_name="实际调值")
     reading_type = models.CharField(
         max_length=20,
         choices=ReadingType.choices,

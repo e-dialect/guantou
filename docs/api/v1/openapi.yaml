@@ -1745,9 +1745,6 @@ components:
         surface_romanization:
           type: string
           description: 当前语流环境中实际读出的罗马字。
-        tone_value:
-          type: string
-          description: 当前语流环境中的实际调值；无变调时即本调。
         reading_type: { $ref: "#/components/schemas/ReadingType" }
         status: { $ref: "#/components/schemas/PronunciationStatus" }
         is_canonical: { type: boolean }
@@ -1790,10 +1787,6 @@ components:
         ipa: { type: string, maxLength: 120 }
         base_romanization: { type: string, maxLength: 120 }
         surface_romanization: { type: string, maxLength: 120 }
-        tone_value:
-          type: string
-          maxLength: 40
-          description: 当前语流环境中的实际调值；无变调时即本调。
         reading_type: { $ref: "#/components/schemas/ReadingType" }
         usage_note: { type: string }
         sandhi_info: { type: object, additionalProperties: true }
