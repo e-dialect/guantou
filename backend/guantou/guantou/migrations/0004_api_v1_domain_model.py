@@ -5,8 +5,6 @@ from django.conf import settings
 from django.db import migrations, models
 from django.db.models import Q
 
-LEGACY_TONE_PREFIX = "旧数据 tone_value="
-
 
 def migrate_domain_data(apps, schema_editor):
     Dialect = apps.get_model("guantou", "Dialect")
@@ -86,13 +84,6 @@ def migrate_domain_data(apps, schema_editor):
             )
         elif not pronunciation.reading_type:
             pronunciation.reading_type = "general"
-        if pronunciation.tone_value:
-            legacy_tone_note = f"{LEGACY_TONE_PREFIX}{pronunciation.tone_value}"
-            pronunciation.usage_note = (
-                f"{legacy_tone_note}；{pronunciation.usage_note}"
-                if pronunciation.usage_note
-                else legacy_tone_note
-            )
         legacy_source = pronunciation.source_citation
         if pronunciation.audio_url:
             audio_note = f"旧读音音频：{pronunciation.audio_url}"
@@ -200,21 +191,6 @@ def reverse_domain_data(apps, schema_editor):
             f"{changed_tone_note}；", "", 1
         ).replace(changed_tone_note, "", 1)
         pronunciation.save(update_fields=["reading_type", "usage_note"])
-
-    for pronunciation in Pronunciation.objects.filter(
-        usage_note__contains=LEGACY_TONE_PREFIX
-    ):
-        parts = pronunciation.usage_note.split("；")
-        legacy_tone = next(
-            (part for part in parts if part.startswith(LEGACY_TONE_PREFIX)), None
-        )
-        if legacy_tone is None:
-            continue
-        pronunciation.tone_value = legacy_tone.removeprefix(LEGACY_TONE_PREFIX)
-        pronunciation.usage_note = "；".join(
-            part for part in parts if part != legacy_tone
-        )
-        pronunciation.save(update_fields=["tone_value", "usage_note"])
 
     for pronunciation in Pronunciation.objects.filter(surface_romanization="").exclude(
         base_romanization=""

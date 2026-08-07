@@ -42,7 +42,6 @@ class ApiV1DomainMigrationTests(TransactionTestCase):
             dialect=dialect,
             ipa="hiŋ²³",
             romanization="hing2",
-            tone_value="23",
             reading_type="changed_tone",
             audio_url="https://example.test/legacy.mp3",
             audio_source="user",
@@ -101,7 +100,6 @@ class ApiV1DomainMigrationTests(TransactionTestCase):
         self.assertFalse(hasattr(pronunciation, "tone_value"))
         self.assertEqual(pronunciation.reading_type, "other")
         self.assertIn("changed_tone", pronunciation.usage_note)
-        self.assertIn("tone_value=23", pronunciation.usage_note)
 
         can = Can.objects.get(pk=self.ids["can"])
         self.assertEqual(can.submitted_dialect_id, self.ids["dialect"])
@@ -130,6 +128,5 @@ class ApiV1DomainMigrationTests(TransactionTestCase):
             pk=self.ids["dialect"]
         )
         self.assertEqual(legacy_variant.romanization, "hing2")
-        self.assertEqual(legacy_variant.tone_value, "23")
         self.assertEqual(legacy_variant.reading_type, "changed_tone")
         self.assertEqual(legacy_dialect.region_level, "town")
