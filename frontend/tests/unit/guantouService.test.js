@@ -138,4 +138,35 @@ describe('guantou service canning helpers', () => {
       page_size: 100,
     });
   });
+
+  it('consumes every page before recursively loading dialect children', async () => {
+    request.get
+      .mockResolvedValueOnce({
+        next: 'http://localhost:8000/dialects/?page=2&page_size=100',
+        results: [{ id: 1, qualified_code: '闽', sort_order: 10, children_count: 1 }],
+      })
+      .mockResolvedValueOnce({
+        next: null,
+        results: [{ id: 3, qualified_code: '粤', sort_order: 20, children_count: 0 }],
+      })
+      .mockResolvedValueOnce({
+        next: null,
+        results: [{ id: 2, qualified_code: '闽.莆仙', sort_order: 10, children_count: 0 }],
+      });
+
+    await expect(guantou.listAllDialects()).resolves.toEqual([
+      expect.objectContaining({ id: 1, depth: 0 }),
+      expect.objectContaining({ id: 2, depth: 1 }),
+      expect.objectContaining({ id: 3, depth: 0 }),
+    ]);
+    expect(request.get).toHaveBeenNthCalledWith(2, '/dialects/', {
+      page: 2,
+      page_size: 100,
+    });
+    expect(request.get).toHaveBeenNthCalledWith(3, '/dialects/', {
+      parent_id: 1,
+      page: 1,
+      page_size: 100,
+    });
+  });
 });
