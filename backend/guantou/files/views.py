@@ -1,4 +1,4 @@
-import os
+﻿import os
 
 import demjson3
 from django.conf import settings
@@ -8,8 +8,26 @@ from django.views.decorators.csrf import csrf_exempt
 from pydub import AudioSegment as audio
 
 from user.tokens import get_authorization_token, token_check
+from utils.exceptions.types.bad_request import BadRequestException
 
 from .storage import delete_file, random_str, upload_file
+
+ALLOWED_AUDIO_CONTENT_TYPES = frozenset(
+    {
+        "audio/mpeg",
+        "audio/mp3",
+        "audio/wav",
+        "audio/wave",
+        "audio/x-wav",
+        "audio/mp4",
+        "audio/x-m4a",
+        "audio/m4a",
+    }
+)
+
+ALLOWED_AUDIO_EXTENSIONS = frozenset({"mp3", "wav", "m4a"})
+
+MAX_AUDIO_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 
 
 def file_extension(uploaded_file, file_type):
@@ -21,6 +39,21 @@ def file_extension(uploaded_file, file_type):
     if file_type == "video":
         return "mp4"
     return "mp3"
+
+
+def validate_audio_format(uploaded_file):
+    content_type = str(uploaded_file.content_type or "").lower()
+    ext = file_extension(uploaded_file, "audio").lower()
+    if content_type and content_type not in ALLOWED_AUDIO_CONTENT_TYPES:
+        raise BadRequestException("不支持的音频格式")
+    if ext not in ALLOWED_AUDIO_EXTENSIONS:
+        raise BadRequestException("不支持的音频格式")
+    if uploaded_file.size > MAX_AUDIO_SIZE_BYTES:
+        raise BadRequestException("音频文件大小不能超过 5 MB")
+
+
+def extract_duration_ms(audio_segment):
+    return int(audio_segment.duration_seconds * 1000)
 
 
 @csrf_exempt
@@ -36,16 +69,20 @@ def files(request):
             "/"
         )[0]
         suffix = file_extension(uploaded_file, file_type)
+        if file_type == "audio":
+            validate_audio_format(uploaded_file)
         filename = f"{timezone.now().strftime('%Y_%m_%d')}_{random_str(15)}.{suffix}"
         folder = os.path.join(settings.MEDIA_ROOT, file_type, str(user.id))
         os.makedirs(folder, exist_ok=True)
         path = os.path.join(folder, filename)
+        duration_ms = 0
         if file_type != "audio":
             with open(path, "wb") as f:
                 for chunk in uploaded_file.chunks():
                     f.write(chunk)
         else:
             music = audio.from_file(uploaded_file)
+            duration_ms = extract_duration_ms(music)
             music.set_frame_rate(44100)
             music.export(path, format="mp3")
         key = (
@@ -53,7 +90,10 @@ def files(request):
             + timezone.now().strftime("%Y/%m/%d/")
             + filename.split("_")[-1]
         )
-        return JsonResponse({"url": upload_file(path, key)}, status=200)
+        response_data = {"url": upload_file(path, key)}
+        if file_type == "audio":
+            response_data["duration_ms"] = duration_ms
+        return JsonResponse(response_data, status=200)
     if request.method == "DELETE":
         body = demjson3.decode(request.body)
         suffix = body["url"].split("/", 4)[-1]
