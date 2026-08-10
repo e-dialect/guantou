@@ -2,9 +2,10 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIClient
 
+from inbox.models import Notification
 from user.models import UserFollow, UserInfo
 
-from .models import Can, CanComment, CanLike, Dialect
+from .models import Can, CanComment, CanCommentLike, CanLike, Dialect
 
 
 class CanSocialApiTests(TestCase):
@@ -109,6 +110,88 @@ class CanSocialApiTests(TestCase):
         self.assertTrue(removed.data["changed"])
         self.assertFalse(repeated_remove.data["changed"])
         self.assertEqual(repeated_remove.data["like_count"], 0)
+
+    def test_liked_library_only_returns_the_current_users_cans(self):
+        CanLike.objects.create(can=self.same_can, user=self.viewer)
+        CanLike.objects.create(can=self.other_can, user=self.staff)
+
+        self.assertEqual(
+            self.ids(self.client.get("/cans/", {"liked": "true"})), [self.same_can.id]
+        )
+
+        self.client.force_authenticate(None)
+        self.assertEqual(self.ids(self.client.get("/cans/", {"liked": "true"})), [])
+
+    def test_like_and_comment_create_actionable_owner_notifications(self):
+        self.client.put(f"/cans/{self.same_can.id}/like/")
+        created = self.client.post(
+            "/comments/",
+            {"can_id": self.same_can.id, "content": "真好听"},
+            format="json",
+        )
+
+        notifications = Notification.objects.filter(recipient=self.same_author)
+        self.assertEqual(
+            set(notifications.values_list("verb", flat=True)),
+            {Notification.Verb.CAN_LIKE, Notification.Verb.CAN_COMMENT},
+        )
+        comment_notice = notifications.get(verb=Notification.Verb.CAN_COMMENT)
+        self.assertEqual(comment_notice.metadata["target_id"], self.same_can.id)
+        self.assertEqual(
+            comment_notice.metadata["target_url"],
+            f"/pages/cans/details?id={self.same_can.id}",
+        )
+        self.assertEqual(created.status_code, 201)
+
+        self.client.force_authenticate(self.same_author)
+        self.client.put(f"/cans/{self.same_can.id}/like/")
+        self.assertEqual(
+            Notification.objects.filter(
+                recipient=self.same_author, verb=Notification.Verb.CAN_LIKE
+            ).count(),
+            1,
+        )
+
+    def test_comment_likes_are_idempotent_and_notify_the_author(self):
+        comment = CanComment.objects.create(
+            can=self.same_can,
+            author=self.same_author,
+            content="值得收藏",
+        )
+        url = f"/comments/{comment.id}/like/"
+
+        first = self.client.put(url)
+        repeated = self.client.put(url)
+        self.assertTrue(first.data["changed"])
+        self.assertFalse(repeated.data["changed"])
+        self.assertEqual(CanCommentLike.objects.filter(comment=comment).count(), 1)
+        notice = Notification.objects.get(
+            recipient=self.same_author,
+            verb=Notification.Verb.COMMENT_LIKE,
+        )
+        self.assertEqual(notice.metadata["target_id"], self.same_can.id)
+
+        removed = self.client.delete(url)
+        self.assertTrue(removed.data["changed"])
+        self.assertEqual(removed.data["like_count"], 0)
+
+    def test_can_detail_only_embeds_the_three_latest_comments(self):
+        comments = [
+            CanComment.objects.create(
+                can=self.same_can,
+                author=self.viewer,
+                content=f"评论 {index}",
+            )
+            for index in range(4)
+        ]
+
+        response = self.client.get(f"/cans/{self.same_can.id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [item["id"] for item in response.data["recent_comments"]],
+            [comment.id for comment in reversed(comments[1:])],
+        )
 
     def test_comment_validation_visibility_and_delete_permissions(self):
         created = self.client.post(

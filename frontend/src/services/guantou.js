@@ -49,6 +49,10 @@ export function getCan(id) {
   return request.get(`/cans/${id}/`);
 }
 
+export function deleteCan(id) {
+  return request.del(`/cans/${id}/`);
+}
+
 export function createCanSubmission(payload) {
   return request.post('/cans/', payload);
 }

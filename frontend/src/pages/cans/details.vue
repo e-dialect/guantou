@@ -156,6 +156,13 @@
               >
                 删除
               </button>
+              <button
+                class="comment-like"
+                :class="{ active: comment.liked_by_me }"
+                @tap="toggleCommentLike(comment)"
+              >
+                {{ comment.liked_by_me ? '♥' : '♡' }} {{ comment.like_count || 0 }}
+              </button>
             </view>
             <view class="comment-content">
               {{ comment.content }}
@@ -165,6 +172,13 @@
             </view>
           </view>
         </view>
+        <button
+          v-if="Number(can.comment_count || 0) > comments.length"
+          class="all-comments"
+          @tap="toAllComments"
+        >
+          查看全部 {{ can.comment_count }} 条评论
+        </button>
       </SectionBlock>
     </template>
   </PageShell>
@@ -189,8 +203,10 @@ import {
   createCanComment,
   deleteCanComment,
   likeCan,
+  likeCanComment,
   listCanComments,
   unlikeCan,
+  unlikeCanComment,
 } from '@/services/canSocial';
 import { requireAuth } from '@/services/authGuard';
 import { playAudio } from '@/utils/audio';
@@ -302,6 +318,7 @@ export default {
     },
     async refresh() {
       this.can = await getCan(this.id);
+      this.comments = this.can.recent_comments || [];
     },
     async loadClaimOptions() {
       try {
@@ -334,7 +351,7 @@ export default {
       }
     },
     async loadComments() {
-      const response = await listCanComments(this.id, { page_size: 100 });
+      const response = await listCanComments(this.id, { page_size: 3 });
       this.comments = response.results || response || [];
     },
     async toggleLike() {
@@ -361,7 +378,8 @@ export default {
       this.commentSubmitting = true;
       try {
         const comment = await createCanComment(this.id, content);
-        this.comments.push(comment);
+        this.comments.unshift(comment);
+        this.comments = this.comments.slice(0, 3);
         this.commentText = '';
         this.can.comment_count = Number(this.can.comment_count || 0) + 1;
       } finally {
@@ -376,6 +394,18 @@ export default {
     canDeleteComment(comment) {
       const user = getApp().globalData.userInfo || {};
       return Number(comment.author.id) === Number(uni.getStorageSync('id')) || user.is_admin;
+    },
+    async toggleCommentLike(comment) {
+      if (!requireAuth('comment_like', { page: 'can_detail', canId: this.id })) return;
+      const response = comment.liked_by_me
+        ? await unlikeCanComment(comment.id)
+        : await likeCanComment(comment.id);
+      this.comments = this.comments.map((item) => (item.id === comment.id
+        ? { ...item, liked_by_me: response.liked, like_count: response.like_count }
+        : item));
+    },
+    toAllComments() {
+      uni.navigateTo({ url: `/pages/cans/comments?id=${this.id}` });
     },
     formatTime(value) {
       return String(value || '').replace('T', ' ').slice(0, 16);
@@ -584,6 +614,32 @@ export default {
   color: #9a4b3d;
   font-size: 22rpx;
   line-height: 42rpx;
+}
+
+.comment-like {
+  margin: 0 0 0 10rpx;
+  padding: 0 12rpx;
+  background: transparent;
+  color: #728078;
+  font-size: 22rpx;
+  line-height: 42rpx;
+}
+
+.comment-like.active {
+  color: #9a3f31;
+}
+
+.comment-like::after,
+.all-comments::after {
+  border: 0;
+}
+
+.all-comments {
+  margin-top: 18rpx;
+  border-radius: 999rpx;
+  background: #edf4ea;
+  color: #1f5c43;
+  font-size: 25rpx;
 }
 
 .comment-content {

@@ -14,9 +14,12 @@
         :key="item.id"
         :can="item"
         :social="social"
+        :owner-actions="ownerActions"
         @author="$emit('author', $event)"
         @comment="$emit('comment', $event)"
+        @delete="$emit('delete', $event)"
         @open="$emit('open', $event)"
+        @reuse="$emit('reuse', $event)"
         @share="$emit('share', $event)"
       />
       <view
@@ -60,9 +63,12 @@
       :key="item.id"
       :can="item"
       :social="social"
+      :owner-actions="ownerActions"
       @author="$emit('author', $event)"
       @comment="$emit('comment', $event)"
+      @delete="$emit('delete', $event)"
       @open="$emit('open', $event)"
+      @reuse="$emit('reuse', $event)"
       @share="$emit('share', $event)"
     />
     <view
@@ -137,6 +143,10 @@ export default {
       type: Boolean,
       default: false,
     },
+    ownerActions: {
+      type: Boolean,
+      default: false,
+    },
     emptyTitle: {
       type: String,
       default: '还没有罐头',
@@ -150,7 +160,17 @@ export default {
       default: '',
     },
   },
-  emits: ['author', 'comment', 'open', 'share', 'loaded', 'empty-action', 'error'],
+  emits: [
+    'author',
+    'comment',
+    'delete',
+    'open',
+    'reuse',
+    'share',
+    'loaded',
+    'empty-action',
+    'error',
+  ],
   data() {
     return {
       items: [],
@@ -178,6 +198,10 @@ export default {
     if (this.autoLoad) this.refresh();
   },
   methods: {
+    removeItem(id) {
+      this.items = this.items.filter((item) => Number(item.id) !== Number(id));
+      if (!this.items.length) this.loadingStatus = 'noMore';
+    },
     normalizedItems(response) {
       const items = response.results || response || [];
       return this.maxItems ? items.slice(0, this.maxItems) : items;

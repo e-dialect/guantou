@@ -20,10 +20,20 @@ export function deleteCanComment(commentId) {
   return request.del(`/comments/${commentId}/`);
 }
 
+export function likeCanComment(commentId) {
+  return request.put(`/comments/${commentId}/like/`);
+}
+
+export function unlikeCanComment(commentId) {
+  return request.del(`/comments/${commentId}/like/`);
+}
+
 export default {
   createCanComment,
   deleteCanComment,
   likeCan,
+  likeCanComment,
   listCanComments,
   unlikeCan,
+  unlikeCanComment,
 };

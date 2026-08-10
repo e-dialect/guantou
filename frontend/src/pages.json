@@ -21,7 +21,15 @@
       "style": {}
     },
     {
+      "path": "pages/cans/library",
+      "style": {}
+    },
+    {
       "path": "pages/cans/details",
+      "style": {}
+    },
+    {
+      "path": "pages/cans/comments",
       "style": {}
     },
     {

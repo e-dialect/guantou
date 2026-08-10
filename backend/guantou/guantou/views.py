@@ -20,10 +20,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from utils.exceptions.types.bad_request import BadRequestException
 from utils.exceptions.types.conflict import ConflictException
+from inbox.models import Notification
+from inbox.services import send_event_notification
 
 from .models import (
     Can,
     CanComment,
+    CanCommentLike,
     CanLike,
     Dialect,
     Flavor,
@@ -472,6 +475,12 @@ class CanViewSet(viewsets.ModelViewSet):
             )
         if truthy(self.request.query_params.get("mine")) and user.is_authenticated:
             queryset = queryset.filter(recorder=user)
+        if truthy(self.request.query_params.get("liked")):
+            queryset = (
+                queryset.filter(likes__user=user)
+                if user.is_authenticated
+                else queryset.none()
+            )
         search = self.request.query_params.get("search")
         if search:
             queryset = queryset.filter(
@@ -510,6 +519,19 @@ class CanViewSet(viewsets.ModelViewSet):
         if request.method == "PUT":
             _, changed = CanLike.objects.get_or_create(can=can, user=request.user)
             liked = True
+            if changed:
+                send_event_notification(
+                    actor=request.user,
+                    recipient=can.recorder,
+                    verb=Notification.Verb.CAN_LIKE,
+                    description=f"收藏了你的罐头「{can.concept_text or can.id}」",
+                    action_object=can,
+                    metadata={
+                        "target_type": "can",
+                        "target_id": can.id,
+                        "target_url": f"/pages/cans/details?id={can.id}",
+                    },
+                )
         else:
             deleted, _ = CanLike.objects.filter(can=can, user=request.user).delete()
             changed = bool(deleted)
@@ -558,23 +580,86 @@ class CanViewSet(viewsets.ModelViewSet):
 
 
 class CanCommentViewSet(viewsets.ModelViewSet):
-    http_method_names = ["get", "post", "delete", "head", "options"]
+    http_method_names = ["get", "post", "put", "delete", "head", "options"]
     serializer_class = CanCommentSerializer
     permission_classes = [IsCommentAuthorOrAdmin]
 
     def get_queryset(self):
-        queryset = CanComment.objects.select_related(
-            "author", "author__user_info", "can"
-        ).filter(can__visibility=True)
+        queryset = (
+            CanComment.objects.select_related("author", "author__user_info", "can")
+            .filter(can__visibility=True)
+            .annotate(like_count=Count("likes", distinct=True))
+        )
+        user = self.request.user
+        if user and user.is_authenticated:
+            queryset = queryset.annotate(
+                liked_by_me=Exists(
+                    CanCommentLike.objects.filter(comment_id=OuterRef("pk"), user=user)
+                )
+            )
         can_id = self.request.query_params.get("can_id")
         if self.action == "list":
             if not can_id:
                 raise BadRequestException("can_id 不能为空")
             queryset = queryset.filter(can_id=can_id)
-        return queryset
+        return queryset.order_by("-created_at", "-id")
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        comment = serializer.save(author=self.request.user)
+        send_event_notification(
+            actor=self.request.user,
+            recipient=comment.can.recorder,
+            verb=Notification.Verb.CAN_COMMENT,
+            description=comment.content,
+            action_object=comment,
+            metadata={
+                "target_type": "can",
+                "target_id": comment.can_id,
+                "target_url": f"/pages/cans/details?id={comment.can_id}",
+            },
+        )
+
+    @action(
+        detail=True,
+        methods=["put", "delete"],
+        permission_classes=[permissions.IsAuthenticated],
+    )
+    def like(self, request, pk=None):
+        comment = self.get_object()
+        if request.method == "PUT":
+            _, changed = CanCommentLike.objects.get_or_create(
+                comment=comment,
+                user=request.user,
+            )
+            liked = True
+            if changed:
+                send_event_notification(
+                    actor=request.user,
+                    recipient=comment.author,
+                    verb=Notification.Verb.COMMENT_LIKE,
+                    description=comment.content,
+                    action_object=comment,
+                    metadata={
+                        "target_type": "can",
+                        "target_id": comment.can_id,
+                        "target_url": f"/pages/cans/details?id={comment.can_id}",
+                    },
+                )
+        else:
+            deleted, _ = CanCommentLike.objects.filter(
+                comment=comment,
+                user=request.user,
+            ).delete()
+            changed = bool(deleted)
+            liked = False
+        return Response(
+            {
+                "comment_id": comment.id,
+                "liked": liked,
+                "changed": changed,
+                "like_count": comment.likes.count(),
+            }
+        )
 
 
 class NameplateViewSet(viewsets.ModelViewSet):
@@ -714,6 +799,19 @@ class NameplateViewSet(viewsets.ModelViewSet):
                 nameplate.weight = nameplate.supports.count()
                 nameplate.save(update_fields=["weight", "updated_at"])
             elect_primary_nameplate(nameplate.can)
+        if request.method == "PUT" and changed:
+            send_event_notification(
+                actor=request.user,
+                recipient=nameplate.creator,
+                verb=Notification.Verb.NAMEPLATE_SUPPORT,
+                description=nameplate.display_text,
+                action_object=nameplate,
+                metadata={
+                    "target_type": "can",
+                    "target_id": nameplate.can_id,
+                    "target_url": f"/pages/cans/details?id={nameplate.can_id}",
+                },
+            )
         if request.method == "DELETE":
             return Response(status=status.HTTP_204_NO_CONTENT)
         nameplate.refresh_from_db()

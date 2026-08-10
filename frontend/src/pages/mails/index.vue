@@ -1,203 +1,300 @@
 <template>
-  <view>
-    <cu-custom title="邮箱列表" />
+  <PageShell
+    title="通知中心"
+    :scroll="false"
+    content-class="notification-content"
+    action-text="全部已读"
+    @action="markAllRead"
+  >
+    <template #before>
+      <view class="filters">
+        <button
+          :class="['filter', { active: filter === 'all' }]"
+          @tap="setFilter('all')"
+        >
+          全部
+        </button>
+        <button
+          :class="['filter', { active: filter === 'unread' }]"
+          @tap="setFilter('unread')"
+        >
+          未读
+        </button>
+      </view>
+    </template>
+
     <scroll-view
-      :scroll-y="true"
-      style="height: 85vh"
-      :refresher-enabled="true"
-      refresher-default-style="none"
-      refresher-background="white"
-      :refresher-triggered="triggered"
-      @refresherpulling="onPulling"
-      @refresherrefresh="onRefresh"
-      @scrolltolower="loadMoreEmails"
+      scroll-y
+      class="notification-scroll"
+      refresher-enabled
+      :refresher-triggered="refreshing"
+      @refresherrefresh="refresh"
+      @scrolltolower="loadMore"
     >
-      <view class="email-list">
-        <!--view
-          v-if="emails.length||emails.length === 0"
-          class="empty-message"
-        >
-          当前没有新的消息哦
-        </view-->
-        <view
-          v-for="email in showEmails"
-          :key="email.id"
-          @click="viewEmail(email.id)"
-        >
-          <view class="email-item">
-            <view class="email-title">
-              {{ email.title }}
-            </view>
-            <img
-              :src="email.from.avatar"
-              class="email-avatar"
-              alt="Avatar"
-            >
-            <view class="email-info">
-              <view class="email-nickname">
-                {{ email.from.nickname }}
-              </view>
-              <view class="email-time">
-                {{ email.time }}
-              </view>
-            </view>
+      <view
+        v-if="loading && !notifications.length"
+        class="state"
+      >
+        正在加载通知…
+      </view>
+      <view
+        v-else-if="error && !notifications.length"
+        class="state error"
+      >
+        <text>{{ error }}</text>
+        <button @tap="refresh">
+          重试
+        </button>
+      </view>
+      <view
+        v-else-if="!notifications.length"
+        class="state"
+      >
+        <text>{{ filter === 'unread' ? '没有未读消息' : '还没有通知' }}</text>
+        <text class="state-copy">
+          铭牌支持、评论互动和审核结果会出现在这里。
+        </text>
+      </view>
+      <view
+        v-for="item in notifications"
+        :key="item.id"
+        :class="['notification-card', { unread: item.unread }]"
+        @tap="openNotification(item)"
+      >
+        <image
+          :src="item.from.avatar"
+          class="avatar"
+          mode="aspectFill"
+        />
+        <view class="notification-body">
+          <view class="notification-head">
+            <text class="title">
+              {{ item.title }}
+            </text>
+            <text
+              v-if="item.unread"
+              class="unread-dot"
+            />
+          </view>
+          <view class="actor">
+            {{ item.from.nickname }}
+          </view>
+          <view
+            v-if="item.content"
+            class="description"
+          >
+            {{ item.content }}
+          </view>
+          <view class="time">
+            {{ item.time }}
           </view>
         </view>
       </view>
+      <uni-load-more
+        v-if="notifications.length"
+        :status="loadStatus"
+      />
     </scroll-view>
-    <!-- 暂时关闭发送通知功能 -->
-    <!-- <view class="send-button">
-      <button @click="sendNotification">
-        发送通知
-      </button>
-    </view> -->
-  </view>
+  </PageShell>
 </template>
+
 <script>
-import { getAllMails } from '@/services/mail';
+import PageShell from '@/components/PageShell.vue';
+import { listNotifications, markNotificationsRead } from '@/services/mail';
 
 export default {
+  components: { PageShell },
   data() {
     return {
-      showEmails: [],
-      triggered: false,
+      error: '',
+      filter: 'all',
+      loadStatus: 'more',
+      loading: false,
+      notifications: [],
       page: 1,
-      freshing: false,
+      refreshing: false,
     };
   },
-  async onLoad() {
-    uni.pageScrollTo({
-      scrollTop: 0,
-      duration: 0,
-    });
-    await this.loadEmails();
+  onLoad() {
+    this.refresh();
   },
   methods: {
-    async loadEmails() {
-      // console.log(app.globalData.id);
-      // console.log(this.page);
-      const res = await getAllMails(this.page);
-      this.showEmails = res.notifications;
-      this.freshing = false;
+    setFilter(filter) {
+      if (this.filter === filter) return;
+      this.filter = filter;
+      this.refresh();
     },
-    viewEmail(id) {
-      uni.navigateTo({
-        url: `./details?id=${id}`,
-      });
+    async refresh() {
+      this.page = 1;
+      this.notifications = [];
+      this.error = '';
+      this.loadStatus = 'more';
+      this.refreshing = true;
+      await this.fetchPage(1);
+      this.refreshing = false;
     },
-    async sendNotification() {
-      uni.navigateTo({
-        url: './send',
-      });
+    async fetchPage(page) {
+      if (this.loading || this.loadStatus === 'noMore') return;
+      this.loading = true;
+      this.loadStatus = 'loading';
+      try {
+        const response = await listNotifications({
+          page,
+          pageSize: 20,
+          ...(this.filter === 'unread' ? { unread: true } : {}),
+        });
+        this.notifications = this.notifications.concat(response.notifications || []);
+        this.page = page;
+        this.loadStatus = page < response.pages ? 'more' : 'noMore';
+      } catch (error) {
+        this.error = error.message || '通知加载失败';
+        this.loadStatus = 'more';
+      } finally {
+        this.loading = false;
+      }
     },
-    onPulling() {
-      this.triggered = true;
+    loadMore() {
+      if (this.loadStatus === 'more') this.fetchPage(this.page + 1);
     },
-
-    // 下拉刷新
-    onRefresh() {
-      if (this.freshing) {
+    async markAllRead() {
+      await markNotificationsRead();
+      this.notifications = this.notifications.map((item) => ({ ...item, unread: false }));
+      if (this.filter === 'unread') this.notifications = [];
+      uni.showToast({ title: '已全部标为已读', icon: 'success' });
+    },
+    async openNotification(item) {
+      if (item.unread) {
+        await markNotificationsRead([item.id]);
+        this.notifications = this.notifications.map((existing) => (existing.id === item.id
+          ? { ...existing, unread: false }
+          : existing));
+      }
+      if (item.target?.url) {
+        uni.navigateTo({ url: item.target.url });
         return;
       }
-      this.freshing = true;
-      this.loadEmails();
-      setTimeout(() => {
-        this.triggered = false;
-        this.freshing = false;
-      }, 500);
-    },
-
-    // 加载更多邮件
-    loadMoreEmails() {
-      uni.showLoading();
-      const originEmails = this.showEmails;
-      getAllMails(this.page + 1).then((res) => {
-        this.showEmails = originEmails.concat(res.notifications);
-        this.page += 1;
-        /* console.log('showEmails:', this.showEmails);
-        console.log('page:', this.page); */
-        setTimeout(() => {
-          uni.hideLoading();
-        }, 500);
-      });
-      // 打印一下当前page和showEmails
+      uni.navigateTo({ url: `/pages/mails/details?id=${item.id}` });
     },
   },
 };
 </script>
 
 <style scoped>
-.email-list {
-  padding: 20px;
-}
-
-.email-item {
-  border-radius: 10px;
-  padding: 10px;
-  border: 1px solid #ccc;
-  margin-bottom: 10px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.email-item:hover {
-  background-color: #f4f4f4;
-}
-
-.email-title {
-  font-weight: bold;
-  font-size: 24px;
-}
-
-.email-info {
+.filters {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 5px;
-  color: #666;
+  gap: 12rpx;
+  padding: 16rpx 28rpx;
+  background: #f6f7f3;
 }
 
-.email-nickname {
-  font-size: 14px;
+.filter {
+  width: auto;
+  margin: 0;
+  padding: 0 30rpx;
+  border-radius: 999rpx;
+  background: #e8ece5;
+  color: #617067;
+  font-size: 25rpx;
+  line-height: 62rpx;
 }
 
-.email-time {
-  font-size: 12px;
+.filter.active {
+  background: #1f5c43;
+  color: #ffffff;
 }
 
-.email-avatar {
-  width: 30px;
-  height: 30px;
+.filter::after {
+  border: 0;
+}
+
+.notification-scroll {
+  height: 100%;
+}
+
+.notification-card {
+  display: flex;
+  gap: 18rpx;
+  margin-bottom: 16rpx;
+  padding: 24rpx;
+  border: 1px solid #e1e6dc;
+  border-radius: 14rpx;
+  background: #ffffff;
+}
+
+.notification-card.unread {
+  border-color: #b9cfba;
+  background: #f4f9f1;
+}
+
+.avatar {
+  width: 68rpx;
+  height: 68rpx;
   border-radius: 50%;
+  background: #e5eae2;
 }
 
-.empty-message {
+.notification-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.notification-head {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.title {
+  font-size: 29rpx;
+  font-weight: 800;
+}
+
+.unread-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #b04432;
+}
+
+.actor,
+.time {
+  margin-top: 6rpx;
+  color: #7a867d;
+  font-size: 22rpx;
+}
+
+.description {
+  margin-top: 10rpx;
+  color: #405148;
+  font-size: 25rpx;
+  line-height: 1.45;
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+  padding: 100rpx 30rpx;
+  color: #728078;
   text-align: center;
-  font-size: 16px;
-  color: #999;
-  margin-top: 20px;
 }
 
-.send-button {
-  text-align: center;
-  position: fixed;
-  bottom: 20px;
-  left: 15%;
-  width: 70%;
+.state-copy {
+  color: #929c95;
+  font-size: 24rpx;
 }
 
-.send-button button {
-  background-color: #39C5BB;
-  color: white;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: background-color 0.3s;
+.state.error button {
+  border-radius: 999rpx;
+  background: #1f5c43;
+  color: #ffffff;
+  font-size: 24rpx;
 }
 
-.send-button button:hover {
-  background-color: #2fa299;
+:deep(.notification-content) {
+  height: calc(100vh - 154rpx);
+  min-height: 0;
+  padding: 18rpx 28rpx 60rpx;
 }
 </style>

@@ -411,6 +411,33 @@ class CanComment(models.Model):
         verbose_name_plural = "罐头评论"
 
 
+class CanCommentLike(models.Model):
+    comment = models.ForeignKey(
+        CanComment,
+        on_delete=models.CASCADE,
+        related_name="likes",
+        verbose_name="评论",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="can_comment_likes",
+        verbose_name="用户",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["comment", "user"],
+                name="unique_can_comment_like_user",
+            )
+        ]
+        verbose_name = "评论点赞"
+        verbose_name_plural = "评论点赞"
+
+
 class Nameplate(models.Model):
     """某个资料来源对一条录音提出的可查询、可追溯主张。"""
 

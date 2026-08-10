@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/services/canDrafts', () => ({
@@ -6,7 +6,7 @@ vi.mock('@/services/canDrafts', () => ({
   removeCanDraft: vi.fn(),
 }));
 
-import CanDrafts from '@/pages/cans/drafts.vue';
+import CanDraftList from '@/components/CanDraftList.vue';
 import { listCanDraftsWithAudioStatus, removeCanDraft } from '@/services/canDrafts';
 
 const sampleDraft = {
@@ -22,17 +22,13 @@ const sampleDraft = {
 };
 
 function mountDrafts() {
-  return mount(CanDrafts, {
+  return mount(CanDraftList, {
     global: {
       stubs: {
         EmptyState: {
           props: ['title', 'description', 'actionText'],
           emits: ['action'],
           template: '<button class="empty-state" @tap="$emit(\'action\')">{{ title }}</button>',
-        },
-        PageShell: {
-          props: ['title'],
-          template: '<main><h1>{{ title }}</h1><slot /></main>',
         },
       },
     },
@@ -53,8 +49,7 @@ describe('can draft box', () => {
 
   it('lists drafts and opens one for editing', async () => {
     const wrapper = mountDrafts();
-    await wrapper.vm.loadDrafts();
-    await wrapper.vm.$nextTick();
+    await flushPromises();
 
     expect(wrapper.text()).toContain('为「月亮」补录音');
     expect(wrapper.text()).toContain('游洋话 · 已保存录音');
@@ -72,8 +67,7 @@ describe('can draft box', () => {
       .mockResolvedValueOnce([]);
     uni.showModal.mockImplementation(({ success }) => success({ confirm: true }));
     const wrapper = mountDrafts();
-    await wrapper.vm.loadDrafts();
-    await wrapper.vm.$nextTick();
+    await flushPromises();
 
     await wrapper.find('.delete-button').trigger('tap');
     await wrapper.vm.$nextTick();
@@ -89,8 +83,7 @@ describe('can draft box', () => {
   it('offers a new can action when the draft box is empty', async () => {
     listCanDraftsWithAudioStatus.mockResolvedValue([]);
     const wrapper = mountDrafts();
-    await wrapper.vm.loadDrafts();
-    await wrapper.vm.$nextTick();
+    await flushPromises();
 
     await wrapper.find('.empty-state').trigger('tap');
 
@@ -103,9 +96,7 @@ describe('can draft box', () => {
       audio: { persisted: true, available: false },
     }]);
     const wrapper = mountDrafts();
-
-    await wrapper.vm.loadDrafts();
-    await wrapper.vm.$nextTick();
+    await flushPromises();
 
     expect(wrapper.text()).toContain('录音已失效，请重录');
   });
@@ -114,8 +105,7 @@ describe('can draft box', () => {
     removeCanDraft.mockRejectedValueOnce(new Error('storage full'));
     uni.showModal.mockImplementation(({ success }) => success({ confirm: true }));
     const wrapper = mountDrafts();
-    await wrapper.vm.loadDrafts();
-    await wrapper.vm.$nextTick();
+    await flushPromises();
 
     await wrapper.find('.delete-button').trigger('tap');
     await wrapper.vm.$nextTick();

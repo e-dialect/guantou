@@ -30,7 +30,7 @@
       <view class="stats">
         <view
           class="stat"
-          @tap="toMineCans"
+          @tap="toCanLibrary"
         >
           <view class="number">
             {{ cansCount }}
@@ -58,6 +58,15 @@
       </view>
 
       <view class="menu">
+        <view
+          class="menu-item"
+          @tap="toCanLibrary"
+        >
+          我的罐头库
+          <text class="menu-meta">
+            录制 · 收藏 · 草稿
+          </text>
+        </view>
         <view
           class="menu-item"
           @tap="toCreate"
@@ -201,13 +210,13 @@ export default {
       uni.navigateTo({ url: '/pages/cans/create' });
     },
     toDrafts() {
-      uni.navigateTo({ url: '/pages/cans/drafts' });
+      uni.navigateTo({ url: '/pages/cans/library?tab=drafts' });
     },
     refreshDraftsCount() {
       this.draftsCount = listCanDrafts().length;
     },
-    toMineCans() {
-      uni.navigateTo({ url: '/pages/cans/index?mine=true' });
+    toCanLibrary() {
+      uni.navigateTo({ url: '/pages/cans/library' });
     },
     async getInfo() {
       if (!app.globalData.id) return;

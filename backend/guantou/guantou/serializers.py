@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import Count, Exists, OuterRef
 from rest_framework import serializers
 from utils.exceptions.payload import field_error
 from utils.exceptions.types.conflict import ConflictException
@@ -6,6 +7,7 @@ from utils.exceptions.types.conflict import ConflictException
 from .models import (
     Can,
     CanComment,
+    CanCommentLike,
     CanLike,
     Dialect,
     Flavor,
@@ -753,10 +755,20 @@ class CanCommentSerializer(serializers.ModelSerializer):
         queryset=Can.objects.filter(visibility=True),
     )
     author = UserLiteSerializer(read_only=True)
+    like_count = serializers.SerializerMethodField()
+    liked_by_me = serializers.SerializerMethodField()
 
     class Meta:
         model = CanComment
-        fields = ["id", "can_id", "author", "content", "created_at"]
+        fields = [
+            "id",
+            "can_id",
+            "author",
+            "content",
+            "like_count",
+            "liked_by_me",
+            "created_at",
+        ]
         read_only_fields = ["id", "author", "created_at"]
 
     def validate_content(self, value):
@@ -764,6 +776,22 @@ class CanCommentSerializer(serializers.ModelSerializer):
         if not content:
             raise serializers.ValidationError("评论不能为空")
         return content
+
+    def get_like_count(self, obj):
+        annotated = getattr(obj, "like_count", None)
+        return annotated if annotated is not None else obj.likes.count()
+
+    def get_liked_by_me(self, obj):
+        annotated = getattr(obj, "liked_by_me", None)
+        if annotated is not None:
+            return bool(annotated)
+        request = self.context.get("request")
+        user = request.user if request else None
+        return bool(
+            user
+            and user.is_authenticated
+            and CanCommentLike.objects.filter(comment=obj, user=user).exists()
+        )
 
 
 class CanSerializer(CanCardSerializer):
@@ -780,6 +808,7 @@ class CanSerializer(CanCardSerializer):
     )
     nameplates = NameplateSerializer(many=True, read_only=True)
     initial_nameplate = InitialNameplateSerializer(write_only=True, required=False)
+    recent_comments = serializers.SerializerMethodField()
 
     class Meta(CanCardSerializer.Meta):
         fields = CanCardSerializer.Meta.fields + [
@@ -789,6 +818,7 @@ class CanSerializer(CanCardSerializer):
             "verifier",
             "transition_log",
             "metadata",
+            "recent_comments",
             "initial_nameplate",
             "updated_at",
         ]
@@ -806,6 +836,27 @@ class CanSerializer(CanCardSerializer):
             "created_at",
             "updated_at",
         ]
+
+    def get_recent_comments(self, obj):
+        request = self.context.get("request")
+        user = request.user if request else None
+        queryset = obj.comments.select_related("author", "author__user_info").annotate(
+            like_count=Count("likes", distinct=True)
+        )
+        if user and user.is_authenticated:
+            queryset = queryset.annotate(
+                liked_by_me=Exists(
+                    CanCommentLike.objects.filter(
+                        comment_id=OuterRef("pk"),
+                        user=user,
+                    )
+                )
+            )
+        return CanCommentSerializer(
+            queryset.order_by("-created_at", "-id")[:3],
+            many=True,
+            context=self.context,
+        ).data
 
     def validate(self, attrs):
         if not self.instance:

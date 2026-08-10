@@ -313,6 +313,28 @@ def transition_can(*, can_id, user, action, reason=""):
     elif action == "restore":
         can.verifier = None
     can.save(update_fields=["status", "transition_log", "verifier", "updated_at"])
+    if action in {"verify", "reject"}:
+        from inbox.models import Notification
+        from inbox.services import send_event_notification
+
+        result_label = "审核通过" if action == "verify" else "审核驳回"
+        description = (
+            f"{result_label}：{clean_reason}" if clean_reason else result_label
+        )
+        transaction.on_commit(
+            lambda: send_event_notification(
+                actor=user,
+                recipient=can.recorder,
+                verb=Notification.Verb.CAN_REVIEW,
+                description=description,
+                action_object=can,
+                metadata={
+                    "target_type": "can",
+                    "target_id": can.id,
+                    "target_url": f"/pages/cans/details?id={can.id}",
+                },
+            )
+        )
     return can
 
 

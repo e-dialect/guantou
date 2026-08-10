@@ -4,6 +4,27 @@ from django.db.models import Q
 from .models import Notification
 
 
+def send_event_notification(
+    *,
+    actor,
+    recipient,
+    verb,
+    description="",
+    action_object=None,
+    metadata=None,
+):
+    if recipient is None or actor is None or recipient.id == actor.id:
+        return None
+    return Notification.objects.create(
+        actor=actor,
+        recipient=recipient,
+        verb=verb,
+        description=description,
+        related_object=action_object,
+        metadata=metadata or {},
+    )
+
+
 def send_notification(
     sender, recipients, content, target=None, action_object=None, title=None
 ):
@@ -27,10 +48,11 @@ def send_notification(
         Notification.objects.create(
             actor=sender,
             recipient=recipient,
-            verb=title,
+            verb=Notification.Verb.SYSTEM,
             description=content,
             target=target if isinstance(target, Notification) else None,
             related_object=action_object,
+            metadata={"title": title},
         )
         for recipient in recipients
     ]

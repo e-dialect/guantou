@@ -70,6 +70,20 @@
         分享
       </button>
     </view>
+    <view
+      v-if="ownerActions"
+      class="owner-actions"
+    >
+      <button @tap.stop="$emit('reuse', can.id)">
+        用同款
+      </button>
+      <button
+        class="danger"
+        @tap.stop="$emit('delete', can)"
+      >
+        删除
+      </button>
+    </view>
   </view>
 </template>
 
@@ -99,8 +113,12 @@ export default {
       type: Boolean,
       default: false,
     },
+    ownerActions: {
+      type: Boolean,
+      default: false,
+    },
   },
-  emits: ['author', 'comment', 'open', 'share'],
+  emits: ['author', 'comment', 'delete', 'open', 'reuse', 'share'],
   data() {
     return {
       likeBusy: false,
@@ -261,6 +279,33 @@ export default {
   grid-template-columns: repeat(3, 1fr);
   gap: 10rpx;
   margin-top: 16rpx;
+}
+
+.owner-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14rpx;
+  margin-top: 16rpx;
+}
+
+.owner-actions button {
+  width: auto;
+  margin: 0;
+  padding: 0 24rpx;
+  border-radius: 999rpx;
+  background: #edf4ea;
+  color: #1f5c43;
+  font-size: 24rpx;
+  line-height: 60rpx;
+}
+
+.owner-actions button.danger {
+  background: #fff1ed;
+  color: #9b3a2d;
+}
+
+.owner-actions button::after {
+  border: 0;
 }
 
 .social-button {

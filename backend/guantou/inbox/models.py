@@ -6,6 +6,15 @@ from django.utils import timezone
 
 
 class Notification(models.Model):
+    class Verb(models.TextChoices):
+        SYSTEM = "system.message", "系统消息"
+        NAMEPLATE_SUPPORT = "nameplate.support", "铭牌获支持"
+        CAN_LIKE = "can.like", "罐头获收藏"
+        CAN_COMMENT = "can.comment", "罐头有新评论"
+        COMMENT_LIKE = "comment.like", "评论获支持"
+        CAN_REVIEW = "can.review", "罐头审核结果"
+        CAN_REUSE = "can.reuse", "罐头被用同款"
+
     LEVEL_SUCCESS = "success"
     LEVEL_INFO = "info"
     LEVEL_WARNING = "warning"
@@ -45,8 +54,13 @@ class Notification(models.Model):
     related_object_id = models.CharField(max_length=255, blank=True, null=True)
     related_object = GenericForeignKey("related_content_type", "related_object_id")
     level = models.CharField(max_length=20, choices=LEVEL_CHOICES, default=LEVEL_INFO)
-    verb = models.CharField(max_length=255)
+    verb = models.CharField(
+        max_length=64,
+        choices=Verb.choices,
+        default=Verb.SYSTEM,
+    )
     description = models.TextField(blank=True, null=True)
+    metadata = models.JSONField(default=dict, blank=True)
     timestamp = models.DateTimeField(default=timezone.now, db_index=True)
     unread = models.BooleanField(default=True, db_index=True)
     public = models.BooleanField(default=True, db_index=True)
@@ -67,3 +81,8 @@ class Notification(models.Model):
 
     def __str__(self):
         return self.verb
+
+    @property
+    def display_title(self):
+        labels = dict(self.Verb.choices)
+        return labels.get(self.verb, self.verb)
