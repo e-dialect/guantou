@@ -14,6 +14,12 @@
         >
           用我的方言录一版
         </button>
+        <button
+          class="secondary-button"
+          @tap="toCreatePronunciation"
+        >
+          添加词典读音
+        </button>
       </SectionBlock>
 
       <SectionBlock
@@ -91,6 +97,9 @@ export default {
     this.id = options.id;
     await this.refresh();
   },
+  async onShow() {
+    if (this.id) await this.refresh();
+  },
   methods: {
     listCans,
     pronunciationLabel: formatPronunciationLabel,
@@ -111,6 +120,15 @@ export default {
       })) return;
       uni.navigateTo({
         url: `/pages/cans/create?flavor=${this.id}&flavor_name=${encodeURIComponent(this.flavor.name)}`,
+      });
+    },
+    toCreatePronunciation() {
+      if (!requireAuth('pronunciation_create', {
+        page: 'flavor_detail',
+        flavorId: this.id,
+      })) return;
+      uni.navigateTo({
+        url: `/pages/pronunciations/create?flavor_id=${this.id}`,
       });
     },
   },
@@ -143,6 +161,14 @@ export default {
   margin-top: 24rpx;
   background: #1f5c43;
   color: #ffffff;
+  border-radius: 12rpx;
+}
+
+.secondary-button {
+  margin-top: 14rpx;
+  border: 1px solid #1f5c43;
+  background: #ffffff;
+  color: #1f5c43;
   border-radius: 12rpx;
 }
 

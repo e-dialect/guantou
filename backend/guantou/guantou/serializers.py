@@ -900,6 +900,8 @@ class ShelfSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if request and request.user.is_authenticated:
             validated_data["creator"] = request.user
+            if not request.user.is_staff:
+                validated_data["shelf_type"] = Shelf.ShelfType.USER
         shelf = super().create(validated_data)
         shelf.flavors.set(flavors)
         shelf.cans.set(cans)
@@ -908,6 +910,9 @@ class ShelfSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         flavors = validated_data.pop("flavors", None)
         cans = validated_data.pop("cans", None)
+        request = self.context.get("request")
+        if request and request.user.is_authenticated and not request.user.is_staff:
+            validated_data["shelf_type"] = Shelf.ShelfType.USER
         shelf = super().update(instance, validated_data)
         if flavors is not None:
             shelf.flavors.set(flavors)

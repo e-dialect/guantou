@@ -36,4 +36,10 @@ test('main navigation pages are reachable', async ({ page }) => {
 
   await page.goto('/pages/flavors/index');
   await expect(page.locator('body')).toContainText('图鉴');
+
+  await page.goto('/pages/packages/index');
+  await expect(page.locator('body')).toContainText('写法图鉴');
+
+  await page.goto('/pages/shelves/index');
+  await expect(page.locator('body')).toContainText('主题集盒');
 });

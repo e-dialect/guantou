@@ -16,6 +16,10 @@ function post(url, data = {}, noPrompt = false) {
   return request('POST', url, data, noPrompt);
 }
 
+function patch(url, data = {}, noPrompt = false) {
+  return request('PATCH', url, data, noPrompt);
+}
+
 function put(url, data = {}, noPrompt = false) {
   return request('PUT', url, data, noPrompt);
 }
@@ -25,5 +29,5 @@ function del(url, data = null, noPrompt = false) {
 }
 
 export default {
-  get, post, put, del,
+  get, post, patch, put, del,
 };

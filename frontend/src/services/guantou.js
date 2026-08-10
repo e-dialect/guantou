@@ -94,7 +94,7 @@ export function getPronunciation(id) {
 }
 
 export function createPronunciation(payload) {
-  return request.post('/pronunciations/', payload);
+  return request.post('/pronunciations/', payload, true);
 }
 
 export function listShelves(params = {}) {
@@ -103,6 +103,14 @@ export function listShelves(params = {}) {
 
 export function getShelf(id) {
   return request.get(`/shelves/${id}/`);
+}
+
+export function createShelf(payload) {
+  return request.post('/shelves/', payload, true);
+}
+
+export function updateShelf(id, payload) {
+  return request.patch(`/shelves/${id}/`, payload, true);
 }
 
 export function createNameplate(canId, payload) {

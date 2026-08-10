@@ -292,6 +292,8 @@ Pronunciation 使用 `draft / verified / disputed / rejected`，认证与驳回�
 - 创建者可修改自己的用户生成内容；共享词典资料进入 verified 后只允许 reviewer 或 admin 修改。
 - Dialect 树的新增、改名和重新归类只允许 admin，避免限定名和后代查询被任意破坏。
 
+普通用户创建或修改 Shelf 时，服务端固定 `shelf_type=user`；`official` 与 `campaign` 仅由 staff 维护。Shelf 的 `flavor_ids`、`can_ids` 在 PATCH 中均为全量替换列表，客户端添加或移除内容前必须重读详情，并基于最新列表合并后提交。
+
 ## 8. 用户隐私
 
 `GET /users/{id}/` 只返回公开档案。邮箱、电话、生日、微信绑定状态和登录时间只从 `GET /users/me/` 返回；修改本人资料也统一使用 `/users/me/`。不提供公开的邮箱筛选或通过用户名返回完整邮箱的接口。

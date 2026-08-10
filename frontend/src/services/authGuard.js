@@ -15,6 +15,9 @@ export const PROTECTED_ACTIONS = {
   tab_follow: '关注流',
   nameplate_support: '支持铭牌',
   nameplate_create: '贴铭牌',
+  pronunciation_create: '添加读音',
+  shelf_create: '创建集盒',
+  shelf_edit: '编辑集盒',
   open_mine: '查看我的',
 };
 

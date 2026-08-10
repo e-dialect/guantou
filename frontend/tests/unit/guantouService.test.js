@@ -4,6 +4,7 @@ vi.mock('@/utils/request', () => ({
   default: {
     get: vi.fn(),
     post: vi.fn(),
+    patch: vi.fn(),
     put: vi.fn(),
     del: vi.fn(),
   },
@@ -124,6 +125,25 @@ describe('guantou service canning helpers', () => {
     expect(request.post).toHaveBeenCalledWith(
       '/cans/4/transition/',
       { action: 'submit', reason: '本人确认' },
+      true,
+    );
+  });
+
+  it('creates pronunciations and updates shelves without global prompts', async () => {
+    request.post.mockResolvedValue({ id: 8, status: 'draft' });
+    request.patch.mockResolvedValue({ id: 5, flavor_ids: [2] });
+
+    await guantou.createPronunciation({ flavor_id: 1, package_id: 2, dialect_id: 3, ipa: 'hiŋ' });
+    await guantou.updateShelf(5, { flavor_ids: [2] });
+
+    expect(request.post).toHaveBeenCalledWith(
+      '/pronunciations/',
+      { flavor_id: 1, package_id: 2, dialect_id: 3, ipa: 'hiŋ' },
+      true,
+    );
+    expect(request.patch).toHaveBeenCalledWith(
+      '/shelves/5/',
+      { flavor_ids: [2] },
       true,
     );
   });

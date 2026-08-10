@@ -2,6 +2,8 @@
   <PageShell
     title="义项图鉴"
     :scroll="true"
+    action-text="浏览写法"
+    @action="toPackages"
   >
     <view class="search-row">
       <input
@@ -63,6 +65,9 @@ export default {
     },
     toDetail(id) {
       uni.navigateTo({ url: `/pages/flavors/details?id=${id}` });
+    },
+    toPackages() {
+      uni.navigateTo({ url: '/pages/packages/index' });
     },
   },
 };

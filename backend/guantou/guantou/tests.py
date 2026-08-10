@@ -300,6 +300,63 @@ class PronunciationApiTests(DomainFixture):
         )
         self.assert_error(blocked, 409)
 
+    def test_staff_transition_matrix_covers_all_pronunciation_states(self):
+        cases = [
+            (Pronunciation.Status.DRAFT, "verify", Pronunciation.Status.VERIFIED),
+            (Pronunciation.Status.DISPUTED, "verify", Pronunciation.Status.VERIFIED),
+            (Pronunciation.Status.DRAFT, "dispute", Pronunciation.Status.DISPUTED),
+            (Pronunciation.Status.VERIFIED, "dispute", Pronunciation.Status.DISPUTED),
+            (Pronunciation.Status.DRAFT, "reject", Pronunciation.Status.REJECTED),
+            (Pronunciation.Status.DISPUTED, "reject", Pronunciation.Status.REJECTED),
+            (Pronunciation.Status.REJECTED, "restore", Pronunciation.Status.DRAFT),
+        ]
+        self.client.force_authenticate(self.staff)
+        for index, (source, action, target) in enumerate(cases):
+            pronunciation = self.make_pronunciation(
+                ipa=f"hiŋ{index}", status=source, created_by=self.other
+            )
+            response = self.client.post(
+                f"/pronunciations/{pronunciation.id}/transition/",
+                {"action": action},
+                format="json",
+            )
+            self.assertEqual(response.status_code, 200, (source, action))
+            self.assertEqual(response.data["status"], target)
+
+    def test_regular_user_cannot_run_review_transitions(self):
+        cases = [
+            (Pronunciation.Status.DRAFT, "verify"),
+            (Pronunciation.Status.DRAFT, "reject"),
+            (Pronunciation.Status.DRAFT, "dispute"),
+            (Pronunciation.Status.REJECTED, "restore"),
+        ]
+        for status_value, action in cases:
+            pronunciation = self.make_pronunciation(
+                ipa=f"hiŋ-{action}", status=status_value
+            )
+            response = self.client.post(
+                f"/pronunciations/{pronunciation.id}/transition/",
+                {"action": action},
+                format="json",
+            )
+            self.assert_error(response, 403)
+            pronunciation.refresh_from_db()
+            self.assertEqual(pronunciation.status, status_value)
+
+    def test_illegal_pronunciation_transition_is_a_conflict(self):
+        pronunciation = self.make_pronunciation(status=Pronunciation.Status.VERIFIED)
+        self.client.force_authenticate(self.staff)
+
+        response = self.client.post(
+            f"/pronunciations/{pronunciation.id}/transition/",
+            {"action": "verify"},
+            format="json",
+        )
+
+        self.assert_error(response, 409)
+        pronunciation.refresh_from_db()
+        self.assertEqual(pronunciation.status, Pronunciation.Status.VERIFIED)
+
     def test_referenced_pronunciation_cannot_be_deleted(self):
         pronunciation = self.make_pronunciation()
         self.make_nameplate(pronunciation=pronunciation)
@@ -609,6 +666,23 @@ class ShelfWriteApiTests(DomainFixture):
         self.assertEqual(response.data["creator"]["id"], self.user.id)
         shelf = Shelf.objects.get(id=response.data["id"])
         self.assertEqual(shelf.creator, self.user)
+
+    def test_regular_user_cannot_create_or_promote_an_official_shelf(self):
+        response = self.client.post(
+            "/shelves/",
+            self.payload(shelf_type=Shelf.ShelfType.OFFICIAL),
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["shelf_type"], Shelf.ShelfType.USER)
+
+        updated = self.client.patch(
+            f"/shelves/{response.data['id']}/",
+            {"shelf_type": Shelf.ShelfType.CAMPAIGN},
+            format="json",
+        )
+        self.assertEqual(updated.status_code, 200)
+        self.assertEqual(updated.data["shelf_type"], Shelf.ShelfType.USER)
 
     def test_create_shelf_with_content_visible_in_detail(self):
         # #144 后端验收：创建集盒 + 添加内容路径，详情中可见新增条目

@@ -37,6 +37,14 @@
       "style": {}
     },
     {
+      "path": "pages/packages/index",
+      "style": {}
+    },
+    {
+      "path": "pages/pronunciations/create",
+      "style": {}
+    },
+    {
       "path": "pages/shelves/index",
       "style": {}
     },
