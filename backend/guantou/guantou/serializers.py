@@ -10,12 +10,14 @@ from .models import (
     CanCommentLike,
     CanLike,
     Dialect,
+    DialectCircle,
     Flavor,
     FlavorPackage,
     Nameplate,
     NameplateSupport,
     Package,
     Pronunciation,
+    RecordingChallenge,
     Shelf,
 )
 from .services import clean_text, create_can_submission
@@ -132,6 +134,47 @@ class DialectSerializer(DialectRefSerializer):
                 node.aliases = aliases
                 node.save(update_fields=["aliases", "updated_at"])
         return updated
+
+
+class DialectCircleSerializer(serializers.ModelSerializer):
+    dialect = DialectRefSerializer(read_only=True)
+    member_count = serializers.IntegerField(read_only=True)
+    can_count = serializers.SerializerMethodField()
+    is_member = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = DialectCircle
+        fields = [
+            "id",
+            "name",
+            "description",
+            "dialect",
+            "member_count",
+            "can_count",
+            "is_member",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+    def get_can_count(self, obj):
+        return Can.objects.filter(
+            visibility=True,
+            submitted_dialect_id__in=obj.dialect.descendant_ids(),
+        ).count()
+
+
+class RecordingChallengeSerializer(serializers.ModelSerializer):
+    flavor = serializers.SerializerMethodField()
+    dialect = DialectRefSerializer(read_only=True)
+
+    class Meta:
+        model = RecordingChallenge
+        fields = ["id", "title", "prompt", "flavor", "dialect"]
+        read_only_fields = fields
+
+    def get_flavor(self, obj):
+        return FlavorRefSerializer(obj.flavor).data if obj.flavor_id else None
 
 
 class PackageRefSerializer(serializers.ModelSerializer):

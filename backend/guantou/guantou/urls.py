@@ -5,7 +5,9 @@ from .views import (
     AggregateSearchView,
     CanViewSet,
     CanCommentViewSet,
+    DialectCircleViewSet,
     DialectViewSet,
+    DiscoveryView,
     FlavorViewSet,
     HotSearchView,
     NameplateViewSet,
@@ -17,6 +19,7 @@ from .views import (
 
 router = DefaultRouter()
 router.register("dialects", DialectViewSet, basename="dialect")
+router.register("circles", DialectCircleViewSet, basename="circle")
 router.register("packages", PackageViewSet, basename="package")
 router.register("flavors", FlavorViewSet, basename="flavor")
 router.register("pronunciations", PronunciationViewSet, basename="pronunciation")
@@ -26,6 +29,7 @@ router.register("nameplates", NameplateViewSet, basename="nameplate")
 router.register("shelves", ShelfViewSet, basename="shelf")
 
 urlpatterns = [
+    path("discovery/", DiscoveryView.as_view(), name="discovery"),
     path("search/", AggregateSearchView.as_view(), name="search"),
     path("search/hot/", HotSearchView.as_view(), name="search-hot"),
     path("search/suggest/", SuggestSearchView.as_view(), name="search-suggest"),

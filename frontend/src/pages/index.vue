@@ -176,6 +176,18 @@ export default {
           copy: '贡献、积分和消息',
           open: this.toMine,
         },
+        {
+          key: 'discovery',
+          title: '发现',
+          copy: '热罐头与今日方言词',
+          open: this.toDiscovery,
+        },
+        {
+          key: 'circle',
+          title: '方言圈',
+          copy: '和同乡一起听与校验',
+          open: this.toCircles,
+        },
       ];
     },
   },
@@ -218,6 +230,12 @@ export default {
     },
     toMine() {
       uni.navigateTo({ url: '/pages/users/me' });
+    },
+    toDiscovery() {
+      uni.navigateTo({ url: '/pages/discovery/index' });
+    },
+    toCircles() {
+      uni.navigateTo({ url: '/pages/circles/index' });
     },
   },
 };
@@ -339,7 +357,7 @@ export default {
 }
 
 .quick-grid.compact {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12rpx;
   margin: 18rpx 0;
 }
@@ -382,6 +400,14 @@ export default {
 
 .mine {
   background: #555d49;
+}
+
+.discovery {
+  background: #7f632e;
+}
+
+.circle {
+  background: #426475;
 }
 
 .quick-title {

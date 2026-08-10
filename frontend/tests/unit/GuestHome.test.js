@@ -62,6 +62,8 @@ describe('guest-first home', () => {
     expect(wrapper.text()).toContain('集盒');
     expect(wrapper.text()).toContain('图鉴');
     expect(wrapper.text()).toContain('我的');
+    expect(wrapper.text()).toContain('发现');
+    expect(wrapper.text()).toContain('方言圈');
     expect(wrapper.find('.can-list').exists()).toBe(false);
   });
 });

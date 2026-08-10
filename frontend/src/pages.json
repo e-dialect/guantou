@@ -9,6 +9,18 @@
       "style": {}
     },
     {
+      "path": "pages/discovery/index",
+      "style": {}
+    },
+    {
+      "path": "pages/circles/index",
+      "style": {}
+    },
+    {
+      "path": "pages/circles/details",
+      "style": {}
+    },
+    {
       "path": "pages/cans/index",
       "style": {}
     },

@@ -3,11 +3,13 @@ from django.contrib import admin
 from .models import (
     Can,
     Dialect,
+    DialectCircle,
     Flavor,
     FlavorPackage,
     Nameplate,
     Package,
     Pronunciation,
+    RecordingChallenge,
     Shelf,
 )
 
@@ -42,6 +44,22 @@ class DialectAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "code", "parent", "sort_order")
     search_fields = ("name", "code")
     raw_id_fields = ("parent",)
+
+
+@admin.register(DialectCircle)
+class DialectCircleAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "dialect", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("name", "description", "dialect__name")
+    raw_id_fields = ("dialect",)
+
+
+@admin.register(RecordingChallenge)
+class RecordingChallengeAdmin(admin.ModelAdmin):
+    list_display = ("id", "title", "flavor", "dialect", "is_active", "sort_order")
+    list_filter = ("is_active",)
+    search_fields = ("title", "prompt")
+    raw_id_fields = ("flavor", "dialect")
 
 
 @admin.register(Package)

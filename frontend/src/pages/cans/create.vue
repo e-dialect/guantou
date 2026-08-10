@@ -330,6 +330,7 @@ export default {
     await this.resolveMode(options);
     await this.restoreDraftIfNeeded(options);
     await this.loadDialects();
+    this.applyEntryContext(options);
   },
   onShow() {
     this.ensureCurrentDraftOwner();
@@ -369,6 +370,18 @@ export default {
         this.dialects = await listAllDialects();
       } catch (error) {
         uni.showToast({ title: '方言点加载失败，可稍后重试', icon: 'none' });
+      }
+    },
+    applyEntryContext(options) {
+      if (!this.form.submitted_dialect_id && options.dialect) {
+        this.form.submitted_dialect_id = Number(options.dialect);
+      }
+      if (
+        this.mode === 'free'
+        && !this.form.concept_text
+        && options.prompt
+      ) {
+        this.form.concept_text = decodeURIComponent(options.prompt);
       }
     },
     async resolveMode(options) {

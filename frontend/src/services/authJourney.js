@@ -48,6 +48,20 @@ export function resolveAuthDestination(intent) {
         url: `/pages/cans/create?flavor=${encodeURIComponent(context.flavorId)}${name}`,
       };
     }
+    if (context.page === 'circle_detail' && context.dialectId) {
+      return {
+        kind: AUTH_DESTINATION_KINDS.URL,
+        route: 'pages/cans/create',
+        url: `/pages/cans/create?dialect=${encodeURIComponent(context.dialectId)}`,
+      };
+    }
+    if (context.page === 'discovery') {
+      return {
+        kind: AUTH_DESTINATION_KINDS.URL,
+        route: 'pages/discovery/index',
+        url: '/pages/discovery/index',
+      };
+    }
     return { kind: AUTH_DESTINATION_KINDS.FALLBACK };
   }
 
@@ -68,6 +82,14 @@ export function resolveAuthDestination(intent) {
       kind: AUTH_DESTINATION_KINDS.URL,
       route: 'pages/users/details',
       url,
+    };
+  }
+
+  if (intent.action === 'circle_join' && context.circleId) {
+    return {
+      kind: AUTH_DESTINATION_KINDS.URL,
+      route: 'pages/circles/details',
+      url: `/pages/circles/details?id=${encodeURIComponent(context.circleId)}`,
     };
   }
 

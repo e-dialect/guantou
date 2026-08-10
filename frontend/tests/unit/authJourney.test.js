@@ -69,4 +69,23 @@ describe('auth journey', () => {
       url: '/pages/cans/details?id=19',
     });
   });
+
+  it('returns circle membership and recording intents to their exact context', () => {
+    expect(resolveAuthDestination({
+      action: 'circle_join',
+      context: { page: 'circle_detail', circleId: 6 },
+    })).toEqual({
+      kind: 'url',
+      route: 'pages/circles/details',
+      url: '/pages/circles/details?id=6',
+    });
+    expect(resolveAuthDestination({
+      action: 'record_can',
+      context: { page: 'circle_detail', dialectId: 8 },
+    })).toEqual({
+      kind: 'url',
+      route: 'pages/cans/create',
+      url: '/pages/cans/create?dialect=8',
+    });
+  });
 });

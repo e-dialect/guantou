@@ -41,6 +41,30 @@ export function resolveDialect(qualifiedCode) {
   return request.get('/dialects/resolve/', { qualified_code: qualifiedCode });
 }
 
+export function listCircles(params = {}) {
+  return request.get('/circles/', params);
+}
+
+export function getCircle(id) {
+  return request.get(`/circles/${id}/`);
+}
+
+export function joinCircle(id) {
+  return request.post(`/circles/${id}/membership/`, {});
+}
+
+export function leaveCircle(id) {
+  return request.del(`/circles/${id}/membership/`);
+}
+
+export function listCircleCans(id, params = {}) {
+  return request.get(`/circles/${id}/cans/`, params);
+}
+
+export function getDiscovery() {
+  return request.get('/discovery/');
+}
+
 export function listCans(params = {}) {
   return request.get('/cans/', params);
 }

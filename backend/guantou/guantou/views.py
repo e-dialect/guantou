@@ -28,12 +28,16 @@ from .models import (
     CanComment,
     CanCommentLike,
     CanLike,
+    CircleMembership,
     Dialect,
+    DialectCircle,
     Flavor,
     Nameplate,
     NameplateSupport,
     Package,
     Pronunciation,
+    RecordingChallenge,
+    SearchTermHit,
     Shelf,
 )
 from .permissions import IsCommentAuthorOrAdmin, IsOwnerOrAdmin
@@ -41,6 +45,7 @@ from .serializers import (
     CanCardSerializer,
     CanCommentSerializer,
     CanSerializer,
+    DialectCircleSerializer,
     DialectSerializer,
     FlavorSerializer,
     NameplateCardSerializer,
@@ -48,6 +53,7 @@ from .serializers import (
     PackageSerializer,
     PronunciationCardSerializer,
     PronunciationSerializer,
+    RecordingChallengeSerializer,
     ShelfSerializer,
 )
 from .services import (
@@ -136,11 +142,79 @@ class SuggestSearchView(APIView):
         )
 
 
+class DiscoveryView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        context = {"request": request}
+        hot_cans = (
+            visible_cans_for_user(request.user)
+            .filter(visibility=True)
+            .annotate(
+                like_count=Count("likes", distinct=True),
+                comment_count=Count("comments", distinct=True),
+                nameplate_count=Count(
+                    "nameplates",
+                    filter=Q(nameplates__status=Nameplate.Status.ACTIVE),
+                    distinct=True,
+                ),
+            )
+            .order_by("-views", "-like_count", "-created_at", "-id")[:6]
+        )
+        hot_flavors = Flavor.objects.annotate(
+            popularity=Count(
+                "nameplates__can",
+                filter=Q(
+                    nameplates__status=Nameplate.Status.ACTIVE,
+                    nameplates__can__visibility=True,
+                ),
+                distinct=True,
+            )
+        ).order_by("-popularity", "name", "id")[:6]
+        flavor_ids = list(Flavor.objects.order_by("id").values_list("id", flat=True))
+        daily_flavor = None
+        if flavor_ids:
+            daily_id = flavor_ids[timezone.localdate().toordinal() % len(flavor_ids)]
+            daily_flavor = Flavor.objects.get(id=daily_id)
+        challenges = RecordingChallenge.objects.filter(is_active=True).select_related(
+            "flavor", "dialect"
+        )[:6]
+        return Response(
+            {
+                "hot_cans": CanCardSerializer(
+                    hot_cans, many=True, context=context
+                ).data,
+                "hot_flavors": FlavorSerializer(
+                    hot_flavors, many=True, context=context
+                ).data,
+                "daily_flavor": (
+                    FlavorSerializer(daily_flavor, context=context).data
+                    if daily_flavor
+                    else None
+                ),
+                "topics": RecordingChallengeSerializer(
+                    challenges, many=True, context=context
+                ).data,
+            }
+        )
+
+
 class DialectViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
     queryset = Dialect.objects.select_related("parent").prefetch_related("children")
     serializer_class = DialectSerializer
     permission_classes = [CanWritePermission]
+
+    def perform_create(self, serializer):
+        dialect = serializer.save()
+        DialectCircle.objects.get_or_create(
+            dialect=dialect,
+            defaults={
+                "name": f"{dialect.name}圈",
+                "description": dialect.description
+                or f"一起听、录和校验{dialect.name}乡音。",
+            },
+        )
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -200,6 +274,105 @@ class DialectViewSet(viewsets.ModelViewSet):
             info.followed_dialects.remove(dialect)
             following = False
         return Response({"dialect_id": dialect.id, "following": following})
+
+
+class DialectCircleViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = DialectCircleSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        queryset = (
+            DialectCircle.objects.filter(is_active=True)
+            .select_related("dialect", "dialect__parent")
+            .annotate(
+                member_count=Count("members", distinct=True),
+            )
+        )
+        user = self.request.user
+        if user and user.is_authenticated:
+            queryset = queryset.annotate(
+                is_member=Exists(
+                    CircleMembership.objects.filter(
+                        circle_id=OuterRef("pk"),
+                        user=user,
+                    )
+                )
+            )
+        else:
+            queryset = queryset.annotate(
+                is_member=Value(False, output_field=BooleanField())
+            )
+        search = self.request.query_params.get("search", "").strip()
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search)
+                | Q(description__icontains=search)
+                | Q(dialect__name__icontains=search)
+            )
+        return queryset.order_by("dialect__sort_order", "id")
+
+    @action(
+        detail=True,
+        methods=["post", "delete"],
+        permission_classes=[permissions.IsAuthenticated],
+    )
+    def membership(self, request, pk=None):
+        circle = self.get_object()
+        if request.method == "POST":
+            _, changed = CircleMembership.objects.get_or_create(
+                circle=circle,
+                user=request.user,
+            )
+            request.user.user_info.followed_dialects.add(circle.dialect)
+            is_member = True
+        else:
+            deleted, _ = CircleMembership.objects.filter(
+                circle=circle,
+                user=request.user,
+            ).delete()
+            changed = bool(deleted)
+            if request.user.user_info.primary_dialect_id != circle.dialect_id:
+                request.user.user_info.followed_dialects.remove(circle.dialect)
+            is_member = False
+        return Response(
+            {
+                "changed": changed,
+                "is_member": is_member,
+                "member_count": CircleMembership.objects.filter(circle=circle).count(),
+            }
+        )
+
+    @action(detail=True, methods=["get"], permission_classes=[permissions.AllowAny])
+    def cans(self, request, pk=None):
+        circle = self.get_object()
+        queryset = (
+            visible_cans_for_user(request.user)
+            .filter(
+                visibility=True,
+                submitted_dialect_id__in=circle.dialect.descendant_ids(),
+            )
+            .annotate(
+                nameplate_count=Count(
+                    "nameplates",
+                    filter=Q(nameplates__status=Nameplate.Status.ACTIVE),
+                    distinct=True,
+                ),
+                like_count=Count("likes", distinct=True),
+                comment_count=Count("comments", distinct=True),
+            )
+            .order_by("-created_at", "-id")
+        )
+        page = self.paginate_queryset(queryset)
+        serializer = CanCardSerializer(
+            page if page is not None else queryset,
+            many=True,
+            context={"request": request},
+        )
+        return (
+            self.get_paginated_response(serializer.data)
+            if page is not None
+            else Response(serializer.data)
+        )
 
 
 class PackageViewSet(viewsets.ModelViewSet):
@@ -417,6 +590,33 @@ class CanViewSet(viewsets.ModelViewSet):
                     )
                     if user.user_info.primary_dialect_id:
                         roots.append(user.user_info.primary_dialect_id)
+                search_match = Q()
+                if user.is_authenticated:
+                    recent_keywords = (
+                        SearchTermHit.objects.filter(attributer=f"user:{user.id}")
+                        .order_by("-hit_date", "-created_at")
+                        .values_list("term__keyword", flat=True)
+                    )[:20]
+                    keywords = list(dict.fromkeys(recent_keywords))[:5]
+                    for keyword in keywords:
+                        search_match |= (
+                            Q(concept_text__icontains=keyword)
+                            | Q(nameplates__text_content__icontains=keyword)
+                            | Q(nameplates__definition__icontains=keyword)
+                            | Q(nameplates__flavor__name__icontains=keyword)
+                        )
+                if search_match:
+                    queryset = queryset.annotate(
+                        search_priority=Case(
+                            When(search_match, then=Value(1)),
+                            default=Value(0),
+                            output_field=IntegerField(),
+                        )
+                    )
+                else:
+                    queryset = queryset.annotate(
+                        search_priority=Value(0, output_field=IntegerField())
+                    )
                 preferred = expanded_dialect_ids(roots)
                 if preferred:
                     queryset = queryset.annotate(
@@ -431,6 +631,7 @@ class CanViewSet(viewsets.ModelViewSet):
                         dialect_priority=Value(0, output_field=IntegerField())
                     )
                 queryset = queryset.order_by(
+                    "-search_priority",
                     "-dialect_priority",
                     "-like_count",
                     "-views",

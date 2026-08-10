@@ -650,6 +650,92 @@ class NameplateSupport(models.Model):
         verbose_name_plural = "铭牌支持"
 
 
+class DialectCircle(models.Model):
+    """围绕一个方言树节点组织的轻量社区入口。"""
+
+    dialect = models.OneToOneField(
+        Dialect,
+        on_delete=models.PROTECT,
+        related_name="circle",
+        verbose_name="主方言",
+    )
+    name = models.CharField(max_length=120, verbose_name="圈子名称")
+    description = models.TextField(blank=True, verbose_name="简介")
+    members = models.ManyToManyField(
+        User,
+        through="CircleMembership",
+        related_name="dialect_circles",
+        blank=True,
+    )
+    is_active = models.BooleanField(default=True, verbose_name="是否开放")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ["dialect__sort_order", "id"]
+        verbose_name = "方言圈"
+        verbose_name_plural = "方言圈"
+
+
+class CircleMembership(models.Model):
+    circle = models.ForeignKey(
+        DialectCircle,
+        on_delete=models.CASCADE,
+        related_name="memberships",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="circle_memberships",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["circle", "user"],
+                name="unique_circle_membership",
+            )
+        ]
+
+
+class RecordingChallenge(models.Model):
+    """发现页上的录音挑战；不允许脱离罐头主线发布纯文本。"""
+
+    title = models.CharField(max_length=120, verbose_name="标题")
+    prompt = models.CharField(max_length=300, verbose_name="录音提示")
+    flavor = models.ForeignKey(
+        Flavor,
+        on_delete=models.SET_NULL,
+        related_name="recording_challenges",
+        null=True,
+        blank=True,
+    )
+    dialect = models.ForeignKey(
+        Dialect,
+        on_delete=models.SET_NULL,
+        related_name="recording_challenges",
+        null=True,
+        blank=True,
+    )
+    is_active = models.BooleanField(default=True)
+    sort_order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.title
+
+    class Meta:
+        ordering = ["sort_order", "-created_at", "-id"]
+        verbose_name = "录音挑战"
+        verbose_name_plural = "录音挑战"
+
+
 class Shelf(models.Model):
     """货架；主题组织容器，对应旧系统中的词单。"""
 
