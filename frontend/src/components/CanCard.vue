@@ -17,10 +17,22 @@
     <view class="meta">
       {{ locationText }} · {{ nameplateCount }} 张铭牌 · {{ can.views || 0 }} 次查看
     </view>
+    <button
+      class="play-button"
+      :disabled="!can.audio_url"
+      @tap.stop="play"
+    >
+      <text class="play-icon">
+        ▶
+      </text>
+      <text>{{ can.audio_url ? `听乡音${durationText}` : '暂无可播放音频' }}</text>
+    </button>
   </view>
 </template>
 
 <script>
+import { playAudio } from '@/utils/audio';
+
 const statusLabels = {
   unlabeled: '无铭牌',
   pending: '待校验',
@@ -51,8 +63,16 @@ export default {
     nameplateCount() {
       return this.can.nameplate_count || 0;
     },
+    durationText() {
+      const durationMs = Number(this.can.duration_ms || 0);
+      if (!durationMs) return '';
+      return ` · ${Math.max(1, Math.round(durationMs / 1000))} 秒`;
+    },
   },
   methods: {
+    play() {
+      playAudio(this.can.audio_url);
+    },
     statusText(status) {
       return statusLabels[status] || status || '未知';
     },
@@ -101,5 +121,35 @@ export default {
   margin-top: 14rpx;
   color: #7a867d;
   font-size: 24rpx;
+}
+
+.play-button {
+  width: 100%;
+  min-height: 68rpx;
+  margin: 20rpx 0 0;
+  padding: 0 20rpx;
+  border: 1px solid #cbd8cb;
+  border-radius: 999rpx;
+  background: #f4f8f3;
+  color: #1f5c43;
+  font-size: 25rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+}
+
+.play-button::after {
+  border: 0;
+}
+
+.play-button[disabled] {
+  background: #f2f3ef;
+  color: #899289;
+  border-color: #e2e5df;
+}
+
+.play-icon {
+  font-size: 20rpx;
 }
 </style>
