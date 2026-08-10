@@ -1,10 +1,14 @@
 import { expect, test } from '@playwright/test';
 
 test('guest signs in with the visible demo phone code', async ({ page }) => {
-  await page.goto('/pages/login/login');
+  await page.goto('/');
+  await page.locator('.quick-card.mine').click();
+  await expect(page.getByText('还没有登录')).toBeVisible();
+  await page.locator('.login-button').click();
 
-  const phone = page.getByPlaceholder('请输入手机号');
-  const code = page.getByPlaceholder('请输入验证码');
+  const phone = page.locator('input[name="phone"]');
+  const code = page.locator('input[name="code"]');
+  await expect(phone).toBeVisible();
   await phone.fill('13800001234');
   await page.getByText('获取验证码', { exact: true }).click();
 
