@@ -17,6 +17,13 @@ SECRET_KEY = env.str("SECRET_KEY", "DEFAULT_SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG", False)
 
+# The current public build is an intentionally passwordless demo.  Keep the
+# verification code visible until an SMS provider is configured, then set this
+# to false before accepting real user phone numbers.
+PHONE_CODE_DEMO_MODE = env.bool("PHONE_CODE_DEMO_MODE", True)
+PHONE_CODE_TTL_SECONDS = env.int("PHONE_CODE_TTL_SECONDS", 300)
+PHONE_CODE_THROTTLE_SECONDS = env.int("PHONE_CODE_THROTTLE_SECONDS", 60)
+
 ALLOWED_HOSTS = ["*"]
 
 # Application definition
@@ -128,6 +135,10 @@ EMAIL_PORT = env.str("EMAIL_PORT", "DEFAULT_EMAIL_PORT")
 EMAIL_USE_SSL = True
 EMAIL_USE_TLS = False
 DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL", "DEFAULT_DEFAULT_FROM_EMAIL")
+DEFAULT_AVATAR_URL = env.str(
+    "DEFAULT_AVATAR_URL",
+    "https://cos.edialect.top/website/默认头像.jpg",
+)
 # EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # 媒体图片下载到media/下

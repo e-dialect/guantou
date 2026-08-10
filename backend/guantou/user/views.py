@@ -1,5 +1,7 @@
 import demjson3
+import secrets
 from django.contrib.auth import authenticate
+from django.db import IntegrityError, transaction
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -7,7 +9,7 @@ from user.dto.user_all import user_all
 from user.passwords import validate_password_policy
 from user.tokens import generate_token, get_authorization_token, token_check
 from user.avatar import upload_avatar
-from user.verification import check_email_code
+from user.verification import check_email_code, check_phone_code, normalize_phone
 from .forms import UserForm
 from .models import UserInfo, User
 
@@ -95,6 +97,57 @@ def login(request):
                 return JsonResponse({}, status=401)
     except Exception as e:
         return JsonResponse({"msg": str(e)}, status=500)
+
+
+@csrf_exempt
+def phone_login(request):
+    if request.method != "POST":
+        return JsonResponse({"message": "Method Not Allowed"}, status=405)
+    body = demjson3.decode(request.body)
+    phone = normalize_phone(body.get("phone"))
+    if not check_phone_code(phone, body.get("code")):
+        return JsonResponse({"message": "手机号或验证码错误"}, status=401)
+
+    is_new = False
+    try:
+        with transaction.atomic():
+            user_info = (
+                UserInfo.objects.select_for_update()
+                .select_related("user")
+                .filter(telephone=phone)
+                .first()
+            )
+            if user_info is None:
+                username = f"phone_{phone[-4:]}_{secrets.token_hex(4)}"
+                user = User(username=username)
+                user.set_unusable_password()
+                user.save()
+                user_info = UserInfo.objects.create(
+                    user=user,
+                    nickname=f"乡友{phone[-4:]}",
+                    telephone=phone,
+                )
+                is_new = True
+            else:
+                user = user_info.user
+            user.last_login = timezone.now()
+            user.save(update_fields=["last_login"])
+    except IntegrityError:
+        user_info = (
+            UserInfo.objects.select_related("user").filter(telephone=phone).first()
+        )
+        if user_info is None:
+            return JsonResponse({"message": "手机号已被其他账号使用"}, status=409)
+        user = user_info.user
+
+    return JsonResponse(
+        {
+            "token": generate_token(user),
+            "id": user.id,
+            "is_new": is_new,
+        },
+        status=200,
+    )
 
 
 @csrf_exempt

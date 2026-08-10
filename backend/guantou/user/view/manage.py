@@ -15,6 +15,7 @@ from utils.exceptions.types.forbidden import ForbiddenException
 from utils.exceptions.types.unauthorized import WrongPassword
 from user.tokens import get_request_user, generate_token
 from user.verification import check_email_code
+from user.verification import is_valid_phone, normalize_phone
 from user.models import UserFollow, UserInfo
 
 
@@ -93,6 +94,18 @@ class Manage(View):
             mutable_info["primary_dialect"] = mutable_info.pop("primary_dialect_id")
         elif isinstance(mutable_info.get("primary_dialect"), dict):
             mutable_info["primary_dialect"] = mutable_info["primary_dialect"].get("id")
+        if "telephone" in mutable_info:
+            telephone = normalize_phone(mutable_info["telephone"])
+            if telephone and not is_valid_phone(telephone):
+                return JsonResponse({"message": "请输入有效的 11 位手机号"}, status=400)
+            if (
+                telephone
+                and UserInfo.objects.exclude(user_id=id)
+                .filter(telephone=telephone)
+                .exists()
+            ):
+                return JsonResponse({"message": "手机号已被其他账号使用"}, status=409)
+            mutable_info["telephone"] = telephone
         form_data = {
             field: (
                 user.user_info.primary_dialect_id

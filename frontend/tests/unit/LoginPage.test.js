@@ -15,6 +15,11 @@ vi.mock('@/services/login', () => ({
   normalLogin: vi.fn(),
 }));
 
+vi.mock('@/services/phoneAuth', () => ({
+  loginWithPhone: vi.fn(),
+  requestPhoneCode: vi.fn(),
+}));
+
 import { cancelLoginToSearch } from '@/services/authJourney';
 import { peekInterceptIntent } from '@/services/authGuard';
 

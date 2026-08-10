@@ -1,4 +1,5 @@
 from ..models import User
+from django.conf import settings
 from django.utils.timezone import localtime
 
 
@@ -36,7 +37,7 @@ def user_all(user: User, *, private=False) -> dict:
         "id": user.id,
         "username": user.username,
         "nickname": info.nickname,
-        "avatar": info.avatar,
+        "avatar": info.avatar or settings.DEFAULT_AVATAR_URL,
         "primary_dialect": dialect_ref(info.primary_dialect),
         "points_sum": info.points_sum,
         "title": calculate_title(info.points_sum),
@@ -51,7 +52,7 @@ def user_all(user: User, *, private=False) -> dict:
                 "registration_time": localtime(user.date_joined).__format__(
                     "%Y-%m-%d %H:%M:%S"
                 ),
-                "birthday": info.birthday,
+                "birthday": info.birthday.isoformat() if info.birthday else None,
                 "is_admin": user.is_superuser,
                 "is_staff": user.is_staff,
                 "wechat": bool(info.wechat),

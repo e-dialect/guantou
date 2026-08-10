@@ -14,6 +14,8 @@ TRUSTED_AVATAR_DOMAINS = {
 
 
 def upload_avatar(user_id, avatar, suffix="png"):
+    if not avatar:
+        return ""
     if avatar == DEFAULT_AVATAR:
         return avatar
     if urlparse(avatar).netloc in TRUSTED_AVATAR_DOMAINS:

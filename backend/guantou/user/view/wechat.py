@@ -67,7 +67,7 @@ class WechatLogin(View):
         body = demjson3.decode(request.body)
         jscode = body["jscode"]
         openid = OpenId(jscode).get_openid()
-        user_info = UserInfo.objects.filter(wechat__contains=openid)
+        user_info = UserInfo.objects.filter(wechat=openid)
         if not user_info.exists():
             raise NotFoundException("当前微信未绑定账号")
         user = user_info[0].user
@@ -84,7 +84,7 @@ class WechatRegister(View):
         jscode = body["jscode"]
         #   获取微信信息
         openid = OpenId(jscode).get_openid()
-        user_info = UserInfo.objects.filter(wechat__contains=openid)
+        user_info = UserInfo.objects.filter(wechat=openid)
         if user_info.exists():  # 微信号有记录了
             return JsonResponse({"msg": "该微信已绑定账户"}, status=409)
         if not user_form.is_valid():
@@ -100,8 +100,7 @@ class WechatRegister(View):
                 )
         else:
             user = user_form.save(commit=False)
-            validate_password_policy(user_form.cleaned_data["password"])
-            user.set_password(user_form.cleaned_data["password"])
+            user.set_unusable_password()
             # Set empty email for WeChat-only registration
             if not user.email:
                 user.email = ""
@@ -163,7 +162,7 @@ class WechatManage(View):
         jscode = body["jscode"]
         openid = OpenId(jscode).get_openid()
         #   基于jscode获取的用户
-        user_info = UserInfo.objects.filter(wechat__contains=openid)
+        user_info = UserInfo.objects.filter(wechat=openid)
         if user_info[0].user != user:
             raise ForbiddenException
         validate_password_policy(body["newpassword"])
@@ -237,7 +236,7 @@ class WechatWebLogin(View):
         code = body["code"]
         wechat_auth = WechatWebAuth(code)
         openid = wechat_auth.get_openid()
-        user_info = UserInfo.objects.filter(wechat__contains=openid)
+        user_info = UserInfo.objects.filter(wechat=openid)
         if not user_info.exists():
             raise NotFoundException("当前微信未绑定账号")
         user = user_info[0].user
@@ -265,7 +264,7 @@ class WechatWebRegister(View):
         openid = wechat_auth.get_openid()
 
         # Check if WeChat already bound
-        user_info = UserInfo.objects.filter(wechat__contains=openid)
+        user_info = UserInfo.objects.filter(wechat=openid)
         if user_info.exists():
             return JsonResponse({"msg": "该微信已绑定账户"}, status=409)
 
@@ -292,8 +291,7 @@ class WechatWebRegister(View):
 
         # Create user
         user = user_form.save(commit=False)
-        validate_password_policy(user_form.cleaned_data["password"])
-        user.set_password(user_form.cleaned_data["password"])
+        user.set_unusable_password()
         if not user.email:
             user.email = ""
 

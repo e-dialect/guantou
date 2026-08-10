@@ -30,4 +30,4 @@ class UserForm(forms.ModelForm):
 class UserFormByWechat(forms.ModelForm):
     class Meta:
         model = User
-        fields = ("username", "password")
+        fields = ("username",)

@@ -107,32 +107,27 @@ export async function afterLogin(res, options = {}) {
 /**
  * 小程序一键登录
  */
-/**
- * 生成安全的随机密码
- */
-function generateSecurePassword(length = 16) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
-  let password = '';
+function generateUsernameSuffix(length = 10) {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let suffix = '';
   for (let i = 0; i < length; i += 1) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
+    suffix += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return password;
+  return suffix;
 }
 
 /**
  * 使用微信 code 进行一键注册
  */
 async function registerWithWechatCode(code) {
-  // 自动生成用户名和密码
-  const username = `wx_${generateSecurePassword(8)}`;
-  const password = generateSecurePassword(16);
+  // 用户无需设置密码；后端会创建不可用密码，仅保留微信登录能力。
+  const username = `wx_${generateUsernameSuffix()}`;
 
   // 不再调用 uni.getUserProfile（小程序基础库限制），只提交必需字段
   // 发送注册请求（仅必填项）
   return rawRequest.post('/users/wechat/register', {
     jscode: code,
     username,
-    password,
   }, { auth: false })
     .then(async (res) => {
       await afterLogin(res, { isNew: true });

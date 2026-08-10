@@ -15,10 +15,12 @@ class UserInfo(models.Model):
     )  # openid
     qq = models.CharField(max_length=128, blank=True, verbose_name="qq标识码")  # openid
     nickname = models.CharField(blank=True, max_length=100, verbose_name="昵称")
-    birthday = models.DateField(blank=True, default="1970-1-1", verbose_name="生日")
+    birthday = models.DateField(
+        blank=True, null=True, default=None, verbose_name="生日"
+    )
     telephone = models.CharField(blank=True, max_length=50, verbose_name="电话")
     avatar = models.URLField(
-        default="https://cos.edialect.top/website/默认头像.jpg",
+        default="",
         blank=True,
         verbose_name="头像",
     )
@@ -54,6 +56,23 @@ class UserInfo(models.Model):
         return self.user.id
 
     class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["wechat"],
+                condition=~models.Q(wechat=""),
+                name="unique_nonempty_user_wechat",
+            ),
+            models.UniqueConstraint(
+                fields=["qq"],
+                condition=~models.Q(qq=""),
+                name="unique_nonempty_user_qq",
+            ),
+            models.UniqueConstraint(
+                fields=["telephone"],
+                condition=~models.Q(telephone=""),
+                name="unique_nonempty_user_telephone",
+            ),
+        ]
         verbose_name_plural = "用户详细信息"
         verbose_name = "用户详细信息"
 
