@@ -104,7 +104,11 @@ export default {
       uni.navigateTo({ url: `/pages/packages/details?id=${id}` });
     },
     toCreateForFlavor() {
-      if (!requireAuth('record_can', { page: 'flavor_detail', flavorId: this.id })) return;
+      if (!requireAuth('record_can', {
+        page: 'flavor_detail',
+        flavorId: this.id,
+        flavorName: this.flavor.name,
+      })) return;
       uni.navigateTo({
         url: `/pages/cans/create?flavor=${this.id}&flavor_name=${encodeURIComponent(this.flavor.name)}`,
       });

@@ -15,6 +15,7 @@ export const PROTECTED_ACTIONS = {
   tab_follow: '关注流',
   nameplate_support: '支持铭牌',
   nameplate_create: '贴铭牌',
+  open_mine: '查看我的',
 };
 
 const STORAGE_KEY = 'auth_intercept_intent';

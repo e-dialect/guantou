@@ -6,6 +6,10 @@ import {
   peekInterceptIntent,
 } from '@/services/authGuard';
 import {
+  AUTH_DESTINATION_KINDS,
+  resolveAuthDestination,
+} from '@/services/authJourney';
+import {
   claimAnonymousCanDrafts,
   getCanDraftOwnerScope,
 } from '@/services/canDrafts';
@@ -16,29 +20,42 @@ export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageS
   const previousPage = pages.length > 1 ? pages[pages.length - 2] : null;
   const previousRoute = previousPage ? previousPage.route : '';
   const interruptedIntent = peekInterceptIntent();
-  const previousIsCanCreate = previousRoute === 'pages/cans/create'
-    || previousRoute === '/pages/cans/create';
+  const destination = resolveAuthDestination(interruptedIntent);
 
-  if (interruptedIntent?.action !== 'record_can') return false;
-  const isCanCreateIntent = interruptedIntent.context?.page === 'can_create'
-    && interruptedIntent.context?.returnRoute === '/pages/cans/create';
-  if (!isCanCreateIntent) {
+  if (destination.kind === AUTH_DESTINATION_KINDS.DEFAULT) return false;
+
+  if (destination.kind === AUTH_DESTINATION_KINDS.ADJACENT_CAN_DRAFT) {
+    const previousIsCanCreate = previousRoute === 'pages/cans/create'
+      || previousRoute === '/pages/cans/create';
+    if (!previousIsCanCreate) {
+      clearInterceptIntent();
+      toIndexPage(true);
+      return true;
+    }
+    const intendedOwner = destination.ownerScope;
+    if (intendedOwner.startsWith('user:') && intendedOwner !== `user:${loggedInUserId}`) {
+      clearInterceptIntent();
+      uni.showToast({ title: '该草稿属于其他账号', icon: 'none' });
+      toMePage(true);
+      return true;
+    }
     clearInterceptIntent();
-    return false;
-  }
-  if (!previousIsCanCreate) {
-    clearInterceptIntent();
-    return false;
-  }
-  const intendedOwner = interruptedIntent.context?.ownerScope || '';
-  if (intendedOwner.startsWith('user:') && intendedOwner !== `user:${loggedInUserId}`) {
-    clearInterceptIntent();
-    uni.showToast({ title: '该草稿属于其他账号', icon: 'none' });
-    toMePage(true);
+    uni.navigateBack({ delta: 1 });
     return true;
   }
+
   clearInterceptIntent();
-  uni.navigateBack({ delta: 1 });
+  if (destination.kind === AUTH_DESTINATION_KINDS.URL) {
+    const normalizedPreviousRoute = String(previousRoute || '').replace(/^\//, '');
+    if (normalizedPreviousRoute === destination.route) {
+      uni.navigateBack({ delta: 1 });
+    } else {
+      uni.redirectTo({ url: destination.url });
+    }
+    return true;
+  }
+
+  toIndexPage(true);
   return true;
 }
 

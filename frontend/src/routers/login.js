@@ -12,7 +12,8 @@ export function toForgetPage() {
  */
 export function toLoginPage() {
   const routes = getCurrentPages();
-  if (routes[routes.length - 1].route !== '/pages/login/login' && routes[routes.length - 1].route !== 'pages/login/login') {
+  const currentRoute = routes.length ? routes[routes.length - 1].route : '';
+  if (currentRoute !== '/pages/login/login' && currentRoute !== 'pages/login/login') {
     uni.navigateTo({
       url: '/pages/login/login',
     });

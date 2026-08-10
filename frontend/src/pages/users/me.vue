@@ -1,104 +1,133 @@
 <template>
   <view class="page">
-    <view class="profile">
-      <image
-        :src="avatar"
-        class="avatar"
-        mode="aspectFill"
-        @tap="toUserInfoPage"
-      />
-      <view>
-        <view class="name">
-          {{ nickname || '未登录' }}
-        </view>
-        <view class="meta">
-          {{ locationText }}
+    <template v-if="loggedIn">
+      <view class="profile">
+        <image
+          :src="avatar"
+          class="avatar"
+          mode="aspectFill"
+          @tap="toUserInfoPage"
+        />
+        <view>
+          <view class="name">
+            {{ nickname || '未登录' }}
+          </view>
+          <view class="meta">
+            {{ locationText }}
+          </view>
         </view>
       </view>
-    </view>
 
-    <view class="stats">
-      <view
-        class="stat"
-        @tap="toMineCans"
-      >
-        <view class="number">
-          {{ cansCount }}
-        </view>
-        <view class="label">
-          罐头
-        </view>
-      </view>
-      <view class="stat">
-        <view class="number">
-          {{ flavorsCount }}
-        </view>
-        <view class="label">
-          义项
-        </view>
-      </view>
-      <view class="stat">
-        <view class="number">
-          {{ nameplatesCount }}
-        </view>
-        <view class="label">
-          铭牌
-        </view>
-      </view>
-    </view>
-
-    <view class="menu">
-      <view
-        class="menu-item"
-        @tap="toCreate"
-      >
-        装一罐
-      </view>
-      <view
-        class="menu-item"
-        @tap="toDrafts"
-      >
-        草稿箱
-        <text class="menu-meta">
-          {{ draftsCount }} 条
-        </text>
-      </view>
-      <view
-        class="menu-item"
-        @tap="toMailsPage"
-      >
-        我的消息
-        <text
-          v-if="unreadMailsCount > 0"
-          class="badge"
+      <view class="stats">
+        <view
+          class="stat"
+          @tap="toMineCans"
         >
-          {{ unreadMailsCount }}
-        </text>
+          <view class="number">
+            {{ cansCount }}
+          </view>
+          <view class="label">
+            罐头
+          </view>
+        </view>
+        <view class="stat">
+          <view class="number">
+            {{ flavorsCount }}
+          </view>
+          <view class="label">
+            义项
+          </view>
+        </view>
+        <view class="stat">
+          <view class="number">
+            {{ nameplatesCount }}
+          </view>
+          <view class="label">
+            铭牌
+          </view>
+        </view>
       </view>
-      <view
-        class="menu-item"
-        @tap="toUserInfoPage"
+
+      <view class="menu">
+        <view
+          class="menu-item"
+          @tap="toCreate"
+        >
+          装一罐
+        </view>
+        <view
+          class="menu-item"
+          @tap="toDrafts"
+        >
+          草稿箱
+          <text class="menu-meta">
+            {{ draftsCount }} 条
+          </text>
+        </view>
+        <view
+          class="menu-item"
+          @tap="toMailsPage"
+        >
+          我的消息
+          <text
+            v-if="unreadMailsCount > 0"
+            class="badge"
+          >
+            {{ unreadMailsCount }}
+          </text>
+        </view>
+        <view
+          class="menu-item"
+          @tap="toUserInfoPage"
+        >
+          个人资料
+        </view>
+        <view
+          class="menu-item"
+          @tap="toChangePasswordPage"
+        >
+          修改密码
+        </view>
+        <view
+          class="menu-item"
+          @tap="bindingWechat"
+        >
+          {{ wechatBindText }}
+        </view>
+        <view
+          class="menu-item danger"
+          @tap="exit"
+        >
+          退出登录
+        </view>
+      </view>
+    </template>
+
+    <view
+      v-else
+      class="guest-profile"
+    >
+      <view class="guest-mark">
+        乡
+      </view>
+      <view class="guest-title">
+        还没有登录
+      </view>
+      <view class="guest-copy">
+        登录后可以查看自己的罐头、草稿和贡献记录。查词与收听公开乡音无需登录。
+      </view>
+      <button
+        class="login-button"
+        @tap="openLoginFromMine"
       >
-        个人资料
-      </view>
-      <view
-        class="menu-item"
-        @tap="toChangePasswordPage"
+        登录 / 注册
+      </button>
+      <button
+        class="search-button"
+        @tap="toSearch"
       >
-        修改密码
-      </view>
-      <view
-        class="menu-item"
-        @tap="bindingWechat"
-      >
-        {{ wechatBindText }}
-      </view>
-      <view
-        class="menu-item danger"
-        @tap="exit"
-      >
-        退出登录
-      </view>
+        先去查词
+      </button>
     </view>
   </view>
 </template>
@@ -117,6 +146,7 @@ import {
 } from '@/routers/user';
 import { toMailsPage } from '@/routers/mail';
 import { listCanDrafts } from '@/services/canDrafts';
+import { openLoginFromMine } from '@/services/authJourney';
 
 const app = getApp();
 
@@ -134,6 +164,7 @@ export default {
       unreadMailsCount: 0,
       wechatBindText: '绑定微信',
       isBinding: false,
+      loggedIn: Boolean(uni.getStorageSync('token')),
     };
   },
   computed: {
@@ -145,12 +176,18 @@ export default {
     this.getInfo();
   },
   onShow() {
+    this.loggedIn = Boolean(uni.getStorageSync('token'));
     this.refreshDraftsCount();
+    if (this.loggedIn) this.getInfo();
   },
   methods: {
     toMailsPage,
     toChangePasswordPage,
     toUserInfoPage,
+    openLoginFromMine,
+    toSearch() {
+      uni.navigateTo({ url: '/pages/search' });
+    },
     toCreate() {
       uni.navigateTo({ url: '/pages/cans/create' });
     },
@@ -226,6 +263,66 @@ export default {
   color: #1d2a24;
   padding: 44rpx 28rpx 80rpx;
   box-sizing: border-box;
+}
+
+.guest-profile {
+  max-width: 620rpx;
+  margin: 16vh auto 0;
+  padding: 48rpx 36rpx;
+  border: 1px solid #dce3d8;
+  border-radius: 18rpx;
+  background: #ffffff;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.guest-mark {
+  width: 112rpx;
+  height: 112rpx;
+  margin: 0 auto;
+  border-radius: 56rpx;
+  background: #1f5c43;
+  color: #ffffff;
+  font-size: 48rpx;
+  font-weight: 800;
+  line-height: 112rpx;
+}
+
+.guest-title {
+  margin-top: 28rpx;
+  font-size: 38rpx;
+  font-weight: 800;
+}
+
+.guest-copy {
+  margin-top: 16rpx;
+  color: #647068;
+  font-size: 26rpx;
+  line-height: 1.65;
+}
+
+.login-button,
+.search-button {
+  margin-top: 30rpx;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+}
+
+.login-button {
+  background: #1f5c43;
+  color: #ffffff;
+}
+
+.search-button {
+  margin-top: 16rpx;
+  border: 1px solid #ccd7ca;
+  background: #ffffff;
+  color: #1f5c43;
+}
+
+.login-button::after,
+.search-button::after {
+  border: 0;
 }
 
 .profile {

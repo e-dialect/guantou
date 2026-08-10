@@ -19,6 +19,7 @@ describe('login draft resume', () => {
     globalThis.uni = {
       getStorageSync: vi.fn((key) => (key === 'id' ? '7' : '')),
       navigateBack: vi.fn(),
+      redirectTo: vi.fn(),
       reLaunch: vi.fn(),
       showToast: vi.fn(),
     };
@@ -42,26 +43,77 @@ describe('login draft resume', () => {
     expect(uni.navigateBack).toHaveBeenCalledWith({ delta: 1 });
   });
 
-  it('does not consume another protected action intent', () => {
+  it('safely falls back for a protected action without an implemented destination', () => {
     peekInterceptIntent.mockReturnValue({
       action: 'like',
       context: { page: 'flavor_details' },
     });
 
-    expect(resumeInterruptedPageAfterLogin('7')).toBe(false);
-    expect(clearInterceptIntent).not.toHaveBeenCalled();
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(true);
+    expect(clearInterceptIntent).toHaveBeenCalledTimes(1);
+    expect(uni.reLaunch).toHaveBeenCalledWith({ url: '/pages/index' });
     expect(uni.navigateBack).not.toHaveBeenCalled();
   });
 
-  it('discards a stale can-create intent after login from an unrelated page stack', () => {
+  it('discards a stale can-create intent and returns home', () => {
     getCurrentPages.mockReturnValue([
       { route: 'pages/flavors/details' },
       { route: 'pages/login/login' },
     ]);
 
-    expect(resumeInterruptedPageAfterLogin('7')).toBe(false);
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(true);
     expect(clearInterceptIntent).toHaveBeenCalledTimes(1);
+    expect(uni.reLaunch).toHaveBeenCalledWith({ url: '/pages/index' });
     expect(uni.navigateBack).not.toHaveBeenCalled();
+  });
+
+  it('opens a flavor-scoped can form without replaying submission', () => {
+    getCurrentPages.mockReturnValue([
+      { route: 'pages/flavors/details' },
+      { route: 'pages/login/login' },
+    ]);
+    peekInterceptIntent.mockReturnValue({
+      action: 'record_can',
+      context: { page: 'flavor_detail', flavorId: 12, flavorName: '月亮' },
+    });
+
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(true);
+    expect(clearInterceptIntent).toHaveBeenCalledTimes(1);
+    expect(uni.redirectTo).toHaveBeenCalledWith({
+      url: '/pages/cans/create?flavor=12&flavor_name=%E6%9C%88%E4%BA%AE',
+    });
+  });
+
+  it('returns to a can detail after an interrupted nameplate action', () => {
+    getCurrentPages.mockReturnValue([
+      { route: 'pages/index' },
+      { route: 'pages/login/login' },
+    ]);
+    peekInterceptIntent.mockReturnValue({
+      action: 'nameplate_support',
+      context: { page: 'can_detail', canId: 18, nameplateId: 4 },
+    });
+
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(true);
+    expect(uni.redirectTo).toHaveBeenCalledWith({
+      url: '/pages/cans/details?id=18',
+    });
+  });
+
+  it('returns voluntary login to the adjacent mine page', () => {
+    getCurrentPages.mockReturnValue([
+      { route: 'pages/users/me' },
+      { route: 'pages/login/login' },
+    ]);
+    peekInterceptIntent.mockReturnValue({
+      action: 'open_mine',
+      context: { page: 'mine' },
+      voluntary: true,
+    });
+
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(true);
+    expect(clearInterceptIntent).toHaveBeenCalledTimes(1);
+    expect(uni.navigateBack).toHaveBeenCalledWith({ delta: 1 });
   });
 
   it('blocks a draft that belongs to a different signed-in account', () => {
