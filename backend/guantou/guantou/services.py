@@ -4,6 +4,7 @@ from django.db import transaction
 from django.db.models import Case, F, IntegerField, Q, Value, When
 from django.utils import timezone
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 from utils.exceptions.payload import field_error
 from utils.exceptions.types.conflict import ConflictException
 
@@ -236,6 +237,85 @@ def hot_search_terms(limit=None):
     ]
 
 
+CAN_TRANSITIONS = {
+    "submit": {Can.Status.PENDING: Can.Status.TENTATIVE},
+    "verify": {
+        Can.Status.TENTATIVE: Can.Status.VERIFIED,
+        Can.Status.DISPUTED: Can.Status.VERIFIED,
+    },
+    "reject": {
+        Can.Status.PENDING: Can.Status.REJECTED,
+        Can.Status.TENTATIVE: Can.Status.REJECTED,
+        Can.Status.DISPUTED: Can.Status.REJECTED,
+    },
+    "dispute": {Can.Status.TENTATIVE: Can.Status.DISPUTED},
+    "restore": {Can.Status.REJECTED: Can.Status.PENDING},
+}
+
+
+def _transition_actor(user):
+    try:
+        nickname = user.user_info.nickname or user.username
+        avatar = user.user_info.avatar or ""
+    except Exception:
+        nickname = user.username
+        avatar = ""
+    return {
+        "id": user.id,
+        "username": user.username,
+        "nickname": nickname,
+        "avatar": avatar,
+    }
+
+
+@transaction.atomic
+def transition_can(*, can_id, user, action, reason=""):
+    if action not in CAN_TRANSITIONS:
+        raise serializers.ValidationError({"action": f"未知操作: {action}"})
+
+    can = (
+        Can.objects.select_for_update()
+        .select_related("recorder", "verifier")
+        .get(pk=can_id)
+    )
+    is_recorder = can.recorder_id == user.id
+    if action in {"verify", "reject"}:
+        allowed = user.is_staff
+    elif action == "restore":
+        allowed = user.is_staff or is_recorder
+    else:
+        allowed = is_recorder
+    if not allowed:
+        raise PermissionDenied("您没有权限执行此操作")
+
+    target = CAN_TRANSITIONS[action].get(can.status)
+    if target is None:
+        raise ConflictException(f"不允许从 {can.status} 执行 {action}")
+
+    clean_reason = clean_text(reason)
+    if len(clean_reason) > 300:
+        raise serializers.ValidationError({"reason": "流转理由不能超过 300 字"})
+    transition_log = list(can.transition_log or [])
+    transition_log.append(
+        {
+            "action": action,
+            "from": can.status,
+            "to": target,
+            "by": _transition_actor(user),
+            "at": timezone.now().isoformat(),
+            "reason": clean_reason,
+        }
+    )
+    can.status = target
+    can.transition_log = transition_log
+    if action in {"verify", "reject"}:
+        can.verifier = user
+    elif action == "restore":
+        can.verifier = None
+    can.save(update_fields=["status", "transition_log", "verifier", "updated_at"])
+    return can
+
+
 @transaction.atomic
 def elect_primary_nameplate(can):
     candidates = (
@@ -341,6 +421,8 @@ def create_initial_nameplate(can, label, user):
     flavor = pronunciation.flavor if pronunciation else None
     if flavor is None:
         flavor = get_or_create_submission_flavor(can, label, user, package)
+    if package is not None and flavor is not None:
+        FlavorPackage.objects.get_or_create(package=package, flavor=flavor)
 
     dialect = pronunciation.dialect if pronunciation else None
     if dialect is None and label.get("dialect_id"):

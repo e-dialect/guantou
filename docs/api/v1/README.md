@@ -185,6 +185,8 @@ POST /cans/
 
 Nameplate 类似同一件商品可由不同人撰写、带不同依据的商品说明，也是词典意义上的 annotation/attestation（著录或用例证据）。它不是 Can 内部的一段可覆盖文字，而是有稳定 ID、创建者、来源、状态和支持关系的一等资源，可以独立分页、筛选和引用。
 
+贴铭牌时可以选择现有 Package、Flavor 与 Dialect。仅提交原样新写法时，服务端按 `Package.package_type=uncertain` 幂等归一；铭牌同时具有 Package 与 Flavor 时，服务端幂等建立 FlavorPackage，避免只记录主张却断开规范关系。
+
 每张铭牌必须指向一个 Can，并可分别主张 `package_id`、`flavor_id`、`dialect_id` 和 `pronunciation_id`。外键用于连接规范化词典资料；`text_content`、`definition`、`pronunciation_text` 保存来源中的原样写法、释义和转写，不能因规范实体后来修订而被覆盖。若给出 `pronunciation_id`，它的 Package、Flavor、Dialect 必须与铭牌同时给出的外键一致。
 
 `source` 结构区分创作者自述、口述、田野记录、书籍、论文、档案和网页等来源，并可保存题名、责任者、页码/条目位置和 URL。`creator` 表示谁在系统中创建铭牌，不能冒充资料原作者。第一张完整有效铭牌可以成为主铭牌；不同用户和不同来源的主张继续并存。
@@ -270,6 +272,14 @@ Can 的状态保持为 `unlabeled / pending / tentative / verified / disputed / 
 ```http
 POST /cans/{id}/transition/
 ```
+
+流转在事务中锁定并重读 Can，非法或已经过期的状态返回 409，失败不会写入状态或日志。固定矩阵如下：
+
+- 录制者：`pending → tentative`（submit）、`tentative → disputed`（dispute）。
+- staff：`tentative/disputed → verified`（verify），`pending/tentative/disputed → rejected`（reject）。
+- 录制者或 staff：`rejected → pending`（restore）。
+
+每次成功流转在 `transition_log` 中追加 `action / from / to / by / at / reason`，其中 `by` 使用公开 UserRef，不暴露权限字段。只有本人私有用户响应包含 `is_staff`；公开用户资料不返回权限。
 
 Pronunciation 使用 `draft / verified / disputed / rejected`，认证与驳回由 reviewer 或 admin 执行。非法状态转换返回 409，权限不足返回 403。
 

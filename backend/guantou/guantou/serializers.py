@@ -594,6 +594,19 @@ class NameplateSerializer(NameplateCardSerializer):
         request = self.context.get("request")
         user = request.user if request else None
         validated_data["creator"] = user
+        if not validated_data.get("package"):
+            raw_writing = clean_text(validated_data.get("text_content"))
+            if raw_writing:
+                validated_data["package"], _ = Package.objects.get_or_create(
+                    text=raw_writing,
+                    package_type=Package.PackageType.UNCERTAIN,
+                    defaults={"metadata": {}},
+                )
+        if validated_data.get("package") and validated_data.get("flavor"):
+            FlavorPackage.objects.get_or_create(
+                package=validated_data["package"],
+                flavor=validated_data["flavor"],
+            )
         supersedes = validated_data.get("supersedes")
         old_was_primary = False
         if supersedes:

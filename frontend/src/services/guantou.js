@@ -57,6 +57,10 @@ export function listPackages(params = {}) {
   return request.get('/packages/', params);
 }
 
+export function listAllPackages() {
+  return collectPages(listPackages);
+}
+
 export function getPackage(id) {
   return request.get(`/packages/${id}/`);
 }
@@ -67,6 +71,10 @@ export function createPackage(payload) {
 
 export function listFlavors(params = {}) {
   return request.get('/flavors/', params);
+}
+
+export function listAllFlavors() {
+  return collectPages(listFlavors);
 }
 
 export function getFlavor(id) {
@@ -103,6 +111,14 @@ export function createNameplate(canId, payload) {
 
 export function getNameplate(id) {
   return request.get(`/nameplates/${id}/`);
+}
+
+export function transitionCan(canId, action, reason = '') {
+  return request.post(
+    `/cans/${canId}/transition/`,
+    { action, reason: String(reason || '').trim() },
+    true,
+  );
 }
 
 export function supportNameplate(nameplateId) {

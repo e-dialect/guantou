@@ -82,6 +82,8 @@ class UserPrimaryDialectTests(TestCase):
         self.dialect = Dialect.objects.create(name="游洋", code="游洋")
 
     def test_public_profile_uses_dialect_ref_without_private_fields(self):
+        self.user.is_staff = True
+        self.user.save(update_fields=["is_staff"])
         response = self.client.get(f"/users/{self.user.id}")
 
         self.assertEqual(response.status_code, 200)
@@ -89,6 +91,19 @@ class UserPrimaryDialectTests(TestCase):
         self.assertIsNone(profile["primary_dialect"])
         self.assertNotIn("telephone", profile)
         self.assertNotIn("email", profile)
+        self.assertNotIn("is_staff", profile)
+
+    def test_owner_profile_exposes_staff_capability(self):
+        self.user.is_staff = True
+        self.user.save(update_fields=["is_staff"])
+
+        response = self.client.get(
+            f"/users/{self.user.id}",
+            HTTP_AUTHORIZATION=f"Bearer {generate_token(self.user)}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["user"]["is_staff"])
 
     def test_owner_can_update_primary_dialect_id(self):
         response = self.client.put(

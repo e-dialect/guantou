@@ -20,7 +20,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from utils.exceptions.types.bad_request import BadRequestException
 from utils.exceptions.types.conflict import ConflictException
-from utils.exceptions.types.forbidden import ForbiddenException
 
 from .models import (
     Can,
@@ -54,6 +53,7 @@ from .services import (
     hot_search_terms,
     record_search,
     suggest_search,
+    transition_can,
     visible_cans_for_user,
 )
 
@@ -337,16 +337,6 @@ class PronunciationViewSet(viewsets.ModelViewSet):
         return Response(self.get_serializer(pronunciation).data)
 
 
-CAN_TRANSITIONS = {
-    "submit": {"pending": "tentative"},
-    "verify": {"tentative": "verified"},
-    "dispute": {"tentative": "disputed"},
-    "reject": {"pending": "rejected", "disputed": "rejected"},
-    "restore": {"rejected": "pending"},
-}
-STAFF_ONLY_ACTIONS = {"verify", "reject"}
-
-
 class CanViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
     queryset = (
@@ -540,31 +530,12 @@ class CanViewSet(viewsets.ModelViewSet):
     )
     def transition(self, request, pk=None):
         can = self.get_object()
-        action_name = request.data.get("action", "")
-        reason = request.data.get("reason", "")
-        if action_name not in CAN_TRANSITIONS:
-            raise BadRequestException(f"未知操作: {action_name}")
-        if action_name in STAFF_ONLY_ACTIONS:
-            if not (request.user.is_staff or can.verifier == request.user):
-                raise ForbiddenException("您没有权限执行此操作")
-        elif not (request.user.is_staff or can.recorder == request.user):
-            raise ForbiddenException("您没有权限执行此操作")
-        new_status = CAN_TRANSITIONS[action_name].get(can.status)
-        if new_status is None:
-            raise ConflictException(f"不允许从 {can.status} 执行 {action_name}")
-        can.transition_log.append(
-            {
-                "from": can.status,
-                "to": new_status,
-                "by": request.user.id,
-                "at": timezone.now().isoformat(),
-                "reason": reason,
-            }
+        can = transition_can(
+            can_id=can.id,
+            user=request.user,
+            action=request.data.get("action", ""),
+            reason=request.data.get("reason", ""),
         )
-        can.status = new_status
-        if action_name == "verify":
-            can.verifier = request.user
-        can.save(update_fields=["status", "transition_log", "verifier", "updated_at"])
         return Response(self.get_serializer(can).data)
 
     @action(detail=True, methods=["get"], permission_classes=[permissions.AllowAny])

@@ -15,6 +15,7 @@
           @confirm="refresh"
         >
         <picker
+          v-if="isStaff"
           :range="statusOptions"
           range-key="label"
           @change="onStatusChange"
@@ -44,6 +45,11 @@ import CanList from '@/components/CanList.vue';
 import PageShell from '@/components/PageShell.vue';
 import { listCans } from '@/services/guantou';
 
+function currentUserIsStaff() {
+  const app = typeof getApp === 'function' ? getApp() : null;
+  return Boolean(app?.globalData?.userInfo?.is_staff);
+}
+
 export default {
   components: {
     CanList,
@@ -51,13 +57,12 @@ export default {
   },
   data() {
     return {
+      isStaff: currentUserIsStaff(),
       query: { search: '', status: '' },
       statusOptions: [
         { label: '全部状态', value: '' },
-        { label: '无标', value: 'unlabeled' },
         { label: '待校验', value: 'pending' },
         { label: '社区暂定', value: 'tentative' },
-        { label: '正品认证', value: 'verified' },
         { label: '争议', value: 'disputed' },
       ],
     };
@@ -71,12 +76,19 @@ export default {
   onLoad(options = {}) {
     if (options.mine) this.query.mine = options.mine;
   },
+  onShow() {
+    this.isStaff = currentUserIsStaff();
+    if (!this.isStaff && this.query.status) {
+      this.query = { ...this.query, status: '' };
+    }
+  },
   methods: {
     listCans,
     refresh() {
       this.$refs.canList.refresh();
     },
     onStatusChange(e) {
+      if (!this.isStaff) return;
       this.query = {
         ...this.query,
         status: this.statusOptions[e.detail.value].value,

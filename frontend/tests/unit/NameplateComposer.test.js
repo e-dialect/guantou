@@ -49,7 +49,7 @@ describe('NameplateComposer', () => {
 
     expect(wrapper.emitted('submit')).toBeUndefined();
     expect(uni.showToast).toHaveBeenCalledWith({
-      title: '请填写原样写法或读音',
+      title: '请填写或选择至少一项主张',
       icon: 'none',
     });
   });
@@ -75,6 +75,21 @@ describe('NameplateComposer', () => {
         locator: '',
         note: '',
       },
+    });
+  });
+
+  it('includes selected package, flavor, and dialect claims', () => {
+    expect(normalizeNameplateDraft({
+      text_content: ' 行 ',
+      package_id: '2',
+      flavor_id: '3',
+      dialect_id: '4',
+      source: { type: 'oral' },
+    })).toMatchObject({
+      text_content: '行',
+      package_id: 2,
+      flavor_id: 3,
+      dialect_id: 4,
     });
   });
 });

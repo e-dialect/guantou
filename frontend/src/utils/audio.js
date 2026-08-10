@@ -21,6 +21,56 @@ export function playAudio(src, warn = true) {
   }
 
   stopCurrentAudio();
+  uni.showToast({
+    title: '正在播放...',
+    icon: 'none',
+  });
+  // #ifdef H5
+  const audioElement = new Audio(src);
+  let webAudioContext = null;
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    const resolvedUrl = new URL(src, window.location.href);
+    const canUseWebAudio = AudioContextClass
+      && (resolvedUrl.origin === window.location.origin || resolvedUrl.protocol === 'blob:');
+    if (canUseWebAudio) {
+      webAudioContext = new AudioContextClass();
+      const source = webAudioContext.createMediaElementSource(audioElement);
+      source.connect(webAudioContext.destination);
+    }
+  } catch (error) {
+    webAudioContext = null;
+  }
+  const webPlayback = {
+    stop() {
+      audioElement.pause();
+      audioElement.currentTime = 0;
+    },
+    destroy() {
+      audioElement.src = '';
+      if (webAudioContext && typeof webAudioContext.close === 'function') {
+        webAudioContext.close();
+      }
+    },
+  };
+  currentAudioContext = webPlayback;
+  audioElement.onerror = () => {
+    uni.showToast({ title: '播放失败', icon: 'none' });
+    stopCurrentAudio();
+  };
+  audioElement.onended = () => {
+    if (currentAudioContext === webPlayback) stopCurrentAudio();
+  };
+  const playPromise = audioElement.play();
+  if (playPromise && typeof playPromise.catch === 'function') {
+    playPromise.catch(() => {
+      uni.showToast({ title: '播放失败', icon: 'none' });
+      stopCurrentAudio();
+    });
+  }
+  // #endif
+
+  // #ifndef H5
   const innerAudioContext = uni.createInnerAudioContext();
   currentAudioContext = innerAudioContext;
   innerAudioContext.onError(() => {
@@ -36,13 +86,9 @@ export function playAudio(src, warn = true) {
     }
   });
 
-  uni.showToast({
-    title: '正在播放...',
-    icon: 'none',
-  });
-
   innerAudioContext.src = src;
   innerAudioContext.play();
+  // #endif
 }
 
 export function stopAudio() {

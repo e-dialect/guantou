@@ -1,4 +1,5 @@
 import json
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
@@ -730,6 +731,55 @@ class NameplateApiTests(DomainFixture):
             405,
         )
 
+    def test_raw_writing_is_idempotently_normalized_and_linked_to_flavor(self):
+        can = self.make_can()
+        payload = {
+            "can_id": can.id,
+            "flavor_id": self.flavor.id,
+            "dialect_id": self.dialect.id,
+            "text_content": "新写法",
+            "definition": "走路",
+            "source": SOURCE,
+        }
+
+        first = self.client.post("/nameplates/", payload, format="json")
+        second = self.client.post("/nameplates/", payload, format="json")
+
+        self.assertEqual(first.status_code, 201)
+        self.assertEqual(second.status_code, 201)
+        package = Package.objects.get(
+            text="新写法", package_type=Package.PackageType.UNCERTAIN
+        )
+        self.assertEqual(
+            FlavorPackage.objects.filter(package=package, flavor=self.flavor).count(),
+            1,
+        )
+        self.assertEqual(first.data["package"]["id"], package.id)
+        self.assertEqual(second.data["package"]["id"], package.id)
+
+    def test_selected_package_and_flavor_create_missing_mapping(self):
+        can = self.make_can()
+        package = Package.objects.create(
+            text="别字", package_type=Package.PackageType.POPULAR
+        )
+
+        response = self.client.post(
+            "/nameplates/",
+            {
+                "can_id": can.id,
+                "package_id": package.id,
+                "flavor_id": self.flavor.id,
+                "dialect_id": self.dialect.id,
+                "source": SOURCE,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(
+            FlavorPackage.objects.filter(package=package, flavor=self.flavor).exists()
+        )
+
     def test_private_can_nameplates_do_not_leak(self):
         private = self.make_can(recorder=self.other, visibility=False)
         plate = self.make_nameplate(can=private, creator=self.other)
@@ -842,6 +892,95 @@ class CanQueryAndStateTests(DomainFixture):
             f"/cans/{can.id}/transition/", {"action": "submit"}, format="json"
         )
         self.assert_error(response, 409)
+
+    def transition(self, can, action, user=None, reason=""):
+        self.client.force_authenticate(user or self.user)
+        return self.client.post(
+            f"/cans/{can.id}/transition/",
+            {"action": action, "reason": reason},
+            format="json",
+        )
+
+    def test_owner_transition_matrix(self):
+        submitted = self.make_can(status=Can.Status.PENDING)
+        response = self.transition(submitted, "submit")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], Can.Status.TENTATIVE)
+
+        disputed = self.make_can(status=Can.Status.TENTATIVE)
+        response = self.transition(disputed, "dispute")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], Can.Status.DISPUTED)
+
+        restored = self.make_can(status=Can.Status.REJECTED)
+        response = self.transition(restored, "restore")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], Can.Status.PENDING)
+
+    def test_staff_transition_matrix(self):
+        for source in (Can.Status.TENTATIVE, Can.Status.DISPUTED):
+            with self.subTest(action="verify", source=source):
+                can = self.make_can(status=source)
+                response = self.transition(can, "verify", self.staff, "证据充分")
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.data["status"], Can.Status.VERIFIED)
+
+        for source in (
+            Can.Status.PENDING,
+            Can.Status.TENTATIVE,
+            Can.Status.DISPUTED,
+        ):
+            with self.subTest(action="reject", source=source):
+                can = self.make_can(status=source)
+                response = self.transition(can, "reject", self.staff, "信息不足")
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.data["status"], Can.Status.REJECTED)
+
+        restored = self.make_can(status=Can.Status.REJECTED)
+        response = self.transition(restored, "restore", self.staff)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], Can.Status.PENDING)
+
+    def test_transition_reloads_locked_state_and_writes_structured_log(self):
+        can = self.make_can(status=Can.Status.PENDING)
+        stale = Can.objects.get(pk=can.pk)
+
+        with patch(
+            "guantou.services.Can.objects.select_for_update",
+            wraps=Can.objects.select_for_update,
+        ) as select_for_update:
+            response = self.transition(can, "submit", reason="本人确认")
+        select_for_update.assert_called_once_with()
+        self.assertEqual(stale.status, Can.Status.PENDING)
+        conflict = self.transition(can, "submit")
+
+        self.assertEqual(response.status_code, 200)
+        self.assert_error(conflict, 409)
+        can.refresh_from_db()
+        self.assertEqual(can.status, Can.Status.TENTATIVE)
+        self.assertEqual(
+            set(can.transition_log[-1]),
+            {"action", "from", "to", "by", "at", "reason"},
+        )
+        self.assertEqual(can.transition_log[-1]["by"]["id"], self.user.id)
+        self.assertEqual(can.transition_log[-1]["reason"], "本人确认")
+
+    def test_transition_permissions_and_staff_status_filter(self):
+        private = self.make_can(
+            recorder=self.other,
+            visibility=False,
+            status=Can.Status.PENDING,
+        )
+        forbidden = self.transition(private, "submit", self.user)
+        self.assert_error(forbidden, 404)
+
+        public = self.make_can(recorder=self.other, status=Can.Status.PENDING)
+        forbidden = self.transition(public, "submit", self.user)
+        self.assert_error(forbidden, 403)
+
+        self.client.force_authenticate(self.staff)
+        listing = self.client.get("/cans/", {"status": Can.Status.PENDING})
+        self.assertIn(private.id, [item["id"] for item in listing.data["results"]])
 
     def test_non_owner_cannot_edit_can(self):
         can = self.make_can()

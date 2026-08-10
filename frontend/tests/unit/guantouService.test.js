@@ -113,6 +113,21 @@ describe('guantou service canning helpers', () => {
     expect(request.get).toHaveBeenCalledWith('/search/hot/', { limit: 8 }, true);
   });
 
+  it('transitions cans through the dedicated endpoint without global prompts', async () => {
+    request.post.mockResolvedValue({ id: 4, status: 'tentative' });
+
+    await expect(guantou.transitionCan(4, 'submit', '本人确认')).resolves.toEqual({
+      id: 4,
+      status: 'tentative',
+    });
+
+    expect(request.post).toHaveBeenCalledWith(
+      '/cans/4/transition/',
+      { action: 'submit', reason: '本人确认' },
+      true,
+    );
+  });
+
   it('creates and supports nameplates through first-class endpoints', async () => {
     request.post.mockResolvedValue({ id: 4 });
     request.put.mockResolvedValue({ id: 4, weight: 1 });

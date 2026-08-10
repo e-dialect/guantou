@@ -58,6 +58,29 @@
         <view class="row">
           <text>来源</text><text>{{ can.source_note || '未填写' }}</text>
         </view>
+        <view
+          v-if="transitionActions.length"
+          class="review-box"
+        >
+          <textarea
+            v-model="transitionReason"
+            class="review-reason"
+            maxlength="300"
+            placeholder="流转理由（驳回时建议填写）"
+          />
+          <view class="review-actions">
+            <button
+              v-for="item in transitionActions"
+              :key="item.action"
+              class="review-button"
+              :class="{ danger: item.action === 'reject' }"
+              :disabled="transitionBusy"
+              @tap="runTransition(item.action)"
+            >
+              {{ transitionBusy === item.action ? '处理中…' : item.label }}
+            </button>
+          </view>
+        </view>
       </SectionBlock>
 
       <SectionBlock
@@ -82,6 +105,9 @@
           ref="composer"
           :focus="nameplateInputFocused"
           :submitting="submittingNameplate"
+          :packages="packages"
+          :flavors="flavors"
+          :dialects="dialects"
           @submit="submitNameplate"
         />
       </SectionBlock>
@@ -152,7 +178,11 @@ import SectionBlock from '@/components/SectionBlock.vue';
 import {
   createNameplate,
   getCan,
+  listAllDialects,
+  listAllFlavors,
+  listAllPackages,
   supportNameplate,
+  transitionCan,
   unsupportNameplate,
 } from '@/services/guantou';
 import {
@@ -176,6 +206,41 @@ const statusLabels = {
   rejected: '已驳回',
 };
 
+const transitionLabels = {
+  submit: '提交校验',
+  verify: '审核通过',
+  reject: '驳回',
+  dispute: '提出争议',
+  restore: '恢复待校验',
+};
+
+export function availableCanTransitions(can, user) {
+  if (!can || !user || !user.id) return [];
+  const isOwner = Number(can.recorder?.id) === Number(user.id);
+  const actions = [];
+  if (isOwner && can.status === 'pending') actions.push('submit');
+  if (isOwner && can.status === 'tentative') actions.push('dispute');
+  if ((isOwner || user.is_staff) && can.status === 'rejected') actions.push('restore');
+  if (user.is_staff && ['tentative', 'disputed'].includes(can.status)) {
+    actions.push('verify');
+  }
+  if (user.is_staff && ['pending', 'tentative', 'disputed'].includes(can.status)) {
+    actions.push('reject');
+  }
+  return actions.map((action) => ({ action, label: transitionLabels[action] }));
+}
+
+function currentSessionUser() {
+  const app = typeof getApp === 'function' ? getApp() : null;
+  const storedId = typeof uni !== 'undefined' && uni.getStorageSync
+    ? uni.getStorageSync('id')
+    : null;
+  return {
+    id: app?.globalData?.userInfo?.id || storedId || null,
+    is_staff: Boolean(app?.globalData?.userInfo?.is_staff),
+  };
+}
+
 export default {
   components: {
     NameplateCard,
@@ -188,11 +253,17 @@ export default {
       id: 0,
       can: null,
       comments: [],
+      currentUser: currentSessionUser(),
+      dialects: [],
+      flavors: [],
+      packages: [],
       commentSubmitting: false,
       commentText: '',
       likeBusy: false,
       nameplateInputFocused: false,
       submittingNameplate: false,
+      transitionBusy: '',
+      transitionReason: '',
     };
   },
   computed: {
@@ -206,11 +277,20 @@ export default {
       }
       return this.can.submitted_dialect?.qualified_code || '未标方言点';
     },
+    transitionActions() {
+      return availableCanTransitions(this.can, this.currentUser);
+    },
   },
   async onLoad(options) {
     this.id = options.id;
-    await this.refresh();
-    await this.loadComments();
+    await Promise.all([
+      this.refresh(),
+      this.loadComments(),
+      this.loadClaimOptions(),
+    ]);
+  },
+  onShow() {
+    this.currentUser = currentSessionUser();
   },
   onShareAppMessage() {
     return canSharePayload(this.can || { id: this.id });
@@ -222,6 +302,36 @@ export default {
     },
     async refresh() {
       this.can = await getCan(this.id);
+    },
+    async loadClaimOptions() {
+      try {
+        [this.packages, this.flavors, this.dialects] = await Promise.all([
+          listAllPackages(),
+          listAllFlavors(),
+          listAllDialects(),
+        ]);
+      } catch (error) {
+        this.packages = [];
+        this.flavors = [];
+        this.dialects = [];
+      }
+    },
+    async runTransition(action) {
+      if (this.transitionBusy) return;
+      this.transitionBusy = action;
+      try {
+        const updated = await transitionCan(this.can.id, action, this.transitionReason);
+        this.can = updated;
+        this.transitionReason = '';
+        uni.showToast({ title: '状态已更新', icon: 'success' });
+      } catch (error) {
+        uni.showToast({
+          title: error.message || '状态更新失败',
+          icon: 'none',
+        });
+      } finally {
+        this.transitionBusy = '';
+      }
     },
     async loadComments() {
       const response = await listCanComments(this.id, { page_size: 100 });
@@ -328,6 +438,40 @@ export default {
   margin-top: 20rpx;
   color: #56645b;
   font-size: 25rpx;
+}
+
+.review-box {
+  margin-top: 22rpx;
+  padding-top: 22rpx;
+  border-top: 1px solid #e1e6df;
+}
+
+.review-reason {
+  width: 100%;
+  min-height: 110rpx;
+  box-sizing: border-box;
+  border: 1px solid #d9dfd5;
+  border-radius: 12rpx;
+  background: #ffffff;
+  padding: 18rpx;
+}
+
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+  margin-top: 14rpx;
+}
+
+.review-button {
+  margin: 0;
+  background: #1f5c43;
+  color: #ffffff;
+  font-size: 26rpx;
+}
+
+.review-button.danger {
+  background: #9f3e32;
 }
 
 .recorder-avatar,

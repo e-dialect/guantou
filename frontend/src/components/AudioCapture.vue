@@ -1,7 +1,12 @@
 <template>
   <view class="audio-capture">
     <view
-      :class="['record-zone', recording ? 'recording' : '', audio.path ? 'ready' : '']"
+      :class="[
+        'record-zone',
+        recording ? 'recording' : '',
+        audio.path ? 'ready' : '',
+        recordingSupported ? '' : 'disabled',
+      ]"
       @longpress="startRecord"
       @touchend="stopRecord"
       @mousedown="startRecord"
@@ -33,6 +38,7 @@
       </button>
       <button
         class="secondary-button"
+        :disabled="!fileSelectionSupported"
         @tap="chooseFile"
       >
         上传音频
@@ -42,7 +48,10 @@
 </template>
 
 <script>
-import { chooseAudioFile } from '@/services/file';
+import {
+  chooseAudioFile,
+  supportsAudioFileSelection,
+} from '@/services/file';
 import { playAudio } from '@/utils/audio';
 
 const MAX_DURATION_MS = 15000;
@@ -65,7 +74,11 @@ export default {
   data() {
     return {
       recorderManager: null,
+      mediaStream: null,
+      recordingSupported: false,
+      fileSelectionSupported: supportsAudioFileSelection(),
       recording: false,
+      recordIntentActive: false,
       recordStartedAt: 0,
       stopTimer: null,
     };
@@ -75,6 +88,7 @@ export default {
       if (this.recording) return '录音中，松手完成';
       if (this.audio.invalid) return '录音已失效，请重录';
       if (this.audio.path) return this.audio.name || '已准备好音频';
+      if (!this.recordingSupported) return '当前环境不支持录音';
       return '按住录音';
     },
     subtitleText() {
@@ -84,6 +98,11 @@ export default {
         return `约 ${Math.max(1, Math.round(this.audio.durationMs / 1000))} 秒`;
       }
       if (this.audio.path) return '可以试听或重录';
+      if (!this.recordingSupported) {
+        return this.fileSelectionSupported
+          ? '请上传音频文件继续'
+          : '当前环境也不支持选择音频文件';
+      }
       return '也可以上传 mp3、wav、m4a';
     },
   },
@@ -98,6 +117,10 @@ export default {
       } catch (error) {
         // Recorder may already be inactive.
       }
+    }
+    if (this.mediaStream) {
+      this.mediaStream.getTracks().forEach((track) => track.stop());
+      this.mediaStream = null;
     }
   },
   methods: {
@@ -119,21 +142,37 @@ export default {
     },
     initRecorder() {
       // #ifndef H5
+      if (typeof uni.getRecorderManager !== 'function') return;
       this.recorderManager = uni.getRecorderManager();
+      this.recordingSupported = Boolean(this.recorderManager);
       this.recorderManager.onStop((res) => {
         const durationMs = Date.now() - this.recordStartedAt;
         this.onRecordStop(res.tempFilePath, durationMs);
       });
       this.recorderManager.onError(() => {
         this.recording = false;
+        this.recordIntentActive = false;
         this.clearTimer();
         uni.showToast({ title: '需要麦克风权限才能录音', icon: 'none' });
       });
       // #endif
 
       // #ifdef H5
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      this.recordingSupported = Boolean(
+        typeof navigator !== 'undefined'
+        && navigator.mediaDevices
+        && navigator.mediaDevices.getUserMedia
+        && typeof MediaRecorder !== 'undefined',
+      );
+      // #endif
+    },
+    async prepareH5Recorder() {
+      let prepared = false;
+      // #ifdef H5
+      if (this.recorderManager) return true;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.mediaStream = stream;
         this.recorderManager = new MediaRecorder(stream);
         let chunks = [];
         this.recorderManager.onstart = () => {
@@ -148,17 +187,28 @@ export default {
           const path = window.URL.createObjectURL(blob);
           this.onRecordStop(path, durationMs, blob);
         };
-      }).catch(() => {
+        prepared = true;
+      } catch (error) {
         this.recorderManager = null;
-      });
+        uni.showToast({ title: '需要麦克风权限才能录音', icon: 'none' });
+      }
       // #endif
+
+      // #ifndef H5
+      prepared = Boolean(this.recorderManager);
+      // #endif
+      return prepared;
     },
-    startRecord() {
+    async startRecord() {
       if (this.recording) return;
-      if (!this.recorderManager) {
+      this.recordIntentActive = true;
+      if (!this.recordingSupported) {
+        this.recordIntentActive = false;
         uni.showToast({ title: '当前环境不能录音，请上传音频', icon: 'none' });
         return;
       }
+      if (!this.recorderManager && !await this.prepareH5Recorder()) return;
+      if (!this.recordIntentActive) return;
       this.recording = true;
       this.recordStartedAt = Date.now();
       this.clearTimer();
@@ -168,6 +218,7 @@ export default {
       this.recorderManager.start();
     },
     stopRecord(autoStopped = false) {
+      this.recordIntentActive = false;
       if (!this.recording || !this.recorderManager) return;
       this.recording = false;
       this.clearTimer();
@@ -203,6 +254,10 @@ export default {
       this.$emit('clear');
     },
     async chooseFile() {
+      if (!this.fileSelectionSupported) {
+        uni.showToast({ title: '当前环境不支持选择音频文件', icon: 'none' });
+        return;
+      }
       try {
         const file = await chooseAudioFile();
         this.emitAudio(file.path, 0, 'upload', file.name);
@@ -242,6 +297,10 @@ export default {
 
 .record-zone.ready {
   border-style: solid;
+}
+
+.record-zone.disabled {
+  opacity: 0.6;
 }
 
 .record-title {

@@ -53,6 +53,7 @@ def user_all(user: User, *, private=False) -> dict:
                 ),
                 "birthday": info.birthday,
                 "is_admin": user.is_superuser,
+                "is_staff": user.is_staff,
                 "wechat": bool(info.wechat),
                 "points_now": info.points_now,
                 "followed_dialects": [

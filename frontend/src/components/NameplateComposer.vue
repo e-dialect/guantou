@@ -7,6 +7,33 @@
       maxlength="20"
       placeholder="原样写法（可选）"
     >
+    <picker
+      :range="packageOptions"
+      range-key="text"
+      @change="onPackageChange"
+    >
+      <view class="select">
+        写法：{{ packageLabel }}
+      </view>
+    </picker>
+    <picker
+      :range="flavorOptions"
+      range-key="name"
+      @change="onFlavorChange"
+    >
+      <view class="select">
+        义项：{{ flavorLabel }}
+      </view>
+    </picker>
+    <picker
+      :range="dialectOptions"
+      range-key="qualified_code"
+      @change="onDialectChange"
+    >
+      <view class="select">
+        方言：{{ dialectLabel }}
+      </view>
+    </picker>
     <textarea
       v-model="draft.definition"
       class="textarea"
@@ -78,6 +105,9 @@ export const NAMEPLATE_SOURCE_TYPES = [
 
 export function createNameplateDraft() {
   return {
+    package_id: null,
+    flavor_id: null,
+    dialect_id: null,
     text_content: '',
     definition: '',
     pronunciation_text: '',
@@ -94,6 +124,9 @@ export function createNameplateDraft() {
 export function normalizeNameplateDraft(draft) {
   const source = (draft && draft.source) || {};
   return {
+    ...((draft && draft.package_id) ? { package_id: Number(draft.package_id) } : {}),
+    ...((draft && draft.flavor_id) ? { flavor_id: Number(draft.flavor_id) } : {}),
+    ...((draft && draft.dialect_id) ? { dialect_id: Number(draft.dialect_id) } : {}),
     text_content: String((draft && draft.text_content) || '').trim(),
     definition: String((draft && draft.definition) || '').trim(),
     pronunciation_text: String((draft && draft.pronunciation_text) || '').trim(),
@@ -118,6 +151,18 @@ export default {
       type: Boolean,
       default: false,
     },
+    packages: {
+      type: Array,
+      default: () => [],
+    },
+    flavors: {
+      type: Array,
+      default: () => [],
+    },
+    dialects: {
+      type: Array,
+      default: () => [],
+    },
   },
   emits: ['submit'],
   data() {
@@ -127,6 +172,27 @@ export default {
     };
   },
   computed: {
+    packageOptions() {
+      return [{ id: null, text: '原样新写法（自动按不确定归一）' }, ...this.packages];
+    },
+    flavorOptions() {
+      return [{ id: null, name: '暂不选择义项' }, ...this.flavors];
+    },
+    dialectOptions() {
+      return [{ id: null, qualified_code: '暂不选择方言点' }, ...this.dialects];
+    },
+    packageLabel() {
+      return this.packageOptions.find((item) => item.id === this.draft.package_id)?.text
+        || this.packageOptions[0].text;
+    },
+    flavorLabel() {
+      return this.flavorOptions.find((item) => item.id === this.draft.flavor_id)?.name
+        || this.flavorOptions[0].name;
+    },
+    dialectLabel() {
+      return this.dialectOptions.find((item) => item.id === this.draft.dialect_id)?.qualified_code
+        || this.dialectOptions[0].qualified_code;
+    },
     sourceTypeLabel() {
       return this.sourceTypes.find((item) => item.value === this.draft.source.type)?.label || '其他';
     },
@@ -138,10 +204,25 @@ export default {
     onSourceTypeChange(event) {
       this.draft.source.type = this.sourceTypes[event.detail.value].value;
     },
+    onPackageChange(event) {
+      this.draft.package_id = this.packageOptions[event.detail.value].id;
+    },
+    onFlavorChange(event) {
+      this.draft.flavor_id = this.flavorOptions[event.detail.value].id;
+    },
+    onDialectChange(event) {
+      this.draft.dialect_id = this.dialectOptions[event.detail.value].id;
+    },
     submit() {
       const payload = normalizeNameplateDraft(this.draft);
-      if (!payload.text_content && !payload.pronunciation_text) {
-        uni.showToast({ title: '请填写原样写法或读音', icon: 'none' });
+      if (
+        !payload.text_content
+        && !payload.pronunciation_text
+        && !payload.package_id
+        && !payload.flavor_id
+        && !payload.dialect_id
+      ) {
+        uni.showToast({ title: '请填写或选择至少一项主张', icon: 'none' });
         return;
       }
       this.$emit('submit', payload);

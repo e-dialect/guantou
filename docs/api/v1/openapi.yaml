@@ -1480,11 +1480,12 @@ components:
       allOf:
         - $ref: "#/components/schemas/UserPublicProfile"
         - type: object
-          required: [email, telephone, wechat_bound, registered_at]
+          required: [email, telephone, is_staff, wechat_bound, registered_at]
           properties:
             email: { type: string, format: email }
             telephone: { type: string }
             birthday: { type: [string, "null"], format: date }
+            is_staff: { type: boolean }
             wechat_bound: { type: boolean }
             registered_at: { type: string, format: date-time }
     UserUpdate:
@@ -2034,8 +2035,9 @@ components:
         reason: { type: string, maxLength: 300 }
     TransitionLog:
       type: object
-      required: [from, to, by, at, reason]
+      required: [action, from, to, by, at, reason]
       properties:
+        action: { type: string, enum: [submit, verify, dispute, reject, restore] }
         from: { type: string }
         to: { type: string }
         by: { $ref: "#/components/schemas/UserRef" }

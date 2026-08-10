@@ -33,7 +33,11 @@ vi.mock('@/services/canDraftAudio', () => ({
 
 import CanCreate from '@/pages/cans/create.vue';
 import { uploadFile } from '@/services/file';
-import { createCanWithNameplate, listAllDialects } from '@/services/guantou';
+import {
+  createCanForFlavor,
+  createCanWithNameplate,
+  listAllDialects,
+} from '@/services/guantou';
 import {
   getCanDraftOwnerScope,
   getCanDraftWithAudio,
@@ -70,6 +74,7 @@ describe('can creation draft recovery', () => {
     vi.clearAllMocks();
     uploadFile.mockReset();
     createCanWithNameplate.mockReset();
+    createCanForFlavor.mockReset();
     getCanDraftOwnerScope.mockReturnValue('user:7');
     globalThis.uni = {
       redirectTo: vi.fn(),
@@ -285,5 +290,29 @@ describe('can creation draft recovery', () => {
       title: '该草稿属于其他账号',
       icon: 'none',
     });
+  });
+
+  it('submits supplementation mode with the locked flavor', async () => {
+    uploadFile.mockResolvedValue({ url: 'https://example.test/moon.mp3', duration_ms: 2300 });
+    createCanForFlavor.mockResolvedValue({ id: 31 });
+    const wrapper = mountCreate();
+    wrapper.vm.mode = 'flavor';
+    wrapper.vm.targetFlavor = { id: 12, name: '月亮' };
+    wrapper.vm.form.concept_text = '月亮';
+    wrapper.vm.form.submitted_dialect_id = 1;
+    wrapper.vm.audio = { path: '/tmp/moon.mp3', name: 'moon.mp3', origin: 'record' };
+
+    await wrapper.vm.submit();
+
+    expect(createCanForFlavor).toHaveBeenCalledWith({
+      can: expect.objectContaining({
+        concept_text: '月亮',
+        submitted_dialect_id: 1,
+        audio_url: 'https://example.test/moon.mp3',
+        duration_ms: 2300,
+      }),
+      flavorId: 12,
+    });
+    expect(uni.redirectTo).toHaveBeenCalledWith({ url: '/pages/cans/details?id=31' });
   });
 });

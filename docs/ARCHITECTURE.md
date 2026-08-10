@@ -85,6 +85,8 @@ v1 只实现可追溯的主张与权重，不实现 AI 聚类或自动正字裁�
 - `disputed`：存在争议。
 - `rejected`：已驳回。
 
+Can 状态流转由事务化 service 统一执行并锁定当前行：录制者可 submit、dispute，staff 可 verify、reject，录制者或 staff 可 restore。详情见 API v1 文档；所有成功流转写入结构化审计日志，过期状态返回 409。
+
 `Pronunciation.status`：
 
 - `draft`：草稿。
