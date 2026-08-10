@@ -1024,6 +1024,7 @@ paths:
       tags: [Search]
       operationId: listHotSearches
       summary: 获取热词
+      description: 同一登录用户或匿名 visitor 对同一关键词每日只计一次；统计失败不影响聚合搜索。
       security: []
       parameters:
         - $ref: "#/components/parameters/Limit"
@@ -2095,7 +2096,7 @@ components:
       type: object
       required: [keyword, flavors, packages, cans]
       properties:
-        keyword: { type: string }
+        keyword: { type: string, maxLength: 20 }
         flavors:
           type: array
           items: { $ref: "#/components/schemas/FlavorCard" }

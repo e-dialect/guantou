@@ -7,6 +7,7 @@ from .views import (
     CanCommentViewSet,
     DialectViewSet,
     FlavorViewSet,
+    HotSearchView,
     NameplateViewSet,
     PackageViewSet,
     PronunciationViewSet,
@@ -26,6 +27,7 @@ router.register("shelves", ShelfViewSet, basename="shelf")
 
 urlpatterns = [
     path("search/", AggregateSearchView.as_view(), name="search"),
+    path("search/hot/", HotSearchView.as_view(), name="search-hot"),
     path("search/suggest/", SuggestSearchView.as_view(), name="search-suggest"),
     path("", include(router.urls)),
 ]

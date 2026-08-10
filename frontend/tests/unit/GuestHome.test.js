@@ -59,6 +59,9 @@ describe('guest-first home', () => {
     expect(wrapper.text()).not.toContain('不登录也能查、能听');
     expect(wrapper.text()).toContain('主方言 · 西南官话.四川');
     expect(wrapper.text()).toContain('同方言 关注 推荐');
+    expect(wrapper.text()).toContain('集盒');
+    expect(wrapper.text()).toContain('图鉴');
+    expect(wrapper.text()).toContain('我的');
     expect(wrapper.find('.can-list').exists()).toBe(false);
   });
 });

@@ -1,8 +1,19 @@
+from datetime import date, timedelta
+from unittest.mock import patch
+
 from django.contrib.auth.models import AnonymousUser, User
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from .models import Can, Dialect, Flavor, Nameplate, Package
+from .models import (
+    Can,
+    Dialect,
+    Flavor,
+    Nameplate,
+    Package,
+    SearchTerm,
+    SearchTermHit,
+)
 from .services import aggregate_search, suggest_search
 
 
@@ -226,3 +237,78 @@ class SuggestSearchApiTests(TestCase):
         self.assertEqual(package_count(self.suggest(q="粽", limit="abc")), 5)
         # 低于下限 clamp 到 1
         self.assertEqual(package_count(self.suggest(q="粽", limit=0)), 1)
+
+
+class HotSearchApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def search(self, keyword, visitor_id=None):
+        headers = {}
+        if visitor_id:
+            headers["HTTP_X_VISITOR_ID"] = visitor_id
+        return self.client.get("/search/", {"q": keyword}, **headers)
+
+    def test_same_visitor_and_keyword_only_count_once_per_day(self):
+        first = self.search("月亮")
+        visitor_id = first["X-Visitor-ID"]
+        second = self.search("月亮", visitor_id)
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(SearchTerm.objects.get(keyword="月亮").count, 1)
+        self.assertEqual(SearchTermHit.objects.count(), 1)
+
+    def test_different_visitors_increment_the_same_term(self):
+        self.search("月亮")
+        self.search("月亮")
+
+        self.assertEqual(SearchTerm.objects.get(keyword="月亮").count, 2)
+        self.assertEqual(SearchTermHit.objects.count(), 2)
+
+    def test_same_visitor_counts_again_on_a_different_day(self):
+        yesterday = date.today() - timedelta(days=1)
+        with patch("guantou.services.timezone.localdate", return_value=yesterday):
+            first = self.search("月亮")
+        with patch("guantou.services.timezone.localdate", return_value=date.today()):
+            self.search("月亮", first["X-Visitor-ID"])
+
+        self.assertEqual(SearchTerm.objects.get(keyword="月亮").count, 2)
+        self.assertEqual(SearchTermHit.objects.count(), 2)
+
+    def test_blank_and_overlong_queries_are_not_recorded(self):
+        self.search("   ")
+        self.search("月" * 21)
+
+        self.assertFalse(SearchTerm.objects.exists())
+
+    def test_statistics_failure_never_breaks_search(self):
+        with patch(
+            "guantou.services.SearchTermHit.objects.get_or_create",
+            side_effect=RuntimeError("statistics unavailable"),
+        ):
+            response = self.search("月亮")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["keyword"], "月亮")
+
+    def test_hot_endpoint_ranks_terms_and_clamps_limit(self):
+        first = SearchTerm.objects.create(keyword="月亮", count=3)
+        second = SearchTerm.objects.create(keyword="行", count=5)
+        SearchTerm.objects.create(keyword="杀", count=1)
+        first.refresh_from_db()
+        second.refresh_from_db()
+
+        response = self.client.get("/search/hot/", {"limit": 2})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.data,
+            [
+                {"keyword": "行", "rank": 1},
+                {"keyword": "月亮", "rank": 2},
+            ],
+        )
+
+        response = self.client.get("/search/hot/", {"limit": 0})
+        self.assertEqual(len(response.data), 1)

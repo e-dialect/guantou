@@ -46,7 +46,10 @@
           />
         </ResultSection>
 
-        <view class="quick-section">
+        <view
+          v-if="hotTags.length"
+          class="quick-section"
+        >
           <view class="quick-title">
             热门搜索
           </view>
@@ -87,60 +90,75 @@
       </view>
 
       <view v-else>
-        <ResultSection
-          title="义项"
-          :items="results.flavors"
-          empty-title="没有匹配义项"
-        >
-          <EntityCard
-            v-for="item in results.flavors"
-            :key="`flavor-${item.id}`"
-            type="义项"
-            :title="item.name"
-            :description="item.definition"
-            :meta="flavorMeta(item)"
-            :item="{ ...item, scope: 'flavors' }"
-            @open="$emit('open', $event)"
-          />
-        </ResultSection>
-
-        <ResultSection
-          title="写法"
-          :items="results.packages"
-          empty-title="没有匹配写法"
-        >
-          <EntityCard
-            v-for="item in results.packages"
-            :key="`package-${item.id}`"
-            type="写法"
-            :title="item.text"
-            description="查看这个写法关联的义项"
-            :meta="packageMeta(item)"
-            :item="{ ...item, scope: 'packages' }"
-            @open="$emit('open', $event)"
-          />
-        </ResultSection>
-
-        <ResultSection
-          title="罐头"
-          :items="results.cans"
-          empty-title="没有匹配罐头"
-        >
-          <CanCard
-            v-for="item in results.cans"
-            :key="`can-${item.id}`"
-            :can="item"
-            @open="$emit('open-can', $event)"
-          />
-        </ResultSection>
-
         <EmptyState
-          v-if="!totalResults"
-          title="没有找到结果"
-          description="换个写法试试，或者先装一罐。"
-          action-text="装一罐"
-          @action="$emit('create-can')"
+          v-if="errorMessage"
+          title="搜索失败"
+          :description="errorMessage"
+          action-text="重新搜索"
+          @action="submitSearch"
         />
+        <view
+          v-else-if="loading"
+          class="search-status"
+        >
+          正在搜索…
+        </view>
+        <template v-else>
+          <ResultSection
+            title="义项"
+            :items="results.flavors"
+            empty-title="没有匹配义项"
+          >
+            <EntityCard
+              v-for="item in results.flavors"
+              :key="`flavor-${item.id}`"
+              type="义项"
+              :title="item.name"
+              :description="item.definition"
+              :meta="flavorMeta(item)"
+              :item="{ ...item, scope: 'flavors' }"
+              @open="$emit('open', $event)"
+            />
+          </ResultSection>
+
+          <ResultSection
+            title="写法"
+            :items="results.packages"
+            empty-title="没有匹配写法"
+          >
+            <EntityCard
+              v-for="item in results.packages"
+              :key="`package-${item.id}`"
+              type="写法"
+              :title="item.text"
+              description="查看这个写法关联的义项"
+              :meta="packageMeta(item)"
+              :item="{ ...item, scope: 'packages' }"
+              @open="$emit('open', $event)"
+            />
+          </ResultSection>
+
+          <ResultSection
+            title="罐头"
+            :items="results.cans"
+            empty-title="没有匹配罐头"
+          >
+            <CanCard
+              v-for="item in results.cans"
+              :key="`can-${item.id}`"
+              :can="item"
+              @open="$emit('open-can', $event)"
+            />
+          </ResultSection>
+
+          <EmptyState
+            v-if="!totalResults"
+            title="没有找到结果"
+            description="换个写法试试，或者先装一罐。"
+            action-text="装一罐"
+            @action="$emit('create-can')"
+          />
+        </template>
       </view>
     </scroll-view>
   </view>
@@ -190,6 +208,14 @@ export default {
     hasSearched: {
       type: Boolean,
       default: false,
+    },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+    errorMessage: {
+      type: String,
+      default: '',
     },
   },
   emits: [
@@ -265,6 +291,12 @@ export default {
   min-height: 100vh;
   background: #f6f7f3;
   color: #1d2a24;
+}
+
+.search-status {
+  padding: 80rpx 30rpx;
+  color: #66736b;
+  text-align: center;
 }
 
 .searchbar {

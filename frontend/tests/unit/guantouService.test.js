@@ -88,7 +88,7 @@ describe('guantou service canning helpers', () => {
       cans: [],
     });
 
-    expect(request.get).toHaveBeenCalledWith('/search/', { q: 'moon' });
+    expect(request.get).toHaveBeenCalledWith('/search/', { q: 'moon' }, true);
   });
 
   it('passes aggregate search options for suggestions', async () => {
@@ -96,10 +96,21 @@ describe('guantou service canning helpers', () => {
 
     await guantou.suggestGuantou('moon', { limit: 5 });
 
-    expect(request.get).toHaveBeenCalledWith('/search/suggest/', {
-      q: 'moon',
-      limit: 5,
-    });
+    expect(request.get).toHaveBeenCalledWith(
+      '/search/suggest/',
+      { q: 'moon', limit: 5 },
+      true,
+    );
+  });
+
+  it('loads hot search terms silently', async () => {
+    request.get.mockResolvedValue([{ keyword: '月亮', rank: 1 }]);
+
+    await expect(guantou.listHotSearches({ limit: 8 })).resolves.toEqual([
+      { keyword: '月亮', rank: 1 },
+    ]);
+
+    expect(request.get).toHaveBeenCalledWith('/search/hot/', { limit: 8 }, true);
   });
 
   it('creates and supports nameplates through first-class endpoints', async () => {

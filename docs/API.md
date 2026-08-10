@@ -30,6 +30,7 @@
 - `Dialect` 是按需建立的方言关系树；限定码从根到叶书写，如 `闽.莆仙.仙游.游洋`，同级人工顺序使用 `sort_order`。
 - 列表统一使用 `{ count, next, previous, results }` 分页结构，时间统一使用 RFC 3339。
 - `/search/suggest/` 的已实现容错、可见性、去重和排序规则已经纳入 v1 契约，详见 OpenAPI 与中文说明。
+- `/search/` 按 `flavors`、`packages`、`cans` 分组，每组使用同一个 `limit`（默认 8，范围 1～20）；它不是资源列表分页接口。`/search/hot/` 返回按热度排序的 `[{ keyword, rank }]`。
 
 ## 维护检查
 

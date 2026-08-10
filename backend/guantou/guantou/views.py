@@ -51,6 +51,8 @@ from .serializers import (
 from .services import (
     aggregate_search,
     elect_primary_nameplate,
+    hot_search_terms,
+    record_search,
     suggest_search,
     visible_cans_for_user,
 )
@@ -93,6 +95,7 @@ class AggregateSearchView(APIView):
             user=request.user,
             limit=request.query_params.get("limit"),
         )
+        record_search(results["keyword"], request)
         context = {"request": request}
         return Response(
             {
@@ -108,6 +111,13 @@ class AggregateSearchView(APIView):
                 ).data,
             }
         )
+
+
+class HotSearchView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        return Response(hot_search_terms(request.query_params.get("limit")))
 
 
 class SuggestSearchView(APIView):

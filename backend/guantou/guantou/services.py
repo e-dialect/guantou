@@ -1,10 +1,24 @@
+import logging
+
 from django.db import transaction
-from django.db.models import Case, IntegerField, Q, Value, When
+from django.db.models import Case, F, IntegerField, Q, Value, When
+from django.utils import timezone
 from rest_framework import serializers
 from utils.exceptions.payload import field_error
 from utils.exceptions.types.conflict import ConflictException
 
-from .models import Can, Flavor, FlavorPackage, Nameplate, Package, Pronunciation
+from .models import (
+    Can,
+    Flavor,
+    FlavorPackage,
+    Nameplate,
+    Package,
+    Pronunciation,
+    SearchTerm,
+    SearchTermHit,
+)
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_SEARCH_LIMIT = 8
 MAX_SEARCH_LIMIT = 20
@@ -171,6 +185,55 @@ def suggest_search(keyword, user=None, limit=SUGGEST_DEFAULT_LIMIT):
         _nameplate_suggestion,
     )
     return {"keyword": clean_keyword, "suggestions": suggestions}
+
+
+def _search_attributer(request):
+    user = getattr(request, "user", None)
+    if user is not None and user.is_authenticated:
+        return f"user:{user.pk}"
+
+    visitor = getattr(request, "visitor", None)
+    if visitor is not None:
+        return f"visitor:{visitor.pk}"
+    return ""
+
+
+def record_search(keyword, request):
+    keyword = clean_text(keyword)
+    attributer = _search_attributer(request)
+    max_length = SearchTerm._meta.get_field("keyword").max_length
+    if not keyword or len(keyword) > max_length or not attributer:
+        return False
+
+    try:
+        with transaction.atomic():
+            term, _ = SearchTerm.objects.get_or_create(keyword=keyword)
+            _, created = SearchTermHit.objects.get_or_create(
+                term=term,
+                attributer=attributer,
+                hit_date=timezone.localdate(),
+            )
+            if created:
+                SearchTerm.objects.filter(pk=term.pk).update(
+                    count=F("count") + 1,
+                    last_searched_at=timezone.now(),
+                )
+        return created
+    except Exception:
+        # 热词统计是旁路能力，任何异常都不能影响主搜索请求。
+        logger.debug("Failed to record search term", exc_info=True)
+        return False
+
+
+def hot_search_terms(limit=None):
+    normalized_limit = result_limit(limit, default=8, maximum=20)
+    terms = SearchTerm.objects.order_by("-count", "-last_searched_at", "id")[
+        :normalized_limit
+    ]
+    return [
+        {"keyword": term.keyword, "rank": rank}
+        for rank, term in enumerate(terms, start=1)
+    ]
 
 
 @transaction.atomic

@@ -253,6 +253,10 @@ GET /search/hot/?limit=10
 
 搜索联想返回 `{ keyword, suggestions }`，建议来源依次为 Flavor、Package、Nameplate。同一文本按该优先级去重，每类内部前缀匹配优先于包含匹配；Nameplate 必须挂在当前访问者可见的 Can 上。`q` trim 后为空时返回空建议，超过 50 字符截断；`limit` 是每类上限，默认 5、限制在 1～10，非数字回退为 5。
 
+聚合搜索不是资源分页接口：它按 `flavors`、`packages`、`cans` 分组，`limit` 同时限制每组数量（默认 8，限制在 1～20）。资源列表继续使用标准 `{ count, next, previous, results }` 分页契约。
+
+热门搜索直接返回 `[{ keyword, rank }]`，不公开内部计数。同一登录用户或匿名 visitor 对同一关键词每天只计一次；空白或超过 20 个字符的关键词不参与统计。统计写入失败不会影响聚合搜索响应。
+
 ```http
 GET /pronunciations/?package_id=12&flavor_id=34&dialect_id=56
 GET /pronunciations/?flavor_id=34&dialect_id=2&dialect_scope=subtree

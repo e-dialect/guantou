@@ -164,9 +164,13 @@ export async function createCanForFlavor({ can, flavorId }) {
 }
 
 export async function searchGuantou(q, options = {}) {
-  return request.get('/search/', { q, ...options });
+  return request.get('/search/', { q, ...options }, true);
 }
 
 export async function suggestGuantou(q, options = {}) {
-  return request.get('/search/suggest/', { q, ...options });
+  return request.get('/search/suggest/', { q, ...options }, true);
+}
+
+export async function listHotSearches(options = {}) {
+  return request.get('/search/hot/', options, true);
 }

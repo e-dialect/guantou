@@ -660,3 +660,42 @@ class Shelf(models.Model):
         ordering = ["title"]
         verbose_name = "货架"
         verbose_name_plural = "货架"
+
+
+class SearchTerm(models.Model):
+    """用于 Demo 热词排行的归一化搜索词。"""
+
+    keyword = models.CharField(max_length=20, unique=True)
+    count = models.PositiveBigIntegerField(default=0)
+    last_searched_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.keyword
+
+    class Meta:
+        ordering = ["-count", "-last_searched_at", "id"]
+
+
+class SearchTermHit(models.Model):
+    """同一登录用户或匿名 visitor 每天只为一个搜索词计数一次。"""
+
+    term = models.ForeignKey(
+        SearchTerm,
+        related_name="hits",
+        on_delete=models.CASCADE,
+    )
+    attributer = models.CharField(max_length=80)
+    hit_date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.term.keyword}:{self.attributer}:{self.hit_date}"
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["term", "attributer", "hit_date"],
+                name="unique_daily_search_term_hit",
+            )
+        ]

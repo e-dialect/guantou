@@ -6,6 +6,8 @@
     :suggestions="suggestions"
     :results="results"
     :has-searched="hasSearched"
+    :loading="searchLoading"
+    :error-message="searchError"
     @search="search"
     @suggest="suggest"
     @update:model-value="onKeywordInput"
@@ -21,6 +23,7 @@ import SearchPanel from '@/components/SearchPanel.vue';
 import { APP_NAME } from '@/const/branding';
 import {
   getNameplate,
+  listHotSearches,
   searchGuantou,
   suggestGuantou,
 } from '@/services/guantou';
@@ -62,16 +65,21 @@ export default {
   data() {
     return {
       hasSearched: false,
-      hotTags: ['月亮', '膝盖', '祖母', '行', '杀', '吃饭'],
+      hotTags: [],
+      hotTagsLoaded: false,
       historyList: [],
       keywords: '',
       lastSearchedKeyword: '',
       suggestions: [],
+      suggestRequestId: 0,
+      searchLoading: false,
+      searchError: '',
       results: emptyResults(),
     };
   },
   onLoad(option) {
     this.loadHistory();
+    this.loadHotTags();
     if (option.keywords || option.key) {
       this.keywords = option.keywords || option.key;
       this.search(this.keywords);
@@ -85,6 +93,16 @@ export default {
     };
   },
   methods: {
+    async loadHotTags() {
+      if (this.hotTagsLoaded) return;
+      this.hotTagsLoaded = true;
+      try {
+        const terms = await listHotSearches({ limit: 8 });
+        this.hotTags = (terms || []).map((item) => item.keyword).filter(Boolean);
+      } catch (error) {
+        this.hotTags = [];
+      }
+    },
     goBack() {
       uni.navigateBack();
     },
@@ -95,21 +113,44 @@ export default {
         return;
       }
       this.keywords = search;
-      this.results = await searchGuantou(search);
-      this.suggestions = [];
+      this.suggestRequestId += 1;
+      this.searchLoading = true;
+      this.searchError = '';
+      this.results = emptyResults();
       this.hasSearched = true;
-      this.lastSearchedKeyword = search;
-      this.recordHistory(search);
+      try {
+        this.results = await searchGuantou(search);
+        this.suggestions = [];
+        this.lastSearchedKeyword = search;
+        this.recordHistory(search);
+      } catch (error) {
+        this.searchError = '搜索失败，请稍后重试';
+      } finally {
+        this.searchLoading = false;
+      }
     },
     async suggest(keyword) {
       if (this.hasSearched) return;
-      const results = await suggestGuantou(keyword, { limit: 5 });
-      this.suggestions = flattenSuggestions(results);
+      const requestId = this.suggestRequestId + 1;
+      this.suggestRequestId = requestId;
+      try {
+        const results = await suggestGuantou(keyword, { limit: 5 });
+        if (requestId !== this.suggestRequestId || this.hasSearched) return;
+        this.suggestions = flattenSuggestions(results);
+      } catch (error) {
+        if (requestId === this.suggestRequestId) this.suggestions = [];
+      }
     },
     onKeywordInput(value) {
-      if (!this.hasSearched) return;
-      if (String(value || '').trim() === this.lastSearchedKeyword) return;
+      const keyword = String(value || '').trim();
+      if (!keyword) {
+        this.suggestRequestId += 1;
+        this.suggestions = [];
+      }
+      if (!this.hasSearched || keyword === this.lastSearchedKeyword) return;
+      this.suggestRequestId += 1;
       this.hasSearched = false;
+      this.searchError = '';
       this.results = emptyResults();
     },
     loadHistory() {

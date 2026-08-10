@@ -53,8 +53,7 @@
     </view>
 
     <view
-      v-if="isGuest"
-      class="quick-grid"
+      :class="['quick-grid', { compact: !isGuest }]"
     >
       <view
         v-for="entry in quickEntries"
@@ -337,6 +336,25 @@ export default {
   grid-template-columns: 1fr 1fr;
   gap: 18rpx;
   margin: 28rpx 0;
+}
+
+.quick-grid.compact {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12rpx;
+  margin: 18rpx 0;
+}
+
+.quick-grid.compact .quick-card {
+  min-height: 104rpx;
+  padding: 16rpx 12rpx;
+}
+
+.quick-grid.compact .quick-title {
+  font-size: 28rpx;
+}
+
+.quick-grid.compact .quick-copy {
+  display: none;
 }
 
 .quick-card {
