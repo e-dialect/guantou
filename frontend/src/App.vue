@@ -1,6 +1,10 @@
 <script>
 // app.js
 import { getLoginStatus } from '@/services/login';
+import {
+  ensureDialectOnboarding,
+  ONBOARDING_REASONS,
+} from '@/services/dialectOnboarding';
 import { toIndexPage } from '@/routers/index';
 import pagesJson from '@/pages.json';
 
@@ -34,7 +38,13 @@ export default {
         }
       },
     });
-    await getLoginStatus();
+    const loggedIn = await getLoginStatus();
+    if (loggedIn) {
+      ensureDialectOnboarding(
+        this.globalData.userInfo,
+        ONBOARDING_REASONS.MISSING_DIALECT,
+      );
+    }
   },
   globalData: {
     userInfo: {

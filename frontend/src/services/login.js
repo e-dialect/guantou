@@ -10,6 +10,11 @@ import {
   resolveAuthDestination,
 } from '@/services/authJourney';
 import {
+  needsDialectOnboarding,
+  ONBOARDING_REASONS,
+  toDialectOnboarding,
+} from '@/services/dialectOnboarding';
+import {
   claimAnonymousCanDrafts,
   getCanDraftOwnerScope,
 } from '@/services/canDrafts';
@@ -65,17 +70,18 @@ export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageS
 export async function loadUserInfo() {
   const id = uni.getStorageSync('id');
   if (!id) {
-    return;
+    return null;
   }
   const app = getApp();
-  await rawRequest.get(`/users/${id}`).then((res) => {
+  return rawRequest.get(`/users/${id}`).then((res) => {
     app.globalData.userInfo = res.user;
     app.globalData.contribution = res.contribution;
     app.globalData.id = res.user.id;
+    return res.user;
   });
 }
 
-export async function afterLogin(res) {
+export async function afterLogin(res, options = {}) {
   uni.showToast({
     title: '登录成功',
     icon: 'success',
@@ -86,14 +92,16 @@ export async function afterLogin(res) {
   if (previousOwnerScope.startsWith('anonymous:')) {
     await claimAnonymousCanDrafts(res.id, previousOwnerScope);
   }
-  await loadUserInfo();
+  const user = await loadUserInfo();
+  if (needsDialectOnboarding(user)) {
+    const reason = options.isNew
+      ? ONBOARDING_REASONS.NEW_USER
+      : ONBOARDING_REASONS.MISSING_DIALECT;
+    toDialectOnboarding(reason, true);
+    return;
+  }
   if (resumeInterruptedPageAfterLogin(res.id)) return;
-  // #ifdef H5
   toIndexPage(true);
-  // #endif
-  // #ifndef H5
-  toMePage();
-// #endif
 }
 
 /**
@@ -127,7 +135,7 @@ async function registerWithWechatCode(code) {
     password,
   }, { auth: false })
     .then(async (res) => {
-      await afterLogin(res);
+      await afterLogin(res, { isNew: true });
       return res;
     })
     .catch((err) => {
@@ -215,27 +223,29 @@ export async function mpLogin() {
  * @param username 用户名
  * @param password 密码
  */
-export async function normalLogin(username, password) {
+export async function normalLogin(username, password, options = {}) {
   if (!username) {
     uni.showToast({
       title: '请输入用户名',
       icon: 'error',
     });
-    return;
+    return null;
   }
   if (!password) {
     uni.showToast({
       title: '请输入密码',
       icon: 'error',
     });
-    return;
+    return null;
   }
-  rawRequest.post('/login', {
-    username,
-    password,
-  }, { auth: false }).then(async (res) => {
-    await afterLogin(res);
-  }).catch((err) => {
+  try {
+    const res = await rawRequest.post('/login', {
+      username,
+      password,
+    }, { auth: false });
+    await afterLogin(res, options);
+    return res;
+  } catch (err) {
     switch (err.statusCode) {
       case 401:
         uni.showToast({
@@ -248,7 +258,8 @@ export async function normalLogin(username, password) {
           title: err.message || '登录失败',
         });
     }
-  });
+    return null;
+  }
 }
 
 /**

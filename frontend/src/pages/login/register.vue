@@ -80,6 +80,7 @@
 
 <script>
 import { registerUser } from '@/services/user';
+import { normalLogin } from '@/services/login';
 import CuCustom from '@/colorui/components/cu-custom.vue';
 import getCodeMixin from './mixin/getCodeMixin';
 
@@ -149,13 +150,8 @@ export default {
         });
         return;
       }
-      registerUser(username, password, email, code).then(() => {
-        uni.showToast({
-          title: '注册成功',
-        });
-        uni.navigateBack({
-          delta: 1,
-        });
+      registerUser(username, password, email, code).then(async () => {
+        await normalLogin(username, password, { isNew: true });
       });
     },
   },

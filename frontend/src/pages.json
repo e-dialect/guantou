@@ -51,6 +51,10 @@
       }
     },
     {
+      "path": "pages/users/onboarding",
+      "style": {}
+    },
+    {
       "path": "pages/users/details",
       "style": {}
     },

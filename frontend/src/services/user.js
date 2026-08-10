@@ -1,5 +1,6 @@
 import request from '@/utils/request';
 import rawRequest from '@/utils/rawRequest';
+import { afterLogin } from '@/services/login';
 
 /**
  * US0101 新建用户（普通）
@@ -51,13 +52,8 @@ export function registerWechatUser(username, password, nickname) {
           password,
           jscode: res.code,
           nickname,
-        }, { auth: false }).then(async () => {
-          uni.showToast({
-            title: '注册成功',
-          });
-          uni.navigateBack({
-            delta: 1,
-          });
+        }, { auth: false }).then(async (response) => {
+          await afterLogin(response, { isNew: true });
         }).catch((err) => {
           switch (err.statusCode) {
             case 409:

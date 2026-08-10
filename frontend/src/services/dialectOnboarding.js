@@ -1,0 +1,79 @@
+import { listCans } from '@/services/guantou';
+import request from '@/utils/request';
+
+export const ONBOARDING_REASONS = {
+  MISSING_DIALECT: 'missing_dialect',
+  NEW_USER: 'new_user',
+};
+
+export function needsDialectOnboarding(user) {
+  return Boolean(user && !user.primary_dialect);
+}
+
+export function normalizeOnboardingReason(reason) {
+  return reason === ONBOARDING_REASONS.NEW_USER
+    ? ONBOARDING_REASONS.NEW_USER
+    : ONBOARDING_REASONS.MISSING_DIALECT;
+}
+
+export function dialectOnboardingUrl(reason) {
+  const normalized = normalizeOnboardingReason(reason);
+  return `/pages/users/onboarding?reason=${normalized}`;
+}
+
+export function toDialectOnboarding(reason, closeAll = true) {
+  const url = dialectOnboardingUrl(reason);
+  if (closeAll) {
+    uni.reLaunch({ url });
+  } else {
+    uni.redirectTo({ url });
+  }
+}
+
+export function ensureDialectOnboarding(user, reason) {
+  if (!needsDialectOnboarding(user)) return false;
+  const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : [];
+  const currentRoute = pages.length ? pages[pages.length - 1].route : '';
+  const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+  const alreadyOnboarding = String(currentRoute).replace(/^\//, '') === 'pages/users/onboarding'
+    || String(currentPath).replace(/^\//, '') === 'pages/users/onboarding';
+  if (alreadyOnboarding) return true;
+  toDialectOnboarding(reason, true);
+  return true;
+}
+
+export async function loadDialectSample(dialectId) {
+  if (!dialectId) return null;
+  const response = await listCans({
+    dialect_id: dialectId,
+    dialect_scope: 'subtree',
+    page: 1,
+    page_size: 1,
+  });
+  return (response.results || response || [])[0] || null;
+}
+
+export async function saveDialectProfile(userId, { nickname, primaryDialectId }) {
+  const response = await request.put(`/users/${userId}`, {
+    user: {
+      nickname: String(nickname || '').trim(),
+      primary_dialect_id: primaryDialectId,
+    },
+  });
+  if (response.token) uni.setStorageSync('token', response.token);
+  const app = getApp();
+  app.globalData.userInfo = response.user;
+  app.globalData.id = response.user.id;
+  return response.user;
+}
+
+export default {
+  ONBOARDING_REASONS,
+  dialectOnboardingUrl,
+  ensureDialectOnboarding,
+  loadDialectSample,
+  needsDialectOnboarding,
+  normalizeOnboardingReason,
+  saveDialectProfile,
+  toDialectOnboarding,
+};
