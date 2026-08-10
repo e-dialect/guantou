@@ -34,7 +34,7 @@ export function chooseAudioFile() {
       uni.chooseFile({
         count: 1,
         type: 'all',
-        extension: ['.mp3', '.wav', '.m4a', '.aac'],
+        extension: ['.mp3', '.wav', '.m4a'],
         success,
         fail,
       });
@@ -47,7 +47,7 @@ export function chooseAudioFile() {
       uni.chooseMessageFile({
         count: 1,
         type: 'file',
-        extension: ['mp3', 'wav', 'm4a', 'aac'],
+        extension: ['mp3', 'wav', 'm4a'],
         success,
         fail,
       });

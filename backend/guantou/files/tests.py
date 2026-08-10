@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
+from pydub.exceptions import CouldntDecodeError
 
 from user.tokens import generate_token
 
@@ -73,6 +74,39 @@ class FileApiTests(TestCase):
         response = self.client.post("/files", {"file": file}, **self._auth_headers())
         self.assertEqual(response.status_code, 400)
 
+    @patch("files.views.audio.from_file", side_effect=CouldntDecodeError("invalid"))
+    def test_reject_undecodable_audio_with_validation_error(self, from_file):
+        file = SimpleUploadedFile("fake.mp3", b"not-audio", content_type="audio/mpeg")
+        response = self.client.post("/files", {"file": file}, **self._auth_headers())
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["message"], "无法解析音频文件")
+        from_file.assert_called_once()
+
+    @patch("files.views.upload_file")
+    @patch("files.views.audio")
+    def test_generic_mime_mp3_is_still_validated_as_audio(
+        self, mock_audio, upload_file
+    ):
+        upload_file.return_value = "https://cos.example.com/x.mp3"
+        mock_segment = MagicMock()
+        mock_segment.duration_seconds = 1.25
+        mock_audio.from_file.return_value = mock_segment
+        mock_segment.set_frame_rate.return_value = mock_segment
+
+        file = SimpleUploadedFile(
+            "voice.mp3", b"fake-audio", content_type="application/octet-stream"
+        )
+        response = self.client.post("/files", {"file": file}, **self._auth_headers())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["duration_ms"], 1250)
+
+    def test_reject_audio_extension_with_disguised_image_mime(self):
+        file = SimpleUploadedFile("voice.mp3", b"fake-audio", content_type="image/png")
+        response = self.client.post("/files", {"file": file}, **self._auth_headers())
+        self.assertEqual(response.status_code, 400)
+
     def test_image_upload_not_subject_to_audio_validation(self):
         file = SimpleUploadedFile("photo.png", b"image-data", content_type="image/png")
         with patch("files.views.upload_file") as upload_file:
@@ -88,6 +122,7 @@ class FileApiTests(TestCase):
         upload_file.return_value = "https://cos.example.com/x.mp3"
         mock_segment = MagicMock()
         mock_segment.duration_seconds = 3.456
+        mock_segment.set_frame_rate.return_value = mock_segment
         mock_audio.from_file.return_value = mock_segment
 
         file = SimpleUploadedFile("voice.mp3", b"fake-audio", content_type="audio/mpeg")
@@ -103,6 +138,7 @@ class FileApiTests(TestCase):
         upload_file.return_value = "https://cos.example.com/x.mp3"
         mock_segment = MagicMock()
         mock_segment.duration_seconds = 1.0
+        mock_segment.set_frame_rate.return_value = mock_segment
         mock_audio.from_file.return_value = mock_segment
 
         file = SimpleUploadedFile("voice.wav", b"fake-audio", content_type="audio/wav")
@@ -116,6 +152,7 @@ class FileApiTests(TestCase):
         upload_file.return_value = "https://cos.example.com/x.mp3"
         mock_segment = MagicMock()
         mock_segment.duration_seconds = 2.5
+        mock_segment.set_frame_rate.return_value = mock_segment
         mock_audio.from_file.return_value = mock_segment
 
         file = SimpleUploadedFile("voice.m4a", b"fake-audio", content_type="audio/mp4")

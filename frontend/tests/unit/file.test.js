@@ -71,5 +71,8 @@ describe('file upload helpers', () => {
       name: 'audio.mp3',
       size: 12,
     });
+    expect(uni.chooseFile).toHaveBeenCalledWith(expect.objectContaining({
+      extension: ['.mp3', '.wav', '.m4a'],
+    }));
   });
 });

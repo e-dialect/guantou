@@ -387,6 +387,7 @@ export default {
         const canPayload = {
           ...this.form,
           audio_url: uploaded.url,
+          duration_ms: uploaded.duration_ms ?? this.form.duration_ms,
         };
         const can = this.mode === 'flavor' && this.targetFlavor.id
           ? await createCanForFlavor({

@@ -6,6 +6,7 @@ from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from pydub import AudioSegment as audio
+from pydub.exceptions import CouldntDecodeError
 
 from user.tokens import get_authorization_token, token_check
 from utils.exceptions.types.bad_request import BadRequestException
@@ -27,6 +28,8 @@ ALLOWED_AUDIO_CONTENT_TYPES = frozenset(
 
 ALLOWED_AUDIO_EXTENSIONS = frozenset({"mp3", "wav", "m4a"})
 
+GENERIC_BINARY_CONTENT_TYPES = frozenset({"", "application/octet-stream"})
+
 MAX_AUDIO_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 
 
@@ -44,7 +47,7 @@ def file_extension(uploaded_file, file_type):
 def validate_audio_format(uploaded_file):
     content_type = str(uploaded_file.content_type or "").lower()
     ext = file_extension(uploaded_file, "audio").lower()
-    if content_type and content_type not in ALLOWED_AUDIO_CONTENT_TYPES:
+    if content_type not in ALLOWED_AUDIO_CONTENT_TYPES | GENERIC_BINARY_CONTENT_TYPES:
         raise BadRequestException("不支持的音频格式")
     if ext not in ALLOWED_AUDIO_EXTENSIONS:
         raise BadRequestException("不支持的音频格式")
@@ -54,6 +57,11 @@ def validate_audio_format(uploaded_file):
 
 def extract_duration_ms(audio_segment):
     return int(audio_segment.duration_seconds * 1000)
+
+
+def is_audio_upload(uploaded_file, file_type):
+    ext = file_extension(uploaded_file, file_type).lower()
+    return file_type == "audio" or ext in ALLOWED_AUDIO_EXTENSIONS
 
 
 @csrf_exempt
@@ -68,22 +76,29 @@ def files(request):
         file_type = str(uploaded_file.content_type or "application/octet-stream").split(
             "/"
         )[0]
-        suffix = file_extension(uploaded_file, file_type)
-        if file_type == "audio":
+        audio_upload = is_audio_upload(uploaded_file, file_type)
+        suffix = file_extension(uploaded_file, file_type).lower()
+        if audio_upload:
             validate_audio_format(uploaded_file)
+            file_type = "audio"
+            # All accepted formats are normalized to MP3 before storage.
+            suffix = "mp3"
         filename = f"{timezone.now().strftime('%Y_%m_%d')}_{random_str(15)}.{suffix}"
         folder = os.path.join(settings.MEDIA_ROOT, file_type, str(user.id))
         os.makedirs(folder, exist_ok=True)
         path = os.path.join(folder, filename)
         duration_ms = 0
-        if file_type != "audio":
+        if not audio_upload:
             with open(path, "wb") as f:
                 for chunk in uploaded_file.chunks():
                     f.write(chunk)
         else:
-            music = audio.from_file(uploaded_file)
+            try:
+                music = audio.from_file(uploaded_file)
+            except CouldntDecodeError as exc:
+                raise BadRequestException("无法解析音频文件") from exc
             duration_ms = extract_duration_ms(music)
-            music.set_frame_rate(44100)
+            music = music.set_frame_rate(44100)
             music.export(path, format="mp3")
         key = (
             f"files/{file_type}/{user.id}/"
@@ -91,7 +106,7 @@ def files(request):
             + filename.split("_")[-1]
         )
         response_data = {"url": upload_file(path, key)}
-        if file_type == "audio":
+        if audio_upload:
             response_data["duration_ms"] = duration_ms
         return JsonResponse(response_data, status=200)
     if request.method == "DELETE":
