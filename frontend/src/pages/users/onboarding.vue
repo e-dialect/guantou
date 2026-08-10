@@ -149,7 +149,7 @@
 
 <script>
 import PageShell from '@/components/PageShell.vue';
-import { toIndexPage } from '@/routers';
+import { toFollowRecommendations } from '@/routers/user';
 import {
   loadDialectSample,
   normalizeOnboardingReason,
@@ -280,7 +280,7 @@ export default {
           primaryDialectId: this.selectedDialectId,
         });
         uni.showToast({ title: '方言身份已设置', icon: 'success' });
-        if (!resumeInterruptedPageAfterLogin(this.userId)) toIndexPage(true);
+        if (!resumeInterruptedPageAfterLogin(this.userId)) toFollowRecommendations(true);
       } finally {
         this.saving = false;
       }

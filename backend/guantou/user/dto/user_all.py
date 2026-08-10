@@ -55,6 +55,9 @@ def user_all(user: User, *, private=False) -> dict:
                 "is_admin": user.is_superuser,
                 "wechat": bool(info.wechat),
                 "points_now": info.points_now,
+                "followed_dialects": [
+                    dialect_ref(dialect) for dialect in info.followed_dialects.all()
+                ],
                 "login_time": (
                     localtime(user.last_login).__format__("%Y-%m-%d %H:%M:%S")
                     if user.last_login

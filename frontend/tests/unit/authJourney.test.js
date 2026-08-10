@@ -47,4 +47,15 @@ describe('auth journey', () => {
       context: {},
     })).toEqual({ kind: 'fallback' });
   });
+
+  it('returns a follow intent to the user without performing the follow', () => {
+    expect(resolveAuthDestination({
+      action: 'follow',
+      context: { page: 'user_detail', userId: 12 },
+    })).toEqual({
+      kind: 'url',
+      route: 'pages/users/details',
+      url: '/pages/users/details?id=12',
+    });
+  });
 });

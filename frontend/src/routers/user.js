@@ -17,6 +17,15 @@ export function toUserInfoPage() {
   });
 }
 
+export function toFollowRecommendations(closeAll = false) {
+  const options = { url: '/pages/users/recommend-follow' };
+  if (closeAll) {
+    uni.reLaunch(options);
+  } else {
+    uni.navigateTo(options);
+  }
+}
+
 /**
  * 前往更改用户昵称页面
  */

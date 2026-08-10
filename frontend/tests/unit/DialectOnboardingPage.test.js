@@ -23,6 +23,10 @@ vi.mock('@/services/user', () => ({
   clearUserInfo: vi.fn(),
 }));
 
+vi.mock('@/routers/user', () => ({
+  toFollowRecommendations: vi.fn(),
+}));
+
 vi.mock('@/utils/audio', () => ({
   playAudio: vi.fn(),
 }));
@@ -36,6 +40,7 @@ globalThis.getApp = vi.fn(() => ({
 import { listAllDialects } from '@/services/guantou';
 import { loadDialectSample, saveDialectProfile } from '@/services/dialectOnboarding';
 import { resumeInterruptedPageAfterLogin } from '@/services/login';
+import { toFollowRecommendations } from '@/routers/user';
 
 const { default: DialectOnboardingPage } = await import('@/pages/users/onboarding.vue');
 
@@ -103,6 +108,6 @@ describe('dialect onboarding page', () => {
       primaryDialectId: 3,
     });
     expect(resumeInterruptedPageAfterLogin).toHaveBeenCalledWith(7);
-    expect(uni.reLaunch).toHaveBeenCalledWith({ url: '/pages/index' });
+    expect(toFollowRecommendations).toHaveBeenCalledWith(true);
   });
 });

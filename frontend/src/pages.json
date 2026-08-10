@@ -55,6 +55,10 @@
       "style": {}
     },
     {
+      "path": "pages/users/recommend-follow",
+      "style": {}
+    },
+    {
       "path": "pages/users/details",
       "style": {}
     },

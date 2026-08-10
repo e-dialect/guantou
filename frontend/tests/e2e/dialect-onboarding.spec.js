@@ -77,6 +77,13 @@ test('new user selects a primary dialect and reaches home', async ({ page }) => 
       },
     });
   });
+  await page.route('**/users/recommendations**', async (route) => {
+    await route.fulfill({
+      json: {
+        results: [],
+      },
+    });
+  });
 
   await page.goto('/pages/users/onboarding?reason=new_user');
   await expect(page.getByText('欢迎加入乡声集盒')).toBeVisible();
@@ -91,6 +98,10 @@ test('new user selects a primary dialect and reaches home', async ({ page }) => 
     });
   }
   await page.getByText('完成设置').click();
+
+  await expect(page).toHaveURL(/\/pages\/users\/recommend-follow$/);
+  await expect(page.getByText('暂时没有可推荐的同方言作者')).toBeVisible();
+  await page.getByText('暂时跳过').click();
 
   await expect(page).toHaveURL(/\/$/);
   await expect(page.locator('.brand')).toHaveText('乡声集盒');

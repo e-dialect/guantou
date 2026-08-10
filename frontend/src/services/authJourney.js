@@ -15,6 +15,10 @@ function canDetailsUrl(canId) {
   return canId ? `/pages/cans/details?id=${encodeURIComponent(canId)}` : '';
 }
 
+function userDetailsUrl(userId) {
+  return userId ? `/pages/users/details?id=${encodeURIComponent(userId)}` : '';
+}
+
 export function resolveAuthDestination(intent) {
   if (!intent) return { kind: AUTH_DESTINATION_KINDS.DEFAULT };
 
@@ -53,6 +57,16 @@ export function resolveAuthDestination(intent) {
     return {
       kind: AUTH_DESTINATION_KINDS.URL,
       route: 'pages/cans/details',
+      url,
+    };
+  }
+
+  if (intent.action === 'follow') {
+    const url = userDetailsUrl(context.userId);
+    if (!url) return { kind: AUTH_DESTINATION_KINDS.FALLBACK };
+    return {
+      kind: AUTH_DESTINATION_KINDS.URL,
+      route: 'pages/users/details',
       url,
     };
   }

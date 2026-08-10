@@ -101,6 +101,9 @@ class UserPrimaryDialectTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.user.user_info.refresh_from_db()
         self.assertEqual(self.user.user_info.primary_dialect_id, self.dialect.id)
+        self.assertTrue(
+            self.user.user_info.followed_dialects.filter(id=self.dialect.id).exists()
+        )
         self.assertEqual(
             response.json()["user"]["primary_dialect"]["qualified_code"],
             "游洋",

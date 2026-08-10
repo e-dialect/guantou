@@ -103,7 +103,7 @@ class SuggestSearchView(APIView):
 
 
 class DialectViewSet(viewsets.ModelViewSet):
-    http_method_names = ["get", "post", "patch", "head", "options"]
+    http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
     queryset = Dialect.objects.select_related("parent").prefetch_related("children")
     serializer_class = DialectSerializer
     permission_classes = [CanWritePermission]
@@ -147,6 +147,25 @@ class DialectViewSet(viewsets.ModelViewSet):
         if node is None:
             raise NotFound("方言限定码不存在")
         return Response(self.get_serializer(node).data)
+
+    @action(
+        detail=True,
+        methods=["put", "delete"],
+        permission_classes=[permissions.IsAuthenticated],
+    )
+    def follow(self, request, pk=None):
+        dialect = self.get_object()
+        info = request.user.user_info
+        if request.method == "PUT":
+            info.followed_dialects.add(dialect)
+            following = True
+        elif info.primary_dialect_id == dialect.id:
+            info.followed_dialects.add(dialect)
+            following = True
+        else:
+            info.followed_dialects.remove(dialect)
+            following = False
+        return Response({"dialect_id": dialect.id, "following": following})
 
 
 class PackageViewSet(viewsets.ModelViewSet):

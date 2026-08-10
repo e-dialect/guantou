@@ -12,8 +12,17 @@
           <view class="name">
             {{ nickname || '未登录' }}
           </view>
-          <view class="meta">
+          <view
+            v-if="primaryDialect"
+            class="dialect-badge"
+          >
             {{ locationText }}
+          </view>
+          <view
+            v-else
+            class="meta"
+          >
+            未填写方言点
           </view>
         </view>
       </view>
@@ -346,6 +355,16 @@ export default {
 .meta {
   margin-top: 8rpx;
   color: #6c776e;
+}
+
+.dialect-badge {
+  display: inline-flex;
+  margin-top: 10rpx;
+  padding: 7rpx 16rpx;
+  border-radius: 999rpx;
+  background: #e4eee5;
+  color: #285e45;
+  font-size: 23rpx;
 }
 
 .stats {

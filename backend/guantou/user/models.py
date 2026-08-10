@@ -30,6 +30,12 @@ class UserInfo(models.Model):
         blank=True,
         verbose_name="主要方言点",
     )
+    followed_dialects = models.ManyToManyField(
+        "guantou.Dialect",
+        related_name="subscribers",
+        blank=True,
+        verbose_name="关注的方言点",
+    )
     legacy_location = models.JSONField(
         default=dict,
         blank=True,
@@ -50,3 +56,33 @@ class UserInfo(models.Model):
     class Meta:
         verbose_name_plural = "用户详细信息"
         verbose_name = "用户详细信息"
+
+
+class UserFollow(models.Model):
+    follower = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="following_relationships",
+        verbose_name="关注者",
+    )
+    followed = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="follower_relationships",
+        verbose_name="被关注者",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["follower", "followed"], name="unique_user_follow"
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(follower=models.F("followed")),
+                name="prevent_self_follow",
+            ),
+        ]
+        verbose_name = "用户关注"
+        verbose_name_plural = "用户关注"
