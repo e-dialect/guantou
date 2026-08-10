@@ -5,6 +5,8 @@ from utils.exceptions.types.conflict import ConflictException
 
 from .models import (
     Can,
+    CanComment,
+    CanLike,
     Dialect,
     Flavor,
     FlavorPackage,
@@ -677,9 +679,13 @@ class InitialNameplateSerializer(serializers.Serializer):
 
 
 class CanCardSerializer(serializers.ModelSerializer):
+    recorder = UserLiteSerializer(read_only=True)
     submitted_dialect = DialectRefSerializer(read_only=True)
     primary_nameplate = NameplateRefSerializer(read_only=True)
     nameplate_count = serializers.SerializerMethodField()
+    like_count = serializers.SerializerMethodField()
+    comment_count = serializers.SerializerMethodField()
+    liked_by_me = serializers.SerializerMethodField()
 
     class Meta:
         model = Can
@@ -687,12 +693,16 @@ class CanCardSerializer(serializers.ModelSerializer):
             "id",
             "audio_url",
             "concept_text",
+            "recorder",
             "submitted_dialect",
             "primary_nameplate",
             "status",
             "visibility",
             "views",
             "nameplate_count",
+            "like_count",
+            "comment_count",
+            "liked_by_me",
             "duration_ms",
             "created_at",
         ]
@@ -703,13 +713,51 @@ class CanCardSerializer(serializers.ModelSerializer):
             return annotated
         return obj.nameplates.filter(status=Nameplate.Status.ACTIVE).count()
 
+    def get_like_count(self, obj):
+        annotated = getattr(obj, "like_count", None)
+        return annotated if annotated is not None else obj.likes.count()
+
+    def get_comment_count(self, obj):
+        annotated = getattr(obj, "comment_count", None)
+        return annotated if annotated is not None else obj.comments.count()
+
+    def get_liked_by_me(self, obj):
+        annotated = getattr(obj, "liked_by_me", None)
+        if annotated is not None:
+            return bool(annotated)
+        request = self.context.get("request")
+        user = request.user if request else None
+        return bool(
+            user
+            and user.is_authenticated
+            and CanLike.objects.filter(can=obj, user=user).exists()
+        )
+
+
+class CanCommentSerializer(serializers.ModelSerializer):
+    can_id = serializers.PrimaryKeyRelatedField(
+        source="can",
+        queryset=Can.objects.filter(visibility=True),
+    )
+    author = UserLiteSerializer(read_only=True)
+
+    class Meta:
+        model = CanComment
+        fields = ["id", "can_id", "author", "content", "created_at"]
+        read_only_fields = ["id", "author", "created_at"]
+
+    def validate_content(self, value):
+        content = str(value or "").strip()
+        if not content:
+            raise serializers.ValidationError("评论不能为空")
+        return content
+
 
 class CanSerializer(CanCardSerializer):
     audio_url = serializers.URLField(required=True)
     concept_text = serializers.CharField(
         max_length=200, required=False, allow_blank=True
     )
-    recorder = UserLiteSerializer(read_only=True)
     submitted_dialect_id = serializers.PrimaryKeyRelatedField(
         source="submitted_dialect",
         queryset=Dialect.objects.all(),
@@ -723,7 +771,6 @@ class CanSerializer(CanCardSerializer):
     class Meta(CanCardSerializer.Meta):
         fields = CanCardSerializer.Meta.fields + [
             "submitted_dialect_id",
-            "recorder",
             "source_note",
             "nameplates",
             "verifier",

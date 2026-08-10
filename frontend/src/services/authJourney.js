@@ -71,6 +71,16 @@ export function resolveAuthDestination(intent) {
     };
   }
 
+  if (intent.action === 'like' || intent.action === 'comment') {
+    const url = canDetailsUrl(context.canId);
+    if (!url) return { kind: AUTH_DESTINATION_KINDS.FALLBACK };
+    return {
+      kind: AUTH_DESTINATION_KINDS.URL,
+      route: 'pages/cans/details',
+      url,
+    };
+  }
+
   return { kind: AUTH_DESTINATION_KINDS.FALLBACK };
 }
 

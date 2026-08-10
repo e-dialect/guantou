@@ -365,6 +365,52 @@ class Can(models.Model):
         verbose_name_plural = "罐头"
 
 
+class CanLike(models.Model):
+    can = models.ForeignKey(
+        Can,
+        on_delete=models.CASCADE,
+        related_name="likes",
+        verbose_name="罐头",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="can_likes",
+        verbose_name="用户",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["can", "user"], name="unique_can_like_user")
+        ]
+        verbose_name = "罐头点赞"
+        verbose_name_plural = "罐头点赞"
+
+
+class CanComment(models.Model):
+    can = models.ForeignKey(
+        Can,
+        on_delete=models.CASCADE,
+        related_name="comments",
+        verbose_name="罐头",
+    )
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="can_comments",
+        verbose_name="作者",
+    )
+    content = models.CharField(max_length=500, verbose_name="内容")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        verbose_name = "罐头评论"
+        verbose_name_plural = "罐头评论"
+
+
 class Nameplate(models.Model):
     """某个资料来源对一条录音提出的可查询、可追溯主张。"""
 

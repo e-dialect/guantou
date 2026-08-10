@@ -5,10 +5,24 @@ vi.mock('@/utils/audio', () => ({
   playAudio: vi.fn(),
 }));
 
+vi.mock('@/services/authGuard', () => ({
+  requireAuth: vi.fn(() => true),
+}));
+
+vi.mock('@/services/canSocial', () => ({
+  likeCan: vi.fn(),
+  unlikeCan: vi.fn(),
+}));
+
+vi.mock('@/utils/shareCan', () => ({
+  shareCanOnWeb: vi.fn(),
+}));
+
 import CanCard from '@/components/CanCard.vue';
 import { playAudio } from '@/utils/audio';
+import { likeCan } from '@/services/canSocial';
 
-function mountCard(can = {}) {
+function mountCard(can = {}, props = {}) {
   return mount(CanCard, {
     props: {
       can: {
@@ -20,6 +34,7 @@ function mountCard(can = {}) {
         nameplate_count: 2,
         ...can,
       },
+      ...props,
     },
   });
 }
@@ -27,6 +42,7 @@ function mountCard(can = {}) {
 describe('CanCard audio', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    likeCan.mockResolvedValue({ liked: true, like_count: 4 });
   });
 
   it('plays audio without opening the card', async () => {
@@ -44,5 +60,24 @@ describe('CanCard audio', () => {
 
     expect(wrapper.find('.play-button').attributes('disabled')).toBeDefined();
     expect(wrapper.text()).toContain('暂无可播放音频');
+  });
+
+  it('likes and opens social targets without opening the card', async () => {
+    const wrapper = mountCard({
+      like_count: 3,
+      liked_by_me: false,
+      comment_count: 2,
+      recorder: { id: 9, nickname: '录音者' },
+    }, { social: true });
+
+    await wrapper.find('.author-row').trigger('tap');
+    await wrapper.findAll('.social-button')[0].trigger('tap');
+    await wrapper.findAll('.social-button')[1].trigger('tap');
+
+    expect(wrapper.emitted('author')[0]).toEqual([9]);
+    expect(wrapper.emitted('comment')[0]).toEqual([7]);
+    expect(likeCan).toHaveBeenCalledWith(7);
+    expect(wrapper.text()).toContain('♥ 4');
+    expect(wrapper.emitted('open')).toBeUndefined();
   });
 });

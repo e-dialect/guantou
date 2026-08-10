@@ -1,5 +1,16 @@
 from django.db import transaction
-from django.db.models import Count, F, Q
+from django.db.models import (
+    BooleanField,
+    Case,
+    Count,
+    Exists,
+    F,
+    IntegerField,
+    OuterRef,
+    Q,
+    Value,
+    When,
+)
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
@@ -13,6 +24,8 @@ from utils.exceptions.types.forbidden import ForbiddenException
 
 from .models import (
     Can,
+    CanComment,
+    CanLike,
     Dialect,
     Flavor,
     Nameplate,
@@ -21,9 +34,10 @@ from .models import (
     Pronunciation,
     Shelf,
 )
-from .permissions import IsOwnerOrAdmin
+from .permissions import IsCommentAuthorOrAdmin, IsOwnerOrAdmin
 from .serializers import (
     CanCardSerializer,
+    CanCommentSerializer,
     CanSerializer,
     DialectSerializer,
     FlavorSerializer,
@@ -58,6 +72,13 @@ def dialect_ids(value, scope):
     if dialect is None:
         return []
     return dialect.descendant_ids() if scope == "subtree" else [dialect.id]
+
+
+def expanded_dialect_ids(root_ids):
+    ids = set()
+    for dialect in Dialect.objects.filter(id__in=root_ids).prefetch_related("children"):
+        ids.update(dialect.descendant_ids())
+    return ids
 
 
 class AggregateSearchView(APIView):
@@ -317,7 +338,7 @@ STAFF_ONLY_ACTIONS = {"verify", "reject"}
 
 
 class CanViewSet(viewsets.ModelViewSet):
-    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+    http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
     queryset = (
         Can.objects.select_related("recorder", "submitted_dialect", "verifier")
         .prefetch_related(
@@ -329,8 +350,12 @@ class CanViewSet(viewsets.ModelViewSet):
         )
         .annotate(
             nameplate_count=Count(
-                "nameplates", filter=Q(nameplates__status=Nameplate.Status.ACTIVE)
-            )
+                "nameplates",
+                filter=Q(nameplates__status=Nameplate.Status.ACTIVE),
+                distinct=True,
+            ),
+            like_count=Count("likes", distinct=True),
+            comment_count=Count("comments", distinct=True),
         )
     )
     serializer_class = CanSerializer
@@ -342,6 +367,73 @@ class CanViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = self.queryset
         user = self.request.user
+        if user and user.is_authenticated:
+            queryset = queryset.annotate(
+                liked_by_me=Exists(
+                    CanLike.objects.filter(can_id=OuterRef("pk"), user=user)
+                )
+            )
+        else:
+            queryset = queryset.annotate(
+                liked_by_me=Value(False, output_field=BooleanField())
+            )
+
+        feed = self.request.query_params.get("feed", "")
+        if feed in {"dialect", "following", "recommended"}:
+            queryset = queryset.filter(visibility=True)
+            if feed == "dialect":
+                primary_id = (
+                    user.user_info.primary_dialect_id
+                    if user.is_authenticated and hasattr(user, "user_info")
+                    else None
+                )
+                queryset = queryset.filter(
+                    submitted_dialect_id__in=(
+                        expanded_dialect_ids([primary_id]) if primary_id else []
+                    )
+                )
+            elif feed == "following":
+                if not user.is_authenticated or not hasattr(user, "user_info"):
+                    queryset = queryset.none()
+                else:
+                    roots = user.user_info.followed_dialects.values_list(
+                        "id", flat=True
+                    )
+                    followed_authors = user.following_relationships.values_list(
+                        "followed_id", flat=True
+                    )
+                    queryset = queryset.filter(
+                        Q(recorder_id__in=followed_authors)
+                        | Q(submitted_dialect_id__in=expanded_dialect_ids(roots))
+                    )
+            else:
+                roots = []
+                if user.is_authenticated and hasattr(user, "user_info"):
+                    roots = list(
+                        user.user_info.followed_dialects.values_list("id", flat=True)
+                    )
+                    if user.user_info.primary_dialect_id:
+                        roots.append(user.user_info.primary_dialect_id)
+                preferred = expanded_dialect_ids(roots)
+                if preferred:
+                    queryset = queryset.annotate(
+                        dialect_priority=Case(
+                            When(submitted_dialect_id__in=preferred, then=Value(1)),
+                            default=Value(0),
+                            output_field=IntegerField(),
+                        )
+                    )
+                else:
+                    queryset = queryset.annotate(
+                        dialect_priority=Value(0, output_field=IntegerField())
+                    )
+                queryset = queryset.order_by(
+                    "-dialect_priority",
+                    "-like_count",
+                    "-views",
+                    "-created_at",
+                    "-id",
+                )
         if not (user and user.is_authenticated and user.is_staff):
             if user and user.is_authenticated:
                 queryset = queryset.filter(
@@ -387,6 +479,8 @@ class CanViewSet(viewsets.ModelViewSet):
                 | Q(nameplates__text_content__icontains=search)
                 | Q(nameplates__definition__icontains=search)
             )
+        if feed == "recommended":
+            return queryset.distinct()
         return queryset.distinct().order_by("-created_at", "-id")
 
     def retrieve(self, request, *args, **kwargs):
@@ -403,6 +497,31 @@ class CanViewSet(viewsets.ModelViewSet):
         if instance is None:
             raise NotFound("暂无公开罐头")
         return Response(CanSerializer(instance, context={"request": request}).data)
+
+    @action(
+        detail=True,
+        methods=["put", "delete"],
+        permission_classes=[permissions.IsAuthenticated],
+    )
+    def like(self, request, pk=None):
+        can = self.get_object()
+        if not can.visibility:
+            raise NotFound("罐头不存在")
+        if request.method == "PUT":
+            _, changed = CanLike.objects.get_or_create(can=can, user=request.user)
+            liked = True
+        else:
+            deleted, _ = CanLike.objects.filter(can=can, user=request.user).delete()
+            changed = bool(deleted)
+            liked = False
+        return Response(
+            {
+                "can_id": can.id,
+                "liked": liked,
+                "changed": changed,
+                "like_count": CanLike.objects.filter(can=can).count(),
+            }
+        )
 
     @action(
         detail=True,
@@ -455,6 +574,26 @@ class CanViewSet(viewsets.ModelViewSet):
             if page is not None
             else Response(serializer.data)
         )
+
+
+class CanCommentViewSet(viewsets.ModelViewSet):
+    http_method_names = ["get", "post", "delete", "head", "options"]
+    serializer_class = CanCommentSerializer
+    permission_classes = [IsCommentAuthorOrAdmin]
+
+    def get_queryset(self):
+        queryset = CanComment.objects.select_related(
+            "author", "author__user_info", "can"
+        ).filter(can__visibility=True)
+        can_id = self.request.query_params.get("can_id")
+        if self.action == "list":
+            if not can_id:
+                raise BadRequestException("can_id 不能为空")
+            queryset = queryset.filter(can_id=can_id)
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
 
 
 class NameplateViewSet(viewsets.ModelViewSet):

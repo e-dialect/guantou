@@ -2,10 +2,12 @@
   <PageShell
     :title="appName"
     :show-back="false"
+    :scroll="isGuest"
+    :content-class="{ 'social-home-content': !isGuest }"
     action-text="装罐"
     @action="toCreate"
   >
-    <view class="hero">
+    <view :class="['hero', { compact: !isGuest }]">
       <view class="eyebrow">
         方言词典 · 真实乡音
       </view>
@@ -50,7 +52,10 @@
       </text>
     </view>
 
-    <view class="quick-grid">
+    <view
+      v-if="isGuest"
+      class="quick-grid"
+    >
       <view
         v-for="entry in quickEntries"
         :key="entry.key"
@@ -67,6 +72,7 @@
     </view>
 
     <SectionBlock
+      v-if="isGuest"
       :title="canSectionTitle"
       action-text="全部"
       @action="toCans"
@@ -85,6 +91,15 @@
         @empty-action="toCreate"
       />
     </SectionBlock>
+    <SocialCanFeeds
+      v-else
+      ref="socialFeeds"
+      :fetcher="listCans"
+      @author="toUser"
+      @comment="toCan"
+      @open="toCan"
+      @share="prepareShare"
+    />
   </PageShell>
 </template>
 
@@ -92,20 +107,25 @@
 import CanList from '@/components/CanList.vue';
 import PageShell from '@/components/PageShell.vue';
 import SectionBlock from '@/components/SectionBlock.vue';
+import SocialCanFeeds from '@/components/SocialCanFeeds.vue';
 import { listCans } from '@/services/guantou';
 import { APP_NAME, SHARE_TITLE } from '@/const/branding';
+import { toUserPage } from '@/routers/user';
+import { canSharePayload } from '@/utils/shareCan';
 
 export default {
   components: {
     CanList,
     PageShell,
     SectionBlock,
+    SocialCanFeeds,
   },
   data() {
     const app = typeof getApp === 'function' ? getApp() : null;
     return {
       appName: APP_NAME,
       primaryDialect: app?.globalData?.userInfo?.primary_dialect || null,
+      pendingShareCan: null,
     };
   },
   computed: {
@@ -161,6 +181,7 @@ export default {
     },
   },
   onShareAppMessage() {
+    if (this.pendingShareCan) return canSharePayload(this.pendingShareCan);
     return {
       title: SHARE_TITLE,
       path: '/pages/index',
@@ -184,6 +205,12 @@ export default {
     toCan(id) {
       uni.navigateTo({ url: `/pages/cans/details?id=${id}` });
     },
+    toUser(id) {
+      toUserPage(id);
+    },
+    prepareShare(can) {
+      this.pendingShareCan = can;
+    },
     toFlavors() {
       uni.navigateTo({ url: '/pages/flavors/index' });
     },
@@ -200,6 +227,21 @@ export default {
 <style scoped>
 .hero {
   margin-bottom: 30rpx;
+}
+
+.hero.compact {
+  margin-bottom: 20rpx;
+}
+
+.hero.compact .brand {
+  font-size: 42rpx;
+}
+
+:deep(.social-home-content) {
+  display: flex;
+  height: calc(100vh - 96rpx);
+  min-height: 0;
+  flex-direction: column;
 }
 
 .eyebrow {

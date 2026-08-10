@@ -9,8 +9,8 @@ function mountCanList(props) {
     global: {
       stubs: {
         CanCard: {
-          props: ['can'],
-          emits: ['open'],
+          props: ['can', 'social'],
+          emits: ['author', 'comment', 'open', 'share'],
           template: '<div class="can-card" @tap="$emit(\'open\', can.id)">{{ can.id }}</div>',
         },
         EmptyState: {
@@ -49,7 +49,7 @@ describe('CanList', () => {
   it('loads the next page when more data exists', async () => {
     const fetcher = vi.fn()
       .mockResolvedValueOnce({ results: [{ id: 1 }], next: 'next' })
-      .mockResolvedValueOnce({ results: [{ id: 2 }], next: null });
+      .mockResolvedValueOnce({ results: [{ id: 1 }, { id: 2 }], next: null });
     const wrapper = mountCanList({ fetcher });
 
     await flushPromises();
@@ -57,6 +57,21 @@ describe('CanList', () => {
 
     expect(wrapper.vm.items.map((item) => item.id)).toEqual([1, 2]);
     expect(fetcher).toHaveBeenLastCalledWith({ page: 2 });
+    expect(wrapper.vm.loadingStatus).toBe('noMore');
+  });
+
+  it('keeps old data when refresh fails and exposes retry state', async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce({ results: [{ id: 1 }], next: 'next' })
+      .mockRejectedValueOnce(new Error('offline'));
+    const wrapper = mountCanList({ fetcher });
+
+    await flushPromises();
+    await wrapper.vm.refresh();
+
+    expect(wrapper.vm.items.map((item) => item.id)).toEqual([1]);
+    expect(wrapper.vm.loadingStatus).toBe('more');
+    expect(wrapper.text()).toContain('加载失败，点此重试');
   });
 
   it('shows empty action when the first page has no cans', async () => {

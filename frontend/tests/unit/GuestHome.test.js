@@ -30,6 +30,9 @@ function mountHome(token = '') {
           props: ['query'],
           template: '<div class="can-list" :data-query="JSON.stringify(query)" />',
         },
+        SocialCanFeeds: {
+          template: '<div class="social-feeds">同方言 关注 推荐</div>',
+        },
       },
     },
   });
@@ -50,12 +53,12 @@ describe('guest-first home', () => {
     expect(wrapper.find('.can-list').attributes('data-query')).toBe('{}');
   });
 
-  it('keeps the contribution-focused home for signed-in users', () => {
+  it('shows isolated social feed tabs for signed-in users', () => {
     const wrapper = mountHome('token-value');
 
     expect(wrapper.text()).not.toContain('不登录也能查、能听');
-    expect(wrapper.text()).toContain('待贴铭牌');
     expect(wrapper.text()).toContain('主方言 · 西南官话.四川');
-    expect(wrapper.find('.can-list').attributes('data-query')).toContain('needs_label');
+    expect(wrapper.text()).toContain('同方言 关注 推荐');
+    expect(wrapper.find('.can-list').exists()).toBe(false);
   });
 });

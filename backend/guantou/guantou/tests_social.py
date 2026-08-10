@@ -1,0 +1,161 @@
+from django.contrib.auth.models import User
+from django.test import TestCase
+from rest_framework.test import APIClient
+
+from user.models import UserFollow, UserInfo
+
+from .models import Can, CanComment, CanLike, Dialect
+
+
+class CanSocialApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.root = Dialect.objects.create(name="西南官话", code="西南")
+        self.child = Dialect.objects.create(
+            name="四川话", code="四川", parent=self.root
+        )
+        self.other_dialect = Dialect.objects.create(name="客家话", code="客家")
+        self.viewer = self.create_user("viewer", self.root)
+        self.same_author = self.create_user("same", self.child)
+        self.other_author = self.create_user("other", self.other_dialect)
+        self.staff = self.create_user("staff", self.other_dialect, is_staff=True)
+        self.viewer.user_info.followed_dialects.add(self.root)
+        self.client.force_authenticate(self.viewer)
+
+        self.same_can = self.make_can(self.same_author, self.child, "同方言")
+        self.other_can = self.make_can(
+            self.other_author, self.other_dialect, "其他方言", views=20
+        )
+        self.private_can = self.make_can(
+            self.same_author, self.child, "私密", visibility=False
+        )
+
+    @staticmethod
+    def create_user(username, dialect, **kwargs):
+        user = User.objects.create_user(username=username, password="pw", **kwargs)
+        UserInfo.objects.create(
+            user=user,
+            nickname=username.title(),
+            primary_dialect=dialect,
+        )
+        return user
+
+    @staticmethod
+    def make_can(author, dialect, concept, **kwargs):
+        values = {
+            "audio_url": f"https://example.com/{concept}.mp3",
+            "recorder": author,
+            "submitted_dialect": dialect,
+            "concept_text": concept,
+            "visibility": True,
+        }
+        values.update(kwargs)
+        return Can.objects.create(**values)
+
+    def ids(self, response):
+        self.assertEqual(response.status_code, 200)
+        return [item["id"] for item in response.data["results"]]
+
+    def test_dialect_and_following_feeds_are_public_and_deduplicated(self):
+        dialect_ids = self.ids(self.client.get("/cans/", {"feed": "dialect"}))
+        self.assertEqual(dialect_ids, [self.same_can.id])
+
+        UserFollow.objects.create(
+            follower=self.viewer,
+            followed=self.other_author,
+        )
+        following = self.client.get("/cans/", {"feed": "following"})
+        following_ids = self.ids(following)
+        self.assertEqual(set(following_ids), {self.same_can.id, self.other_can.id})
+        self.assertEqual(len(following_ids), len(set(following_ids)))
+        self.assertNotIn(self.private_can.id, following_ids)
+
+    def test_recommended_prioritizes_subscriptions_then_engagement(self):
+        CanLike.objects.create(can=self.other_can, user=self.viewer)
+        CanLike.objects.create(can=self.other_can, user=self.staff)
+
+        response = self.client.get("/cans/", {"feed": "recommended"})
+        results = response.data["results"]
+
+        self.assertEqual(
+            [item["id"] for item in results[:2]],
+            [
+                self.same_can.id,
+                self.other_can.id,
+            ],
+        )
+        other = next(item for item in results if item["id"] == self.other_can.id)
+        self.assertEqual(other["like_count"], 2)
+        self.assertTrue(other["liked_by_me"])
+        self.assertEqual(other["recorder"]["id"], self.other_author.id)
+        self.assertNotIn(self.private_can.id, [item["id"] for item in results])
+
+        self.client.force_authenticate(None)
+        guest = self.client.get("/cans/", {"feed": "recommended"})
+        self.assertEqual(guest.status_code, 200)
+        self.assertNotIn(self.private_can.id, self.ids(guest))
+
+    def test_like_is_idempotent(self):
+        url = f"/cans/{self.same_can.id}/like/"
+        first = self.client.put(url)
+        repeated = self.client.put(url)
+
+        self.assertTrue(first.data["changed"])
+        self.assertFalse(repeated.data["changed"])
+        self.assertEqual(CanLike.objects.filter(can=self.same_can).count(), 1)
+
+        removed = self.client.delete(url)
+        repeated_remove = self.client.delete(url)
+        self.assertTrue(removed.data["changed"])
+        self.assertFalse(repeated_remove.data["changed"])
+        self.assertEqual(repeated_remove.data["like_count"], 0)
+
+    def test_comment_validation_visibility_and_delete_permissions(self):
+        created = self.client.post(
+            "/comments/",
+            {"can_id": self.same_can.id, "content": "  真好听  "},
+            format="json",
+        )
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.data["content"], "真好听")
+        comment_id = created.data["id"]
+
+        listed = self.client.get("/comments/", {"can_id": self.same_can.id})
+        self.assertEqual([item["id"] for item in listed.data["results"]], [comment_id])
+
+        blank = self.client.post(
+            "/comments/",
+            {"can_id": self.same_can.id, "content": "   "},
+            format="json",
+        )
+        self.assertEqual(blank.status_code, 400)
+        too_long = self.client.post(
+            "/comments/",
+            {"can_id": self.same_can.id, "content": "好" * 501},
+            format="json",
+        )
+        self.assertEqual(too_long.status_code, 400)
+        private = self.client.post(
+            "/comments/",
+            {"can_id": self.private_can.id, "content": "看不见"},
+            format="json",
+        )
+        self.assertEqual(private.status_code, 400)
+
+        self.client.force_authenticate(self.other_author)
+        forbidden = self.client.delete(f"/comments/{comment_id}/")
+        self.assertEqual(forbidden.status_code, 403)
+        self.assertTrue(CanComment.objects.filter(id=comment_id).exists())
+
+        self.client.force_authenticate(self.viewer)
+        deleted = self.client.delete(f"/comments/{comment_id}/")
+        self.assertEqual(deleted.status_code, 204)
+
+        second = CanComment.objects.create(
+            can=self.same_can,
+            author=self.viewer,
+            content="由管理员处理",
+        )
+        self.client.force_authenticate(self.staff)
+        admin_deleted = self.client.delete(f"/comments/{second.id}/")
+        self.assertEqual(admin_deleted.status_code, 204)
