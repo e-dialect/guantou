@@ -15,6 +15,12 @@
       <view class="subtitle">
         {{ heroSubtitle }}
       </view>
+      <view
+        v-if="primaryDialect"
+        class="identity-note"
+      >
+        主方言 · {{ primaryDialect.qualified_code || primaryDialect.name }}
+      </view>
     </view>
 
     <view
@@ -96,8 +102,10 @@ export default {
     SectionBlock,
   },
   data() {
+    const app = typeof getApp === 'function' ? getApp() : null;
     return {
       appName: APP_NAME,
+      primaryDialect: app?.globalData?.userInfo?.primary_dialect || null,
     };
   },
   computed: {
@@ -158,6 +166,10 @@ export default {
       path: '/pages/index',
     };
   },
+  onShow() {
+    const app = typeof getApp === 'function' ? getApp() : null;
+    this.primaryDialect = app?.globalData?.userInfo?.primary_dialect || null;
+  },
   methods: {
     listCans,
     toSearch() {
@@ -209,6 +221,17 @@ export default {
   margin-top: 12rpx;
   color: #5d6b61;
   font-size: 27rpx;
+}
+
+.identity-note {
+  display: inline-block;
+  margin-top: 16rpx;
+  padding: 8rpx 16rpx;
+  border-radius: 999rpx;
+  background: #e8f1eb;
+  color: #1f5c43;
+  font-size: 24rpx;
+  font-weight: 700;
 }
 
 .guest-note {

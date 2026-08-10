@@ -8,7 +8,14 @@ function mountHome(token = '') {
     getStorageSync: vi.fn((key) => (key === 'token' ? token : '')),
     navigateTo: vi.fn(),
   };
-  return mount(HomePage, {
+  globalThis.getApp = vi.fn(() => ({
+    globalData: {
+      userInfo: token ? {
+        primary_dialect: { name: '四川话', qualified_code: '西南官话.四川' },
+      } : {},
+    },
+  }));
+  const wrapper = mount(HomePage, {
     global: {
       stubs: {
         PageShell: {
@@ -26,6 +33,8 @@ function mountHome(token = '') {
       },
     },
   });
+  wrapper.vm.$options.onShow.call(wrapper.vm);
+  return wrapper;
 }
 
 describe('guest-first home', () => {
@@ -46,6 +55,7 @@ describe('guest-first home', () => {
 
     expect(wrapper.text()).not.toContain('不登录也能查、能听');
     expect(wrapper.text()).toContain('待贴铭牌');
+    expect(wrapper.text()).toContain('主方言 · 西南官话.四川');
     expect(wrapper.find('.can-list').attributes('data-query')).toContain('needs_label');
   });
 });

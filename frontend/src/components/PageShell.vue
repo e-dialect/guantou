@@ -8,6 +8,10 @@
       >
         ‹
       </text>
+      <view
+        v-else
+        class="shell-back-placeholder"
+      />
       <text class="shell-title">
         {{ title }}
       </text>
@@ -95,6 +99,11 @@ export default {
   background: #ffffff;
   border-bottom: 1px solid #e8ebe4;
   box-sizing: border-box;
+}
+
+.shell-back,
+.shell-back-placeholder {
+  width: 56rpx;
 }
 
 .shell-back {
