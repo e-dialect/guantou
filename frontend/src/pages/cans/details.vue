@@ -40,6 +40,12 @@
           </button>
           <button
             class="social-button"
+            @tap="useSame"
+          >
+            用同款 {{ can.use_count || 0 }}
+          </button>
+          <button
+            class="social-button"
             open-type="share"
             @tap="shareCurrent"
           >
@@ -79,6 +85,31 @@
             >
               {{ transitionBusy === item.action ? '处理中…' : item.label }}
             </button>
+          </view>
+        </view>
+      </SectionBlock>
+
+      <SectionBlock :title="`引用表达 · ${can.use_count || posts.length}`">
+        <view
+          v-if="!posts.length"
+          class="post-empty"
+        >
+          还没有人用这段乡音表达，来写第一句吧。
+        </view>
+        <view
+          v-for="post in posts"
+          :key="post.id"
+          class="post-row"
+          @tap="toPost(post.id)"
+        >
+          <view class="post-author">
+            {{ post.author.nickname || post.author.username }}
+          </view>
+          <view class="post-text">
+            {{ post.text || '用这段乡音表达了一次' }}
+          </view>
+          <view class="post-time">
+            {{ formatTime(post.created_at) }} · 查看表达 ›
           </view>
         </view>
       </SectionBlock>
@@ -209,6 +240,7 @@ import {
   unlikeCanComment,
 } from '@/services/canSocial';
 import { requireAuth } from '@/services/authGuard';
+import { openCanPost, startUseSame } from '@/services/canPostJourney';
 import { playAudio } from '@/utils/audio';
 import { toUserPage } from '@/routers/user';
 import { canSharePayload, shareCanOnWeb } from '@/utils/shareCan';
@@ -273,6 +305,7 @@ export default {
       dialects: [],
       flavors: [],
       packages: [],
+      posts: [],
       commentSubmitting: false,
       commentText: '',
       likeBusy: false,
@@ -319,6 +352,7 @@ export default {
     async refresh() {
       this.can = await getCan(this.id);
       this.comments = this.can.recent_comments || [];
+      this.posts = this.can.recent_posts || [];
     },
     async loadClaimOptions() {
       try {
@@ -417,6 +451,12 @@ export default {
       // #ifdef H5
       await shareCanOnWeb(this.can);
       // #endif
+    },
+    useSame() {
+      startUseSame(this.id, { page: 'can_detail' });
+    },
+    toPost(postId) {
+      openCanPost(postId);
     },
     async support(id) {
       if (!requireAuth('nameplate_support', { page: 'can_detail', canId: this.id, nameplateId: id })) return;
@@ -582,6 +622,36 @@ export default {
   color: #79857d;
   font-size: 25rpx;
   text-align: center;
+}
+
+.post-empty {
+  padding: 20rpx 0;
+  color: #79857d;
+  font-size: 25rpx;
+}
+
+.post-row {
+  padding: 22rpx 0;
+  border-bottom: 1px solid #edf0eb;
+}
+
+.post-author {
+  color: #1f5c43;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.post-text {
+  margin-top: 8rpx;
+  color: #283a30;
+  font-size: 28rpx;
+  white-space: pre-wrap;
+}
+
+.post-time {
+  margin-top: 8rpx;
+  color: #819087;
+  font-size: 22rpx;
 }
 
 .comment-row {

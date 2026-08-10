@@ -45,6 +45,14 @@
       "style": {}
     },
     {
+      "path": "pages/posts/compose",
+      "style": {}
+    },
+    {
+      "path": "pages/posts/details",
+      "style": {}
+    },
+    {
       "path": "pages/flavors/index",
       "style": {}
     },

@@ -18,9 +18,14 @@ vi.mock('@/utils/shareCan', () => ({
   shareCanOnWeb: vi.fn(),
 }));
 
+vi.mock('@/services/canPostJourney', () => ({
+  startUseSame: vi.fn(),
+}));
+
 import CanCard from '@/components/CanCard.vue';
 import { playAudio } from '@/utils/audio';
 import { likeCan } from '@/services/canSocial';
+import { startUseSame } from '@/services/canPostJourney';
 
 function mountCard(can = {}, props = {}) {
   return mount(CanCard, {
@@ -78,6 +83,16 @@ describe('CanCard audio', () => {
     expect(wrapper.emitted('comment')[0]).toEqual([7]);
     expect(likeCan).toHaveBeenCalledWith(7);
     expect(wrapper.text()).toContain('♥ 4');
+    expect(wrapper.emitted('open')).toBeUndefined();
+  });
+
+  it('starts Can-first use-same without opening the card', async () => {
+    const wrapper = mountCard({ use_count: 2 }, { social: true });
+
+    await wrapper.findAll('.social-button')[2].trigger('tap');
+
+    expect(startUseSame).toHaveBeenCalledWith(7, { page: 'can_feed' });
+    expect(wrapper.text()).toContain('同款 2');
     expect(wrapper.emitted('open')).toBeUndefined();
   });
 });

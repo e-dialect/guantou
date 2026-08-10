@@ -70,6 +70,17 @@ describe('auth journey', () => {
     });
   });
 
+  it('returns a use-same intent directly to the locked composer', () => {
+    expect(resolveAuthDestination({
+      action: 'use_same',
+      context: { page: 'post_detail', canId: 23, postId: 8 },
+    })).toEqual({
+      kind: 'url',
+      route: 'pages/posts/compose',
+      url: '/pages/posts/compose?can_id=23',
+    });
+  });
+
   it('returns circle membership and recording intents to their exact context', () => {
     expect(resolveAuthDestination({
       action: 'circle_join',

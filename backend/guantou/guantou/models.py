@@ -438,6 +438,54 @@ class CanCommentLike(models.Model):
         verbose_name_plural = "评论点赞"
 
 
+class CanPost(models.Model):
+    """建立在罐头之上的轻量表达；不允许脱离语音素材独立发布。"""
+
+    class Visibility(models.TextChoices):
+        PUBLIC = "public", "公开"
+        PRIVATE = "private", "仅自己"
+
+    can = models.ForeignKey(
+        Can,
+        on_delete=models.SET_NULL,
+        related_name="posts",
+        null=True,
+        verbose_name="引用罐头",
+    )
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="can_posts",
+        verbose_name="作者",
+    )
+    text = models.CharField(max_length=500, blank=True, verbose_name="配文")
+    visibility = models.CharField(
+        max_length=16,
+        choices=Visibility.choices,
+        default=Visibility.PUBLIC,
+        verbose_name="可见范围",
+    )
+    source_snapshot = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="罐头来源快照",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(fields=["can", "visibility", "created_at"]),
+            models.Index(fields=["author", "created_at"]),
+        ]
+        verbose_name = "罐头表达"
+        verbose_name_plural = "罐头表达"
+
+    def __str__(self):
+        return self.text or f"用同款 #{self.pk}"
+
+
 class Nameplate(models.Model):
     """某个资料来源对一条录音提出的可查询、可追溯主张。"""
 

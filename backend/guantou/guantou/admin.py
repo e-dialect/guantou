@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from .models import (
     Can,
+    CanPost,
     Dialect,
     DialectCircle,
     Flavor,
@@ -37,6 +38,14 @@ class PronunciationInline(admin.TabularInline):
     model = Pronunciation
     extra = 0
     raw_id_fields = ("package", "dialect", "created_by")
+
+
+@admin.register(CanPost)
+class CanPostAdmin(admin.ModelAdmin):
+    list_display = ("id", "author", "can", "visibility", "created_at")
+    list_filter = ("visibility",)
+    search_fields = ("text", "author__username", "can__concept_text")
+    raw_id_fields = ("author", "can")
 
 
 @admin.register(Dialect)

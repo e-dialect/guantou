@@ -9,6 +9,7 @@ from .models import (
     CanComment,
     CanCommentLike,
     CanLike,
+    CanPost,
     Dialect,
     DialectCircle,
     Flavor,
@@ -479,6 +480,7 @@ class NameplateCardSerializer(NameplateRefSerializer):
 
     class Meta(NameplateRefSerializer.Meta):
         fields = NameplateRefSerializer.Meta.fields + [
+            "definition",
             "can",
             "package",
             "flavor",
@@ -743,6 +745,7 @@ class CanCardSerializer(serializers.ModelSerializer):
     nameplate_count = serializers.SerializerMethodField()
     like_count = serializers.SerializerMethodField()
     comment_count = serializers.SerializerMethodField()
+    use_count = serializers.SerializerMethodField()
     liked_by_me = serializers.SerializerMethodField()
 
     class Meta:
@@ -760,6 +763,7 @@ class CanCardSerializer(serializers.ModelSerializer):
             "nameplate_count",
             "like_count",
             "comment_count",
+            "use_count",
             "liked_by_me",
             "duration_ms",
             "created_at",
@@ -778,6 +782,12 @@ class CanCardSerializer(serializers.ModelSerializer):
     def get_comment_count(self, obj):
         annotated = getattr(obj, "comment_count", None)
         return annotated if annotated is not None else obj.comments.count()
+
+    def get_use_count(self, obj):
+        annotated = getattr(obj, "use_count", None)
+        if annotated is not None:
+            return annotated
+        return obj.posts.filter(visibility=CanPost.Visibility.PUBLIC).count()
 
     def get_liked_by_me(self, obj):
         annotated = getattr(obj, "liked_by_me", None)
@@ -852,6 +862,7 @@ class CanSerializer(CanCardSerializer):
     nameplates = NameplateSerializer(many=True, read_only=True)
     initial_nameplate = InitialNameplateSerializer(write_only=True, required=False)
     recent_comments = serializers.SerializerMethodField()
+    recent_posts = serializers.SerializerMethodField()
 
     class Meta(CanCardSerializer.Meta):
         fields = CanCardSerializer.Meta.fields + [
@@ -862,6 +873,7 @@ class CanSerializer(CanCardSerializer):
             "transition_log",
             "metadata",
             "recent_comments",
+            "recent_posts",
             "initial_nameplate",
             "updated_at",
         ]
@@ -900,6 +912,12 @@ class CanSerializer(CanCardSerializer):
             many=True,
             context=self.context,
         ).data
+
+    def get_recent_posts(self, obj):
+        queryset = obj.posts.filter(
+            visibility=CanPost.Visibility.PUBLIC
+        ).select_related("author", "author__user_info", "can", "can__recorder")[:5]
+        return CanPostSerializer(queryset, many=True, context=self.context).data
 
     def validate(self, attrs):
         if not self.instance:
@@ -949,6 +967,83 @@ class CanSerializer(CanCardSerializer):
             can_data=validated_data,
             initial_nameplate=initial_nameplate,
         )
+
+
+class CanPostSerializer(serializers.ModelSerializer):
+    can_id = serializers.PrimaryKeyRelatedField(
+        source="can",
+        queryset=Can.objects.filter(visibility=True),
+    )
+    author = UserLiteSerializer(read_only=True)
+    can = serializers.SerializerMethodField()
+    source = serializers.SerializerMethodField()
+    is_owner = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CanPost
+        fields = [
+            "id",
+            "can_id",
+            "can",
+            "author",
+            "text",
+            "visibility",
+            "source",
+            "is_owner",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "can",
+            "author",
+            "source",
+            "is_owner",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate_text(self, value):
+        return str(value or "").strip()
+
+    def get_can(self, obj):
+        if obj.can_id and obj.can and obj.can.visibility:
+            preview = dict(CanCardSerializer(obj.can, context=self.context).data)
+            primary = obj.can.primary_nameplate
+            preview["primary_nameplate"] = (
+                NameplateCardSerializer(primary, context=self.context).data
+                if primary
+                else None
+            )
+            return preview
+        snapshot = obj.source_snapshot or {}
+        if not snapshot:
+            return None
+        return {
+            "id": snapshot.get("can_id"),
+            "audio_url": snapshot.get("audio_url", ""),
+            "concept_text": snapshot.get("concept_text", ""),
+            "duration_ms": snapshot.get("duration_ms", 0),
+            "submitted_dialect": snapshot.get("submitted_dialect"),
+            "primary_nameplate": snapshot.get("primary_nameplate"),
+            "recorder": snapshot.get("recorder"),
+            "source_unavailable": True,
+        }
+
+    def get_source(self, obj):
+        snapshot = obj.source_snapshot or {}
+        return {
+            "can_id": obj.can_id or snapshot.get("can_id"),
+            "recorder": snapshot.get("recorder"),
+            "source_unavailable": not bool(
+                obj.can_id and obj.can and obj.can.visibility
+            ),
+        }
+
+    def get_is_owner(self, obj):
+        request = self.context.get("request")
+        user = request.user if request else None
+        return bool(user and user.is_authenticated and user.id == obj.author_id)
 
 
 class ShelfSerializer(serializers.ModelSerializer):

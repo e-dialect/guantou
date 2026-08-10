@@ -27,7 +27,6 @@
       :empty-description="emptyDescription"
       :empty-action-text="emptyActionText"
       @open="toDetail"
-      @reuse="toReuse"
       @delete="confirmDelete"
       @empty-action="runEmptyAction"
     />
@@ -47,6 +46,7 @@ import CanList from '@/components/CanList.vue';
 import PageShell from '@/components/PageShell.vue';
 import { deleteCan, listCans } from '@/services/guantou';
 import { requireAuth } from '@/services/authGuard';
+import { startUseSame } from '@/services/canPostJourney';
 
 export default {
   components: { CanDraftList, CanList, PageShell },
@@ -86,7 +86,7 @@ export default {
       uni.navigateTo({ url: `/pages/cans/details?id=${id}` });
     },
     toReuse(id) {
-      uni.navigateTo({ url: `/pages/cans/create?source_can=${id}` });
+      startUseSame(id, { page: 'can_library' });
     },
     runEmptyAction() {
       uni.navigateTo({

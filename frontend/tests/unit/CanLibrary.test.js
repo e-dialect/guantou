@@ -65,11 +65,11 @@ describe('personal can library', () => {
     expect(uni.showToast).toHaveBeenCalledWith({ title: '已删除', icon: 'success' });
   });
 
-  it('opens reuse mode with the source can', () => {
+  it('opens the Can-first use-same composer', () => {
     const wrapper = mountLibrary();
     wrapper.vm.toReuse(9);
     expect(uni.navigateTo).toHaveBeenCalledWith({
-      url: '/pages/cans/create?source_can=9',
+      url: '/pages/posts/compose?can_id=9',
     });
   });
 });

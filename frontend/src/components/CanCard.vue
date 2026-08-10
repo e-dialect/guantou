@@ -64,6 +64,12 @@
       </button>
       <button
         class="social-button"
+        @tap.stop="useSame"
+      >
+        同款 {{ can.use_count || 0 }}
+      </button>
+      <button
+        class="social-button"
         open-type="share"
         @tap.stop="share"
       >
@@ -74,7 +80,7 @@
       v-if="ownerActions"
       class="owner-actions"
     >
-      <button @tap.stop="$emit('reuse', can.id)">
+      <button @tap.stop="useSame">
         用同款
       </button>
       <button
@@ -91,6 +97,7 @@
 import { playAudio } from '@/utils/audio';
 import { requireAuth } from '@/services/authGuard';
 import { likeCan, unlikeCan } from '@/services/canSocial';
+import { startUseSame } from '@/services/canPostJourney';
 import { shareCanOnWeb } from '@/utils/shareCan';
 
 const statusLabels = {
@@ -170,6 +177,10 @@ export default {
       // #ifdef H5
       await shareCanOnWeb(this.can);
       // #endif
+    },
+    useSame() {
+      this.$emit('reuse', this.can.id);
+      startUseSame(this.can.id, { page: 'can_feed' });
     },
   },
 };
@@ -276,7 +287,7 @@ export default {
 
 .social-actions {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 10rpx;
   margin-top: 16rpx;
 }

@@ -5,7 +5,7 @@ from rest_framework.test import APIClient
 from inbox.models import Notification
 from user.models import UserFollow, UserInfo
 
-from .models import Can, CanComment, CanCommentLike, CanLike, Dialect
+from .models import Can, CanComment, CanCommentLike, CanLike, CanPost, Dialect
 
 
 class CanSocialApiTests(TestCase):
@@ -242,3 +242,97 @@ class CanSocialApiTests(TestCase):
         self.client.force_authenticate(self.staff)
         admin_deleted = self.client.delete(f"/comments/{second.id}/")
         self.assertEqual(admin_deleted.status_code, 204)
+
+    def test_use_same_requires_a_visible_can_and_never_creates_text_only_posts(self):
+        missing = self.client.post(
+            "/posts/", {"text": "没有语音的纯文字"}, format="json"
+        )
+        private = self.client.post(
+            "/posts/",
+            {"can_id": self.private_can.id, "text": "看不见的来源"},
+            format="json",
+        )
+
+        self.assertEqual(missing.status_code, 400)
+        self.assertEqual(private.status_code, 400)
+        self.assertEqual(CanPost.objects.count(), 0)
+
+    def test_use_same_creates_post_count_reference_and_owner_notification(self):
+        created = self.client.post(
+            "/posts/",
+            {
+                "can_id": self.same_can.id,
+                "text": "  我家也这样说  ",
+                "visibility": "public",
+            },
+            format="json",
+        )
+
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.data["can_id"], self.same_can.id)
+        self.assertEqual(created.data["text"], "我家也这样说")
+        self.assertEqual(created.data["source"]["recorder"]["id"], self.same_author.id)
+        detail = self.client.get(f"/cans/{self.same_can.id}/")
+        self.assertEqual(detail.data["use_count"], 1)
+        self.assertEqual(detail.data["recent_posts"][0]["id"], created.data["id"])
+
+        notice = Notification.objects.get(
+            recipient=self.same_author,
+            verb=Notification.Verb.CAN_REUSE,
+        )
+        self.assertEqual(notice.metadata["target_type"], "can_post")
+        self.assertEqual(
+            notice.metadata["target_url"],
+            f"/pages/posts/details?id={created.data['id']}",
+        )
+
+    def test_private_post_visibility_and_delete_permissions(self):
+        post = CanPost.objects.create(
+            can=self.same_can,
+            author=self.viewer,
+            text="只给自己",
+            visibility=CanPost.Visibility.PRIVATE,
+            source_snapshot={"can_id": self.same_can.id},
+        )
+
+        self.client.force_authenticate(self.other_author)
+        self.assertEqual(self.client.get(f"/posts/{post.id}/").status_code, 404)
+        self.assertEqual(self.client.delete(f"/posts/{post.id}/").status_code, 404)
+
+        self.client.force_authenticate(self.viewer)
+        mine = self.client.get("/posts/", {"mine": "true"})
+        self.assertEqual([item["id"] for item in mine.data["results"]], [post.id])
+        self.assertEqual(self.client.delete(f"/posts/{post.id}/").status_code, 204)
+
+    def test_post_survives_deleted_source_with_a_safe_snapshot(self):
+        created = self.client.post(
+            "/posts/",
+            {"can_id": self.other_can.id, "text": "保留这条表达"},
+            format="json",
+        )
+        post_id = created.data["id"]
+
+        self.other_can.delete()
+        detail = self.client.get(f"/posts/{post_id}/")
+
+        self.assertEqual(detail.status_code, 200)
+        self.assertIsNone(detail.data["can_id"])
+        self.assertTrue(detail.data["source"]["source_unavailable"])
+        self.assertTrue(detail.data["can"]["source_unavailable"])
+        self.assertEqual(detail.data["can"]["concept_text"], "其他方言")
+
+    def test_reusing_own_can_does_not_create_a_self_notification(self):
+        self.client.force_authenticate(self.same_author)
+        response = self.client.post(
+            "/posts/",
+            {"can_id": self.same_can.id, "text": "自己的补充"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertFalse(
+            Notification.objects.filter(
+                recipient=self.same_author,
+                verb=Notification.Verb.CAN_REUSE,
+            ).exists()
+        )

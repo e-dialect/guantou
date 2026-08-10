@@ -103,6 +103,14 @@ export function resolveAuthDestination(intent) {
     };
   }
 
+  if (intent.action === 'use_same' && context.canId) {
+    return {
+      kind: AUTH_DESTINATION_KINDS.URL,
+      route: 'pages/posts/compose',
+      url: `/pages/posts/compose?can_id=${encodeURIComponent(context.canId)}`,
+    };
+  }
+
   return { kind: AUTH_DESTINATION_KINDS.FALLBACK };
 }
 

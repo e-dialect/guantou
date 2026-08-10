@@ -28,6 +28,7 @@ from .models import (
     CanComment,
     CanCommentLike,
     CanLike,
+    CanPost,
     CircleMembership,
     Dialect,
     DialectCircle,
@@ -44,6 +45,7 @@ from .permissions import IsCommentAuthorOrAdmin, IsOwnerOrAdmin
 from .serializers import (
     CanCardSerializer,
     CanCommentSerializer,
+    CanPostSerializer,
     CanSerializer,
     DialectCircleSerializer,
     DialectSerializer,
@@ -532,6 +534,11 @@ class CanViewSet(viewsets.ModelViewSet):
             ),
             like_count=Count("likes", distinct=True),
             comment_count=Count("comments", distinct=True),
+            use_count=Count(
+                "posts",
+                filter=Q(posts__visibility=CanPost.Visibility.PUBLIC),
+                distinct=True,
+            ),
         )
     )
     serializer_class = CanSerializer
@@ -860,6 +867,79 @@ class CanCommentViewSet(viewsets.ModelViewSet):
                 "changed": changed,
                 "like_count": comment.likes.count(),
             }
+        )
+
+
+class CanPostViewSet(viewsets.ModelViewSet):
+    """Can-first 的轻量表达流；创建时必须引用一个公开罐头。"""
+
+    http_method_names = ["get", "post", "delete", "head", "options"]
+    serializer_class = CanPostSerializer
+    permission_classes = [IsCommentAuthorOrAdmin]
+    queryset = CanPost.objects.select_related(
+        "author",
+        "author__user_info",
+        "can",
+        "can__recorder",
+        "can__recorder__user_info",
+        "can__submitted_dialect",
+    ).prefetch_related(
+        "can__nameplates__package",
+        "can__nameplates__flavor",
+        "can__nameplates__dialect",
+    )
+
+    def get_queryset(self):
+        queryset = self.queryset
+        user = self.request.user
+        if not (user and user.is_authenticated and user.is_staff):
+            visible = Q(visibility=CanPost.Visibility.PUBLIC)
+            if user and user.is_authenticated:
+                visible |= Q(author=user)
+            queryset = queryset.filter(visible)
+        can_id = self.request.query_params.get("can_id")
+        if can_id:
+            queryset = queryset.filter(can_id=can_id)
+        author_id = self.request.query_params.get("author_id")
+        if author_id:
+            queryset = queryset.filter(author_id=author_id)
+        if truthy(self.request.query_params.get("mine")):
+            queryset = (
+                queryset.filter(author=user)
+                if user.is_authenticated
+                else queryset.none()
+            )
+        return queryset.distinct().order_by("-created_at", "-id")
+
+    def perform_create(self, serializer):
+        can = serializer.validated_data["can"]
+        preview = CanCardSerializer(can, context={"request": self.request}).data
+        primary = can.primary_nameplate
+        snapshot = {
+            "can_id": can.id,
+            "audio_url": can.audio_url,
+            "concept_text": can.concept_text,
+            "duration_ms": can.duration_ms,
+            "recorder": preview.get("recorder"),
+            "submitted_dialect": preview.get("submitted_dialect"),
+            "primary_nameplate": (
+                NameplateCardSerializer(primary, context={"request": self.request}).data
+                if primary
+                else None
+            ),
+        }
+        post = serializer.save(author=self.request.user, source_snapshot=snapshot)
+        send_event_notification(
+            actor=self.request.user,
+            recipient=can.recorder,
+            verb=Notification.Verb.CAN_REUSE,
+            description=post.text or f"用了你的罐头「{can.concept_text or can.id}」",
+            action_object=post,
+            metadata={
+                "target_type": "can_post",
+                "target_id": post.id,
+                "target_url": f"/pages/posts/details?id={post.id}",
+            },
         )
 
 
