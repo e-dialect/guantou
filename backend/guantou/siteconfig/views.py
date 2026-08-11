@@ -27,6 +27,23 @@ def admin_user_from_request(request):
     return token_check(get_authorization_token(request), -1)
 
 
+def validated_announcement_ids(value):
+    if not isinstance(value, list):
+        return None
+    try:
+        ids = [int(item) for item in value]
+    except (TypeError, ValueError):
+        return None
+    if any(item <= 0 for item in ids) or len(ids) != len(set(ids)):
+        return None
+    visible_ids = set(
+        Announcement.objects.filter(id__in=ids, visibility=True).values_list(
+            "id", flat=True
+        )
+    )
+    return ids if visible_ids == set(ids) else None
+
+
 @csrf_exempt
 def announcements(request):
     item = SiteSettings.get_solo()
@@ -46,8 +63,9 @@ def announcements(request):
         if not admin_user_from_request(request):
             return JsonResponse({}, status=401)
         body = demjson3.decode(request.body)
-        if isinstance(body.get("announcements"), list):
-            item.announcements = body["announcements"]
+        ids = validated_announcement_ids(body.get("announcements"))
+        if ids is not None:
+            item.announcements = ids
             item.save(update_fields=["announcements"])
             return JsonResponse({}, status=200)
         return JsonResponse({}, status=400)
@@ -73,8 +91,9 @@ def featured_announcements(request):
         if not admin_user_from_request(request):
             return JsonResponse({}, status=401)
         body = demjson3.decode(request.body)
-        if isinstance(body.get("featured_announcements"), list):
-            item.featured_announcements = body["featured_announcements"]
+        ids = validated_announcement_ids(body.get("featured_announcements"))
+        if ids is not None:
+            item.featured_announcements = ids
             item.save(update_fields=["featured_announcements"])
             return JsonResponse({}, status=200)
         return JsonResponse({}, status=400)

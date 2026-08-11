@@ -6,6 +6,7 @@ import {
   ONBOARDING_REASONS,
 } from '@/services/dialectOnboarding';
 import { toIndexPage } from '@/routers/index';
+import { applyTheme } from '@/services/theme';
 import pagesJson from '@/pages.json';
 
 export default {
@@ -13,6 +14,7 @@ export default {
     return {};
   },
   async onLaunch() {
+    applyTheme();
     if (uni.getSystemInfoSync().uniPlatform === 'web') {
       const pages = pagesJson.pages.map((page) => `/${page.path}`);
       const currentPath = window.location.pathname;
@@ -89,8 +91,29 @@ export default {
 @import '@/utils/u-parse/u-parse.css';
 
 page {
-  background-color: #f7f7f7;
+  --page-color: #f6f7f3;
+  --surface-color: #ffffff;
+  --text-color: #1d2a24;
+  --muted-color: #647068;
+  --border-color: #e1e6dc;
+  --accent-color: #1f5c43;
+  background-color: var(--page-color);
+  color: var(--text-color);
 }
+
+/* #ifdef H5 */
+html[data-theme='dark'],
+html[data-theme='dark'] page {
+  --page-color: #121915;
+  --surface-color: #1d2822;
+  --text-color: #edf4ef;
+  --muted-color: #a9b8ae;
+  --border-color: #34443a;
+  --accent-color: #69b58b;
+  background: var(--page-color);
+  color-scheme: dark;
+}
+/* #endif */
 
 .scrollPage {
   height: 100vh;

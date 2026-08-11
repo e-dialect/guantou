@@ -20,8 +20,10 @@ from .models import (
     Pronunciation,
     RecordingChallenge,
     Shelf,
+    ShelfCan,
+    ShelfFlavor,
 )
-from .services import clean_text, create_can_submission
+from .services import clean_text, create_can_submission, normalize_transition_log
 
 
 class UserLiteSerializer(serializers.Serializer):
@@ -862,6 +864,7 @@ class CanSerializer(CanCardSerializer):
     initial_nameplate = InitialNameplateSerializer(write_only=True, required=False)
     recent_comments = serializers.SerializerMethodField()
     recent_posts = serializers.SerializerMethodField()
+    transition_log = serializers.SerializerMethodField()
 
     class Meta(CanCardSerializer.Meta):
         fields = CanCardSerializer.Meta.fields + [
@@ -917,6 +920,9 @@ class CanSerializer(CanCardSerializer):
             visibility=CanPost.Visibility.PUBLIC
         ).select_related("author", "author__user_info", "can", "can__recorder")[:5]
         return CanPostSerializer(queryset, many=True, context=self.context).data
+
+    def get_transition_log(self, obj):
+        return normalize_transition_log(obj.transition_log)
 
     def validate(self, attrs):
         if not self.instance:
@@ -1050,8 +1056,8 @@ class CanPostSerializer(serializers.ModelSerializer):
 
 class ShelfSerializer(serializers.ModelSerializer):
     creator = UserLiteSerializer(read_only=True)
-    flavors = FlavorRefSerializer(many=True, read_only=True)
-    cans = CanCardSerializer(many=True, read_only=True)
+    flavors = serializers.SerializerMethodField()
+    cans = serializers.SerializerMethodField()
     flavor_ids = serializers.PrimaryKeyRelatedField(
         queryset=Flavor.objects.all(),
         source="flavors",
@@ -1085,6 +1091,38 @@ class ShelfSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "creator", "created_at", "updated_at"]
 
+    def get_flavors(self, obj):
+        items = [link.flavor for link in obj.flavor_links.all()]
+        return FlavorRefSerializer(items, many=True, context=self.context).data
+
+    def get_cans(self, obj):
+        items = [link.can for link in obj.can_links.all()]
+        return CanCardSerializer(items, many=True, context=self.context).data
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        for field in ("flavors", "cans"):
+            items = attrs.get(field)
+            if items is not None and len(items) != len({item.pk for item in items}):
+                raise serializers.ValidationError({field: "同一内容不能重复添加"})
+        return attrs
+
+    def _replace_links(self, shelf, items, link_model, item_field):
+        link_model.objects.filter(shelf=shelf).delete()
+        request = self.context.get("request")
+        user = request.user if request and request.user.is_authenticated else None
+        link_model.objects.bulk_create(
+            [
+                link_model(
+                    shelf=shelf,
+                    **{item_field: item},
+                    sort_order=index,
+                    added_by=user,
+                )
+                for index, item in enumerate(items)
+            ]
+        )
+
     def create(self, validated_data):
         flavors = validated_data.pop("flavors", [])
         cans = validated_data.pop("cans", [])
@@ -1094,8 +1132,8 @@ class ShelfSerializer(serializers.ModelSerializer):
             if not request.user.is_staff:
                 validated_data["shelf_type"] = Shelf.ShelfType.USER
         shelf = super().create(validated_data)
-        shelf.flavors.set(flavors)
-        shelf.cans.set(cans)
+        self._replace_links(shelf, flavors, ShelfFlavor, "flavor")
+        self._replace_links(shelf, cans, ShelfCan, "can")
         return shelf
 
     def update(self, instance, validated_data):
@@ -1106,7 +1144,7 @@ class ShelfSerializer(serializers.ModelSerializer):
             validated_data["shelf_type"] = Shelf.ShelfType.USER
         shelf = super().update(instance, validated_data)
         if flavors is not None:
-            shelf.flavors.set(flavors)
+            self._replace_links(shelf, flavors, ShelfFlavor, "flavor")
         if cans is not None:
-            shelf.cans.set(cans)
+            self._replace_links(shelf, cans, ShelfCan, "can")
         return shelf

@@ -59,3 +59,32 @@ class SiteSettingsTests(TestCase):
             for item in response.json()["featured_announcements"]
         ]
         self.assertEqual(ids, [second.id, first.id])
+
+    def test_announcement_settings_reject_dangling_hidden_and_duplicate_ids(self):
+        visible = Announcement.objects.create(
+            author=self.author,
+            title="公开",
+            content="",
+            visibility=True,
+        )
+        hidden = Announcement.objects.create(
+            author=self.author,
+            title="未发布",
+            content="",
+            visibility=False,
+        )
+        settings = SiteSettings.get_solo()
+        settings.featured_announcements = [visible.id]
+        settings.save(update_fields=["featured_announcements"])
+
+        for ids in ([hidden.id], [999999], [visible.id, visible.id], ["bad-id"]):
+            with self.subTest(ids=ids):
+                response = self.client.put(
+                    "/site-settings/featured-announcements",
+                    data={"featured_announcements": ids},
+                    content_type="application/json",
+                    HTTP_AUTHORIZATION=bearer(self.admin),
+                )
+                self.assertEqual(response.status_code, 400)
+                settings.refresh_from_db()
+                self.assertEqual(settings.featured_announcements, [visible.id])

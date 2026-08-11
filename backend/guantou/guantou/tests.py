@@ -22,6 +22,8 @@ from .models import (
     Package,
     Pronunciation,
     Shelf,
+    ShelfCan,
+    ShelfFlavor,
 )
 
 SOURCE = {"type": "creator"}
@@ -701,6 +703,47 @@ class ShelfWriteApiTests(DomainFixture):
         )
         self.assertEqual([item["id"] for item in detail.data["cans"]], [can.id])
 
+    def test_shelf_content_order_and_attribution_are_persisted(self):
+        second_flavor = Flavor.objects.create(name="第二义项", definition="二")
+        first_can = self.make_can()
+        second_can = self.make_can(audio_url="https://example.test/second.mp3")
+
+        response = self.client.post(
+            "/shelves/",
+            self.payload(
+                flavor_ids=[second_flavor.id, self.flavor.id],
+                can_ids=[second_can.id, first_can.id],
+            ),
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            [item["id"] for item in response.data["flavors"]],
+            [second_flavor.id, self.flavor.id],
+        )
+        self.assertEqual(
+            [item["id"] for item in response.data["cans"]],
+            [second_can.id, first_can.id],
+        )
+        shelf = Shelf.objects.get(id=response.data["id"])
+        self.assertEqual(
+            list(
+                ShelfFlavor.objects.filter(shelf=shelf).values_list(
+                    "sort_order", "added_by_id"
+                )
+            ),
+            [(0, self.user.id), (1, self.user.id)],
+        )
+        self.assertEqual(
+            list(
+                ShelfCan.objects.filter(shelf=shelf).values_list(
+                    "sort_order", "added_by_id"
+                )
+            ),
+            [(0, self.user.id), (1, self.user.id)],
+        )
+
     def test_patch_content_lists_are_full_replacement(self):
         # 固化 PATCH 语义：flavor_ids/can_ids 为全量替换而非增量添加（#144）
         shelf = Shelf.objects.create(title="集盒", slug="curation", creator=self.user)
@@ -1038,6 +1081,29 @@ class CanQueryAndStateTests(DomainFixture):
         )
         self.assertEqual(can.transition_log[-1]["by"]["id"], self.user.id)
         self.assertEqual(can.transition_log[-1]["reason"], "本人确认")
+
+    def test_transition_log_normalizes_legacy_and_malformed_values(self):
+        can = self.make_can(
+            transition_log=[
+                {
+                    "from": Can.Status.PENDING,
+                    "to": Can.Status.TENTATIVE,
+                    "by": self.user.id,
+                },
+                "broken-entry",
+                {"action": "verify", "by": {"id": self.staff.id}},
+            ]
+        )
+
+        response = self.client.get(f"/cans/{can.id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["transition_log"]), 2)
+        legacy = response.data["transition_log"][0]
+        self.assertEqual(set(legacy), {"action", "from", "to", "by", "at", "reason"})
+        self.assertEqual(legacy["by"]["id"], self.user.id)
+        self.assertEqual(legacy["action"], "")
+        self.assertEqual(response.data["transition_log"][1]["by"]["username"], "")
 
     def test_transition_permissions_and_staff_status_filter(self):
         private = self.make_can(

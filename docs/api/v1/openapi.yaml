@@ -1868,7 +1868,11 @@ components:
         - type: object
           required: [recorder, source_note, nameplates, transition_log, updated_at]
           properties:
-            recorder: { $ref: "#/components/schemas/UserRef" }
+            recorder:
+              oneOf:
+                - $ref: "#/components/schemas/UserRef"
+                - type: "null"
+              description: 账号已删除时为 null，罐头本身继续保留。
             source_note: { type: string }
             nameplates:
               type: array
@@ -2035,14 +2039,23 @@ components:
         reason: { type: string, maxLength: 300 }
     TransitionLog:
       type: object
+      description: 只读规范化审计事件；旧数据缺失字段以空值补齐，非对象条目不输出。
       required: [action, from, to, by, at, reason]
       properties:
         action: { type: string, enum: [submit, verify, dispute, reject, restore] }
         from: { type: string }
         to: { type: string }
-        by: { $ref: "#/components/schemas/UserRef" }
+        by: { $ref: "#/components/schemas/TransitionActor" }
         at: { type: string, format: date-time }
         reason: { type: string }
+    TransitionActor:
+      type: object
+      required: [id, username, nickname, avatar]
+      properties:
+        id: { type: [integer, "null"] }
+        username: { type: string }
+        nickname: { type: string }
+        avatar: { type: string, format: uri-reference }
 
     ShelfCard:
       type: object
@@ -2071,6 +2084,7 @@ components:
             updated_at: { type: string, format: date-time }
     ShelfWrite:
       type: object
+      description: flavor_ids 与 can_ids 是有序的全量替换列表，重复 ID 会返回 400。
       required: [title, slug, shelf_type]
       properties:
         title: { type: string, maxLength: 160 }

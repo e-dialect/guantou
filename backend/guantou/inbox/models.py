@@ -28,8 +28,10 @@ class Notification(models.Model):
 
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="sent_notifications",
+        null=True,
+        blank=True,
         verbose_name="sender",
     )
     recipient = models.ForeignKey(

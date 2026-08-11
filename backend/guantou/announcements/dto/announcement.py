@@ -6,7 +6,7 @@ from user.dto.user_all import user_all
 def announcement_normal(announcement) -> dict:
     return {
         "id": announcement.id,
-        "author": announcement.author.id,
+        "author": announcement.author_id,
         "publish_time": localtime(announcement.publish_time).strftime(
             "%Y-%m-%d %H:%M:%S"
         ),

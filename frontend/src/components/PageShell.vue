@@ -1,5 +1,8 @@
 <template>
-  <view class="page-shell">
+  <view
+    class="page-shell"
+    :class="`theme-${resolvedTheme}`"
+  >
     <view class="shell-topbar">
       <text
         v-if="showBack"
@@ -48,6 +51,8 @@
 </template>
 
 <script>
+import { applyTheme, getThemePreference } from '@/services/theme';
+
 export default {
   name: 'PageShell',
   props: {
@@ -73,7 +78,22 @@ export default {
     },
   },
   emits: ['action', 'back', 'scrolltolower'],
+  data() {
+    return {
+      resolvedTheme: 'light',
+    };
+  },
+  mounted() {
+    this.handleThemeChange(applyTheme(getThemePreference()));
+    uni.$on('theme-change', this.handleThemeChange);
+  },
+  beforeUnmount() {
+    uni.$off('theme-change', this.handleThemeChange);
+  },
   methods: {
+    handleThemeChange(theme) {
+      this.resolvedTheme = theme?.resolved || 'light';
+    },
     handleBack() {
       this.$emit('back');
       uni.navigateBack();
@@ -84,9 +104,24 @@ export default {
 
 <style scoped>
 .page-shell {
+  --page-color: #f6f7f3;
+  --surface-color: #ffffff;
+  --text-color: #1d2a24;
+  --muted-color: #647068;
+  --border-color: #e8ebe4;
+  --accent-color: #1f5c43;
   min-height: 100vh;
-  background: #f6f7f3;
-  color: #1d2a24;
+  background: var(--page-color);
+  color: var(--text-color);
+}
+
+.page-shell.theme-dark {
+  --page-color: #121915;
+  --surface-color: #1d2822;
+  --text-color: #edf4ef;
+  --muted-color: #a9b8ae;
+  --border-color: #34443a;
+  --accent-color: #69b58b;
 }
 
 .shell-topbar {
@@ -96,8 +131,8 @@ export default {
   align-items: center;
   gap: 16rpx;
   padding: 0 28rpx;
-  background: #ffffff;
-  border-bottom: 1px solid #e8ebe4;
+  background: var(--surface-color);
+  border-bottom: 1px solid var(--border-color);
   box-sizing: border-box;
 }
 
@@ -128,7 +163,7 @@ export default {
   height: 58rpx;
   line-height: 58rpx;
   padding: 0 24rpx;
-  background: #1f5c43;
+  background: var(--accent-color);
   color: #ffffff;
   border-radius: 999rpx;
   font-size: 26rpx;

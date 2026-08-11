@@ -31,6 +31,17 @@ def calculate_level(points_sum) -> int:
 
 # 返回用户除了 密码 以外的全部信息
 def user_all(user: User, *, private=False) -> dict:
+    if user is None:
+        return {
+            "id": None,
+            "username": "deleted-user",
+            "nickname": "已注销用户",
+            "avatar": settings.DEFAULT_AVATAR_URL,
+            "primary_dialect": None,
+            "points_sum": 0,
+            "title": calculate_title(0),
+            "level": 1,
+        }
     # 获取用户信息
     info = user.user_info
     response = {

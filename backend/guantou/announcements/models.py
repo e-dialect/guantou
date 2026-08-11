@@ -7,8 +7,10 @@ class Announcement(models.Model):
 
     author = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="announcements",
+        null=True,
+        blank=True,
         verbose_name="发布者",
     )
     publish_time = models.DateTimeField(auto_now_add=True, verbose_name="发布时间")

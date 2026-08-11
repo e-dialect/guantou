@@ -297,8 +297,10 @@ class Can(models.Model):
     audio_url = models.URLField(verbose_name="音频")
     recorder = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="cans",
+        null=True,
+        blank=True,
         verbose_name="录制者",
     )
     submitted_dialect = models.ForeignKey(
@@ -547,8 +549,10 @@ class Nameplate(models.Model):
     )
     creator = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="nameplates",
+        null=True,
+        blank=True,
         verbose_name="贴牌者",
     )
     text_content = models.CharField(
@@ -809,8 +813,18 @@ class Shelf(models.Model):
         related_name="shelves",
         verbose_name="创建者",
     )
-    flavors = models.ManyToManyField(Flavor, related_name="shelves", blank=True)
-    cans = models.ManyToManyField(Can, related_name="shelves", blank=True)
+    flavors = models.ManyToManyField(
+        Flavor,
+        through="ShelfFlavor",
+        related_name="shelves",
+        blank=True,
+    )
+    cans = models.ManyToManyField(
+        Can,
+        through="ShelfCan",
+        related_name="shelves",
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
 
@@ -821,6 +835,52 @@ class Shelf(models.Model):
         ordering = ["title"]
         verbose_name = "货架"
         verbose_name_plural = "货架"
+
+
+class ShelfFlavor(models.Model):
+    shelf = models.ForeignKey(
+        Shelf, on_delete=models.CASCADE, related_name="flavor_links"
+    )
+    flavor = models.ForeignKey(
+        Flavor, on_delete=models.CASCADE, related_name="shelf_links"
+    )
+    sort_order = models.PositiveIntegerField(default=0)
+    added_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="added_shelf_flavors",
+    )
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["shelf", "flavor"], name="unique_shelf_flavor"
+            )
+        ]
+
+
+class ShelfCan(models.Model):
+    shelf = models.ForeignKey(Shelf, on_delete=models.CASCADE, related_name="can_links")
+    can = models.ForeignKey(Can, on_delete=models.CASCADE, related_name="shelf_links")
+    sort_order = models.PositiveIntegerField(default=0)
+    added_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="added_shelf_cans",
+    )
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["shelf", "can"], name="unique_shelf_can")
+        ]
 
 
 class SearchTerm(models.Model):

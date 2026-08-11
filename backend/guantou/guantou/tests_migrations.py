@@ -130,3 +130,95 @@ class ApiV1DomainMigrationTests(TransactionTestCase):
         self.assertEqual(legacy_variant.romanization, "hing2")
         self.assertEqual(legacy_variant.reading_type, "changed_tone")
         self.assertEqual(legacy_dialect.region_level, "town")
+
+
+class ShelfThroughMigrationTests(TransactionTestCase):
+    migrate_from = ("guantou", "0010_canpost")
+    migrate_to = ("guantou", "0011_content_governance")
+
+    def setUp(self):
+        super().setUp()
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        old_apps = executor.loader.project_state([self.migrate_from]).apps
+        User = old_apps.get_model("auth", "User")
+        Dialect = old_apps.get_model("guantou", "Dialect")
+        Flavor = old_apps.get_model("guantou", "Flavor")
+        Can = old_apps.get_model("guantou", "Can")
+        Shelf = old_apps.get_model("guantou", "Shelf")
+        user = User.objects.create(username="shelf-migration")
+        dialect = Dialect.objects.create(name="迁移方言", code="migration")
+        first_flavor = Flavor.objects.create(name="第一", definition="一")
+        second_flavor = Flavor.objects.create(name="第二", definition="二")
+        first_can = Can.objects.create(
+            recorder=user,
+            submitted_dialect=dialect,
+            audio_url="https://example.test/first.mp3",
+            concept_text="第一",
+        )
+        second_can = Can.objects.create(
+            recorder=user,
+            submitted_dialect=dialect,
+            audio_url="https://example.test/second.mp3",
+            concept_text="第二",
+        )
+        shelf = Shelf.objects.create(title="迁移集盒", slug="migration")
+        shelf.flavors.add(second_flavor, first_flavor)
+        shelf.cans.add(second_can, first_can)
+        old_flavor_links = Shelf._meta.get_field("flavors").remote_field.through
+        old_can_links = Shelf._meta.get_field("cans").remote_field.through
+        self.ids = {
+            "shelf": shelf.id,
+            "flavors": list(
+                old_flavor_links.objects.filter(shelf_id=shelf.id)
+                .order_by("id")
+                .values_list("flavor_id", flat=True)
+            ),
+            "cans": list(
+                old_can_links.objects.filter(shelf_id=shelf.id)
+                .order_by("id")
+                .values_list("can_id", flat=True)
+            ),
+        }
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_to])
+        self.apps = executor.loader.project_state([self.migrate_to]).apps
+
+    def tearDown(self):
+        MigrationExecutor(connection).migrate(
+            MigrationExecutor(connection).loader.graph.leaf_nodes()
+        )
+        super().tearDown()
+
+    def test_existing_links_survive_forward_and_reverse_migration(self):
+        ShelfFlavor = self.apps.get_model("guantou", "ShelfFlavor")
+        ShelfCan = self.apps.get_model("guantou", "ShelfCan")
+        self.assertEqual(
+            list(
+                ShelfFlavor.objects.filter(shelf_id=self.ids["shelf"])
+                .order_by("sort_order")
+                .values_list("flavor_id", flat=True)
+            ),
+            self.ids["flavors"],
+        )
+        self.assertEqual(
+            list(
+                ShelfCan.objects.filter(shelf_id=self.ids["shelf"])
+                .order_by("sort_order")
+                .values_list("can_id", flat=True)
+            ),
+            self.ids["cans"],
+        )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        old_apps = executor.loader.project_state([self.migrate_from]).apps
+        Shelf = old_apps.get_model("guantou", "Shelf")
+        shelf = Shelf.objects.get(id=self.ids["shelf"])
+        self.assertEqual(
+            set(shelf.flavors.values_list("id", flat=True)), set(self.ids["flavors"])
+        )
+        self.assertEqual(
+            set(shelf.cans.values_list("id", flat=True)), set(self.ids["cans"])
+        )

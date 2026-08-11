@@ -268,6 +268,43 @@ def _transition_actor(user):
     }
 
 
+def normalize_transition_log(value):
+    """Return the stable public audit schema while tolerating legacy JSON."""
+
+    if not isinstance(value, list):
+        return []
+    normalized = []
+    for raw_event in value:
+        if not isinstance(raw_event, dict):
+            continue
+        raw_actor = raw_event.get("by")
+        if isinstance(raw_actor, dict):
+            actor = {
+                "id": raw_actor.get("id"),
+                "username": str(raw_actor.get("username") or ""),
+                "nickname": str(raw_actor.get("nickname") or ""),
+                "avatar": str(raw_actor.get("avatar") or ""),
+            }
+        else:
+            actor = {
+                "id": raw_actor if isinstance(raw_actor, int) else None,
+                "username": "",
+                "nickname": "",
+                "avatar": "",
+            }
+        normalized.append(
+            {
+                "action": str(raw_event.get("action") or ""),
+                "from": str(raw_event.get("from") or ""),
+                "to": str(raw_event.get("to") or ""),
+                "by": actor,
+                "at": str(raw_event.get("at") or ""),
+                "reason": str(raw_event.get("reason") or ""),
+            }
+        )
+    return normalized
+
+
 @transaction.atomic
 def transition_can(*, can_id, user, action, reason=""):
     if action not in CAN_TRANSITIONS:

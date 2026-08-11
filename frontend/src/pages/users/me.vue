@@ -1,5 +1,8 @@
 <template>
-  <view class="page">
+  <view
+    class="page"
+    :class="`theme-${resolvedTheme}`"
+  >
     <template v-if="loggedIn">
       <view class="profile">
         <image
@@ -119,6 +122,7 @@
           退出登录
         </view>
       </view>
+      <ThemeSwitcher />
     </template>
 
     <view
@@ -146,6 +150,7 @@
       >
         先去查词
       </button>
+      <ThemeSwitcher />
     </view>
   </view>
 </template>
@@ -165,10 +170,13 @@ import {
 import { toMailsPage } from '@/routers/mail';
 import { listCanDrafts } from '@/services/canDrafts';
 import { openLoginFromMine } from '@/services/authJourney';
+import ThemeSwitcher from '@/components/ThemeSwitcher.vue';
+import { applyTheme, getThemePreference } from '@/services/theme';
 
 const app = getApp();
 
 export default {
+  components: { ThemeSwitcher },
   data() {
     return {
       id: '',
@@ -183,6 +191,7 @@ export default {
       wechatBindText: '绑定微信',
       isBinding: false,
       loggedIn: Boolean(uni.getStorageSync('token')),
+      resolvedTheme: 'light',
     };
   },
   computed: {
@@ -192,6 +201,13 @@ export default {
   },
   beforeMount() {
     this.getInfo();
+  },
+  mounted() {
+    this.handleThemeChange(applyTheme(getThemePreference()));
+    uni.$on('theme-change', this.handleThemeChange);
+  },
+  beforeUnmount() {
+    uni.$off('theme-change', this.handleThemeChange);
   },
   onShow() {
     this.loggedIn = Boolean(uni.getStorageSync('token'));
@@ -203,6 +219,9 @@ export default {
     toChangePasswordPage,
     toUserInfoPage,
     openLoginFromMine,
+    handleThemeChange(theme) {
+      this.resolvedTheme = theme?.resolved || 'light';
+    },
     toSearch() {
       uni.navigateTo({ url: '/pages/search' });
     },
@@ -276,20 +295,35 @@ export default {
 
 <style scoped>
 .page {
+  --page-color: #f6f7f3;
+  --surface-color: #ffffff;
+  --text-color: #1d2a24;
+  --muted-color: #647068;
+  --border-color: #e1e6dc;
+  --accent-color: #1f5c43;
   min-height: 100vh;
-  background: #f6f7f3;
-  color: #1d2a24;
+  background: var(--page-color, #f6f7f3);
+  color: var(--text-color, #1d2a24);
   padding: 44rpx 28rpx 80rpx;
   box-sizing: border-box;
+}
+
+.page.theme-dark {
+  --page-color: #121915;
+  --surface-color: #1d2822;
+  --text-color: #edf4ef;
+  --muted-color: #a9b8ae;
+  --border-color: #34443a;
+  --accent-color: #69b58b;
 }
 
 .guest-profile {
   max-width: 620rpx;
   margin: 16vh auto 0;
   padding: 48rpx 36rpx;
-  border: 1px solid #dce3d8;
+  border: 1px solid var(--border-color, #dce3d8);
   border-radius: 18rpx;
-  background: #ffffff;
+  background: var(--surface-color, #ffffff);
   text-align: center;
   box-sizing: border-box;
 }
@@ -314,7 +348,7 @@ export default {
 
 .guest-copy {
   margin-top: 16rpx;
-  color: #647068;
+  color: var(--muted-color, #647068);
   font-size: 26rpx;
   line-height: 1.65;
 }
@@ -334,8 +368,8 @@ export default {
 .search-button {
   margin-top: 16rpx;
   border: 1px solid #ccd7ca;
-  background: #ffffff;
-  color: #1f5c43;
+  background: var(--surface-color, #ffffff);
+  color: var(--accent-color, #1f5c43);
 }
 
 .login-button::after,
@@ -385,8 +419,8 @@ export default {
 
 .stat,
 .menu {
-  background: #fff;
-  border: 1px solid #e1e6dc;
+  background: var(--surface-color, #fff);
+  border: 1px solid var(--border-color, #e1e6dc);
   border-radius: 14rpx;
 }
 
@@ -398,12 +432,12 @@ export default {
 .number {
   font-size: 38rpx;
   font-weight: 800;
-  color: #1f5c43;
+  color: var(--accent-color, #1f5c43);
 }
 
 .label {
   margin-top: 8rpx;
-  color: #6c776e;
+  color: var(--muted-color, #6c776e);
 }
 
 .menu {
@@ -417,7 +451,7 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 0 28rpx;
-  border-bottom: 1px solid #eef1eb;
+  border-bottom: 1px solid var(--border-color, #eef1eb);
 }
 
 .menu-item:last-child {
@@ -440,7 +474,7 @@ export default {
 }
 
 .menu-meta {
-  color: #6c776e;
+  color: var(--muted-color, #6c776e);
   font-size: 26rpx;
 }
 </style>

@@ -279,7 +279,7 @@ POST /cans/{id}/transition/
 - staff：`tentative/disputed → verified`（verify），`pending/tentative/disputed → rejected`（reject）。
 - 录制者或 staff：`rejected → pending`（restore）。
 
-每次成功流转在 `transition_log` 中追加 `action / from / to / by / at / reason`，其中 `by` 使用公开 UserRef，不暴露权限字段。只有本人私有用户响应包含 `is_staff`；公开用户资料不返回权限。
+每次成功流转在 `transition_log` 中追加 `action / from / to / by / at / reason`。该字段是只读、规范化的审计视图：`by` 固定包含 `id / username / nickname / avatar`，不暴露权限字段；旧版只有用户 ID 的 `by` 会补齐空展示字段，缺字段会补为空字符串，非列表值或非对象条目会被忽略。客户端可以读取这个稳定结构，但不能回写它，也不能假定旧事件仍能解析出完整用户资料。只有本人私有用户响应包含 `is_staff`；公开用户资料不返回权限。
 
 Pronunciation 使用 `draft / verified / disputed / rejected`，认证与驳回由 reviewer 或 admin 执行。非法状态转换返回 409，权限不足返回 403。
 
@@ -292,8 +292,12 @@ Pronunciation 使用 `draft / verified / disputed / rejected`，认证与驳回�
 - 创建者可修改自己的用户生成内容；共享词典资料进入 verified 后只允许 reviewer 或 admin 修改。
 - Dialect 树的新增、改名和重新归类只允许 admin，避免限定名和后代查询被任意破坏。
 
-普通用户创建或修改 Shelf 时，服务端固定 `shelf_type=user`；`official` 与 `campaign` 仅由 staff 维护。Shelf 的 `flavor_ids`、`can_ids` 在 PATCH 中均为全量替换列表，客户端添加或移除内容前必须重读详情，并基于最新列表合并后提交。
+普通用户创建或修改 Shelf 时，服务端固定 `shelf_type=user`；`official` 与 `campaign` 仅由 staff 维护。Shelf 的 `flavor_ids`、`can_ids` 在 PATCH 中均为有序的全量替换列表，客户端添加或移除内容前必须重读详情，并基于最新列表合并后提交。服务端通过中间表保留顺序、添加人和添加时间；读取时 `flavors` 与 `cans` 严格按提交顺序返回，重复 ID 会被拒绝。
+
+SiteSettings 中的公告 ID 列表同样保留提交顺序。写入时所有 ID 必须唯一、存在且对应已发布公告；任一引用无效时整个配置保持原值并返回 400。
 
 ## 8. 用户隐私
 
 `GET /users/{id}/` 只返回公开档案。邮箱、电话、生日、微信绑定状态和登录时间只从 `GET /users/me/` 返回；修改本人资料也统一使用 `/users/me/`。不提供公开的邮箱筛选或通过用户名返回完整邮箱的接口。
+
+账号删除时，公告、罐头、铭牌和已发送通知作为站点资料或历史记录保留，作者字段置空并展示为匿名/已注销用户。匿名化后的罐头和铭牌只有 staff 可以修改；接收者账号删除时，其私有通知仍按原规则级联清理。完整决策见 [ADR-0004](../../adr/0004-core-content-retention.md)。

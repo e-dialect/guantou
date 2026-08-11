@@ -1105,7 +1105,12 @@ class NameplateViewSet(viewsets.ModelViewSet):
 
 class ShelfViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
-    queryset = Shelf.objects.prefetch_related("flavors", "cans")
+    queryset = Shelf.objects.select_related("creator").prefetch_related(
+        "flavor_links__flavor",
+        "can_links__can__recorder",
+        "can_links__can__submitted_dialect",
+        "can_links__can__nameplates",
+    )
     serializer_class = ShelfSerializer
     permission_classes = [IsOwnerOrAdmin]
 
