@@ -915,6 +915,12 @@ class CanPostViewSet(viewsets.ModelViewSet):
         can = serializer.validated_data["can"]
         preview = CanCardSerializer(can, context={"request": self.request}).data
         primary = can.primary_nameplate
+        primary_snapshot = None
+        if primary:
+            primary_snapshot = dict(
+                NameplateCardSerializer(primary, context={"request": self.request}).data
+            )
+            primary_snapshot["definition"] = primary.definition
         snapshot = {
             "can_id": can.id,
             "audio_url": can.audio_url,
@@ -922,11 +928,7 @@ class CanPostViewSet(viewsets.ModelViewSet):
             "duration_ms": can.duration_ms,
             "recorder": preview.get("recorder"),
             "submitted_dialect": preview.get("submitted_dialect"),
-            "primary_nameplate": (
-                NameplateCardSerializer(primary, context={"request": self.request}).data
-                if primary
-                else None
-            ),
+            "primary_nameplate": primary_snapshot,
         }
         post = serializer.save(author=self.request.user, source_snapshot=snapshot)
         send_event_notification(

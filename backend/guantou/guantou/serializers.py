@@ -480,7 +480,6 @@ class NameplateCardSerializer(NameplateRefSerializer):
 
     class Meta(NameplateRefSerializer.Meta):
         fields = NameplateRefSerializer.Meta.fields + [
-            "definition",
             "can",
             "package",
             "flavor",
@@ -1010,11 +1009,14 @@ class CanPostSerializer(serializers.ModelSerializer):
         if obj.can_id and obj.can and obj.can.visibility:
             preview = dict(CanCardSerializer(obj.can, context=self.context).data)
             primary = obj.can.primary_nameplate
-            preview["primary_nameplate"] = (
-                NameplateCardSerializer(primary, context=self.context).data
-                if primary
-                else None
-            )
+            if primary:
+                nameplate = dict(
+                    NameplateCardSerializer(primary, context=self.context).data
+                )
+                nameplate["definition"] = primary.definition
+                preview["primary_nameplate"] = nameplate
+            else:
+                preview["primary_nameplate"] = None
             return preview
         snapshot = obj.source_snapshot or {}
         if not snapshot:
