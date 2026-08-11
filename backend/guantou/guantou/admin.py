@@ -12,6 +12,8 @@ from .models import (
     Pronunciation,
     RecordingChallenge,
     Shelf,
+    ShelfCan,
+    ShelfFlavor,
 )
 
 
@@ -38,6 +40,20 @@ class PronunciationInline(admin.TabularInline):
     model = Pronunciation
     extra = 0
     raw_id_fields = ("package", "dialect", "created_by")
+
+
+class ShelfFlavorInline(admin.TabularInline):
+    model = ShelfFlavor
+    extra = 0
+    ordering = ("sort_order", "id")
+    raw_id_fields = ("flavor", "added_by")
+
+
+class ShelfCanInline(admin.TabularInline):
+    model = ShelfCan
+    extra = 0
+    ordering = ("sort_order", "id")
+    raw_id_fields = ("can", "added_by")
 
 
 @admin.register(CanPost)
@@ -162,4 +178,4 @@ class ShelfAdmin(admin.ModelAdmin):
     list_filter = ("shelf_type",)
     search_fields = ("title", "description")
     raw_id_fields = ("creator",)
-    filter_horizontal = ("flavors", "cans")
+    inlines = (ShelfFlavorInline, ShelfCanInline)
