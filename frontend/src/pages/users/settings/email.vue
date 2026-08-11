@@ -84,7 +84,7 @@ export default {
      */
     sendCode() {
       const email = this.new_email;
-      sendEmailCode(email);
+      sendEmailCode(email, 'bind');
     },
 
     /**

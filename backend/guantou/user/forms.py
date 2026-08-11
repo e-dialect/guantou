@@ -21,10 +21,7 @@ class UserForm(forms.ModelForm):
         fields = ("username", "password", "email")
 
     def clean_email(self):
-        cd = self.cleaned_data
-        if str(cd["email"]).find("@") == -1:
-            raise forms.ValidationError("Invalid Email")
-        return cd["email"]
+        return str(self.cleaned_data["email"]).strip().lower()
 
 
 class UserFormByWechat(forms.ModelForm):

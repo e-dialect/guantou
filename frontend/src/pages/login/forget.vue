@@ -58,7 +58,7 @@
         </view>
         <input
           name="email"
-          :value="email"
+          :value="emailMasked"
           disabled
         >
       </view>
@@ -91,7 +91,11 @@
 </template>
 
 <script>
-import { getEmailByUsername, resetPassword } from '@/services/user';
+import {
+  getEmailByUsername,
+  requestPasswordResetCode,
+  resetPassword,
+} from '@/services/user';
 import CuCustom from '@/colorui/components/cu-custom.vue';
 import getCodeMixin from './mixin/getCodeMixin';
 
@@ -101,7 +105,7 @@ export default {
   data() {
     return {
       username: '',
-      email: '',
+      emailMasked: '',
       steps: 0,
       hidePassword: true,
       hideRepeatedPassword: true,
@@ -114,19 +118,22 @@ export default {
 
     next() {
       getEmailByUsername(this.username).then((res) => {
-        this.email = res.email;
+        this.emailMasked = res.email_masked;
         this.steps = 1;
       });
     },
 
     // 获取验证码
     getCode() {
-      this.sendEmCode(this.email);
+      requestPasswordResetCode(this.username).then((res) => {
+        this.emailMasked = res.email_masked;
+        uni.showToast({ title: '验证码已发送' });
+        this.isSending = true;
+      });
     },
 
     reset(e) {
       const { username } = this;
-      const { email } = this;
       const { code, password, repeatedPassword } = e.detail.value;
       if (repeatedPassword !== password) {
         uni.showToast({
@@ -135,7 +142,7 @@ export default {
         });
         return;
       }
-      resetPassword(username, email, code, password).then(() => {
+      resetPassword(username, password, code).then(() => {
         uni.showToast({
           title: '重置成功',
           icon: 'success',

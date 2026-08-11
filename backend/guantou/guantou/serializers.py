@@ -388,6 +388,7 @@ class FlavorSerializer(serializers.ModelSerializer):
             "definition",
             "mandarin",
             "tags",
+            "metadata",
             "geo_scope",
             "concepticon_id",
             "visibility",

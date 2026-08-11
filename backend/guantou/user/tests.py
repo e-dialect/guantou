@@ -1,17 +1,21 @@
 from unittest.mock import patch
+from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.db import IntegrityError, transaction
 from django.test import Client, TestCase, override_settings
+from django.utils import timezone
 
 from guantou.models import Dialect
-from user.models import UserInfo
+from user.models import EmailVerification, UserInfo
+from user.view.wechat import OpenId
+from utils.exceptions.types.not_found import NotFoundException
 
 from .tokens import generate_token
 from .verification import (
     check_email_code,
-    email_cache_key,
+    issue_email_code,
     phone_cache_key,
     phone_throttle_cache_key,
 )
@@ -31,9 +35,23 @@ class EmailVerificationTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(cache.get(email_cache_key("user@example.com")), "123456")
-        self.assertTrue(check_email_code("user@example.com", "123456"))
-        self.assertFalse(check_email_code("user@example.com", "123456"))
+        record = EmailVerification.objects.get(normalized_email="user@example.com")
+        self.assertNotIn("123456", record.code_digest)
+        self.assertIsNotNone(record.delivered_at)
+        self.assertTrue(
+            check_email_code(
+                "user@example.com",
+                "123456",
+                EmailVerification.Purpose.REGISTER,
+            )
+        )
+        self.assertFalse(
+            check_email_code(
+                "user@example.com",
+                "123456",
+                EmailVerification.Purpose.REGISTER,
+            )
+        )
 
     def test_reject_invalid_email(self):
         response = self.client.post(
@@ -42,6 +60,143 @@ class EmailVerificationTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 400)
+
+    def test_rejects_email_already_bound_to_an_account(self):
+        User.objects.create_user(username="bound", email="bound@example.com")
+        response = self.client.post(
+            "/users/email-code",
+            data='{"email": "BOUND@example.com", "purpose": "register"}',
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 409)
+
+    @patch("user.verification.generate_email_code", return_value="123456")
+    def test_email_registration_normalizes_address_and_preserves_password_hash(
+        self, _generate
+    ):
+        issue_email_code("New@Example.com", EmailVerification.Purpose.REGISTER)
+        response = self.client.post(
+            "/users",
+            data={
+                "username": "email-register",
+                "password": "new-pass-123",
+                "email": " New@Example.com ",
+                "code": "123456",
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        user = User.objects.get(username="email-register")
+        self.assertEqual(user.email, "new@example.com")
+        self.assertTrue(user.check_password("new-pass-123"))
+
+    @patch("user.verification.generate_email_code", return_value="123456")
+    def test_bind_purpose_is_required_and_email_binding_succeeds(self, _generate):
+        user = User.objects.create_user(username="binder", password="old-pass")
+        UserInfo.objects.create(user=user, nickname="Binder")
+        issue_email_code("bind@example.com", EmailVerification.Purpose.BIND)
+        self.assertFalse(
+            check_email_code(
+                "bind@example.com", "123456", EmailVerification.Purpose.REGISTER
+            )
+        )
+        response = self.client.put(
+            f"/users/{user.id}/email",
+            data={"email": "BIND@example.com", "code": "123456"},
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {generate_token(user)}",
+        )
+        self.assertEqual(response.status_code, 200)
+        user.refresh_from_db()
+        self.assertEqual(user.email, "bind@example.com")
+
+    @override_settings(EMAIL_CODE_THROTTLE_SECONDS=0)
+    @patch("user.verification.generate_email_code", side_effect=["111111", "222222"])
+    def test_resend_invalidates_the_previous_code(self, _generate):
+        issue_email_code("resend@example.com", EmailVerification.Purpose.REGISTER)
+        issue_email_code("resend@example.com", EmailVerification.Purpose.REGISTER)
+        self.assertFalse(
+            check_email_code(
+                "resend@example.com", "111111", EmailVerification.Purpose.REGISTER
+            )
+        )
+        self.assertTrue(
+            check_email_code(
+                "resend@example.com", "222222", EmailVerification.Purpose.REGISTER
+            )
+        )
+
+    @patch("user.verification.generate_email_code", return_value="123456")
+    def test_expired_code_is_rejected(self, _generate):
+        issue_email_code("expired@example.com", EmailVerification.Purpose.REGISTER)
+        EmailVerification.objects.filter(normalized_email="expired@example.com").update(
+            expires_at=timezone.now() - timedelta(seconds=1)
+        )
+        self.assertFalse(
+            check_email_code(
+                "expired@example.com", "123456", EmailVerification.Purpose.REGISTER
+            )
+        )
+
+    @override_settings(EMAIL_CODE_MAX_ATTEMPTS=2)
+    @patch("user.verification.generate_email_code", return_value="123456")
+    def test_maximum_attempts_consumes_the_code(self, _generate):
+        issue_email_code("attempts@example.com", EmailVerification.Purpose.REGISTER)
+        for _ in range(2):
+            self.assertFalse(
+                check_email_code(
+                    "attempts@example.com",
+                    "000000",
+                    EmailVerification.Purpose.REGISTER,
+                )
+            )
+        self.assertFalse(
+            check_email_code(
+                "attempts@example.com", "123456", EmailVerification.Purpose.REGISTER
+            )
+        )
+
+    @patch("user.verification.generate_email_code", return_value="123456")
+    def test_email_delivery_is_throttled(self, _generate):
+        first = self.client.post(
+            "/users/email-code",
+            data={"email": "throttle@example.com", "purpose": "register"},
+            content_type="application/json",
+        )
+        second = self.client.post(
+            "/users/email-code",
+            data={"email": "throttle@example.com", "purpose": "register"},
+            content_type="application/json",
+        )
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 429)
+
+    @patch("user.verification.generate_email_code", return_value="123456")
+    def test_password_reset_uses_username_scope_without_old_token(self, _generate):
+        user = User.objects.create_user(
+            username="forgotten", email="owner@example.com", password="old-pass"
+        )
+        UserInfo.objects.create(user=user, nickname="Owner")
+
+        lookup = self.client.get("/login/forget", {"username": "forgotten"})
+        self.assertEqual(lookup.status_code, 200)
+        self.assertNotIn("owner@example.com", lookup.content.decode())
+
+        sent = self.client.post(
+            "/login/forget",
+            data='{"username": "forgotten"}',
+            content_type="application/json",
+        )
+        self.assertEqual(sent.status_code, 200)
+
+        reset = self.client.put(
+            "/login/forget",
+            data='{"username": "forgotten", "code": "123456", "password": "new-pass-123"}',
+            content_type="application/json",
+        )
+        self.assertEqual(reset.status_code, 200)
+        user.refresh_from_db()
+        self.assertTrue(user.check_password("new-pass-123"))
 
 
 @override_settings(
@@ -195,6 +350,37 @@ class WechatPasswordlessRegistrationTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["id"], exact.id)
+
+
+@override_settings(APP_ID="mini-app-id", APP_SECRET="canonical-mini-secret")
+class WechatOpenIdTests(TestCase):
+    @patch("user.view.wechat.requests.get")
+    def test_uses_canonical_secret_params_and_timeout(self, request_get):
+        request_get.return_value.json.return_value = {
+            "openid": " openid-from-wechat ",
+            "session_key": "session-key",
+        }
+        self.assertEqual(OpenId("one-time-code").get_openid(), "openid-from-wechat")
+        request_get.assert_called_once_with(
+            "https://api.weixin.qq.com/sns/jscode2session",
+            params={
+                "appid": "mini-app-id",
+                "secret": "canonical-mini-secret",
+                "js_code": "one-time-code",
+                "grant_type": "authorization_code",
+            },
+            timeout=8,
+        )
+
+    @patch("user.view.wechat.requests.get")
+    def test_rejects_wechat_error_and_malformed_json(self, request_get):
+        request_get.return_value.json.return_value = {"errcode": 40029, "errmsg": "bad"}
+        with self.assertRaises(NotFoundException):
+            OpenId("expired-code").get_openid()
+
+        request_get.return_value.json.side_effect = ValueError("not json")
+        with self.assertRaises(NotFoundException):
+            OpenId("malformed-response").get_openid()
 
 
 class BearerTokenTests(TestCase):

@@ -29,8 +29,8 @@ export default {
     },
   },
   methods: {
-    sendEmCode(email) {
-      sendEmailCode(email).then(() => {
+    sendEmCode(email, purpose = 'register') {
+      sendEmailCode(email, purpose).then(() => {
         // 防止还在发送但未完成状态就已经开始计时
         uni.showToast({
           title: '验证码已发送',

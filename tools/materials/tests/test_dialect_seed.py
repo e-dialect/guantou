@@ -225,12 +225,23 @@ class ValidateRecordsTest(unittest.TestCase):
 class SeedFileTest(unittest.TestCase):
     def test_seed_file_is_v1_only_and_contains_key_path(self):
         records = seed_dialects.load_records(SEED_JSON)
-        self.assertEqual(len(records), 15)
+        self.assertEqual(len(records), 56)
         self.assertTrue(all(set(record) <= ALLOWED_FIELDS for record in records))
         ordered, failed = seed_dialects.validate_records(records)
         self.assertEqual(failed, [])
         qualified = seed_dialects.qualified_codes(ordered)
-        self.assertIn("闽.莆仙.仙游.游洋", set(qualified.values()))
+        required = {
+            "闽.莆仙",
+            "闽.莆仙.莆田",
+            "闽.莆仙.莆田.城里",
+            "闽.莆仙.莆田.江口",
+            "闽.莆仙.莆田.湄洲",
+            "闽.莆仙.仙游",
+            "闽.莆仙.仙游.城关",
+            "闽.莆仙.仙游.游洋",
+            "闽.莆仙.仙游.枫亭",
+        }
+        self.assertTrue(required.issubset(set(qualified.values())))
 
 
 class SeedRecordsOrmTest(unittest.TestCase):
@@ -266,6 +277,9 @@ class SeedRecordsOrmTest(unittest.TestCase):
         super().tearDownClass()
 
     def setUp(self):
+        self.dialect_model._meta.apps.get_model(
+            "guantou", "DialectCircle"
+        ).objects.all().delete()
         self.dialect_model.objects.all().delete()
 
     def test_dry_run_matches_real_run_and_repeat_is_idempotent(self):
@@ -354,8 +368,8 @@ class SeedRecordsOrmTest(unittest.TestCase):
         report = seed_dialects.seed_records(ordered, self.dialect_model)
         repeated = seed_dialects.seed_records(ordered, self.dialect_model)
 
-        self.assertEqual(report, {"created": 15, "skipped": 0, "failed": []})
-        self.assertEqual(repeated, {"created": 0, "skipped": 15, "failed": []})
+        self.assertEqual(report, {"created": 56, "skipped": 0, "failed": []})
+        self.assertEqual(repeated, {"created": 0, "skipped": 56, "failed": []})
         youyang = self.dialect_model.objects.get(code="游洋")
         self.assertEqual(youyang.qualified_code, "闽.莆仙.仙游.游洋")
         min_root = self.dialect_model.objects.get(code="闽")

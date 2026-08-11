@@ -14,7 +14,7 @@ from .models import Can, Dialect, Nameplate
 class UserContentDeletionPolicyTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.dialect = Dialect.objects.create(name="闽南语", code="闽南")
+        self.dialect = Dialect.objects.create(name="测试闽南语", code="测试闽南")
         self.author = User.objects.create_user(username="departing", password="pw")
         self.viewer = User.objects.create_user(username="viewer", password="pw")
         self.staff = User.objects.create_user(

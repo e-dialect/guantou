@@ -2,11 +2,22 @@ import os
 import time
 
 import environ
-
-env = environ.Env()
-environ.Env.read_env(".env")
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(BASE_DIR))
+
+env = environ.Env()
+explicit_env_file = os.environ.get("ENV_FILE")
+if explicit_env_file:
+    environ.Env.read_env(explicit_env_file)
+else:
+    # Keep direct ``manage.py`` invocations and repository-root launches in
+    # agreement. Real environment variables always win over either file.
+    environ.Env.read_env(os.path.join(PROJECT_ROOT, ".env"))
+    environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
+
+ENVIRONMENT = env.str("ENVIRONMENT", "development").strip().lower()
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
@@ -131,10 +142,13 @@ LOGIN_URL = "/login"
 EMAIL_HOST = env.str("EMAIL_HOST", "DEFAULT_EMAIL_HOST")
 EMAIL_HOST_USER = env.str("EMAIL_HOST_USER", "DEFAULT_EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = env.str("EMAIL_HOST_PASSWORD", "DEFAULT_EMAIL_HOST_PASSWORD")
-EMAIL_PORT = env.str("EMAIL_PORT", "DEFAULT_EMAIL_PORT")
-EMAIL_USE_SSL = True
-EMAIL_USE_TLS = False
+EMAIL_PORT = env.int("EMAIL_PORT", 465)
+EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", True)
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", False)
 DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL", "DEFAULT_DEFAULT_FROM_EMAIL")
+EMAIL_CODE_TTL_SECONDS = env.int("EMAIL_CODE_TTL_SECONDS", 600)
+EMAIL_CODE_THROTTLE_SECONDS = env.int("EMAIL_CODE_THROTTLE_SECONDS", 60)
+EMAIL_CODE_MAX_ATTEMPTS = env.int("EMAIL_CODE_MAX_ATTEMPTS", 5)
 DEFAULT_AVATAR_URL = env.str(
     "DEFAULT_AVATAR_URL",
     "https://cos.edialect.top/website/默认头像.jpg",
@@ -211,14 +225,53 @@ APP_SECRET = env.str("APP_SECRET", env.str("APP_SECRECT", "DEFAULT_APP_SECRET"))
 # Backward-compatible alias for old code paths and old local env files.
 APP_SECRECT = APP_SECRET
 
-# 网页版微信 OAuth AppID and Secret (如果与小程序相同，可不配置)
-WEB_APP_ID = env.str("WEB_APP_ID", env.str("APP_ID", "DEFAULT_APP_ID"))
-WEB_APP_SECRET = env.str("WEB_APP_SECRET", APP_SECRET)
+# Web OAuth credentials are a different WeChat application identity. Never
+# silently reuse mini-program credentials for web authorization.
+WEB_APP_ID = env.str("WEB_APP_ID", "")
+WEB_APP_SECRET = env.str("WEB_APP_SECRET", "")
 
 # parameter of jwt
 JWT_KEY = env.str("JWT_KEY", "DEFAULT_JWT_KEY")
 
-import os
+
+def _is_placeholder(value):
+    return not str(value).strip() or str(value).startswith("DEFAULT_")
+
+
+if EMAIL_USE_SSL and EMAIL_USE_TLS:
+    raise ImproperlyConfigured("EMAIL_USE_SSL and EMAIL_USE_TLS cannot both be true")
+if (
+    min(
+        EMAIL_CODE_TTL_SECONDS,
+        EMAIL_CODE_THROTTLE_SECONDS,
+        EMAIL_CODE_MAX_ATTEMPTS,
+    )
+    <= 0
+):
+    raise ImproperlyConfigured("Email verification limits must be positive")
+
+if ENVIRONMENT == "production":
+    required_secrets = {
+        "SECRET_KEY": SECRET_KEY,
+        "JWT_KEY": JWT_KEY,
+        "EMAIL_HOST": EMAIL_HOST,
+        "EMAIL_HOST_USER": EMAIL_HOST_USER,
+        "EMAIL_HOST_PASSWORD": EMAIL_HOST_PASSWORD,
+        "DEFAULT_FROM_EMAIL": DEFAULT_FROM_EMAIL,
+        "COS_SECRET_ID": COS_SECRET_ID,
+        "COS_SECRET_KEY": COS_SECRET_KEY,
+        "COS_BUCKET": COS_BUCKET,
+        "COS_REGION": COS_REGION,
+        "APP_ID": APP_ID,
+        "APP_SECRET": APP_SECRET,
+    }
+    missing = [
+        name for name, value in required_secrets.items() if _is_placeholder(value)
+    ]
+    if missing:
+        raise ImproperlyConfigured(
+            "Missing production settings: " + ", ".join(sorted(missing))
+        )
 
 log_path = env.str("LOG_DIR", os.path.join(BASE_DIR, "logs"))
 os.makedirs(log_path, exist_ok=True)

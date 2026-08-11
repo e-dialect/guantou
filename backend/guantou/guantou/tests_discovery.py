@@ -20,6 +20,8 @@ from .models import (
 class CircleAndDiscoveryApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
+        DialectCircle.objects.all().delete()
+        Dialect.objects.all().delete()
         self.root = Dialect.objects.create(name="闽语", code="闽")
         self.child = Dialect.objects.create(
             name="莆仙话",

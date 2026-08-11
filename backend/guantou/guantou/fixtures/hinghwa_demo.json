@@ -1,0 +1,223 @@
+{
+  "schema_version": 1,
+  "format": "guantou-logical-key-demo",
+  "actors": [
+    {
+      "key": "actor_1",
+      "display_name": "示例贡献者1",
+      "role": "contributor"
+    },
+    {
+      "key": "actor_2",
+      "display_name": "示例贡献者2",
+      "role": "contributor"
+    },
+    {
+      "key": "actor_3",
+      "display_name": "示例贡献者3",
+      "role": "contributor"
+    },
+    {
+      "key": "actor_4",
+      "display_name": "示例贡献者4",
+      "role": "contributor"
+    },
+    {
+      "key": "actor_5",
+      "display_name": "示例贡献者5",
+      "role": "contributor"
+    },
+    {
+      "key": "actor_6",
+      "display_name": "示例贡献者6",
+      "role": "contributor"
+    }
+  ],
+  "entries": [
+    {
+      "key": "entry_1",
+      "dialect": "闽.莆仙.莆田.城里",
+      "package": {
+        "text": "阿长",
+        "package_type": "uncertain"
+      },
+      "flavor": {
+        "name": "阿长",
+        "definition": "长期保持关系的原配之外的异性，情人。一般指女性。",
+        "mandarin": [],
+        "tags": [],
+        "visibility": true
+      },
+      "pronunciation": {
+        "ipa": "at1 tuŋ13",
+        "surface_romanization": "a1 dung2",
+        "reading_type": "general",
+        "status": "verified"
+      },
+      "can": {
+        "audio_url": "https://cos.edialect.top/files/audio/1/2022/04/02/JVsCsfponjKmVz1.mp3",
+        "concept_text": "阿长",
+        "status": "verified",
+        "visibility": true,
+        "recorder": "actor_5",
+        "verifier": "actor_1"
+      },
+      "nameplate": {
+        "creator": "actor_5",
+        "text_content": "阿长",
+        "definition": "长期保持关系的原配之外的异性，情人。一般指女性。",
+        "pronunciation_text": "a1 dung2",
+        "evidence_level": 2,
+        "weight": 100
+      }
+    },
+    {
+      "key": "entry_2",
+      "dialect": "闽.莆仙.莆田.江口",
+      "package": {
+        "text": "阿长",
+        "package_type": "uncertain"
+      },
+      "flavor": {
+        "name": "阿长",
+        "definition": "长期保持关系的原配之外的异性，情人。一般指女性。",
+        "mandarin": [],
+        "tags": [],
+        "visibility": true
+      },
+      "pronunciation": {
+        "ipa": "at1 tuŋ13",
+        "surface_romanization": "a1 dung2",
+        "reading_type": "general",
+        "status": "verified"
+      },
+      "can": {
+        "audio_url": "https://cos.edialect.top/files/audio/1/2022/04/02/Jwacsh0Cekl3V33.mp3",
+        "concept_text": "阿长",
+        "status": "verified",
+        "visibility": true,
+        "recorder": "actor_3",
+        "verifier": "actor_1"
+      },
+      "nameplate": {
+        "creator": "actor_3",
+        "text_content": "阿长",
+        "definition": "长期保持关系的原配之外的异性，情人。一般指女性。",
+        "pronunciation_text": "a1 dung2",
+        "evidence_level": 2,
+        "weight": 100
+      }
+    },
+    {
+      "key": "entry_3",
+      "dialect": "闽.莆仙.莆田.湄洲",
+      "package": {
+        "text": "热",
+        "package_type": "uncertain"
+      },
+      "flavor": {
+        "name": "热",
+        "definition": "上火。",
+        "mandarin": [],
+        "tags": [],
+        "visibility": true
+      },
+      "pronunciation": {
+        "ipa": "tsɛʔ4",
+        "surface_romanization": "zeh7",
+        "reading_type": "general",
+        "status": "verified"
+      },
+      "can": {
+        "audio_url": "https://cos.edialect.top/files/audio/56/2022/05/29/bgsoYOV1gIEFumL.mp3",
+        "concept_text": "热",
+        "status": "verified",
+        "visibility": true,
+        "recorder": "actor_6",
+        "verifier": "actor_2"
+      },
+      "nameplate": {
+        "creator": "actor_6",
+        "text_content": "热",
+        "definition": "上火。",
+        "pronunciation_text": "zeh7",
+        "evidence_level": 2,
+        "weight": 100
+      }
+    },
+    {
+      "key": "entry_4",
+      "dialect": "闽.莆仙.仙游.城关",
+      "package": {
+        "text": "洋乜",
+        "package_type": "uncertain"
+      },
+      "flavor": {
+        "name": "洋乜",
+        "definition": "青蛙。",
+        "mandarin": [],
+        "tags": [],
+        "visibility": true
+      },
+      "pronunciation": {
+        "ipa": "ĩũ55 me24",
+        "surface_romanization": "iuⁿ1 me2",
+        "reading_type": "general",
+        "status": "verified"
+      },
+      "can": {
+        "audio_url": "https://cos.edialect.top/files/audio/52/2022/05/23/xyKQHidAImzKoOS.mp3",
+        "concept_text": "洋乜",
+        "status": "verified",
+        "visibility": true,
+        "recorder": "actor_4",
+        "verifier": "actor_2"
+      },
+      "nameplate": {
+        "creator": "actor_4",
+        "text_content": "洋乜",
+        "definition": "青蛙。",
+        "pronunciation_text": "iuⁿ1 me2",
+        "evidence_level": 2,
+        "weight": 100
+      }
+    },
+    {
+      "key": "entry_5",
+      "dialect": "闽.莆仙.仙游.枫亭",
+      "package": {
+        "text": "火拭",
+        "package_type": "uncertain"
+      },
+      "flavor": {
+        "name": "火拭",
+        "definition": "①火柴。又叫【火擦】。",
+        "mandarin": [],
+        "tags": [],
+        "visibility": true
+      },
+      "pronunciation": {
+        "ipa": "hue13 tshiʔ1",
+        "surface_romanization": "hue3 cih6",
+        "reading_type": "general",
+        "status": "verified"
+      },
+      "can": {
+        "audio_url": "https://cos.edialect.top/files/audio/52/2022/12/21/CqopINucCvqcqAO.mp3",
+        "concept_text": "火拭",
+        "status": "verified",
+        "visibility": true,
+        "recorder": "actor_4",
+        "verifier": "actor_4"
+      },
+      "nameplate": {
+        "creator": "actor_4",
+        "text_content": "火拭",
+        "definition": "①火柴。又叫【火擦】。",
+        "pronunciation_text": "hue3 cih6",
+        "evidence_level": 2,
+        "weight": 100
+      }
+    }
+  ]
+}

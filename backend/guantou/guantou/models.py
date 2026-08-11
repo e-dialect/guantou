@@ -121,6 +121,7 @@ class Flavor(models.Model):
     definition = models.TextField(verbose_name="释义")
     mandarin = models.JSONField(default=list, blank=True, verbose_name="普通话概念")
     tags = models.JSONField(default=list, blank=True, verbose_name="标签")
+    metadata = models.JSONField(default=dict, blank=True, verbose_name="扩展信息")
     geo_scope = models.CharField(max_length=160, blank=True, verbose_name="地理范围")
     concepticon_id = models.CharField(
         max_length=80, null=True, blank=True, verbose_name="Concepticon 编号"
@@ -151,6 +152,38 @@ class Flavor(models.Model):
         ordering = ["name", "id"]
         verbose_name = "风味"
         verbose_name_plural = "风味"
+
+
+class LegacyImportRecord(models.Model):
+    """Idempotency and provenance ledger for external legacy imports."""
+
+    source_system = models.CharField(max_length=80)
+    source_table = models.CharField(max_length=80)
+    source_id = models.CharField(max_length=120)
+    target_model = models.CharField(max_length=120)
+    target_id = models.PositiveBigIntegerField()
+    fingerprint = models.CharField(max_length=64, blank=True)
+    action = models.CharField(max_length=32, default="created")
+    metadata = models.JSONField(default=dict, blank=True)
+    imported_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source_system", "source_table", "source_id"],
+                name="unique_legacy_import_source",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["target_model", "target_id"],
+                name="legacy_target_idx",
+            )
+        ]
+        ordering = ["source_system", "source_table", "source_id"]
+        verbose_name = "旧数据导入记录"
+        verbose_name_plural = "旧数据导入记录"
 
 
 class FlavorPackage(models.Model):

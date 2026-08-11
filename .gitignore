@@ -7,6 +7,7 @@
 # Environment
 .env
 .env.*
+.env-for-*
 !.env.example
 
 # Python
@@ -22,10 +23,12 @@ venv/
 .venv/
 
 # Django/runtime data
-backend/guantou/db.sqlite3
+*.sqlite3
+*.sqlite3-*
 backend/guantou/media/
 backend/guantou/material/
 backend/guantou/logs/
+backend/guantou/migration-reports/
 data/
 
 # Node / uni-app

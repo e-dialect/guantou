@@ -9,7 +9,13 @@ from user.dto.user_all import user_all
 from user.passwords import validate_password_policy
 from user.tokens import generate_token, get_authorization_token, token_check
 from user.avatar import upload_avatar
-from user.verification import check_email_code, check_phone_code, normalize_phone
+from user.verification import (
+    check_email_code,
+    check_phone_code,
+    normalize_email,
+    normalize_phone,
+)
+from user.models import EmailVerification
 from .forms import UserForm
 from .models import UserInfo, User
 
@@ -36,9 +42,19 @@ def router_users(request):
             user_form = UserForm(body)
             code = body["code"]
             if user_form.is_valid():
-                if check_email_code(user_form.cleaned_data["email"], code):
+                email = normalize_email(user_form.cleaned_data["email"])
+                if User.objects.filter(email__iexact=email).exists():
+                    return JsonResponse({"msg": "该邮箱已被绑定"}, status=409)
+                validate_password_policy(user_form.cleaned_data["password"])
+                with transaction.atomic():
+                    if not check_email_code(
+                        email,
+                        code,
+                        EmailVerification.Purpose.REGISTER,
+                    ):
+                        return JsonResponse({}, status=401)
                     user = user_form.save(commit=False)
-                    validate_password_policy(user_form.cleaned_data["password"])
+                    user.email = email
                     user.set_password(user_form.cleaned_data["password"])
                     user.save()
                     user_info = UserInfo.objects.create(
@@ -51,14 +67,14 @@ def router_users(request):
                             user.id, body["avatar"], suffix="png"
                         )
                     user_info.save()
-                    return JsonResponse({"id": user.id}, status=200)
-                else:
-                    return JsonResponse({}, status=401)
+                return JsonResponse({"id": user.id}, status=200)
             else:
                 if user_form["username"].errors:
                     return JsonResponse({}, status=409)
                 else:
                     return JsonResponse({}, status=400)
+    except IntegrityError:
+        return JsonResponse({"msg": "用户名或邮箱已存在"}, status=409)
     except Exception as e:
         return JsonResponse({"msg": str(e)}, status=500)
 

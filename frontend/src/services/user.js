@@ -184,11 +184,15 @@ export function clearUserInfo() {
  * @returns {Promise<unknown>}
  */
 export function getEmailByUsername(username) {
-  return request.get('/login/forget', { username });
+  return rawRequest.get('/login/forget', { username }, { auth: false });
 }
 
-export function resetPassword(username, password, email, code) {
-  return request.put('/login/forget', {
-    username, password, email, code,
-  });
+export function requestPasswordResetCode(username) {
+  return rawRequest.post('/login/forget', { username }, { auth: false });
+}
+
+export function resetPassword(username, password, code) {
+  return rawRequest.put('/login/forget', {
+    username, password, code,
+  }, { auth: false });
 }

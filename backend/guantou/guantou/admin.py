@@ -66,9 +66,23 @@ class CanPostAdmin(admin.ModelAdmin):
 
 @admin.register(Dialect)
 class DialectAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "code", "parent", "sort_order")
-    search_fields = ("name", "code")
-    raw_id_fields = ("parent",)
+    list_display = (
+        "id",
+        "qualified_code_display",
+        "name",
+        "code",
+        "parent",
+        "sort_order",
+    )
+    list_filter = ("parent",)
+    search_fields = ("name", "code", "description", "parent__name")
+    autocomplete_fields = ("parent",)
+    list_select_related = ("parent",)
+    ordering = ("parent_id", "sort_order", "id")
+
+    @admin.display(description="完整限定码", ordering="code")
+    def qualified_code_display(self, obj):
+        return obj.qualified_code
 
 
 @admin.register(DialectCircle)

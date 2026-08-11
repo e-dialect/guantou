@@ -23,6 +23,7 @@
 - [开发指南](docs/DEVELOPMENT.md)
 - [测试说明](docs/TESTING.md)
 - [部署说明](docs/DEPLOYMENT.md)
+- [兴化语记](docs/HINGHWA.md)
 - [贡献说明](CONTRIBUTING.md)
 
 协作提交请遵循 [贡献说明](CONTRIBUTING.md) 中的 Conventional Commits 风格提交信息：`type: summary` 或 `type(scope): summary`。

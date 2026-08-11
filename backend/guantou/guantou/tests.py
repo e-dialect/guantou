@@ -15,6 +15,7 @@ from utils.exceptions.types.common import CommonException
 from .models import (
     Can,
     Dialect,
+    DialectCircle,
     Flavor,
     FlavorPackage,
     Nameplate,
@@ -31,6 +32,10 @@ SOURCE = {"type": "creator"}
 
 class DomainFixture(TestCase):
     def setUp(self):
+        # Domain API tests build a deliberately small tree independent of the
+        # production baseline installed by the data migration.
+        DialectCircle.objects.all().delete()
+        Dialect.objects.all().delete()
         self.user = User.objects.create_user(username="collector", password="pw")
         self.other = User.objects.create_user(username="other", password="pw")
         self.staff = User.objects.create_user(

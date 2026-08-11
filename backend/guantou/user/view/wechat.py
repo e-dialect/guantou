@@ -28,7 +28,7 @@ class OpenId:
     def __init__(self, jscode):
         self.url = "https://api.weixin.qq.com/sns/jscode2session"
         self.app_id = settings.APP_ID
-        self.app_secret = settings.APP_SECRECT
+        self.app_secret = settings.APP_SECRET
         self.jscode = jscode
         # Cache the API response to avoid multiple requests with same jscode
         self.response_data = None
@@ -39,16 +39,29 @@ class OpenId:
         Caches the response to avoid redundant API calls
         """
         if self.response_data is None:
-            url = (
-                f"{self.url}?appid={self.app_id}&secret={self.app_secret}&js_code={self.jscode}"
-                f"&grant_type=authorization_code"
-            )
-            res = requests.get(url)
-            data = res.json()
-            if "errcode" in data:
-                raise NotFoundException(
-                    f"微信登录失败: {data.get('errmsg', '未知错误')}"
+            if not self.app_id or self.app_id.startswith("DEFAULT_"):
+                raise NotFoundException("微信小程序尚未配置")
+            if not self.app_secret or self.app_secret.startswith("DEFAULT_"):
+                raise NotFoundException("微信小程序尚未配置")
+            try:
+                res = requests.get(
+                    self.url,
+                    params={
+                        "appid": self.app_id,
+                        "secret": self.app_secret,
+                        "js_code": self.jscode,
+                        "grant_type": "authorization_code",
+                    },
+                    timeout=8,
                 )
+                res.raise_for_status()
+                data = res.json()
+            except (requests.RequestException, ValueError) as exc:
+                raise NotFoundException("微信登录服务暂时不可用") from exc
+            if "errcode" in data:
+                raise NotFoundException("微信登录凭证无效或已过期")
+            if not str(data.get("openid", "")).strip():
+                raise NotFoundException("微信登录响应缺少用户标识")
             self.response_data = data
 
     def get_openid(self) -> str:
@@ -182,30 +195,34 @@ class WechatWebAuth:
 
     def __init__(self, code):
         self.code = code
-        self.app_id = (
-            settings.WEB_APP_ID if hasattr(settings, "WEB_APP_ID") else settings.APP_ID
-        )
-        self.app_secret = (
-            settings.WEB_APP_SECRET
-            if hasattr(settings, "WEB_APP_SECRET")
-            else settings.APP_SECRECT
-        )
+        self.app_id = settings.WEB_APP_ID
+        self.app_secret = settings.WEB_APP_SECRET
         self.response_data = None
 
     def _fetch_access_token(self):
         """Fetch access token from WeChat Web OAuth API"""
         if self.response_data is None:
-            url = (
-                f"https://api.weixin.qq.com/sns/oauth2/access_token"
-                f"?appid={self.app_id}&secret={self.app_secret}"
-                f"&code={self.code}&grant_type=authorization_code"
-            )
-            res = requests.get(url)
-            data = res.json()
-            if "errcode" in data:
-                raise NotFoundException(
-                    f"微信网页授权失败: {data.get('errmsg', '未知错误')}"
+            if not self.app_id or not self.app_secret:
+                raise NotFoundException("微信网页授权尚未配置")
+            try:
+                res = requests.get(
+                    "https://api.weixin.qq.com/sns/oauth2/access_token",
+                    params={
+                        "appid": self.app_id,
+                        "secret": self.app_secret,
+                        "code": self.code,
+                        "grant_type": "authorization_code",
+                    },
+                    timeout=8,
                 )
+                res.raise_for_status()
+                data = res.json()
+            except (requests.RequestException, ValueError) as exc:
+                raise NotFoundException("微信网页授权服务暂时不可用") from exc
+            if "errcode" in data:
+                raise NotFoundException("微信网页授权失败或已过期")
+            if not data.get("openid") or not data.get("access_token"):
+                raise NotFoundException("微信网页授权响应不完整")
             self.response_data = data
 
     def get_openid(self) -> str:
@@ -218,13 +235,22 @@ class WechatWebAuth:
         self._fetch_access_token()
         access_token = self.response_data["access_token"]
         openid = self.response_data["openid"]
-        url = f"https://api.weixin.qq.com/sns/userinfo?access_token={access_token}&openid={openid}&lang=zh_CN"
-        res = requests.get(url)
-        user_info = res.json()
-        if "errcode" in user_info:
-            raise NotFoundException(
-                f"获取微信用户信息失败: {user_info.get('errmsg', '未知错误')}"
+        try:
+            res = requests.get(
+                "https://api.weixin.qq.com/sns/userinfo",
+                params={
+                    "access_token": access_token,
+                    "openid": openid,
+                    "lang": "zh_CN",
+                },
+                timeout=8,
             )
+            res.raise_for_status()
+            user_info = res.json()
+        except (requests.RequestException, ValueError) as exc:
+            raise NotFoundException("微信用户信息服务暂时不可用") from exc
+        if "errcode" in user_info:
+            raise NotFoundException("获取微信用户信息失败")
         return user_info
 
 

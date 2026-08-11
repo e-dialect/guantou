@@ -1,5 +1,6 @@
 import demjson3
-from django.db import transaction
+from django.contrib.auth.models import User
+from django.db import IntegrityError, transaction
 from django.http import JsonResponse
 from django.views import View
 
@@ -14,7 +15,8 @@ from utils.exceptions.types.bad_request import BadRequestException
 from utils.exceptions.types.forbidden import ForbiddenException
 from utils.exceptions.types.unauthorized import WrongPassword
 from user.tokens import get_request_user, generate_token
-from user.verification import check_email_code
+from user.models import EmailVerification
+from user.verification import check_email_code, normalize_email
 from user.verification import is_valid_phone, normalize_phone
 from user.models import UserFollow, UserInfo
 
@@ -164,10 +166,21 @@ class ManageEmail(View):
         if user.id != id:
             raise ForbiddenException
         body = demjson3.decode(request.body)
-        if not check_email_code(body["email"], body["code"]):
-            raise BadRequestException("验证码错误")
-        user.email = body["email"]
-        user.save()
+        email = normalize_email(body["email"])
+        if User.objects.exclude(pk=user.pk).filter(email__iexact=email).exists():
+            return JsonResponse({"msg": "该邮箱已被绑定"}, status=409)
+        try:
+            with transaction.atomic():
+                if not check_email_code(
+                    email,
+                    body["code"],
+                    EmailVerification.Purpose.BIND,
+                ):
+                    raise BadRequestException("验证码错误")
+                user.email = email
+                user.save(update_fields=["email"])
+        except IntegrityError:
+            return JsonResponse({"msg": "该邮箱已被绑定"}, status=409)
         return JsonResponse({"user": user_all(user, private=True)}, status=200)
 
     # US0306 解绑邮箱
