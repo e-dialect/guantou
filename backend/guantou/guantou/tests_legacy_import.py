@@ -2,17 +2,20 @@ import sqlite3
 import tempfile
 from importlib import import_module
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.apps import apps
+from django.contrib.sessions.models import Session
 from django.test import TestCase
 
 from user.models import UserInfo
 
 from .legacy_import import (
     HinghwaImporter,
+    account_priority,
     import_demo_fixture,
     normalize_legacy_location,
     open_legacy_database,
+    parse_legacy_datetime,
     resolve_dialect,
 )
 from .models import Can, Dialect, DialectCircle, Flavor, LegacyImportRecord, Package
@@ -64,6 +67,34 @@ class LegacyLocationTests(TestCase):
         )
 
 
+class AccountPriorityTests(TestCase):
+    def test_admin_status_precedes_last_login_then_newer_login_wins(self):
+        admin_old = account_priority(
+            is_staff=True,
+            is_superuser=False,
+            last_login="2020-01-01 00:00:00",
+        )
+        ordinary_new = account_priority(
+            is_staff=False,
+            is_superuser=False,
+            last_login="2025-01-01 00:00:00",
+        )
+        admin_new = account_priority(
+            is_staff=True,
+            is_superuser=False,
+            last_login="2024-01-01 00:00:00",
+        )
+        admin_never = account_priority(
+            is_staff=True,
+            is_superuser=False,
+            last_login=None,
+        )
+
+        self.assertGreater(admin_old, ordinary_new)
+        self.assertGreater(admin_new, admin_old)
+        self.assertGreater(admin_old, admin_never)
+
+
 class DialectSeedTests(TestCase):
     def test_seed_is_complete_and_idempotent(self):
         migration = import_module("guantou.migrations.0012_seed_puxian_dialects")
@@ -104,7 +135,7 @@ class LegacyImportTests(TestCase):
             (
                 1,
                 "hash-1",
-                None,
+                "2020-01-01 00:00:00",
                 1,
                 "source_target_merge",
                 "",
@@ -117,7 +148,7 @@ class LegacyImportTests(TestCase):
             (
                 2,
                 "hash-2",
-                None,
+                "2024-01-02 00:00:00",
                 1,
                 "retired_login",
                 "",
@@ -130,7 +161,7 @@ class LegacyImportTests(TestCase):
             (
                 3,
                 "hash-3",
-                None,
+                "2024-01-01 00:00:00",
                 1,
                 "wechat_survivor",
                 "",
@@ -231,9 +262,13 @@ class LegacyImportTests(TestCase):
             dry_report = HinghwaImporter(connection, apply=False).run()
         self.assertEqual(dry_report["source_counts"]["auth_user"], 3)
         self.assertEqual(dry_report["normalized"]["duplicate_email_accounts"], 2)
+        self.assertEqual(dry_report["normalized"]["source_identity_wins"], 1)
         self.assertEqual(LegacyImportRecord.objects.count(), 0)
         self.assertEqual(User.objects.count(), 1)
 
+        self.target.groups.add(Group.objects.create(name="retired-target-role"))
+        self.client.force_login(self.target)
+        retired_session_key = self.client.session.session_key
         with open_legacy_database(self.source_path) as connection:
             report = HinghwaImporter(connection, apply=True).run()
         self.assertFalse(report["failed"])
@@ -243,20 +278,25 @@ class LegacyImportTests(TestCase):
         self.target.refresh_from_db()
         target_info = self.target.user_info
         target_info.refresh_from_db()
-        self.assertFalse(self.target.is_staff)
-        self.assertFalse(self.target.is_superuser)
-        self.assertTrue(self.target.check_password("keep-me"))
+        self.assertEqual(self.target.username, "source_target_merge")
+        self.assertEqual(self.target.password, "hash-1")
+        self.assertTrue(self.target.is_staff)
+        self.assertTrue(self.target.is_superuser)
+        self.assertFalse(self.target.groups.exists())
+        self.assertFalse(
+            Session.objects.filter(session_key=retired_session_key).exists()
+        )
         self.assertEqual((target_info.points_now, target_info.points_sum), (7, 13))
 
-        survivor = User.objects.get(username="wechat_survivor")
-        self.assertEqual(survivor.password, "hash-3")
+        survivor = User.objects.get(username="retired_login")
+        self.assertEqual(survivor.password, "hash-2")
         self.assertEqual(survivor.email, "")
         self.assertTrue(survivor.is_superuser)
-        self.assertEqual(survivor.user_info.wechat, "wx-openid")
+        self.assertEqual(survivor.user_info.wechat, "")
         self.assertEqual(
             (survivor.user_info.points_now, survivor.user_info.points_sum), (18, 33)
         )
-        self.assertFalse(User.objects.filter(username="retired_login").exists())
+        self.assertFalse(User.objects.filter(username="wechat_survivor").exists())
         self.assertEqual(Flavor.objects.get(name="食").created_by, self.target)
         self.assertEqual(Flavor.objects.get(name="行").created_by, survivor)
         self.assertEqual(Can.objects.get().recorder, survivor)
@@ -268,9 +308,30 @@ class LegacyImportTests(TestCase):
             "cans": Can.objects.count(),
             "ledger": LegacyImportRecord.objects.count(),
         }
+
+        # Simulate a database imported by the previous fixed-target-wins rule.
+        self.target.username = "target"
+        self.target.set_password("keep-me")
+        self.target.is_staff = False
+        self.target.is_superuser = False
+        self.target.save(
+            update_fields=["username", "password", "is_staff", "is_superuser"]
+        )
+        old_ledger = LegacyImportRecord.objects.get(
+            source_system="hinghwa-dict-backend",
+            source_table="auth_user",
+            source_id="1",
+        )
+        old_ledger.metadata = {
+            "privileges_inherited": False,
+            "email_cleared": False,
+        }
+        old_ledger.save(update_fields=["metadata", "updated_at"])
+
         with open_legacy_database(self.source_path) as connection:
             rerun = HinghwaImporter(connection, apply=True).run()
         self.assertEqual(rerun["skipped"]["users"], 3)
+        self.assertEqual(rerun["normalized"]["account_identity_repairs"], 1)
         self.assertEqual(
             counts,
             {
@@ -280,8 +341,46 @@ class LegacyImportTests(TestCase):
                 "ledger": LegacyImportRecord.objects.count(),
             },
         )
+        self.target.refresh_from_db()
+        self.assertEqual(self.target.username, "source_target_merge")
+        self.assertEqual(self.target.password, "hash-1")
+        self.assertTrue(self.target.is_staff)
+        self.assertTrue(self.target.is_superuser)
         target_info.refresh_from_db()
         self.assertEqual((target_info.points_now, target_info.points_sum), (7, 13))
+
+    def test_more_recent_target_login_wins_when_admin_status_is_equal(self):
+        connection = sqlite3.connect(self.source_path)
+        connection.execute(
+            "UPDATE auth_user SET is_staff = 0, is_superuser = 0, "
+            "last_login = '2020-01-01 00:00:00' WHERE id = 1"
+        )
+        connection.commit()
+        connection.close()
+        self.target.last_login = parse_legacy_datetime("2025-01-01 00:00:00")
+        self.target.save(update_fields=["last_login"])
+
+        with open_legacy_database(self.source_path) as connection:
+            HinghwaImporter(connection, apply=True).run()
+
+        self.target.refresh_from_db()
+        self.assertEqual(self.target.username, "target")
+        self.assertTrue(self.target.check_password("keep-me"))
+        ledger = LegacyImportRecord.objects.get(
+            source_system="hinghwa-dict-backend",
+            source_table="auth_user",
+            source_id="1",
+        )
+        self.assertEqual(ledger.metadata["identity_winner"], "target")
+
+    def test_dry_run_reports_third_party_identity_conflict(self):
+        User.objects.create_user(username="source_target_merge")
+
+        with open_legacy_database(self.source_path) as connection:
+            report = HinghwaImporter(connection, apply=False).run()
+
+        self.assertIn({"source_ids": [1], "reason": "username"}, report["conflicts"])
+        self.assertEqual(LegacyImportRecord.objects.count(), 0)
 
     def test_sanitized_fixture_dry_run_and_idempotent_load(self):
         payload = {

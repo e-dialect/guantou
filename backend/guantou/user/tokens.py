@@ -40,6 +40,8 @@ def token_pass(token, user_id=0):
 
     if info["exp"] < timezone.now().timestamp():
         raise OutdatedException()
+    if user.username != info["username"]:
+        raise InvalidTokenException()
     if user_id == -1 and not user.is_superuser:
         raise OnlyAdminException()
     if user_id > 0 and user.id != user_id and not user.is_superuser:

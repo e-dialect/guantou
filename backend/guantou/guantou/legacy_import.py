@@ -4,9 +4,12 @@ import json
 import sqlite3
 from collections import defaultdict
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 
+from django.contrib.auth import SESSION_KEY
 from django.contrib.auth.models import User
+from django.contrib.sessions.models import Session
 from django.db import models, transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
@@ -177,10 +180,31 @@ def row_fingerprint(row):
 
 
 def parse_legacy_datetime(value):
-    parsed = parse_datetime(str(value or ""))
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        parsed = parse_datetime(str(value or ""))
     if parsed is not None and timezone.is_naive(parsed):
         parsed = timezone.make_aware(parsed, timezone.get_default_timezone())
     return parsed
+
+
+def account_priority(*, is_staff, is_superuser, last_login):
+    parsed_login = parse_legacy_datetime(last_login)
+    return (
+        bool(is_staff or is_superuser),
+        parsed_login.timestamp() if parsed_login else float("-inf"),
+    )
+
+
+def invalidate_user_sessions(user_id):
+    for session in Session.objects.filter(expire_date__gt=timezone.now()):
+        try:
+            session_user_id = session.get_decoded().get(SESSION_KEY)
+        except Exception:
+            continue
+        if str(session_user_id) == str(user_id):
+            session.delete()
 
 
 def validate_source_schema(connection):
@@ -242,6 +266,28 @@ class HinghwaImporter:
                 grouped[email].append(row["id"])
         return {email for email, ids in grouped.items() if len(ids) > 1}
 
+    def _source_priority(self, row):
+        return account_priority(
+            is_staff=bool(row["is_staff"]),
+            is_superuser=bool(row["is_superuser"]),
+            last_login=row["last_login"],
+        )
+
+    def _source_survivor_key(self, row):
+        return (
+            *self._source_priority(row),
+            bool(str(row["wechat"] or "").strip()),
+            -int(row["id"]),
+        )
+
+    def _source_wins_target(self, row, target_user):
+        target_priority = account_priority(
+            is_staff=target_user.is_staff,
+            is_superuser=target_user.is_superuser,
+            last_login=target_user.last_login,
+        )
+        return self._source_priority(row) > target_priority
+
     def _build_user_groups(self):
         by_phone = defaultdict(list)
         singles = []
@@ -256,13 +302,7 @@ class HinghwaImporter:
             if len(rows) == 1:
                 groups.append(rows)
                 continue
-            survivor = sorted(
-                rows,
-                key=lambda row: (
-                    not bool(str(row["wechat"] or "").strip()),
-                    row["id"],
-                ),
-            )[0]
+            survivor = max(rows, key=self._source_survivor_key)
             groups.append(
                 [survivor, *[row for row in rows if row["id"] != survivor["id"]]]
             )
@@ -282,12 +322,11 @@ class HinghwaImporter:
         self.report["normalized"]["internal_phone_merge_groups"] = sum(
             1 for rows in self.user_groups if len(rows) > 1
         )
-        target_phones = {
-            normalize_phone(value)
-            for value in UserInfo.objects.exclude(telephone="").values_list(
-                "telephone", flat=True
-            )
+        target_infos_by_phone = {
+            normalize_phone(info.telephone): info
+            for info in UserInfo.objects.select_related("user").exclude(telephone="")
         }
+        target_phones = set(target_infos_by_phone)
         pending_groups = [
             rows
             for rows in self.user_groups
@@ -321,7 +360,15 @@ class HinghwaImporter:
         )
         for rows in pending_groups:
             survivor = rows[0]
-            if normalize_phone(survivor["telephone"]) in target_phones:
+            target_info = target_infos_by_phone.get(
+                normalize_phone(survivor["telephone"])
+            )
+            if target_info:
+                if self._source_wins_target(survivor, target_info.user):
+                    self.report["normalized"]["source_identity_wins"] += 1
+                    conflict = self._identity_conflict(survivor, target_info.user)
+                    if conflict:
+                        self._add_conflict(rows, conflict)
                 continue
             email = normalize_email(survivor["email"])
             if email in self.duplicate_emails:
@@ -401,10 +448,139 @@ class HinghwaImporter:
             return ledger.target_id
         return None
 
+    def _source_email(self, row):
+        email = normalize_email(row["email"])
+        return "" if email in self.duplicate_emails else email
+
+    def _identity_conflict(self, row, target_user):
+        if User.objects.exclude(pk=target_user.pk).filter(username=row["username"]):
+            return "username"
+        email = self._source_email(row)
+        if email and User.objects.exclude(pk=target_user.pk).filter(
+            email__iexact=email
+        ):
+            return "email"
+        wechat = str(row["wechat"] or "").strip()
+        if wechat and UserInfo.objects.exclude(user=target_user).filter(wechat=wechat):
+            return "wechat"
+        qq = str(row["qq"] or "").strip()
+        if qq and UserInfo.objects.exclude(user=target_user).filter(qq=qq):
+            return "qq"
+        return None
+
+    def _adopt_source_identity(self, target_info, row):
+        user = target_info.user
+        invalidate_user_sessions(user.pk)
+        user.password = row["password"]
+        user.last_login = parse_legacy_datetime(row["last_login"])
+        user.is_superuser = bool(row["is_superuser"])
+        user.username = row["username"]
+        user.first_name = row["first_name"]
+        user.last_name = row["last_name"]
+        user.email = self._source_email(row)
+        user.is_staff = bool(row["is_staff"])
+        user.is_active = bool(row["is_active"])
+        user.date_joined = (
+            parse_legacy_datetime(row["date_joined"])
+            or user.date_joined
+            or timezone.now()
+        )
+        user.save(
+            update_fields=[
+                "password",
+                "last_login",
+                "is_superuser",
+                "username",
+                "first_name",
+                "last_name",
+                "email",
+                "is_staff",
+                "is_active",
+                "date_joined",
+            ]
+        )
+        user.groups.clear()
+        user.user_permissions.clear()
+
+        location = normalize_legacy_location(row["county"], row["town"], for_user=True)
+        primary_dialect = resolve_dialect(location["qualified_code"])
+        birthday_text = str(row["birthday"] or "").strip()
+        avatar = str(row["avatar"] or "").strip()
+        target_info.wechat = str(row["wechat"] or "").strip()
+        target_info.qq = str(row["qq"] or "").strip()
+        target_info.nickname = row["nickname"] or row["username"]
+        target_info.birthday = (
+            None if birthday_text == "1970-01-01" else parse_date(birthday_text)
+        )
+        target_info.avatar = "" if "默认头像" in avatar else avatar
+        target_info.primary_dialect = primary_dialect
+        target_info.legacy_location = location["legacy"]
+        target_info.save(
+            update_fields=[
+                "wechat",
+                "qq",
+                "nickname",
+                "birthday",
+                "avatar",
+                "primary_dialect",
+                "legacy_location",
+                "updated_at",
+            ]
+        )
+        if primary_dialect:
+            target_info.followed_dialects.add(primary_dialect)
+
+    def _repair_completed_user_group(self, rows):
+        ledgers = [self._ledger("auth_user", row["id"]) for row in rows]
+        if not ledgers or any(ledger is None for ledger in ledgers):
+            return False
+        if any(
+            ledger.fingerprint != row_fingerprint(row)
+            for ledger, row in zip(ledgers, rows, strict=True)
+        ):
+            self._add_conflict(rows, "source_changed_after_import")
+            return False
+        target_ids = {ledger.target_id for ledger in ledgers}
+        if len(target_ids) != 1:
+            return False
+        target_info = (
+            UserInfo.objects.select_related("user")
+            .filter(user_id=target_ids.pop())
+            .first()
+        )
+        if target_info is None:
+            self._add_conflict(rows, "mapped_target_missing")
+            return False
+        survivor = rows[0]
+        if target_info.user.username == survivor["username"]:
+            return False
+        if not self._source_wins_target(survivor, target_info.user):
+            return False
+        conflict = self._identity_conflict(survivor, target_info.user)
+        if conflict:
+            self._add_conflict(rows, conflict)
+            return False
+        with transaction.atomic():
+            self._adopt_source_identity(target_info, survivor)
+            for ledger in ledgers:
+                metadata = dict(ledger.metadata or {})
+                metadata.update(
+                    {
+                        "identity_winner": "source",
+                        "privileges_inherited": True,
+                        "repair_applied": True,
+                    }
+                )
+                ledger.metadata = metadata
+                ledger.save(update_fields=["metadata", "updated_at"])
+        self.report["normalized"]["account_identity_repairs"] += 1
+        return True
+
     def import_users(self):
         groups = self.user_groups[: self.limit] if self.limit else self.user_groups
         for rows in groups:
             if all(self._existing_user_mapping(row["id"]) for row in rows):
+                self._repair_completed_user_group(rows)
                 for row in rows:
                     ledger = self._ledger("auth_user", row["id"])
                     metadata = dict(ledger.metadata or {})
@@ -425,6 +601,12 @@ class HinghwaImporter:
                 else None
             )
             if target_info:
+                source_wins = self._source_wins_target(survivor, target_info.user)
+                if source_wins:
+                    conflict = self._identity_conflict(survivor, target_info.user)
+                    if conflict:
+                        self._add_conflict(rows, conflict)
+                        continue
                 with transaction.atomic():
                     points_now = sum(int(row["points_now"] or 0) for row in rows)
                     points_sum = sum(int(row["points_sum"] or 0) for row in rows)
@@ -440,17 +622,26 @@ class HinghwaImporter:
                             target_info.user,
                             action="merged_target_phone",
                             metadata={
-                                "privileges_inherited": False,
+                                "identity_winner": (
+                                    "source" if source_wins else "target"
+                                ),
+                                "privileges_inherited": source_wins,
                                 "email_cleared": normalize_email(row["email"])
                                 in self.duplicate_emails,
+                                "retired_login": (
+                                    source_wins and row["id"] != survivor["id"]
+                                ),
                             },
                         )
                         self.user_map[row["id"]] = target_info.user_id
+                    if source_wins:
+                        self._adopt_source_identity(target_info, survivor)
                 self.report["merged"].append(
                     {
                         "source_ids": [row["id"] for row in rows],
                         "target_id": target_info.user_id,
                         "reason": "target_phone_match",
+                        "identity_winner": "source" if source_wins else "target",
                     }
                 )
                 continue

@@ -11,8 +11,9 @@ from guantou.models import Dialect
 from user.models import EmailVerification, UserInfo
 from user.view.wechat import OpenId
 from utils.exceptions.types.not_found import NotFoundException
+from utils.exceptions.types.unauthorized import InvalidTokenException
 
-from .tokens import generate_token
+from .tokens import generate_token, token_user
 from .verification import (
     check_email_code,
     issue_email_code,
@@ -413,6 +414,14 @@ class BearerTokenTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 401)
+
+    def test_token_is_invalid_after_account_username_is_replaced(self):
+        token = generate_token(self.user)
+        self.user.username = "replacement-login"
+        self.user.save(update_fields=["username"])
+
+        with self.assertRaises(InvalidTokenException):
+            token_user(token)
 
 
 class UserPrimaryDialectTests(TestCase):
