@@ -25,5 +25,5 @@ audioop-lts; python_version >= "3.13"
 cos-python-sdk-v5
 
 # Development Tools
-setuptools>=83.0.0,<84
+setuptools>=84.0.0,<85
 black==26.5.1
