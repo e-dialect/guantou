@@ -96,6 +96,6 @@
     "unplugin-vue-components": "^0.25.1",
     "vite": "5.4.21",
     "vitest": "2.1.9",
-    "wait-on": "^9.0.10"
+    "wait-on": "^9.1.0"
   }
 }
