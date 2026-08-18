@@ -418,6 +418,24 @@ class Can(models.Model):
         verbose_name_plural = "罐头"
 
 
+class DailyCanSelection(models.Model):
+    """Persisted per-day choice for the homepage "today can" source."""
+
+    date = models.DateField(unique=True, verbose_name="日期")
+    can = models.ForeignKey(
+        Can,
+        on_delete=models.CASCADE,
+        related_name="daily_selections",
+        verbose_name="当日罐头",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="选择时间")
+
+    class Meta:
+        ordering = ["-date"]
+        verbose_name = "今日罐选择"
+        verbose_name_plural = "今日罐选择"
+
+
 class CanLike(models.Model):
     can = models.ForeignKey(
         Can,

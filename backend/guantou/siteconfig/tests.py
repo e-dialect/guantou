@@ -104,10 +104,15 @@ class SiteSettingsTests(TestCase):
             HTTP_AUTHORIZATION=bearer(self.admin),
         )
         self.assertEqual(response.status_code, 200)
-        response = self.client.get("/site-settings/featured-cans")
+        response = self.client.get(
+            "/site-settings/featured-cans", HTTP_AUTHORIZATION=bearer(self.admin)
+        )
         self.assertEqual(response.status_code, 200)
-        ids = [item["id"] for item in response.json()["featured_cans"]]
-        self.assertEqual(ids, [second.id, first.id])
+        self.assertEqual(response.json()["featured_cans"], [second.id, first.id])
+
+    def test_featured_cans_anonymous_get_requires_admin(self):
+        response = self.client.get("/site-settings/featured-cans")
+        self.assertEqual(response.status_code, 401)
 
     def test_featured_cans_reject_dangling_hidden_and_duplicate_ids(self):
         visible = Can.objects.create(
@@ -120,7 +125,15 @@ class SiteSettingsTests(TestCase):
         settings.featured_cans = [visible.id]
         settings.save(update_fields=["featured_cans"])
 
-        for ids in ([hidden.id], [999999], [visible.id, visible.id], ["bad-id"]):
+        for ids in (
+            [hidden.id],
+            [999999],
+            [visible.id, visible.id],
+            ["bad-id"],
+            [True],
+            [1.5],
+            ["1"],
+        ):
             with self.subTest(ids=ids):
                 response = self.client.put(
                     "/site-settings/featured-cans",

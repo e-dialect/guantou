@@ -1,4 +1,4 @@
-import { getDiscovery, listCans } from '@/services/guantou';
+import { getTodayCan as getTodayCanApi, listCans } from '@/services/guantou';
 
 export const HOME_FEED_TABS = [
   { key: 'today', label: '今日罐' },
@@ -14,7 +14,6 @@ const FEED_PARAM_BY_TAB = {
   recommended: 'recommended',
 };
 
-const TODAY_CAN_STORAGE_KEY = 'home_today_can';
 
 /**
  * 首页内容流列表：四 tab 映射后端 feed 参数（今日罐走独立策略，见 getTodayCan）。
@@ -37,60 +36,13 @@ export function getNameplatePreview(canId, can = null) {
   return { previews, total };
 }
 
-function todayStamp() {
-  const now = new Date();
-  return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
-}
-
-/**
- * 本地日期序号：与 todayStamp 缓存键同源（都按本地日历日），
- * 避免 UTC epoch 天数在 UTC+ 时区导致轮换延迟与跨日重复。
- */
-function localDaySerial() {
-  const now = new Date();
-  return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000;
-}
-
-function readTodayCache() {
-  try {
-    const raw = uni.getStorageSync(TODAY_CAN_STORAGE_KEY);
-    if (!raw) return null;
-    const cached = JSON.parse(raw);
-    if (cached && cached.date === todayStamp() && cached.can) return cached.can;
-  } catch (error) {
-    uni.removeStorageSync(TODAY_CAN_STORAGE_KEY);
-  }
-  return null;
-}
-
-function writeTodayCache(can) {
-  try {
-    uni.setStorageSync(TODAY_CAN_STORAGE_KEY, JSON.stringify({ date: todayStamp(), can }));
-  } catch (error) {
-    // 缓存失败不影响主流程
-  }
-}
-
-/**
- * 今日罐（v1 前端策略）：getDiscovery().hot_cans 按当日日期序确定性轮转，
- * storage 当日键缓存；失败回退推荐流首条。
- */
 export async function getTodayCan() {
-  const cached = readTodayCache();
-  if (cached) return cached;
-
   try {
-    const discovery = await getDiscovery();
-    const hotCans = discovery.hot_cans || [];
-    if (!hotCans.length) throw new Error('no hot cans');
-    const can = hotCans[localDaySerial() % hotCans.length];
-    writeTodayCache(can);
-    return can;
+    return await getTodayCanApi();
   } catch (error) {
     const response = await listCans({ feed: 'recommended', page: 1, page_size: 1 });
     const fallback = (response.results || [])[0];
     if (!fallback) throw new Error('no today can available');
-    writeTodayCache(fallback);
     return fallback;
   }
 }

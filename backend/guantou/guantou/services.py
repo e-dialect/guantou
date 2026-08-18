@@ -23,6 +23,7 @@ from utils.exceptions.types.conflict import ConflictException
 
 from .models import (
     Can,
+    DailyCanSelection,
     CanLike,
     CanPost,
     Flavor,
@@ -87,15 +88,15 @@ def visible_cans_for_user(user):
     return queryset.filter(visibility=True)
 
 
-def daily_can(user=None):
-    """Return the deterministic daily can.
+def _select_daily_can_id():
+    """Pick today's can id using the public candidate pools.
 
     Selection precedence:
     1. operator-configured featured cans (date rotation within the pool)
     2. verified cans carrying a complete primary nameplate
     3. any public can
     """
-    public = visible_cans_for_user(user).filter(visibility=True)
+    public = visible_cans_for_user(None).filter(visibility=True)
     today_ordinal = timezone.localdate().toordinal()
 
     from siteconfig.models import SiteSettings
@@ -108,7 +109,7 @@ def daily_can(user=None):
         )
         ordered = [item for item in featured_ids if item in visible_featured]
         if ordered:
-            return Can.objects.get(pk=ordered[today_ordinal % len(ordered)])
+            return ordered[today_ordinal % len(ordered)]
 
     preferred_ids = list(
         public.filter(
@@ -127,7 +128,34 @@ def daily_can(user=None):
         preferred_ids = list(public.order_by("id").values_list("id", flat=True))
     if not preferred_ids:
         return None
-    return Can.objects.get(pk=preferred_ids[today_ordinal % len(preferred_ids)])
+    return preferred_ids[today_ordinal % len(preferred_ids)]
+
+
+@transaction.atomic
+def daily_can(user=None):
+    """Return the fully annotated daily can, persisted per calendar day."""
+    today = timezone.localdate()
+
+    from siteconfig.models import SiteSettings
+
+    # Serialize first-selection by locking the stable singleton row.
+    settings = SiteSettings.get_solo()
+    SiteSettings.objects.select_for_update().filter(pk=settings.pk).first()
+
+    selection = DailyCanSelection.objects.filter(date=today).first()
+    can_id = selection.can_id if selection else None
+    if can_id is None or not Can.objects.filter(pk=can_id, visibility=True).exists():
+        can_id = _select_daily_can_id()
+        if can_id is None:
+            return None
+        DailyCanSelection.objects.update_or_create(
+            date=today, defaults={"can_id": can_id}
+        )
+
+    return with_can_card_annotations(
+        visible_cans_for_user(user).filter(visibility=True, pk=can_id),
+        user,
+    ).first()
 
 
 def search_flavors(keyword, limit):

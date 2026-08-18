@@ -55,6 +55,10 @@ export function listCans(params = {}) {
   return request.get('/cans/', params);
 }
 
+export function getTodayCan() {
+  return request.get('/cans/today/', {}, true);
+}
+
 export function getCan(id) {
   return request.get(`/cans/${id}/`);
 }

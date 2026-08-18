@@ -1,5 +1,6 @@
 import demjson3
 from django.http import JsonResponse
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from announcements.dto.announcement import announcement_normal
@@ -47,10 +48,11 @@ def validated_announcement_ids(value):
 def validated_can_ids(value):
     if not isinstance(value, list):
         return None
-    try:
-        ids = [int(item) for item in value]
-    except (TypeError, ValueError):
-        return None
+    ids = []
+    for item in value:
+        if isinstance(item, bool) or not isinstance(item, int):
+            return None
+        ids.append(item)
     if any(item <= 0 for item in ids) or len(ids) != len(set(ids)):
         return None
     from guantou.models import Can
@@ -120,30 +122,20 @@ def featured_announcements(request):
 @csrf_exempt
 def featured_cans(request):
     item = SiteSettings.get_solo()
+    if not admin_user_from_request(request):
+        return JsonResponse({}, status=401)
     if request.method == "GET":
-        from guantou.models import Can
-        from guantou.serializers import CanCardSerializer
-
-        cans = order_by_id_list(
-            Can.objects.filter(id__in=item.featured_cans), item.featured_cans
-        )
-        return JsonResponse(
-            {
-                "featured_cans": [
-                    CanCardSerializer(can, context={"request": request}).data
-                    for can in cans
-                ]
-            },
-            status=200,
-        )
+        return JsonResponse({"featured_cans": item.featured_cans}, status=200)
     if request.method == "PUT":
-        if not admin_user_from_request(request):
-            return JsonResponse({}, status=401)
         body = demjson3.decode(request.body)
         ids = validated_can_ids(body.get("featured_cans"))
         if ids is not None:
             item.featured_cans = ids
             item.save(update_fields=["featured_cans"])
+            # 修改置顶池后清空当日选择，下一次 /cans/today/ 立即重新选择。
+            from guantou.models import DailyCanSelection
+
+            DailyCanSelection.objects.filter(date=timezone.localdate()).delete()
             return JsonResponse({}, status=200)
         return JsonResponse({}, status=400)
     return JsonResponse({}, status=405)

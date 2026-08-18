@@ -7,7 +7,16 @@ from rest_framework.test import APIClient
 
 from user.models import UserInfo
 
-from .models import Can, Dialect, Flavor, Nameplate, Package
+from .models import (
+    Can,
+    CanComment,
+    CanLike,
+    Dialect,
+    Flavor,
+    Nameplate,
+    NameplateSupport,
+    Package,
+)
 from .services import daily_can
 
 
@@ -95,3 +104,67 @@ class DailyCanTests(TestCase):
         settings.save(update_fields=["featured_cans"])
         result = daily_can()
         self.assertEqual(result.id, featured.id)
+
+    def _complete_nameplate(self, can, text="moon"):
+        package = Package.objects.create(
+            text=text, package_type=Package.PackageType.ORTHODOX
+        )
+        flavor = Flavor.objects.create(name=text, definition="definition")
+        return Nameplate.objects.create(
+            can=can,
+            flavor=flavor,
+            package=package,
+            dialect=self.dialect,
+            creator=self.author,
+            text_content=text,
+            source={"type": Nameplate.SourceType.CREATOR},
+            status=Nameplate.Status.ACTIVE,
+            is_primary=True,
+        )
+
+    def test_daily_can_counts_only_public_comments(self):
+        can = self.make_can("moon")
+        plate = self._complete_nameplate(can)
+        CanComment.objects.create(
+            can=can, author=self.author, content="public", nameplate=None
+        )
+        CanComment.objects.create(
+            can=can, author=self.author, content="nameplate", nameplate=plate
+        )
+        response = self.client.get("/cans/today/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["comment_count"], 1)
+
+    def test_daily_can_includes_current_user_state(self):
+        can = self.make_can("moon")
+        plate = self._complete_nameplate(can)
+        viewer = User.objects.create_user(username="viewer", password="pw")
+        UserInfo.objects.create(user=viewer, nickname="viewer")
+        CanLike.objects.create(can=can, user=viewer)
+        NameplateSupport.objects.create(nameplate=plate, user=viewer)
+
+        client = APIClient()
+        client.force_authenticate(viewer)
+        response = client.get("/cans/today/")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["liked_by_me"])
+        self.assertTrue(
+            response.data["nameplate_previews"][0]["supported_by_current_user"]
+        )
+
+    def test_daily_can_stays_stable_when_pool_changes_mid_day(self):
+        self.make_can("a")
+        self.make_can("b")
+        first = daily_can()
+        self.make_can("c")
+        second = daily_can()
+        self.assertEqual(second.id, first.id)
+
+    def test_daily_can_reselects_when_selected_can_hidden(self):
+        self.make_can("a")
+        self.make_can("b")
+        first = daily_can()
+        Can.objects.filter(pk=first.id).update(visibility=False)
+        second = daily_can()
+        self.assertNotEqual(second.id, first.id)
+        self.assertTrue(second.visibility)
