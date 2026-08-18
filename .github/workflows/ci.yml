@@ -31,11 +31,9 @@ jobs:
     env:
       SECRET_KEY: ci-secret-key
       JWT_KEY: ci-jwt-key
+    # 音频解码在单测中被隔离；运行时 ffmpeg 由 Docker 镜像构建负责验证。
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Set up Python
         uses: actions/setup-python@v7
