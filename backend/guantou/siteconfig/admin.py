@@ -5,7 +5,13 @@ from .models import SiteSettings
 
 @admin.register(SiteSettings)
 class SiteSettingsAdmin(admin.ModelAdmin):
-    list_display = ("id", "announcements", "featured_announcements", "carousel")
+    list_display = (
+        "id",
+        "announcements",
+        "featured_announcements",
+        "featured_cans",
+        "carousel",
+    )
 
     def has_add_permission(self, request):
         return not SiteSettings.objects.exists()

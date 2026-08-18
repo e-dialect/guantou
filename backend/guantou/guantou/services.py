@@ -88,13 +88,28 @@ def visible_cans_for_user(user):
 
 
 def daily_can(user=None):
-    """Return a deterministic single daily can, preferring verified quality cans.
+    """Return the deterministic daily can.
 
-    The candidate pool is public, verified cans that carry a complete primary
-    nameplate. When that pool is empty, fall back to any public can so the
-    endpoint still returns stable daily content during early data growth.
+    Selection precedence:
+    1. operator-configured featured cans (date rotation within the pool)
+    2. verified cans carrying a complete primary nameplate
+    3. any public can
     """
     public = visible_cans_for_user(user).filter(visibility=True)
+    today_ordinal = timezone.localdate().toordinal()
+
+    from siteconfig.models import SiteSettings
+
+    settings = SiteSettings.objects.filter(pk=1).first()
+    featured_ids = [int(item) for item in (settings.featured_cans if settings else [])]
+    if featured_ids:
+        visible_featured = set(
+            public.filter(id__in=featured_ids).values_list("id", flat=True)
+        )
+        ordered = [item for item in featured_ids if item in visible_featured]
+        if ordered:
+            return Can.objects.get(pk=ordered[today_ordinal % len(ordered)])
+
     preferred_ids = list(
         public.filter(
             status=Can.Status.VERIFIED,
@@ -112,8 +127,7 @@ def daily_can(user=None):
         preferred_ids = list(public.order_by("id").values_list("id", flat=True))
     if not preferred_ids:
         return None
-    selected_id = preferred_ids[timezone.localdate().toordinal() % len(preferred_ids)]
-    return Can.objects.get(pk=selected_id)
+    return Can.objects.get(pk=preferred_ids[today_ordinal % len(preferred_ids)])
 
 
 def search_flavors(keyword, limit):

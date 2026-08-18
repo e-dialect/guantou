@@ -44,6 +44,23 @@ def validated_announcement_ids(value):
     return ids if visible_ids == set(ids) else None
 
 
+def validated_can_ids(value):
+    if not isinstance(value, list):
+        return None
+    try:
+        ids = [int(item) for item in value]
+    except (TypeError, ValueError):
+        return None
+    if any(item <= 0 for item in ids) or len(ids) != len(set(ids)):
+        return None
+    from guantou.models import Can
+
+    visible_ids = set(
+        Can.objects.filter(id__in=ids, visibility=True).values_list("id", flat=True)
+    )
+    return ids if visible_ids == set(ids) else None
+
+
 @csrf_exempt
 def announcements(request):
     item = SiteSettings.get_solo()
@@ -95,6 +112,38 @@ def featured_announcements(request):
         if ids is not None:
             item.featured_announcements = ids
             item.save(update_fields=["featured_announcements"])
+            return JsonResponse({}, status=200)
+        return JsonResponse({}, status=400)
+    return JsonResponse({}, status=405)
+
+
+@csrf_exempt
+def featured_cans(request):
+    item = SiteSettings.get_solo()
+    if request.method == "GET":
+        from guantou.models import Can
+        from guantou.serializers import CanCardSerializer
+
+        cans = order_by_id_list(
+            Can.objects.filter(id__in=item.featured_cans), item.featured_cans
+        )
+        return JsonResponse(
+            {
+                "featured_cans": [
+                    CanCardSerializer(can, context={"request": request}).data
+                    for can in cans
+                ]
+            },
+            status=200,
+        )
+    if request.method == "PUT":
+        if not admin_user_from_request(request):
+            return JsonResponse({}, status=401)
+        body = demjson3.decode(request.body)
+        ids = validated_can_ids(body.get("featured_cans"))
+        if ids is not None:
+            item.featured_cans = ids
+            item.save(update_fields=["featured_cans"])
             return JsonResponse({}, status=200)
         return JsonResponse({}, status=400)
     return JsonResponse({}, status=405)

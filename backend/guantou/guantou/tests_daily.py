@@ -84,3 +84,14 @@ class DailyCanTests(TestCase):
         )
         result = daily_can()
         self.assertEqual(result.id, verified.id)
+
+    def test_daily_can_prefers_featured_pool(self):
+        from siteconfig.models import SiteSettings
+
+        featured = self.make_can("featured", status=Can.Status.PENDING)
+        self.make_can("regular", status=Can.Status.PENDING)
+        settings = SiteSettings.get_solo()
+        settings.featured_cans = [featured.id]
+        settings.save(update_fields=["featured_cans"])
+        result = daily_can()
+        self.assertEqual(result.id, featured.id)
