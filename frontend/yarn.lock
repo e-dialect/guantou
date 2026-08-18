@@ -1315,6 +1315,63 @@
     unplugin-auto-import "19.1.0"
     xregexp "5.1.2"
 
+"@dcloudio/uni-cli-shared@3.0.0-5020420260813002":
+  version "3.0.0-5020420260813002"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-cli-shared/-/uni-cli-shared-3.0.0-5020420260813002.tgz#bb6792f56f5272373354906b32be8e3de4d0567a"
+  integrity sha512-SqbHVn8T3o9ZJq4RzK9wFyamBsHxMicD9ZTT/USPVyTsdea5oYnhq9BeXHutZBtYVE0Z5rjSsZuEJ/jbaCyTZw==
+  dependencies:
+    "@ampproject/remapping" "^2.1.2"
+    "@babel/code-frame" "7.24.7"
+    "@babel/core" "7.25.2"
+    "@babel/parser" "7.25.6"
+    "@babel/types" "7.25.6"
+    "@dcloudio/uni-i18n" "3.0.0-5020420260813002"
+    "@dcloudio/uni-nvue-styler" "3.0.0-5020420260813002"
+    "@dcloudio/uni-shared" "3.0.0-5020420260813002"
+    "@intlify/core-base" "9.1.9"
+    "@intlify/shared" "9.1.9"
+    "@intlify/vue-devtools" "9.1.9"
+    "@rollup/pluginutils" "5.1.0"
+    "@vue/compiler-core" "3.4.21"
+    "@vue/compiler-dom" "3.4.21"
+    "@vue/compiler-sfc" "3.4.21"
+    "@vue/compiler-ssr" "3.4.21"
+    "@vue/server-renderer" "3.4.21"
+    "@vue/shared" "3.4.21"
+    adm-zip "0.5.16"
+    autoprefixer "10.4.20"
+    base64url "^3.0.1"
+    chokidar "3.6.0"
+    compare-versions "^3.6.0"
+    debug "4.3.7"
+    entities "^7.0.0"
+    es-module-lexer "1.5.4"
+    esbuild "0.20.2"
+    estree-walker "2.0.2"
+    fast-glob "3.3.3"
+    fs-extra "10.1.0"
+    hash-sum "2.0.0"
+    isbinaryfile "5.0.2"
+    jsonc-parser "3.3.1"
+    lines-and-columns "^2.0.4"
+    magic-string "0.30.11"
+    merge "2.1.1"
+    mime "3.0.0"
+    module-alias "2.2.3"
+    os-locale-s-fix "^1.0.8-fix-1"
+    picocolors "1.1.0"
+    postcss-import "^14.0.2"
+    postcss-load-config "^3.1.1"
+    postcss-modules "^4.3.0"
+    postcss-selector-parser "6.1.2"
+    resolve "1.22.8"
+    source-map-js "1.2.1"
+    tapable "^2.2.0"
+    tinycolor2 "1.6.0"
+    unimport "4.1.1"
+    unplugin-auto-import "19.1.0"
+    xregexp "5.1.2"
+
 "@dcloudio/uni-cloud@3.0.0-4080720251210001":
   version "3.0.0-4080720251210001"
   resolved "https://registry.npmjs.org/@dcloudio/uni-cloud/-/uni-cloud-3.0.0-4080720251210001.tgz"
@@ -1473,6 +1530,11 @@
   resolved "https://registry.yarnpkg.com/@dcloudio/uni-i18n/-/uni-i18n-3.0.0-5020320260806002.tgz#fa44758ec618d0e26d63d13849d60d7089f8a182"
   integrity sha512-6PNuwYAaEl0jtl5qhE3hqg01zckM2tg49MmDJ6Z2UZEZ26LT8fi3roEo0SC5WZtH5va8PA3k8Ix+JoND8lqtXw==
 
+"@dcloudio/uni-i18n@3.0.0-5020420260813002":
+  version "3.0.0-5020420260813002"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-i18n/-/uni-i18n-3.0.0-5020420260813002.tgz#c29ad087c846294a3f4ef193a577914b6d672331"
+  integrity sha512-sVQj9HjqflYdbndaLTJ9d+JE9uwGBkaDuEOS9kg0zweBNgXnV8jqPXee7bOiUCVELmOCEpjm44KoLiIc6vGj9A==
+
 "@dcloudio/uni-mp-alipay@3.0.0-4080720251210001":
   version "3.0.0-4080720251210001"
   resolved "https://registry.npmjs.org/@dcloudio/uni-mp-alipay/-/uni-mp-alipay-3.0.0-4080720251210001.tgz"
@@ -1550,6 +1612,21 @@
     "@vue/shared" "3.4.21"
     estree-walker "2.0.2"
 
+"@dcloudio/uni-mp-compiler@3.0.0-5020420260813002":
+  version "3.0.0-5020420260813002"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-mp-compiler/-/uni-mp-compiler-3.0.0-5020420260813002.tgz#9391602dc6b50f95ab600af905744980eeb27635"
+  integrity sha512-GqFmhcQvoYCWzGhlO4bllQQiFCGObNIkiroB/uiTaQalI46ni/Odmfr4swWjzwdWYKyraKYHij/4uR26BjBjqg==
+  dependencies:
+    "@babel/generator" "7.25.6"
+    "@babel/parser" "7.25.6"
+    "@babel/types" "7.25.6"
+    "@dcloudio/uni-cli-shared" "3.0.0-5020420260813002"
+    "@dcloudio/uni-shared" "3.0.0-5020420260813002"
+    "@vue/compiler-core" "3.4.21"
+    "@vue/compiler-dom" "3.4.21"
+    "@vue/shared" "3.4.21"
+    estree-walker "2.0.2"
+
 "@dcloudio/uni-mp-harmony@3.0.0-5010520260709002":
   version "3.0.0-5010520260709002"
   resolved "https://registry.yarnpkg.com/@dcloudio/uni-mp-harmony/-/uni-mp-harmony-3.0.0-5010520260709002.tgz#5f489b0d4ddb1177f19b254be0c62167a8237cdc"
@@ -1575,17 +1652,17 @@
     "@dcloudio/uni-shared" "3.0.0-5010520260709002"
     "@vue/shared" "3.4.21"
 
-"@dcloudio/uni-mp-kuaishou@3.0.0-4080720251210001":
-  version "3.0.0-4080720251210001"
-  resolved "https://registry.npmjs.org/@dcloudio/uni-mp-kuaishou/-/uni-mp-kuaishou-3.0.0-4080720251210001.tgz"
-  integrity sha512-skgavnL/UwIX2ql9tJZ0nRnyOCupHzyZtJ3IMA9Ybk0tAqF9dmG0o8u9c5462ayfARnim97wkUeQ3sqfnqey3g==
+"@dcloudio/uni-mp-kuaishou@3.0.0-5020420260813002":
+  version "3.0.0-5020420260813002"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-mp-kuaishou/-/uni-mp-kuaishou-3.0.0-5020420260813002.tgz#dad16bd8279ede52add893d8a0f5f38fe08ebfd0"
+  integrity sha512-Jfj4JuAuaobrTPOModo9F+0l48BV9O2QV+QWxR9q+6I+/Yx38703eo9Q57L4KBhzYL0RD4NgqY+dDSkIPEgFNw==
   dependencies:
-    "@dcloudio/uni-cli-shared" "3.0.0-4080720251210001"
-    "@dcloudio/uni-mp-compiler" "3.0.0-4080720251210001"
-    "@dcloudio/uni-mp-vite" "3.0.0-4080720251210001"
-    "@dcloudio/uni-mp-vue" "3.0.0-4080720251210001"
-    "@dcloudio/uni-mp-weixin" "3.0.0-4080720251210001"
-    "@dcloudio/uni-shared" "3.0.0-4080720251210001"
+    "@dcloudio/uni-cli-shared" "3.0.0-5020420260813002"
+    "@dcloudio/uni-mp-compiler" "3.0.0-5020420260813002"
+    "@dcloudio/uni-mp-vite" "3.0.0-5020420260813002"
+    "@dcloudio/uni-mp-vue" "3.0.0-5020420260813002"
+    "@dcloudio/uni-mp-weixin" "3.0.0-5020420260813002"
+    "@dcloudio/uni-shared" "3.0.0-5020420260813002"
     "@vue/compiler-core" "3.4.21"
     "@vue/shared" "3.4.21"
 
@@ -1686,6 +1763,21 @@
     "@vue/shared" "3.4.21"
     debug "4.3.7"
 
+"@dcloudio/uni-mp-vite@3.0.0-5020420260813002":
+  version "3.0.0-5020420260813002"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-mp-vite/-/uni-mp-vite-3.0.0-5020420260813002.tgz#1d832793d557d330b0a130596ff02210451817de"
+  integrity sha512-buaChTgCfjJrEau36Uqqhl17UUenKqnkK3PzR5K1onJNQfqdPIgGUemO5MgSK3kJnv5eypRiPSRuWUubojLPsQ==
+  dependencies:
+    "@dcloudio/uni-cli-shared" "3.0.0-5020420260813002"
+    "@dcloudio/uni-i18n" "3.0.0-5020420260813002"
+    "@dcloudio/uni-mp-compiler" "3.0.0-5020420260813002"
+    "@dcloudio/uni-mp-vue" "3.0.0-5020420260813002"
+    "@dcloudio/uni-shared" "3.0.0-5020420260813002"
+    "@vue/compiler-dom" "3.4.21"
+    "@vue/compiler-sfc" "3.4.21"
+    "@vue/shared" "3.4.21"
+    debug "4.3.7"
+
 "@dcloudio/uni-mp-vue@3.0.0-4080720251210001":
   version "3.0.0-4080720251210001"
   resolved "https://registry.npmjs.org/@dcloudio/uni-mp-vue/-/uni-mp-vue-3.0.0-4080720251210001.tgz"
@@ -1708,6 +1800,14 @@
   integrity sha512-8dmzAoidwWbdj6gFr5zGy4ld+1/6ws4hDMPkYXPpAkwdJEB9OAjGtLt8xxpHYqRjjAIphD2oYjrSd38IGrQy9A==
   dependencies:
     "@dcloudio/uni-shared" "3.0.0-5020320260806002"
+    "@vue/shared" "3.4.21"
+
+"@dcloudio/uni-mp-vue@3.0.0-5020420260813002":
+  version "3.0.0-5020420260813002"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-mp-vue/-/uni-mp-vue-3.0.0-5020420260813002.tgz#bc9e5741736c6c71a745c8f01c788f8f83a9769c"
+  integrity sha512-TqI/eGbJZ3WIwzcU53lPYUYRi1XSDKPk+JwNuGgRlSgcPYPtqScS12L5Wd90mFqaw2AxKDoelfzN5Qoa1hyxFg==
+  dependencies:
+    "@dcloudio/uni-shared" "3.0.0-5020420260813002"
     "@vue/shared" "3.4.21"
 
 "@dcloudio/uni-mp-weixin@3.0.0-4080720251210001":
@@ -1736,6 +1836,23 @@
     "@dcloudio/uni-mp-vite" "3.0.0-5010520260709002"
     "@dcloudio/uni-mp-vue" "3.0.0-5010520260709002"
     "@dcloudio/uni-shared" "3.0.0-5010520260709002"
+    "@vue/shared" "3.4.21"
+    jimp "0.10.3"
+    licia "1.41.1"
+    qrcode-reader "1.0.4"
+    qrcode-terminal "0.12.0"
+    ws "8.18.0"
+
+"@dcloudio/uni-mp-weixin@3.0.0-5020420260813002":
+  version "3.0.0-5020420260813002"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-mp-weixin/-/uni-mp-weixin-3.0.0-5020420260813002.tgz#bc8fecd3c4dc14897baff4a89eff243a4c8da977"
+  integrity sha512-ZYSBdCD7rd/MzEdtOQiHaGru6C72HiDXBd4sncZ7FVMb02vWQreAKzbYRm5QM+p2pOooIJQTCp4ETS+uimixUA==
+  dependencies:
+    "@dcloudio/uni-cli-shared" "3.0.0-5020420260813002"
+    "@dcloudio/uni-mp-compiler" "3.0.0-5020420260813002"
+    "@dcloudio/uni-mp-vite" "3.0.0-5020420260813002"
+    "@dcloudio/uni-mp-vue" "3.0.0-5020420260813002"
+    "@dcloudio/uni-shared" "3.0.0-5020420260813002"
     "@vue/shared" "3.4.21"
     jimp "0.10.3"
     licia "1.41.1"
@@ -1777,6 +1894,16 @@
   version "3.0.0-5020320260806002"
   resolved "https://registry.yarnpkg.com/@dcloudio/uni-nvue-styler/-/uni-nvue-styler-3.0.0-5020320260806002.tgz#954d933488181676ad113862c6e8a54d032fbd34"
   integrity sha512-5agyv/4p7rcEROu9hi52FwfU6eZrNzIFuIMvjeo+YmO+I122xed2FWJvRZHp3zl0zWgLFRHU9aamq/QL80n9Ww==
+  dependencies:
+    "@vue/shared" "3.4.21"
+    parse-css-font "^4.0.0"
+    postcss "8.5.6"
+    tinycolor2 "1.6.0"
+
+"@dcloudio/uni-nvue-styler@3.0.0-5020420260813002":
+  version "3.0.0-5020420260813002"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-nvue-styler/-/uni-nvue-styler-3.0.0-5020420260813002.tgz#2a9d576a8feffdabca72b38b20409f84589748ab"
+  integrity sha512-Cx/rmbjNSewE4rXX6Xst4ukwT4/iryAhESEoDGXGiQFVH7jDtg7afG/ui2CpUTBewKskAZHdMqHjnCQ3pEDvHA==
   dependencies:
     "@vue/shared" "3.4.21"
     parse-css-font "^4.0.0"
@@ -1837,6 +1964,13 @@
   version "3.0.0-5020320260806002"
   resolved "https://registry.yarnpkg.com/@dcloudio/uni-shared/-/uni-shared-3.0.0-5020320260806002.tgz#3c09d831d6460f7ba8f83c977bc456451174da6c"
   integrity sha512-dOGYDMzud9o1UdstfHREOnt3ht6pb8spjmwnoSIOBf5kymRmxZ/enzd6gaQeKemO4V2Odj75mX6B/ih8dX0v+w==
+  dependencies:
+    "@vue/shared" "3.4.21"
+
+"@dcloudio/uni-shared@3.0.0-5020420260813002":
+  version "3.0.0-5020420260813002"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-shared/-/uni-shared-3.0.0-5020420260813002.tgz#f705dd5563afbbde299961d9f9bc2178cd6ef5fa"
+  integrity sha512-hj1R3SmPqU6dAYZb89dFXd0+8OqpN3taCLP/Kndbp5G9tz0WKu33YRqCA1b5Z1JmxEqhyeW/p8ulUfoxIe0NuQ==
   dependencies:
     "@vue/shared" "3.4.21"
 
