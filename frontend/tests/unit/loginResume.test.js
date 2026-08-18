@@ -86,7 +86,7 @@ describe('login draft resume', () => {
 
   it('returns to the nameplate and resumes interrupted support', () => {
     getCurrentPages.mockReturnValue([
-      { route: 'pages/index' },
+      { route: 'pages/nameplates/details' },
       { route: 'pages/login/login' },
     ]);
     peekInterceptIntent.mockReturnValue({

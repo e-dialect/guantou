@@ -131,25 +131,25 @@ test('nameplate stays the main journey through comments, login resume, and debat
   await expect(page).toHaveURL(/\/pages\/nameplates\/details\?id=21/);
   await expect(page.getByText('tái → tâi')).toBeVisible();
 
-  await page.getByText('评论 1', { exact: true }).click();
+  await page.locator('.comments-action').click();
   await expect(page).toHaveURL(/\/pages\/nameplates\/comments\?id=21/);
   await expect(page.getByText('旧辞书也这样记录。')).toBeVisible();
   await page.locator('.shell-back').click();
 
-  await page.getByText('支持 6', { exact: true }).click();
+  await page.locator('.support-action').click();
   await expect(page).toHaveURL(/\/pages\/login\/login/);
-  const phone = page.locator('.phone-input input.t-input__control');
-  const code = page.locator('.code-input input.t-input__control');
+  const phone = page.locator('.phone-input input.uni-input-input');
+  const code = page.locator('.code-input input.uni-input-input');
   await phone.fill('13800001234');
-  await page.getByText('获取验证码', { exact: true }).click();
+  await page.locator('.code-button').click();
   await code.fill('123456');
-  await page.getByText('登录 / 注册', { exact: true }).click();
+  await page.locator('.phone-login-button').click();
 
   await expect(page).toHaveURL(/\/pages\/nameplates\/details\?id=21&resume=support/);
   await expect(page.getByText('已支持 7', { exact: true })).toBeVisible();
   expect(supported).toBe(true);
 
-  await page.getByText('立论', { exact: true }).click();
+  await page.locator('.debate-action').click();
   await expect(page).toHaveURL(/\/pages\/nameplates\/create\?can_id=11&reference_id=21/);
   await expect(page.getByText('你的立论会与现有铭牌并列呈现，不会覆盖或修改别人的记录。')).toBeVisible();
 });

@@ -53,7 +53,9 @@ export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageS
   clearInterceptIntent();
   if (destination.kind === AUTH_DESTINATION_KINDS.URL) {
     const normalizedPreviousRoute = String(previousRoute || '').replace(/^\//, '');
-    if (normalizedPreviousRoute === destination.route) {
+    const destinationHasState = destination.url !== `/${destination.route}`;
+    // 同页受保护动作仍要携带恢复参数重新进入，否则 navigateBack 会悄悄丢掉动作。
+    if (normalizedPreviousRoute === destination.route && !destinationHasState) {
       uni.navigateBack({ delta: 1 });
     } else {
       openPage(destination.url, {}, { replace: true });

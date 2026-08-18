@@ -75,22 +75,25 @@
 
       <view class="nameplate-actions">
         <t-button
+          class="support-action"
           theme="primary"
           :loading="supportBusy"
-          @tap="toggleSupport"
+          @click="toggleSupport"
         >
           {{ supported ? '已支持' : '支持' }} {{ supportCount }}
         </t-button>
         <t-button
+          class="comments-action"
           theme="light"
-          @tap="openComments"
+          @click="openComments"
         >
           评论 {{ nameplate.comment_count || 0 }}
         </t-button>
         <t-button
+          class="debate-action"
           theme="danger"
           variant="outline"
-          @tap="openDebate"
+          @click="openDebate"
         >
           立论
         </t-button>
@@ -116,6 +119,9 @@
 </template>
 
 <script>
+import TButton from '@tdesign/uniapp/button/button.vue';
+import TCell from '@tdesign/uniapp/cell/cell.vue';
+import TLoading from '@tdesign/uniapp/loading/loading.vue';
 import PageShell from '@/components/PageShell.vue';
 import { getNameplate, supportNameplate, unsupportNameplate } from '@/services/guantou';
 import { requireAuth } from '@/services/authGuard';
@@ -140,7 +146,12 @@ const EVIDENCE_LABELS = {
 };
 
 export default {
-  components: { PageShell },
+  components: {
+    PageShell,
+    TButton,
+    TCell,
+    TLoading,
+  },
   data() {
     return {
       id: null,

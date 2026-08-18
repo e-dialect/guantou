@@ -13,7 +13,7 @@
         v-if="actionText"
         size="small"
         theme="light"
-        @tap="$emit('action')"
+        @click="$emit('action')"
       >
         {{ actionText }}
       </t-button>
@@ -42,11 +42,12 @@
 </template>
 
 <script>
+import TButton from '@tdesign/uniapp/button/button.vue';
 import HomeTabBar from '@/components/home/HomeTabBar.vue';
 
 export default {
   name: 'AppShell',
-  components: { HomeTabBar },
+  components: { HomeTabBar, TButton },
   props: {
     title: { type: String, required: true },
     active: { type: String, required: true },

@@ -2,7 +2,7 @@
   <view class="comment-thread">
     <view class="comment-thread__composer">
       <t-textarea
-        v-model="draft"
+        v-model:value="draft"
         :maxlength="500"
         placeholder="说说你的依据、读法或补充……"
         indicator
@@ -12,7 +12,7 @@
         block
         theme="primary"
         :loading="submitting"
-        @tap="submit"
+        @click="submit"
       >
         发表评论
       </t-button>
@@ -79,7 +79,7 @@
         block
         variant="text"
         :loading="loading"
-        @tap="loadMore"
+        @click="loadMore"
       >
         加载更多
       </t-button>
@@ -88,6 +88,10 @@
 </template>
 
 <script>
+import TButton from '@tdesign/uniapp/button/button.vue';
+import TEmpty from '@tdesign/uniapp/empty/empty.vue';
+import TLoading from '@tdesign/uniapp/loading/loading.vue';
+import TTextarea from '@tdesign/uniapp/textarea/textarea.vue';
 import {
   createCanComment,
   createNameplateComment,
@@ -101,6 +105,12 @@ import { requireAuth } from '@/services/authGuard';
 
 export default {
   name: 'CommentThread',
+  components: {
+    TButton,
+    TEmpty,
+    TLoading,
+    TTextarea,
+  },
   props: {
     targetType: {
       type: String,

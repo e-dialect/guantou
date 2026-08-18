@@ -47,7 +47,7 @@
         class="login-form phone-form"
       >
         <t-input
-          v-model="phone"
+          v-model:value="phone"
           class="phone-input"
           label="手机号"
           type="number"
@@ -57,7 +57,7 @@
         />
         <view class="code-row">
           <t-input
-            v-model="code"
+            v-model:value="code"
             class="code-input"
             label="验证码"
             type="number"
@@ -69,7 +69,7 @@
             theme="light"
             size="small"
             :disabled="countdown > 0 || sendingCode"
-            @tap="sendPhoneCode"
+            @click="sendPhoneCode"
           >
             {{ countdown > 0 ? `${countdown}s` : '获取验证码' }}
           </t-button>
@@ -81,10 +81,11 @@
           Demo 验证码：<text>{{ demoCode }}</text>
         </view>
         <t-button
+          class="phone-login-button"
           block
           theme="primary"
           size="large"
-          @tap="phoneLogin"
+          @click="phoneLogin"
         >
           登录 / 注册
         </t-button>
@@ -95,13 +96,13 @@
         class="login-form password-form"
       >
         <t-input
-          v-model="username"
+          v-model:value="username"
           label="账号"
           placeholder="请输入用户名"
           clearable
         />
         <t-input
-          v-model="password"
+          v-model:value="password"
           label="密码"
           type="password"
           placeholder="请输入密码"
@@ -110,7 +111,7 @@
           block
           theme="primary"
           size="large"
-          @tap="passwordLogin"
+          @click="passwordLogin"
         >
           账号密码登录
         </t-button>
@@ -121,7 +122,7 @@
         class="wechat-login"
         block
         theme="light"
-        @tap="mpLogin()"
+        @click="mpLogin()"
       >
         微信一键登录 / 注册
       </t-button>
@@ -155,6 +156,10 @@
 </template>
 
 <script>
+import TButton from '@tdesign/uniapp/button/button.vue';
+import TInput from '@tdesign/uniapp/input/input.vue';
+import TTabPanel from '@tdesign/uniapp/tab-panel/tab-panel.vue';
+import TTabs from '@tdesign/uniapp/tabs/tabs.vue';
 import PageShell from '@/components/PageShell.vue';
 import { actionLabel, peekInterceptIntent } from '@/services/authGuard';
 import { cancelLoginToSearch } from '@/services/authJourney';
@@ -163,7 +168,13 @@ import { loginWithPhone, requestPhoneCode } from '@/services/phoneAuth';
 import { toForgetPage, toRegisterPage, toWechatRegisterPage } from '@/routers/login';
 
 export default {
-  components: { PageShell },
+  components: {
+    PageShell,
+    TButton,
+    TInput,
+    TTabPanel,
+    TTabs,
+  },
   data() {
     return {
       toForgetPage,

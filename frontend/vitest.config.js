@@ -5,9 +5,13 @@ import vue from '@vitejs/plugin-vue';
 export default defineConfig({
   plugins: [vue()],
   resolve: {
-    alias: {
-      '@': resolve(__dirname, 'src'),
-    },
+    alias: [
+      {
+        find: /^@tdesign\/uniapp\/.+$/,
+        replacement: resolve(__dirname, 'tests/stubs/TDesign.vue'),
+      },
+      { find: '@', replacement: resolve(__dirname, 'src') },
+    ],
   },
   test: {
     environment: 'jsdom',

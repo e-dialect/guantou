@@ -42,7 +42,7 @@
           block
           theme="primary"
           size="large"
-          @tap="playAudio(can.audio_url)"
+          @click="playAudio(can.audio_url)"
         >
           播放这段乡音
         </t-button>
@@ -50,20 +50,20 @@
           <t-button
             theme="light"
             :loading="likeBusy"
-            @tap="toggleLike"
+            @click="toggleLike"
           >
             {{ can.liked_by_me ? '已点赞' : '点赞' }} {{ can.like_count || 0 }}
           </t-button>
           <t-button
             theme="light"
-            @tap="useSame"
+            @click="useSame"
           >
             用同款 {{ can.use_count || 0 }}
           </t-button>
           <t-button
             theme="light"
             open-type="share"
-            @tap="shareCurrent"
+            @click="shareCurrent"
           >
             分享
           </t-button>
@@ -100,7 +100,7 @@
               size="small"
               :theme="item.action === 'reject' ? 'danger' : 'primary'"
               :loading="transitionBusy === item.action"
-              @tap="runTransition(item.action)"
+              @click="runTransition(item.action)"
             >
               {{ item.label }}
             </t-button>
@@ -130,7 +130,7 @@
           block
           variant="outline"
           theme="primary"
-          @tap="createPlate"
+          @click="createPlate"
         >
           {{ activeNameplates.length ? '发表一张新铭牌' : '补上第一张铭牌' }}
         </t-button>
@@ -143,7 +143,7 @@
         <t-button
           block
           theme="light"
-          @tap="openCanComments"
+          @click="openCanComments"
         >
           查看罐头评论
         </t-button>
@@ -180,6 +180,9 @@
 </template>
 
 <script>
+import TButton from '@tdesign/uniapp/button/button.vue';
+import TCell from '@tdesign/uniapp/cell/cell.vue';
+import TLoading from '@tdesign/uniapp/loading/loading.vue';
 import NameplateCard from '@/components/NameplateCard.vue';
 import PageShell from '@/components/PageShell.vue';
 import SectionBlock from '@/components/SectionBlock.vue';
@@ -233,7 +236,14 @@ function currentSessionUser() {
 }
 
 export default {
-  components: { NameplateCard, PageShell, SectionBlock },
+  components: {
+    NameplateCard,
+    PageShell,
+    SectionBlock,
+    TButton,
+    TCell,
+    TLoading,
+  },
   data() {
     return {
       id: 0,

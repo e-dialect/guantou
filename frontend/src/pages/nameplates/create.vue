@@ -30,19 +30,19 @@
           你的主张
         </view>
         <t-input
-          v-model="form.text_content"
+          v-model:value="form.text_content"
           label="写作"
           placeholder="例如：刣 / 杀"
           maxlength="160"
         />
         <t-input
-          v-model="form.pronunciation_text"
+          v-model:value="form.pronunciation_text"
           label="实际读音"
           placeholder="可填写来源原样罗马字或 IPA"
           maxlength="160"
         />
         <t-textarea
-          v-model="form.definition"
+          v-model:value="form.definition"
           label="释义"
           placeholder="说明这个词在本地方言里的意思和用法"
           maxlength="1000"
@@ -78,22 +78,22 @@
           />
         </picker>
         <t-input
-          v-model="form.source.title"
+          v-model:value="form.source.title"
           label="来源名称"
           placeholder="书名、文章名或资料名称（选填）"
         />
         <t-input
-          v-model="form.source.attributed_to"
+          v-model:value="form.source.attributed_to"
           label="提供者"
           placeholder="口述者、作者或整理者（选填）"
         />
         <t-input
-          v-model="form.source.locator"
+          v-model:value="form.source.locator"
           label="定位"
           placeholder="页码、条目号等（选填）"
         />
         <t-textarea
-          v-model="form.source.note"
+          v-model:value="form.source.note"
           label="补充说明"
           placeholder="记录判断依据，方便后来者复核"
           autosize
@@ -105,7 +105,7 @@
         theme="primary"
         size="large"
         :loading="submitting"
-        @tap="submit"
+        @click="submit"
       >
         发表这张铭牌
       </t-button>
@@ -114,6 +114,10 @@
 </template>
 
 <script>
+import TButton from '@tdesign/uniapp/button/button.vue';
+import TCell from '@tdesign/uniapp/cell/cell.vue';
+import TInput from '@tdesign/uniapp/input/input.vue';
+import TTextarea from '@tdesign/uniapp/textarea/textarea.vue';
 import PageShell from '@/components/PageShell.vue';
 import {
   createNameplate,
@@ -135,7 +139,13 @@ const SOURCE_OPTIONS = [
 ];
 
 export default {
-  components: { PageShell },
+  components: {
+    PageShell,
+    TButton,
+    TCell,
+    TInput,
+    TTextarea,
+  },
   data() {
     return {
       canId: null,
