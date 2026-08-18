@@ -87,6 +87,35 @@ def visible_cans_for_user(user):
     return queryset.filter(visibility=True)
 
 
+def daily_can(user=None):
+    """Return a deterministic single daily can, preferring verified quality cans.
+
+    The candidate pool is public, verified cans that carry a complete primary
+    nameplate. When that pool is empty, fall back to any public can so the
+    endpoint still returns stable daily content during early data growth.
+    """
+    public = visible_cans_for_user(user).filter(visibility=True)
+    preferred_ids = list(
+        public.filter(
+            status=Can.Status.VERIFIED,
+            nameplates__is_primary=True,
+            nameplates__status=Nameplate.Status.ACTIVE,
+            nameplates__package__isnull=False,
+            nameplates__flavor__isnull=False,
+            nameplates__dialect__isnull=False,
+        )
+        .order_by("id")
+        .distinct()
+        .values_list("id", flat=True)
+    )
+    if not preferred_ids:
+        preferred_ids = list(public.order_by("id").values_list("id", flat=True))
+    if not preferred_ids:
+        return None
+    selected_id = preferred_ids[timezone.localdate().toordinal() % len(preferred_ids)]
+    return Can.objects.get(pk=selected_id)
+
+
 def search_flavors(keyword, limit):
     return (
         Flavor.objects.prefetch_related("packages", "pronunciations")

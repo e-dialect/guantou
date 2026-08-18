@@ -61,6 +61,7 @@ from .serializers import (
 )
 from .services import (
     aggregate_search,
+    daily_can,
     elect_primary_nameplate,
     hot_search_terms,
     nameplate_preview_queryset,
@@ -713,6 +714,13 @@ class CanViewSet(viewsets.ModelViewSet):
         if instance is None:
             raise NotFound("暂无公开罐头")
         return Response(CanSerializer(instance, context={"request": request}).data)
+
+    @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny])
+    def today(self, request):
+        instance = daily_can(request.user)
+        if instance is None:
+            raise NotFound("暂无公开罐头")
+        return Response(CanCardSerializer(instance, context={"request": request}).data)
 
     @action(
         detail=True,
