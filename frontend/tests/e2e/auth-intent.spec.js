@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 test('guest can cancel an intercepted action and return to search', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('auth_intercept_intent', JSON.stringify({
+      version: 1,
       action: 'record_can',
       context: { flavorId: 9, page: 'flavor_detail' },
       createdAt: Date.now(),

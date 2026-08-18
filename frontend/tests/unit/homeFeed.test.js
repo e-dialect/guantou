@@ -73,26 +73,11 @@ describe('homeFeed service', () => {
       expect(getCan).not.toHaveBeenCalled();
     });
 
-    it('falls back to getCan, keeps only active plates sorted by weight', async () => {
-      setupStorage();
-      getCan.mockResolvedValue({
-        nameplates: [
-          { id: 1, status: 'active', weight: 3 },
-          { id: 2, status: 'rejected', weight: 99 },
-          { id: 3, status: 'active', weight: 9 },
-          { id: 4, status: 'active', weight: 6 },
-          { id: 5, status: 'active', weight: 1 },
-        ],
-      });
-
+    it('does not issue a per-card fallback request when previews are absent', async () => {
       const result = await getNameplatePreview(9);
 
-      expect(result.previews.map((plate) => plate.id)).toEqual([3, 4, 1]);
-      expect(result.total).toBe(4);
-
-      // 第二次命中缓存，不再请求详情
-      await getNameplatePreview(9);
-      expect(getCan).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ previews: [], total: 0 });
+      expect(getCan).not.toHaveBeenCalled();
     });
   });
 

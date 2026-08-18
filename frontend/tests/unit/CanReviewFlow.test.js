@@ -27,7 +27,13 @@ vi.mock('@/utils/shareCan', () => ({
   shareCanOnWeb: vi.fn(),
 }));
 
-const { transitionCan } = await import('@/services/guantou');
+const {
+  getCan,
+  listAllDialects,
+  listAllFlavors,
+  listAllPackages,
+  transitionCan,
+} = await import('@/services/guantou');
 const CanDetails = (await import('@/pages/cans/details.vue')).default;
 const {
   availableCanTransitions,
@@ -62,6 +68,21 @@ describe('can review flow', () => {
       { status: 'tentative', recorder: { id: 7 } },
       { id: 8, is_staff: false },
     )).toEqual([]);
+  });
+
+  it('loads the first screen from the can detail response only', async () => {
+    const can = { id: 9, recent_posts: [], nameplates: [] };
+    getCan.mockResolvedValue(can);
+    const page = pageContext(null);
+    page.id = 9;
+
+    await page.refresh();
+
+    expect(page.can).toBe(can);
+    expect(getCan).toHaveBeenCalledWith(9);
+    expect(listAllDialects).not.toHaveBeenCalled();
+    expect(listAllFlavors).not.toHaveBeenCalled();
+    expect(listAllPackages).not.toHaveBeenCalled();
   });
 
   it('does not change page state when a transition fails', async () => {

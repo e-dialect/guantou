@@ -83,6 +83,7 @@ import EmptyState from '@/components/EmptyState.vue';
 import EntityCard from '@/components/EntityCard.vue';
 import PageShell from '@/components/PageShell.vue';
 import { listPackages } from '@/services/guantou';
+import { goPackageDetail } from '@/services/navigation';
 
 export const PACKAGE_TYPES = [
   { value: '', label: '全部写法' },
@@ -186,7 +187,7 @@ export default {
       this.refresh();
     },
     toDetail(id) {
-      uni.navigateTo({ url: `/pages/packages/details?id=${id}` });
+      goPackageDetail(id);
     },
   },
 };

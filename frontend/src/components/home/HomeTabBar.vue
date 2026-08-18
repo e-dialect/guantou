@@ -6,7 +6,7 @@
         class="home-tab-bar__item"
         :class="{ 'home-tab-bar__item--active': active === 'home' }"
         role="button"
-        aria-label="首页"
+        aria-label="罐头"
         @tap="openHome"
       >
         <view
@@ -14,13 +14,14 @@
           aria-hidden="true"
         />
         <text class="home-tab-bar__label">
-          首页
+          罐头
         </text>
       </view>
 
       <!-- 图鉴 -->
       <view
         class="home-tab-bar__item"
+        :class="{ 'home-tab-bar__item--active': active === 'atlas' }"
         role="button"
         aria-label="图鉴"
         @tap="openAtlas"
@@ -55,6 +56,7 @@
       <!-- 集盒 -->
       <view
         class="home-tab-bar__item"
+        :class="{ 'home-tab-bar__item--active': active === 'box' }"
         role="button"
         aria-label="集盒"
         @tap="openBox"
@@ -71,6 +73,7 @@
       <!-- 我的 -->
       <view
         class="home-tab-bar__item"
+        :class="{ 'home-tab-bar__item--active': active === 'me' }"
         role="button"
         aria-label="我的"
         @tap="openMine"
@@ -89,6 +92,9 @@
 
 <script>
 import { requireAuth } from '@/services/authGuard';
+import {
+  goAtlas, goCreateCan, goHome, goMine, goShelves,
+} from '@/services/navigation';
 
 export default {
   name: 'HomeTabBar',
@@ -101,20 +107,23 @@ export default {
   methods: {
     openHome() {
       if (this.active === 'home') return;
-      uni.navigateTo({ url: '/pages/index' });
+      goHome(true);
     },
     openAtlas() {
-      uni.navigateTo({ url: '/pages/flavors/index' });
+      if (this.active === 'atlas') return;
+      goAtlas(true);
     },
     openCreate() {
       if (!requireAuth('record_can', { page: 'home_tab_bar' })) return;
-      uni.navigateTo({ url: '/pages/cans/create' });
+      goCreateCan();
     },
     openBox() {
-      uni.navigateTo({ url: '/pages/shelves/index' });
+      if (this.active === 'box') return;
+      goShelves(true);
     },
     openMine() {
-      uni.navigateTo({ url: '/pages/users/me' });
+      if (this.active === 'me') return;
+      goMine(true);
     },
   },
 };

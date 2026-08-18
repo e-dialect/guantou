@@ -1,88 +1,27 @@
-/**
- * 前往用户页面
- * @param id 用户id
- */
-export function toUserPage(id) {
-  uni.navigateTo({
-    url: `/pages/users/details?id=${id}`,
-  });
-}
+import {
+  goHome,
+  goRecommendFollow,
+  goUserDetail,
+  goUserEmail,
+  goUserInformation,
+  goUserNickname,
+  goUserPassword,
+  goUserPhone,
+  goUserUsername,
+} from '@/services/navigation';
 
-/**
- * 前往用户信息页面
- */
-export function toUserInfoPage() {
-  uni.navigateTo({
-    url: '/pages/users/settings/information',
-  });
-}
+export const toUserPage = (id) => goUserDetail(id);
+export const toUserInfoPage = () => goUserInformation();
+export const toChangeNicknamePage = () => goUserNickname();
+export const toChangeUsernamePage = () => goUserUsername();
+export const toChangeEmailPage = () => goUserEmail();
+export const toChangePhonePage = () => goUserPhone();
+export const toChangePasswordPage = () => goUserPassword();
 
 export function toFollowRecommendations(closeAll = false) {
-  const options = { url: '/pages/users/recommend-follow' };
-  if (closeAll) {
-    uni.reLaunch(options);
-  } else {
-    uni.navigateTo(options);
-  }
+  return goRecommendFollow(closeAll);
 }
 
-/**
- * 前往更改用户昵称页面
- */
-export function toChangeNicknamePage() {
-  uni.navigateTo({
-    url: '/pages/users/settings/nickname',
-  });
-}
-
-/**
- * 前往更改用户名页面
- */
-export function toChangeUsernamePage() {
-  uni.navigateTo({
-    url: '/pages/users/settings/username',
-  });
-}
-
-/**
- * 前往更改邮箱页面
- */
-export function toChangeEmailPage() {
-  uni.navigateTo({
-    url: '/pages/users/settings/email',
-  });
-}
-
-/**
- * 前往更改手机号页面
- */
-export function toChangePhonePage() {
-  uni.navigateTo({
-    url: '/pages/users/settings/telephone',
-  });
-}
-
-/**
- * 前往更改密码页面
- */
-export function toChangePasswordPage() {
-  uni.navigateTo({
-    url: '/pages/users/settings/password',
-  });
-}
-
-/**
- * 前往个人页面
- * @param closeAll
- */
 export function toMePage(closeAll = false) {
-  if (closeAll) {
-    uni.reLaunch({
-      url: '/pages/index?status=me',
-    });
-  } else {
-    uni.navigateTo({
-      url: '/pages/index?status=me',
-    });
-  }
+  return goHome(closeAll, { status: 'me' });
 }

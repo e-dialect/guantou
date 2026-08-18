@@ -1,7 +1,7 @@
 <template>
-  <PageShell
+  <AppShell
     title="义项图鉴"
-    :scroll="true"
+    active="atlas"
     action-text="浏览写法"
     @action="toPackages"
   >
@@ -34,20 +34,21 @@
       title="还没有义项"
       description="可以先从搜索或装罐流程里沉淀第一批义项。"
     />
-  </PageShell>
+  </AppShell>
 </template>
 
 <script>
 import EmptyState from '@/components/EmptyState.vue';
 import EntityCard from '@/components/EntityCard.vue';
-import PageShell from '@/components/PageShell.vue';
+import AppShell from '@/components/AppShell.vue';
 import { listFlavors } from '@/services/guantou';
+import { goFlavorDetail, goPackageList } from '@/services/navigation';
 
 export default {
   components: {
     EmptyState,
     EntityCard,
-    PageShell,
+    AppShell,
   },
   data() {
     return { search: '', flavors: [] };
@@ -64,10 +65,10 @@ export default {
       return `${(item.pronunciations || []).length} 个读音 · ${(item.package_links || []).length} 个写法`;
     },
     toDetail(id) {
-      uni.navigateTo({ url: `/pages/flavors/details?id=${id}` });
+      goFlavorDetail(id);
     },
     toPackages() {
-      uni.navigateTo({ url: '/pages/packages/index' });
+      goPackageList();
     },
   },
 };

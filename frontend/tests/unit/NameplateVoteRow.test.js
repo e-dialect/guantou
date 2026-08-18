@@ -146,4 +146,23 @@ describe('NameplateVoteRow optimistic voting', () => {
     expect(wrapper.vm.supported).toBe(false);
     expect(wrapper.vm.supportCount).toBe(3);
   });
+
+  it('routes the body, comments and debate as separate nameplate actions', async () => {
+    requireAuth.mockReturnValue(true);
+    const wrapper = mountRow({}, { canId: 33 });
+
+    await wrapper.find('.plate-card__body').trigger('tap');
+    await wrapper.find('.plate-card__comment').trigger('tap');
+    await wrapper.find('.plate-card__action--debate').trigger('tap');
+
+    expect(uni.navigateTo).toHaveBeenNthCalledWith(1, {
+      url: '/pages/nameplates/details?id=7',
+    });
+    expect(uni.navigateTo).toHaveBeenNthCalledWith(2, {
+      url: '/pages/nameplates/comments?id=7',
+    });
+    expect(uni.navigateTo).toHaveBeenNthCalledWith(3, {
+      url: '/pages/nameplates/create?can_id=33&reference_id=7',
+    });
+  });
 });

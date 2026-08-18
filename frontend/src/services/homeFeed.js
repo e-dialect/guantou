@@ -1,4 +1,4 @@
-import { getCan, getDiscovery, listCans } from '@/services/guantou';
+import { getDiscovery, listCans } from '@/services/guantou';
 
 export const HOME_FEED_TABS = [
   { key: 'today', label: '今日罐' },
@@ -15,8 +15,6 @@ const FEED_PARAM_BY_TAB = {
 };
 
 const TODAY_CAN_STORAGE_KEY = 'home_today_can';
-const NAMEPLATE_PREVIEW_CACHE_LIMIT = 30;
-const nameplatePreviewCache = new Map();
 
 /**
  * 首页内容流列表：四 tab 映射后端 feed 参数（今日罐走独立策略，见 getTodayCan）。
@@ -30,39 +28,13 @@ function normalizedPreviews(list) {
   return (Array.isArray(list) ? list : []).slice(0, 3);
 }
 
-function rememberPreview(canId, payload) {
-  if (nameplatePreviewCache.size >= NAMEPLATE_PREVIEW_CACHE_LIMIT) {
-    const oldestKey = nameplatePreviewCache.keys().next().value;
-    nameplatePreviewCache.delete(oldestKey);
-  }
-  nameplatePreviewCache.set(Number(canId), payload);
-  return payload;
-}
-
 /**
- * 铭牌预览（active 按 weight 降序取前 3 + 总数）。
- *
- * 优先消费列表项自带的 nameplate_previews（后端契约），字段缺失时
- * 兜底 getCan 详情过滤 active 铭牌，结果做 LRU 上限约 30 的缓存。
+ * 首页列表接口必须一次给齐铭牌摘要，禁止轮播卡片按罐补请求。
  */
-export async function getNameplatePreview(canId, can = null) {
-  if (can && Array.isArray(can.nameplate_previews)) {
-    const previews = normalizedPreviews(can.nameplate_previews);
-    const total = Number(can.nameplate_total ?? can.nameplate_count ?? previews.length);
-    return { previews, total };
-  }
-
-  const cached = nameplatePreviewCache.get(Number(canId));
-  if (cached) return cached;
-
-  const detail = await getCan(canId);
-  const active = (detail.nameplates || []).filter((plate) => plate.status === 'active');
-  const previews = normalizedPreviews(
-    [...active].sort(
-      (left, right) => (right.weight || 0) - (left.weight || 0) || left.id - right.id,
-    ),
-  );
-  return rememberPreview(canId, { previews, total: active.length });
+export function getNameplatePreview(canId, can = null) {
+  const previews = normalizedPreviews(can?.nameplate_previews);
+  const total = Number(can?.nameplate_total ?? can?.nameplate_count ?? previews.length);
+  return { previews, total };
 }
 
 function todayStamp() {

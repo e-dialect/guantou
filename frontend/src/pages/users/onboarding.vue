@@ -149,6 +149,7 @@
 
 <script>
 import PageShell from '@/components/PageShell.vue';
+import { goLogin, goSearch } from '@/services/navigation';
 import { toFollowRecommendations } from '@/routers/user';
 import {
   loadDialectSample,
@@ -218,7 +219,7 @@ export default {
   async onLoad(options = {}) {
     this.reason = normalizeOnboardingReason(options.reason);
     if (!this.userId) {
-      uni.reLaunch({ url: '/pages/login/login' });
+      goLogin({}, { reset: true });
       return;
     }
     try {
@@ -287,7 +288,7 @@ export default {
     },
     abandon() {
       clearUserInfo();
-      uni.reLaunch({ url: '/pages/search' });
+      goSearch({ reset: true });
     },
   },
 };

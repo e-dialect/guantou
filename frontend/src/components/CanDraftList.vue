@@ -53,6 +53,7 @@
 <script>
 import EmptyState from '@/components/EmptyState.vue';
 import { listCanDraftsWithAudioStatus, removeCanDraft } from '@/services/canDrafts';
+import { goCreateCan } from '@/services/navigation';
 
 function pad(value) {
   return String(value).padStart(2, '0');
@@ -96,10 +97,10 @@ export default {
         + ` ${pad(date.getHours())}:${pad(date.getMinutes())}`;
     },
     toCreate() {
-      uni.navigateTo({ url: '/pages/cans/create' });
+      goCreateCan();
     },
     editDraft(id) {
-      uni.navigateTo({ url: `/pages/cans/create?draft=${encodeURIComponent(id)}` });
+      goCreateCan({ draft: id });
     },
     confirmDelete(draft) {
       uni.showModal({

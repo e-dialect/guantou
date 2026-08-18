@@ -84,7 +84,7 @@ describe('login draft resume', () => {
     });
   });
 
-  it('returns to a can detail after an interrupted nameplate action', () => {
+  it('returns to the nameplate and resumes interrupted support', () => {
     getCurrentPages.mockReturnValue([
       { route: 'pages/index' },
       { route: 'pages/login/login' },
@@ -96,7 +96,7 @@ describe('login draft resume', () => {
 
     expect(resumeInterruptedPageAfterLogin('7')).toBe(true);
     expect(uni.redirectTo).toHaveBeenCalledWith({
-      url: '/pages/cans/details?id=18',
+      url: '/pages/nameplates/details?id=4&resume=support',
     });
   });
 

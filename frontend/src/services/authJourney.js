@@ -3,6 +3,11 @@ import {
   clearInterceptIntent,
   saveInterceptIntent,
 } from '@/services/authGuard';
+import {
+  openPage,
+  routeDestination,
+  ROUTES,
+} from '@/services/navigation';
 
 export const AUTH_DESTINATION_KINDS = {
   ADJACENT_CAN_DRAFT: 'adjacent_can_draft',
@@ -11,104 +16,94 @@ export const AUTH_DESTINATION_KINDS = {
   URL: 'url',
 };
 
-function canDetailsUrl(canId) {
-  return canId ? `/pages/cans/details?id=${encodeURIComponent(canId)}` : '';
-}
-
-function userDetailsUrl(userId) {
-  return userId ? `/pages/users/details?id=${encodeURIComponent(userId)}` : '';
-}
-
 export function resolveAuthDestination(intent) {
   if (!intent) return { kind: AUTH_DESTINATION_KINDS.DEFAULT };
 
   const context = intent.context || {};
   if (intent.voluntary || intent.action === 'open_mine') {
-    return {
-      kind: AUTH_DESTINATION_KINDS.URL,
-      route: 'pages/users/me',
-      url: '/pages/users/me',
-    };
+    return routeDestination(ROUTES.mine);
+  }
+
+  if (intent.action === 'open_can_library') {
+    return routeDestination(ROUTES.canLibrary);
   }
 
   if (intent.action === 'record_can') {
-    if (context.page === 'can_create' && context.returnRoute === '/pages/cans/create') {
+    if (context.page === 'can_create' && context.returnRoute === ROUTES.canCreate) {
       return {
         kind: AUTH_DESTINATION_KINDS.ADJACENT_CAN_DRAFT,
         ownerScope: context.ownerScope || '',
       };
     }
     if (context.page === 'flavor_detail' && context.flavorId) {
-      const name = context.flavorName
-        ? `&flavor_name=${encodeURIComponent(context.flavorName)}`
-        : '';
-      return {
-        kind: AUTH_DESTINATION_KINDS.URL,
-        route: 'pages/cans/create',
-        url: `/pages/cans/create?flavor=${encodeURIComponent(context.flavorId)}${name}`,
-      };
+      return routeDestination(ROUTES.canCreate, {
+        flavor: context.flavorId,
+        flavor_name: context.flavorName,
+      });
     }
     if (context.page === 'circle_detail' && context.dialectId) {
-      return {
-        kind: AUTH_DESTINATION_KINDS.URL,
-        route: 'pages/cans/create',
-        url: `/pages/cans/create?dialect=${encodeURIComponent(context.dialectId)}`,
-      };
+      return routeDestination(ROUTES.canCreate, { dialect: context.dialectId });
     }
     if (context.page === 'discovery') {
-      return {
-        kind: AUTH_DESTINATION_KINDS.URL,
-        route: 'pages/discovery/index',
-        url: '/pages/discovery/index',
-      };
+      return routeDestination(ROUTES.discovery);
     }
     return { kind: AUTH_DESTINATION_KINDS.FALLBACK };
   }
 
-  if (intent.action === 'nameplate_support' || intent.action === 'nameplate_create') {
-    const url = canDetailsUrl(context.canId);
-    if (!url) return { kind: AUTH_DESTINATION_KINDS.FALLBACK };
-    return {
-      kind: AUTH_DESTINATION_KINDS.URL,
-      route: 'pages/cans/details',
-      url,
-    };
+  if (intent.action === 'nameplate_support') {
+    if (!context.nameplateId) return { kind: AUTH_DESTINATION_KINDS.FALLBACK };
+    return routeDestination(ROUTES.nameplateDetail, {
+      id: context.nameplateId,
+      resume: 'support',
+    });
+  }
+
+  if (intent.action === 'nameplate_create' && context.canId) {
+    return routeDestination(ROUTES.nameplateCreate, {
+      can_id: context.canId,
+      reference_id: context.nameplateId,
+    });
+  }
+
+  if (intent.action === 'nameplate_comment' && context.nameplateId) {
+    return routeDestination(ROUTES.nameplateComments, { id: context.nameplateId });
   }
 
   if (intent.action === 'follow') {
-    const url = userDetailsUrl(context.userId);
-    if (!url) return { kind: AUTH_DESTINATION_KINDS.FALLBACK };
-    return {
-      kind: AUTH_DESTINATION_KINDS.URL,
-      route: 'pages/users/details',
-      url,
-    };
+    if (!context.userId && context.canId) {
+      return routeDestination(ROUTES.canDetail, { id: context.canId });
+    }
+    if (!context.userId) return { kind: AUTH_DESTINATION_KINDS.FALLBACK };
+    return routeDestination(ROUTES.userDetail, { id: context.userId });
   }
 
   if (intent.action === 'circle_join' && context.circleId) {
-    return {
-      kind: AUTH_DESTINATION_KINDS.URL,
-      route: 'pages/circles/details',
-      url: `/pages/circles/details?id=${encodeURIComponent(context.circleId)}`,
-    };
+    return routeDestination(ROUTES.circleDetail, { id: context.circleId });
   }
 
-  if (intent.action === 'like' || intent.action === 'comment') {
-    const url = canDetailsUrl(context.canId);
-    if (!url) return { kind: AUTH_DESTINATION_KINDS.FALLBACK };
-    return {
-      kind: AUTH_DESTINATION_KINDS.URL,
-      route: 'pages/cans/details',
-      url,
-    };
+  if (intent.action === 'comment' && context.canId) {
+    return routeDestination(ROUTES.canComments, { id: context.canId });
+  }
+
+  if (intent.action === 'like' || intent.action === 'comment_like') {
+    if (!context.canId) return { kind: AUTH_DESTINATION_KINDS.FALLBACK };
+    return routeDestination(ROUTES.canDetail, { id: context.canId });
   }
 
   if (intent.action === 'use_same' && context.canId) {
-    return {
-      kind: AUTH_DESTINATION_KINDS.URL,
-      route: 'pages/posts/compose',
-      url: `/pages/posts/compose?can_id=${encodeURIComponent(context.canId)}`,
-    };
+    return routeDestination(ROUTES.postCompose, { can_id: context.canId });
+  }
+
+  if (intent.action === 'shelf_create') {
+    return routeDestination(ROUTES.shelves);
+  }
+
+  if (intent.action === 'shelf_edit' && context.shelfId) {
+    return routeDestination(ROUTES.shelfDetail, { id: context.shelfId });
+  }
+
+  if (intent.action === 'pronunciation_create' && context.flavorId) {
+    return routeDestination(ROUTES.pronunciationCreate, { flavor_id: context.flavorId });
   }
 
   return { kind: AUTH_DESTINATION_KINDS.FALLBACK };
@@ -125,7 +120,7 @@ export function openLoginFromMine() {
 
 export function cancelLoginToSearch() {
   clearInterceptIntent();
-  uni.reLaunch({ url: '/pages/search' });
+  openPage(ROUTES.search, {}, { reset: true });
 }
 
 export default {

@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import time
 import uuid
 
@@ -10,6 +11,8 @@ from utils.exceptions.payload import request_id
 
 from .context import reset_current_request, set_current_request
 from .models import AnonymousVisitor, VisitorEvent
+
+logger = logging.getLogger(__name__)
 
 VISITOR_HEADER = "X-Visitor-ID"
 VISITOR_META_HEADER = "HTTP_X_VISITOR_ID"
@@ -66,33 +69,45 @@ class VisitorTrackingMiddleware(MiddlewareMixin):
         request._audit_context_token = set_current_request(request)
         if not should_track_visitor(request):
             return
-        request.visitor, _ = AnonymousVisitor.objects.update_or_create(
-            id=visitor_id_from_request(request),
-            defaults={
-                "user_agent": user_agent(request),
-                "ip_hash": hash_ip(client_ip(request)),
-            },
-        )
+        visitor_id = visitor_id_from_request(request)
+        request._visitor_id = visitor_id
+        try:
+            request.visitor, _ = AnonymousVisitor.objects.update_or_create(
+                id=visitor_id,
+                defaults={
+                    "user_agent": user_agent(request),
+                    "ip_hash": hash_ip(client_ip(request)),
+                },
+            )
+        except Exception:
+            # 审计是旁路能力；SQLite 写锁或审计表异常不能把正常业务请求变成 500。
+            request.visitor = None
+            logger.exception("Failed to persist anonymous visitor")
 
     def process_response(self, request, response):
         visitor = getattr(request, "visitor", None)
-        if visitor:
-            response[VISITOR_HEADER] = str(visitor.id)
+        visitor_id = getattr(request, "_visitor_id", None)
+        if visitor_id:
+            response[VISITOR_HEADER] = str(visitor_id)
 
         if visitor and should_track_visitor(request):
             started_at = getattr(request, "_audit_started_at", None)
             duration_ms = 0
             if started_at is not None:
                 duration_ms = max(int((time.monotonic() - started_at) * 1000), 0)
-            VisitorEvent.objects.create(
-                visitor=visitor,
-                user=authenticated_user(request),
-                method=request.method,
-                path=(request.path or "")[:512],
-                status_code=getattr(response, "status_code", 0) or 0,
-                request_id=request_id(request),
-                duration_ms=duration_ms,
-            )
+            try:
+                VisitorEvent.objects.create(
+                    visitor=visitor,
+                    user=authenticated_user(request),
+                    method=request.method,
+                    path=(request.path or "")[:512],
+                    status_code=getattr(response, "status_code", 0) or 0,
+                    request_id=request_id(request),
+                    duration_ms=duration_ms,
+                )
+            except Exception:
+                # 响应已经由业务层生成；事件落库失败只记录诊断信息。
+                logger.exception("Failed to persist visitor event")
 
         token = getattr(request, "_audit_context_token", None)
         if token is not None:

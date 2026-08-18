@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
+from unittest.mock import patch
 from rest_framework.test import APIClient
 
 from guantou.models import Can, Dialect
@@ -38,6 +39,26 @@ class VisitorTrackingTests(TestCase):
 
         self.assertEqual(VisitorEvent.objects.count(), 0)
         self.assertEqual(AnonymousVisitor.objects.count(), 0)
+
+    def test_visitor_write_failure_never_changes_the_business_response(self):
+        with patch(
+            "audit.middleware.AnonymousVisitor.objects.update_or_create",
+            side_effect=RuntimeError("database is locked"),
+        ):
+            response = self.client.get("/search/", {"q": " "})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response["X-Visitor-ID"])
+
+    def test_event_write_failure_never_changes_the_business_response(self):
+        with patch(
+            "audit.middleware.VisitorEvent.objects.create",
+            side_effect=RuntimeError("database is locked"),
+        ):
+            response = self.client.get("/search/", {"q": " "})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response["X-Visitor-ID"])
 
 
 class ObjectChangeLogTests(TestCase):

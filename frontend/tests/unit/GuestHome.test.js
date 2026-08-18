@@ -67,7 +67,7 @@ describe('immersive home (Issue #192)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resolveDefaultTab.mockReturnValue('recommended');
-    getNameplatePreview.mockResolvedValue({ previews: [], total: 0 });
+    getNameplatePreview.mockReturnValue({ previews: [], total: 0 });
   });
 
   it('guest lands on the recommended feed', () => {
@@ -93,9 +93,9 @@ describe('immersive home (Issue #192)', () => {
 
   it('stage card renders the top nameplate previews', async () => {
     setupUni();
-    getNameplatePreview.mockResolvedValue({
+    getNameplatePreview.mockReturnValue({
       previews: [
-        { id: 1, display_text: '巴适', definition: '舒服', support_count: 12, supported_by_current_user: false },
+        { id: 1, is_primary: true, display_text: '巴适', definition: '舒服', support_count: 12, supported_by_current_user: false },
         { id: 2, display_text: '巴适得板', definition: '很舒服', support_count: 8, supported_by_current_user: false },
       ],
       total: 5,
@@ -121,8 +121,8 @@ describe('immersive home (Issue #192)', () => {
 
     expect(getNameplatePreview).toHaveBeenCalledWith(11, expect.any(Object));
     expect(wrapper.text()).toContain('巴适');
-    expect(wrapper.text()).toContain('巴适得板');
-    expect(wrapper.text()).toContain('+ 3 张铭牌');
+    expect(wrapper.text()).not.toContain('巴适得板');
+    expect(wrapper.text()).toContain('+ 4 张铭牌');
   });
 
   it('guest voting asks for login instead of calling the API', async () => {

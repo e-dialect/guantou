@@ -63,6 +63,8 @@ from .services import (
     aggregate_search,
     elect_primary_nameplate,
     hot_search_terms,
+    nameplate_preview_queryset,
+    prefetch_nameplate_previews,
     record_search,
     suggest_search,
     transition_can,
@@ -118,6 +120,9 @@ class AggregateSearchView(APIView):
                 ).data,
                 "packages": PackageSerializer(
                     results["packages"], many=True, context=context
+                ).data,
+                "nameplates": NameplateCardSerializer(
+                    results["nameplates"], many=True, context=context
                 ).data,
                 "cans": CanCardSerializer(
                     results["cans"], many=True, context=context
@@ -199,6 +204,13 @@ class DialectViewSet(viewsets.ModelViewSet):
     serializer_class = DialectSerializer
     permission_classes = [CanWritePermission]
 
+    def get_serializer_class(self):
+        if self.action == "list" and truthy(self.request.query_params.get("flat")):
+            from .serializers import DialectRefSerializer
+
+            return DialectRefSerializer
+        return DialectSerializer
+
     def perform_create(self, serializer):
         dialect = serializer.save()
         DialectCircle.objects.get_or_create(
@@ -214,11 +226,12 @@ class DialectViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset()
         if self.action == "list":
             parent_id = self.request.query_params.get("parent_id")
-            queryset = (
-                queryset.filter(parent__isnull=True)
-                if parent_id is None
-                else queryset.filter(parent_id=parent_id)
-            )
+            if not truthy(self.request.query_params.get("flat")):
+                queryset = (
+                    queryset.filter(parent__isnull=True)
+                    if parent_id is None
+                    else queryset.filter(parent_id=parent_id)
+                )
         search = self.request.query_params.get("search")
         if search:
             queryset = queryset.filter(
@@ -501,14 +514,7 @@ class CanViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
     queryset = (
         Can.objects.select_related("recorder", "submitted_dialect", "verifier")
-        .prefetch_related(
-            "nameplates__package",
-            "nameplates__flavor",
-            "nameplates__dialect",
-            "nameplates__pronunciation",
-            "nameplates__creator",
-            "nameplates__supports",
-        )
+        .prefetch_related(prefetch_nameplate_previews())
         .annotate(
             nameplate_count=Count(
                 "nameplates",
@@ -516,7 +522,11 @@ class CanViewSet(viewsets.ModelViewSet):
                 distinct=True,
             ),
             like_count=Count("likes", distinct=True),
-            comment_count=Count("comments", distinct=True),
+            comment_count=Count(
+                "comments",
+                filter=Q(comments__nameplate__isnull=True),
+                distinct=True,
+            ),
             use_count=Count(
                 "posts",
                 filter=Q(posts__visibility=CanPost.Visibility.PUBLIC),
@@ -760,8 +770,10 @@ class CanViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], permission_classes=[permissions.AllowAny])
     def nameplates(self, request, pk=None):
         can = self.get_object()
-        queryset = can.nameplates.select_related(
-            "can", "package", "flavor", "dialect", "pronunciation", "creator"
+        queryset = (
+            nameplate_preview_queryset()
+            .filter(can=can)
+            .order_by("-is_primary", "-weight", "id")
         )
         page = self.paginate_queryset(queryset)
         serializer = NameplateCardSerializer(
@@ -783,7 +795,9 @@ class CanCommentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = (
-            CanComment.objects.select_related("author", "author__user_info", "can")
+            CanComment.objects.select_related(
+                "author", "author__user_info", "can", "nameplate", "nameplate__creator"
+            )
             .filter(can__visibility=True)
             .annotate(like_count=Count("likes", distinct=True))
         )
@@ -795,24 +809,38 @@ class CanCommentViewSet(viewsets.ModelViewSet):
                 )
             )
         can_id = self.request.query_params.get("can_id")
+        nameplate_id = self.request.query_params.get("nameplate_id")
         if self.action == "list":
-            if not can_id:
-                raise BadRequestException("can_id 不能为空")
-            queryset = queryset.filter(can_id=can_id)
+            if bool(can_id) == bool(nameplate_id):
+                raise BadRequestException("can_id 与 nameplate_id 必须且只能提供一个")
+            if nameplate_id:
+                queryset = queryset.filter(nameplate_id=nameplate_id)
+            else:
+                # nameplate=NULL 是罐头公共评论与具体铭牌讨论的隔离边界。
+                queryset = queryset.filter(can_id=can_id, nameplate__isnull=True)
         return queryset.order_by("-created_at", "-id")
 
     def perform_create(self, serializer):
         comment = serializer.save(author=self.request.user)
+        is_nameplate_comment = bool(comment.nameplate_id)
+        target_type = "nameplate" if is_nameplate_comment else "can"
+        target_id = comment.nameplate_id or comment.can_id
+        target_url = (
+            f"/pages/nameplates/comments?id={comment.nameplate_id}"
+            if is_nameplate_comment
+            else f"/pages/cans/details?id={comment.can_id}"
+        )
         send_event_notification(
             actor=self.request.user,
-            recipient=comment.can.recorder,
+            recipient=(comment.nameplate.creator if is_nameplate_comment else None)
+            or comment.can.recorder,
             verb=Notification.Verb.CAN_COMMENT,
             description=comment.content,
             action_object=comment,
             metadata={
-                "target_type": "can",
-                "target_id": comment.can_id,
-                "target_url": f"/pages/cans/details?id={comment.can_id}",
+                "target_type": target_type,
+                "target_id": target_id,
+                "target_url": target_url,
             },
         )
 
@@ -830,6 +858,7 @@ class CanCommentViewSet(viewsets.ModelViewSet):
             )
             liked = True
             if changed:
+                is_nameplate_comment = bool(comment.nameplate_id)
                 send_event_notification(
                     actor=request.user,
                     recipient=comment.author,
@@ -837,9 +866,13 @@ class CanCommentViewSet(viewsets.ModelViewSet):
                     description=comment.content,
                     action_object=comment,
                     metadata={
-                        "target_type": "can",
-                        "target_id": comment.can_id,
-                        "target_url": f"/pages/cans/details?id={comment.can_id}",
+                        "target_type": "nameplate" if is_nameplate_comment else "can",
+                        "target_id": comment.nameplate_id or comment.can_id,
+                        "target_url": (
+                            f"/pages/nameplates/comments?id={comment.nameplate_id}"
+                            if is_nameplate_comment
+                            else f"/pages/cans/details?id={comment.can_id}"
+                        ),
                     },
                 )
         else:
@@ -872,12 +905,7 @@ class CanPostViewSet(viewsets.ModelViewSet):
         "can__recorder",
         "can__recorder__user_info",
         "can__submitted_dialect",
-    ).prefetch_related(
-        "can__nameplates__package",
-        "can__nameplates__flavor",
-        "can__nameplates__dialect",
-        "can__nameplates__supports",
-    )
+    ).prefetch_related(prefetch_nameplate_previews("can__nameplates"))
 
     def get_queryset(self):
         queryset = self.queryset
@@ -946,15 +974,22 @@ class NameplateViewSet(viewsets.ModelViewSet):
         "head",
         "options",
     ]
-    queryset = Nameplate.objects.select_related(
-        "can",
-        "can__recorder",
-        "package",
-        "flavor",
-        "dialect",
-        "pronunciation",
-        "creator",
-        "supersedes",
+    queryset = (
+        Nameplate.objects.select_related(
+            "can",
+            "can__recorder",
+            "package",
+            "flavor",
+            "dialect",
+            "pronunciation",
+            "creator",
+            "supersedes",
+        )
+        .prefetch_related("supports")
+        .annotate(
+            support_count=Count("supports", distinct=True),
+            comment_count=Count("comments", distinct=True),
+        )
     )
     serializer_class = NameplateSerializer
     permission_classes = [IsOwnerOrAdmin]
@@ -1008,7 +1043,7 @@ class NameplateViewSet(viewsets.ModelViewSet):
                 | Q(source__title__icontains=search)
                 | Q(source__attributed_to__icontains=search)
             )
-        return queryset
+        return queryset.order_by("can_id", "-is_primary", "-weight", "id")
 
     def perform_create(self, serializer):
         can = serializer.validated_data["can"]
@@ -1099,8 +1134,7 @@ class ShelfViewSet(viewsets.ModelViewSet):
         "flavor_links__flavor",
         "can_links__can__recorder",
         "can_links__can__submitted_dialect",
-        "can_links__can__nameplates",
-        "can_links__can__nameplates__supports",
+        prefetch_nameplate_previews("can_links__can__nameplates"),
     )
     serializer_class = ShelfSerializer
     permission_classes = [IsOwnerOrAdmin]

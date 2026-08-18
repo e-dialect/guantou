@@ -1,158 +1,160 @@
 <template>
-  <view
-    class="page"
-    :class="`theme-${resolvedTheme}`"
+  <AppShell
+    title="我的乡音档案"
+    active="me"
   >
-    <template v-if="loggedIn">
-      <view class="profile">
-        <image
-          :src="avatar"
-          class="avatar"
-          mode="aspectFill"
-          @tap="toUserInfoPage"
-        />
-        <view>
-          <view class="name">
-            {{ nickname || '未登录' }}
+    <view class="page">
+      <template v-if="loggedIn">
+        <view class="profile">
+          <image
+            :src="avatar"
+            class="avatar"
+            mode="aspectFill"
+            @tap="toUserInfoPage"
+          />
+          <view>
+            <view class="name">
+              {{ nickname || '未登录' }}
+            </view>
+            <view
+              v-if="primaryDialect"
+              class="dialect-badge"
+            >
+              {{ locationText }}
+            </view>
+            <view
+              v-else
+              class="meta"
+            >
+              未填写方言点
+            </view>
+          </view>
+        </view>
+
+        <view class="stats">
+          <view
+            class="stat"
+            @tap="toCanLibrary"
+          >
+            <view class="number">
+              {{ cansCount }}
+            </view>
+            <view class="label">
+              罐头
+            </view>
+          </view>
+          <view class="stat">
+            <view class="number">
+              {{ flavorsCount }}
+            </view>
+            <view class="label">
+              义项
+            </view>
+          </view>
+          <view class="stat">
+            <view class="number">
+              {{ nameplatesCount }}
+            </view>
+            <view class="label">
+              铭牌
+            </view>
+          </view>
+        </view>
+
+        <view class="menu">
+          <view
+            class="menu-item"
+            @tap="toCanLibrary"
+          >
+            我的罐头库
+            <text class="menu-meta">
+              录制 · 收藏 · 草稿
+            </text>
           </view>
           <view
-            v-if="primaryDialect"
-            class="dialect-badge"
+            class="menu-item"
+            @tap="toCreate"
           >
-            {{ locationText }}
+            装一罐
           </view>
           <view
-            v-else
-            class="meta"
+            class="menu-item"
+            @tap="toDrafts"
           >
-            未填写方言点
+            草稿箱
+            <text class="menu-meta">
+              {{ draftsCount }} 条
+            </text>
           </view>
-        </view>
-      </view>
-
-      <view class="stats">
-        <view
-          class="stat"
-          @tap="toCanLibrary"
-        >
-          <view class="number">
-            {{ cansCount }}
-          </view>
-          <view class="label">
-            罐头
-          </view>
-        </view>
-        <view class="stat">
-          <view class="number">
-            {{ flavorsCount }}
-          </view>
-          <view class="label">
-            义项
-          </view>
-        </view>
-        <view class="stat">
-          <view class="number">
-            {{ nameplatesCount }}
-          </view>
-          <view class="label">
-            铭牌
-          </view>
-        </view>
-      </view>
-
-      <view class="menu">
-        <view
-          class="menu-item"
-          @tap="toCanLibrary"
-        >
-          我的罐头库
-          <text class="menu-meta">
-            录制 · 收藏 · 草稿
-          </text>
-        </view>
-        <view
-          class="menu-item"
-          @tap="toCreate"
-        >
-          装一罐
-        </view>
-        <view
-          class="menu-item"
-          @tap="toDrafts"
-        >
-          草稿箱
-          <text class="menu-meta">
-            {{ draftsCount }} 条
-          </text>
-        </view>
-        <view
-          class="menu-item"
-          @tap="toMailsPage"
-        >
-          我的消息
-          <text
-            v-if="unreadMailsCount > 0"
-            class="badge"
+          <view
+            class="menu-item"
+            @tap="toMailsPage"
           >
-            {{ unreadMailsCount }}
-          </text>
+            我的消息
+            <text
+              v-if="unreadMailsCount > 0"
+              class="badge"
+            >
+              {{ unreadMailsCount }}
+            </text>
+          </view>
+          <view
+            class="menu-item"
+            @tap="toUserInfoPage"
+          >
+            个人资料
+          </view>
+          <view
+            class="menu-item"
+            @tap="toChangePasswordPage"
+          >
+            修改密码
+          </view>
+          <view
+            class="menu-item"
+            @tap="bindingWechat"
+          >
+            {{ wechatBindText }}
+          </view>
+          <view
+            class="menu-item danger"
+            @tap="exit"
+          >
+            退出登录
+          </view>
         </view>
-        <view
-          class="menu-item"
-          @tap="toUserInfoPage"
-        >
-          个人资料
-        </view>
-        <view
-          class="menu-item"
-          @tap="toChangePasswordPage"
-        >
-          修改密码
-        </view>
-        <view
-          class="menu-item"
-          @tap="bindingWechat"
-        >
-          {{ wechatBindText }}
-        </view>
-        <view
-          class="menu-item danger"
-          @tap="exit"
-        >
-          退出登录
-        </view>
-      </view>
-      <ThemeSwitcher />
-    </template>
+        <ThemeSwitcher />
+      </template>
 
-    <view
-      v-else
-      class="guest-profile"
-    >
-      <view class="guest-mark">
-        乡
-      </view>
-      <view class="guest-title">
-        还没有登录
-      </view>
-      <view class="guest-copy">
-        登录后可以查看自己的罐头、草稿和贡献记录。查词与收听公开乡音无需登录。
-      </view>
-      <button
-        class="login-button"
-        @tap="openLoginFromMine"
+      <view
+        v-else
+        class="guest-profile"
       >
-        登录 / 注册
-      </button>
-      <button
-        class="search-button"
-        @tap="toSearch"
-      >
-        先去查词
-      </button>
-      <ThemeSwitcher />
+        <view class="guest-mark">
+          乡
+        </view>
+        <view class="guest-title">
+          还没有登录
+        </view>
+        <view class="guest-copy">
+          登录后可以查看自己的罐头、草稿和贡献记录。查词与收听公开乡音无需登录。
+        </view>
+        <button
+          class="login-button"
+          @tap="openLoginFromMine"
+        >
+          登录 / 注册
+        </button>
+        <button
+          class="search-button"
+          @tap="toSearch"
+        >
+          先去查词
+        </button>
+        <ThemeSwitcher />
+      </view>
     </view>
-  </view>
+  </AppShell>
 </template>
 
 <script>
@@ -171,12 +173,13 @@ import { toMailsPage } from '@/routers/mail';
 import { listCanDrafts } from '@/services/canDrafts';
 import { openLoginFromMine } from '@/services/authJourney';
 import ThemeSwitcher from '@/components/ThemeSwitcher.vue';
-import { applyTheme, getThemePreference } from '@/services/theme';
+import AppShell from '@/components/AppShell.vue';
+import { goCanLibrary, goCreateCan, goSearch } from '@/services/navigation';
 
 const app = getApp();
 
 export default {
-  components: { ThemeSwitcher },
+  components: { AppShell, ThemeSwitcher },
   data() {
     return {
       id: '',
@@ -191,7 +194,6 @@ export default {
       wechatBindText: '绑定微信',
       isBinding: false,
       loggedIn: Boolean(uni.getStorageSync('token')),
-      resolvedTheme: 'light',
     };
   },
   computed: {
@@ -201,13 +203,6 @@ export default {
   },
   beforeMount() {
     this.getInfo();
-  },
-  mounted() {
-    this.handleThemeChange(applyTheme(getThemePreference()));
-    uni.$on('theme-change', this.handleThemeChange);
-  },
-  beforeUnmount() {
-    uni.$off('theme-change', this.handleThemeChange);
   },
   onShow() {
     this.loggedIn = Boolean(uni.getStorageSync('token'));
@@ -219,23 +214,20 @@ export default {
     toChangePasswordPage,
     toUserInfoPage,
     openLoginFromMine,
-    handleThemeChange(theme) {
-      this.resolvedTheme = theme?.resolved || 'light';
-    },
     toSearch() {
-      uni.navigateTo({ url: '/pages/search' });
+      goSearch();
     },
     toCreate() {
-      uni.navigateTo({ url: '/pages/cans/create' });
+      goCreateCan();
     },
     toDrafts() {
-      uni.navigateTo({ url: '/pages/cans/library?tab=drafts' });
+      goCanLibrary({ tab: 'drafts' });
     },
     refreshDraftsCount() {
       this.draftsCount = listCanDrafts().length;
     },
     toCanLibrary() {
-      uni.navigateTo({ url: '/pages/cans/library' });
+      goCanLibrary();
     },
     async getInfo() {
       if (!app.globalData.id) return;

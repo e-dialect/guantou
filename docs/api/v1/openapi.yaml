@@ -210,6 +210,10 @@ paths:
       summary: 查询方言节点
       security: []
       parameters:
+        - name: flat
+          in: query
+          schema: { type: boolean, default: false }
+          description: 为 true 时忽略 parent_id，分页返回全部节点的轻量引用，供选择器按需使用。
         - name: parent_id
           in: query
           schema: { type: integer }
@@ -1850,18 +1854,29 @@ components:
           description: 是否已具备成为主铭牌所需的 Package、Flavor 与 Dialect 主张。
     NameplatePreview:
       type: object
-      required: [id, display_text, weight, support_count, supported_by_current_user]
+      required: [id, is_primary, display_text, text_content, definition, pronunciation_text, package, flavor, dialect, pronunciation, source, source_type, evidence_level, weight, support_count, comment_count, supported_by_current_user]
       properties:
         id: { type: integer }
+        is_primary: { type: boolean }
         display_text:
           type: string
           description: 由原样写法或所关联规范实体生成的展示文本。
-        definition: { type: [string, "null"] }
+        text_content: { type: string }
+        definition: { type: string }
+        pronunciation_text: { type: string }
+        package: { oneOf: [{ $ref: "#/components/schemas/PackageRef" }, { type: "null" }] }
+        flavor: { oneOf: [{ $ref: "#/components/schemas/FlavorRef" }, { type: "null" }] }
+        dialect: { oneOf: [{ $ref: "#/components/schemas/DialectRef" }, { type: "null" }] }
+        pronunciation: { oneOf: [{ $ref: "#/components/schemas/PronunciationRef" }, { type: "null" }] }
+        source: { $ref: "#/components/schemas/NameplateSource" }
+        source_type: { $ref: "#/components/schemas/NameplateSourceType" }
+        evidence_level: { type: integer, minimum: 1, maximum: 4 }
         weight: { type: integer }
         support_count:
           type: integer
           minimum: 0
           description: 该铭牌当前获得的背书总数。
+        comment_count: { type: integer, minimum: 0 }
         supported_by_current_user:
           type: boolean
           description: 当前用户是否已背书该铭牌；游客恒为 false。
@@ -2139,7 +2154,7 @@ components:
 
     SearchResponse:
       type: object
-      required: [keyword, flavors, packages, cans]
+      required: [keyword, flavors, packages, nameplates, cans]
       properties:
         keyword: { type: string, maxLength: 20 }
         flavors:
@@ -2148,6 +2163,9 @@ components:
         packages:
           type: array
           items: { $ref: "#/components/schemas/PackageRef" }
+        nameplates:
+          type: array
+          items: { $ref: "#/components/schemas/NameplatePreview" }
         cans:
           type: array
           items: { $ref: "#/components/schemas/CanCard" }

@@ -1,4 +1,5 @@
 <script>
+import { goNotFound } from '@/services/navigation';
 // app.js
 import { getLoginStatus } from '@/services/login';
 import {
@@ -22,7 +23,7 @@ export default {
       if (currentPath === '/' || currentPath === '') {
         toIndexPage(true);
       } else if (!pages.includes(currentPath)) {
-        uni.navigateTo({ url: '/pages/error/not-found' });
+        goNotFound();
       }
     }
 

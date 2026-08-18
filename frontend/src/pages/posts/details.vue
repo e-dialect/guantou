@@ -113,6 +113,7 @@
 <script>
 import PageShell from '@/components/PageShell.vue';
 import SectionBlock from '@/components/SectionBlock.vue';
+import { goCanDetail, goFlavorDetail, goPackageDetail } from '@/services/navigation';
 import { getCanPost } from '@/services/canSocial';
 import { startUseSame } from '@/services/canPostJourney';
 import { playAudio } from '@/utils/audio';
@@ -164,7 +165,7 @@ export default {
     },
     toSourceCan() {
       if (this.post.source.source_unavailable) return;
-      uni.navigateTo({ url: `/pages/cans/details?id=${this.post.source.can_id}` });
+      goCanDetail(this.post.source.can_id);
     },
     useSame() {
       startUseSame(this.post.source.can_id, {
@@ -173,10 +174,10 @@ export default {
       });
     },
     toPackage(id) {
-      uni.navigateTo({ url: `/pages/packages/details?id=${id}` });
+      goPackageDetail(id);
     },
     toFlavor(id) {
-      uni.navigateTo({ url: `/pages/flavors/details?id=${id}` });
+      goFlavorDetail(id);
     },
     async shareCurrent() {
       // #ifdef H5

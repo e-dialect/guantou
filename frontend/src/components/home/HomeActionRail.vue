@@ -98,6 +98,7 @@ import { likeCan, unlikeCan } from '@/services/canSocial';
 import { followUser, unfollowUser } from '@/services/following';
 import { toUserPage } from '@/routers/user';
 import { shareCanOnWeb } from '@/utils/shareCan';
+import { goCanComments } from '@/services/navigation';
 
 export default {
   name: 'HomeActionRail',
@@ -184,7 +185,7 @@ export default {
     },
     openComments() {
       if (!requireAuth('comment', { page: 'home_feed', canId: this.can.id })) return;
-      uni.navigateTo({ url: `/pages/cans/comments?id=${this.can.id}` });
+      goCanComments(this.can.id);
     },
     async share() {
       this.$emit('share', this.can);

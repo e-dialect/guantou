@@ -1,4 +1,9 @@
 import { listCans } from '@/services/guantou';
+import {
+  goOnboarding,
+  pageUrl,
+  ROUTES,
+} from '@/services/navigation';
 import request from '@/utils/request';
 
 export const ONBOARDING_REASONS = {
@@ -18,16 +23,14 @@ export function normalizeOnboardingReason(reason) {
 
 export function dialectOnboardingUrl(reason) {
   const normalized = normalizeOnboardingReason(reason);
-  return `/pages/users/onboarding?reason=${normalized}`;
+  return pageUrl(ROUTES.onboarding, { reason: normalized });
 }
 
 export function toDialectOnboarding(reason, closeAll = true) {
-  const url = dialectOnboardingUrl(reason);
-  if (closeAll) {
-    uni.reLaunch({ url });
-  } else {
-    uni.redirectTo({ url });
-  }
+  goOnboarding(
+    { reason: normalizeOnboardingReason(reason) },
+    { reset: closeAll, replace: !closeAll },
+  );
 }
 
 export function ensureDialectOnboarding(user, reason) {
@@ -35,8 +38,9 @@ export function ensureDialectOnboarding(user, reason) {
   const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : [];
   const currentRoute = pages.length ? pages[pages.length - 1].route : '';
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-  const alreadyOnboarding = String(currentRoute).replace(/^\//, '') === 'pages/users/onboarding'
-    || String(currentPath).replace(/^\//, '') === 'pages/users/onboarding';
+  const onboardingRoute = ROUTES.onboarding.slice(1);
+  const alreadyOnboarding = String(currentRoute).replace(/^\//, '') === onboardingRoute
+    || String(currentPath).replace(/^\//, '') === onboardingRoute;
   if (alreadyOnboarding) return true;
   toDialectOnboarding(reason, true);
   return true;

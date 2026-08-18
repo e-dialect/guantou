@@ -81,52 +81,26 @@
         </view>
       </view>
 
-      <!-- 普通话概念 -->
-      <view
-        class="stage-card__concept"
-        @tap="openDetails"
-      >
-        <text class="stage-card__concept-quote">
-          「{{ can.concept_text || '未填写普通话概念' }}」
-        </text>
-        <text class="stage-card__concept-hint">
-          普通话概念 · 点按看详情
-        </text>
-      </view>
-
       <!-- 铭牌区 -->
       <view class="stage-card__plates">
+        <NameplateVoteRow
+          v-if="primaryPreview"
+          :nameplate="primaryPreview"
+          :can-id="can.id"
+        />
         <view
-          v-if="previewLoading"
-          class="stage-card__plates-skeleton"
+          v-if="!previews.length"
+          class="stage-card__plates-empty"
         >
-          <view
-            v-for="index in 2"
-            :key="index"
-            class="stage-card__plates-line"
-          />
+          这段乡音还没有铭牌。
         </view>
-        <template v-else>
-          <NameplateVoteRow
-            v-for="plate in previews"
-            :key="plate.id"
-            :nameplate="plate"
-            :can-id="can.id"
-          />
-          <view
-            v-if="!previews.length"
-            class="stage-card__plates-empty"
-          >
-            还没有铭牌，去详情页贴上第一张。
-          </view>
-          <view
-            v-if="extraCount > 0"
-            class="stage-card__plates-more"
-            @tap="openDetails"
-          >
-            + {{ extraCount }} 张铭牌 · 看详情 ›
-          </view>
-        </template>
+        <view
+          v-if="extraCount > 0"
+          class="stage-card__plates-more"
+          @tap="openCanDetails"
+        >
+          + {{ extraCount }} 张铭牌 · 看详情 ›
+        </view>
       </view>
     </template>
 
@@ -146,6 +120,7 @@
 import AudioWave from '@/components/home/AudioWave.vue';
 import NameplateVoteRow from '@/components/home/NameplateVoteRow.vue';
 import { getNameplatePreview } from '@/services/homeFeed';
+import { goCanDetail } from '@/services/navigation';
 import { playManaged, stopAudio } from '@/utils/audio';
 import { toUserPage } from '@/routers/user';
 
@@ -181,7 +156,6 @@ export default {
       progressSeconds: 0,
       previews: [],
       nameplateTotal: 0,
-      previewLoading: false,
     };
   },
   computed: {
@@ -204,12 +178,23 @@ export default {
       return `${Math.max(1, Math.round(durationMs / 1000))}″`;
     },
     extraCount() {
-      return Math.max(0, this.nameplateTotal - this.previews.length);
+      return Math.max(0, this.nameplateTotal - (this.primaryPreview ? 1 : 0));
+    },
+    primaryPreview() {
+      const previews = this.previews || [];
+      return previews.find((plate) => plate.is_primary) || previews[0] || null;
     },
   },
   watch: {
     active(next) {
-      if (!next) this.stopPlayback();
+      if (next) this.ensurePreviews();
+      else this.stopPlayback();
+    },
+    can: {
+      deep: true,
+      handler() {
+        this.ensurePreviews();
+      },
     },
   },
   mounted() {
@@ -226,19 +211,10 @@ export default {
       const total = Math.max(0, Math.floor(seconds));
       return `${total}″`;
     },
-    async ensurePreviews() {
-      if (this.previews.length || this.previewLoading) return;
-      this.previewLoading = true;
-      try {
-        const { previews, total } = await getNameplatePreview(this.can.id, this.can);
-        this.previews = previews;
-        this.nameplateTotal = total;
-      } catch (error) {
-        this.previews = [];
-        this.nameplateTotal = Number(this.can.nameplate_count || 0);
-      } finally {
-        this.previewLoading = false;
-      }
+    ensurePreviews() {
+      const { previews, total } = getNameplatePreview(this.can.id, this.can);
+      this.previews = previews;
+      this.nameplateTotal = total;
     },
     togglePlay() {
       if (!this.can.audio_url) {
@@ -285,8 +261,8 @@ export default {
         toUserPage(this.can.recorder.id);
       }
     },
-    openDetails() {
-      uni.navigateTo({ url: `/pages/cans/details?id=${this.can.id}` });
+    openCanDetails() {
+      goCanDetail(this.can.id);
     },
   },
 };

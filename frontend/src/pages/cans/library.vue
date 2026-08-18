@@ -47,6 +47,7 @@ import PageShell from '@/components/PageShell.vue';
 import { deleteCan, listCans } from '@/services/guantou';
 import { requireAuth } from '@/services/authGuard';
 import { startUseSame } from '@/services/canPostJourney';
+import { goCanDetail, goCanList, goCreateCan } from '@/services/navigation';
 
 export default {
   components: { CanDraftList, CanList, PageShell },
@@ -83,15 +84,14 @@ export default {
   methods: {
     listCans,
     toDetail(id) {
-      uni.navigateTo({ url: `/pages/cans/details?id=${id}` });
+      goCanDetail(id);
     },
     toReuse(id) {
       startUseSame(id, { page: 'can_library' });
     },
     runEmptyAction() {
-      uni.navigateTo({
-        url: this.tab === 'liked' ? '/pages/cans/index' : '/pages/cans/create',
-      });
+      if (this.tab === 'liked') goCanList();
+      else goCreateCan();
     },
     confirmDelete(can) {
       const title = can.primary_nameplate?.display_text || can.concept_text || `罐头 #${can.id}`;

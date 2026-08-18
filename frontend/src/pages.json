@@ -48,6 +48,18 @@
       "style": {}
     },
     {
+      "path": "pages/nameplates/details",
+      "style": {}
+    },
+    {
+      "path": "pages/nameplates/comments",
+      "style": {}
+    },
+    {
+      "path": "pages/nameplates/create",
+      "style": {}
+    },
+    {
       "path": "pages/posts/compose",
       "style": {}
     },

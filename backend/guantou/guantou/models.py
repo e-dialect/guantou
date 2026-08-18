@@ -344,6 +344,7 @@ class Can(models.Model):
         blank=True,
         verbose_name="装罐时方言提示",
     )
+    # 写法和释义以铭牌为权威；该字段只服务旧数据兼容与搜索兜底。
     concept_text = models.CharField(
         max_length=200, blank=True, verbose_name="普通话概念"
     )
@@ -382,6 +383,23 @@ class Can(models.Model):
 
     @property
     def primary_nameplate(self):
+        prefetched = getattr(self, "_prefetched_objects_cache", {}).get("nameplates")
+        if prefetched is not None:
+            # 列表响应必须复用批量预取，不能为每个罐头再查询一次主铭牌。
+            candidates = [
+                plate
+                for plate in prefetched
+                if plate.is_primary
+                and plate.status == Nameplate.Status.ACTIVE
+                and plate.package_id
+                and plate.flavor_id
+                and plate.dialect_id
+            ]
+            return (
+                sorted(candidates, key=lambda plate: (-plate.weight, plate.id))[0]
+                if candidates
+                else None
+            )
         return (
             self.nameplates.filter(
                 is_primary=True,
@@ -431,6 +449,14 @@ class CanComment(models.Model):
         related_name="comments",
         verbose_name="罐头",
     )
+    nameplate = models.ForeignKey(
+        "Nameplate",
+        on_delete=models.CASCADE,
+        related_name="comments",
+        null=True,
+        blank=True,
+        verbose_name="铭牌",
+    )
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -442,6 +468,7 @@ class CanComment(models.Model):
 
     class Meta:
         ordering = ["created_at", "id"]
+        indexes = [models.Index(fields=["nameplate", "created_at"])]
         verbose_name = "罐头评论"
         verbose_name_plural = "罐头评论"
 

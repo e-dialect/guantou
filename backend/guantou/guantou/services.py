@@ -9,6 +9,7 @@ from django.db.models import (
     F,
     IntegerField,
     OuterRef,
+    Prefetch,
     Q,
     Value,
     When,
@@ -53,10 +54,32 @@ def result_limit(value, default=DEFAULT_SEARCH_LIMIT, maximum=MAX_SEARCH_LIMIT):
         return default
 
 
+def nameplate_preview_queryset():
+    """Return the complete, query-stable source for every embedded nameplate card."""
+    return (
+        Nameplate.objects.select_related(
+            "can",
+            "package",
+            "flavor",
+            "dialect",
+            "dialect__parent",
+            "dialect__parent__parent",
+            "pronunciation",
+            "creator",
+        )
+        .prefetch_related("supports")
+        .annotate(comment_count=Count("comments", distinct=True))
+    )
+
+
+def prefetch_nameplate_previews(path="nameplates"):
+    return Prefetch(path, queryset=nameplate_preview_queryset())
+
+
 def visible_cans_for_user(user):
     queryset = Can.objects.select_related(
         "recorder", "submitted_dialect", "verifier"
-    ).prefetch_related("nameplates", "nameplates__supports")
+    ).prefetch_related(prefetch_nameplate_previews())
     if user and user.is_authenticated and user.is_staff:
         return queryset
     if user and user.is_authenticated:
@@ -109,7 +132,11 @@ def with_can_card_annotations(queryset, user):
             distinct=True,
         ),
         like_count=Count("likes", distinct=True),
-        comment_count=Count("comments", distinct=True),
+        comment_count=Count(
+            "comments",
+            filter=Q(comments__nameplate__isnull=True),
+            distinct=True,
+        ),
         use_count=Count(
             "posts",
             filter=Q(posts__visibility=CanPost.Visibility.PUBLIC),
@@ -140,6 +167,7 @@ def aggregate_search(keyword, user=None, limit=DEFAULT_SEARCH_LIMIT):
             "keyword": "",
             "flavors": [],
             "packages": [],
+            "nameplates": [],
             "cans": [],
         }
 
@@ -148,6 +176,7 @@ def aggregate_search(keyword, user=None, limit=DEFAULT_SEARCH_LIMIT):
         "keyword": clean_keyword,
         "flavors": search_flavors(clean_keyword, normalized_limit),
         "packages": search_packages(clean_keyword, normalized_limit),
+        "nameplates": suggest_nameplates(clean_keyword, user, normalized_limit),
         "cans": search_cans(clean_keyword, user, normalized_limit),
     }
 
@@ -183,9 +212,13 @@ def suggest_packages(keyword, limit):
 
 def suggest_nameplates(keyword, user, limit):
     return (
-        Nameplate.objects.filter(can__in=visible_cans_for_user(user))
+        nameplate_preview_queryset()
+        .filter(can__in=visible_cans_for_user(user))
         .filter(Q(text_content__icontains=keyword) | Q(definition__icontains=keyword))
-        .annotate(suggest_rank=_prefix_rank(Q(text_content__istartswith=keyword)))
+        .annotate(
+            support_count=Count("supports", distinct=True),
+            suggest_rank=_prefix_rank(Q(text_content__istartswith=keyword)),
+        )
         .order_by("suggest_rank", "id")[:limit]
     )
 

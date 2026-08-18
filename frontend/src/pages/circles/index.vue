@@ -67,6 +67,7 @@
 import EmptyState from '@/components/EmptyState.vue';
 import PageShell from '@/components/PageShell.vue';
 import { requireAuth } from '@/services/authGuard';
+import { goCircleDetail, goDiscovery } from '@/services/navigation';
 import {
   joinCircle, leaveCircle, listCircles,
 } from '@/services/guantou';
@@ -104,10 +105,10 @@ export default {
         : item));
     },
     toDetail(id) {
-      uni.navigateTo({ url: `/pages/circles/details?id=${id}` });
+      goCircleDetail(id);
     },
     toDiscovery() {
-      uni.navigateTo({ url: '/pages/discovery/index' });
+      goDiscovery();
     },
   },
 };

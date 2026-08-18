@@ -100,6 +100,8 @@
 
 <script>
 import PageShell from '@/components/PageShell.vue';
+import { openPage } from '@/services/navigation';
+import { toMailDetailsPage } from '@/routers/mail';
 import { listNotifications, markNotificationsRead } from '@/services/mail';
 
 export default {
@@ -170,10 +172,10 @@ export default {
           : existing));
       }
       if (item.target?.url) {
-        uni.navigateTo({ url: item.target.url });
+        openPage(item.target.url);
         return;
       }
-      uni.navigateTo({ url: `/pages/mails/details?id=${item.id}` });
+      toMailDetailsPage(item.id);
     },
   },
 };

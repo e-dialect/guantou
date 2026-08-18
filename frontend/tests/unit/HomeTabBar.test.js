@@ -9,6 +9,7 @@ function setupUni(token = 'token-value') {
     setStorageSync: vi.fn(),
     removeStorageSync: vi.fn(),
     navigateTo: vi.fn(),
+    reLaunch: vi.fn(),
     showToast: vi.fn(),
   };
   globalThis.getCurrentPages = vi.fn(() => []);
@@ -23,7 +24,7 @@ describe('HomeTabBar routing', () => {
   it('renders five slots including the raised 装罐 key', () => {
     const wrapper = mount(HomeTabBar, { props: { active: 'home' } });
 
-    expect(wrapper.text()).toContain('首页');
+    expect(wrapper.text()).toContain('罐头');
     expect(wrapper.text()).toContain('图鉴');
     expect(wrapper.text()).toContain('装罐');
     expect(wrapper.text()).toContain('集盒');
@@ -35,17 +36,17 @@ describe('HomeTabBar routing', () => {
     const wrapper = mount(HomeTabBar, { props: { active: 'home' } });
 
     await wrapper.find('[aria-label="图鉴"]').trigger('tap');
-    expect(uni.navigateTo).toHaveBeenCalledWith(expect.objectContaining({
+    expect(uni.reLaunch).toHaveBeenCalledWith(expect.objectContaining({
       url: '/pages/flavors/index',
     }));
 
     await wrapper.find('[aria-label="集盒"]').trigger('tap');
-    expect(uni.navigateTo).toHaveBeenCalledWith(expect.objectContaining({
+    expect(uni.reLaunch).toHaveBeenCalledWith(expect.objectContaining({
       url: '/pages/shelves/index',
     }));
 
     await wrapper.find('[aria-label="我的"]').trigger('tap');
-    expect(uni.navigateTo).toHaveBeenCalledWith(expect.objectContaining({
+    expect(uni.reLaunch).toHaveBeenCalledWith(expect.objectContaining({
       url: '/pages/users/me',
     }));
   });
@@ -53,17 +54,17 @@ describe('HomeTabBar routing', () => {
   it('does not re-navigate when home is already active', async () => {
     const wrapper = mount(HomeTabBar, { props: { active: 'home' } });
 
-    await wrapper.find('[aria-label="首页"]').trigger('tap');
+    await wrapper.find('[aria-label="罐头"]').trigger('tap');
 
-    expect(uni.navigateTo).not.toHaveBeenCalled();
+    expect(uni.reLaunch).not.toHaveBeenCalled();
   });
 
   it('navigates home when active elsewhere', async () => {
     const wrapper = mount(HomeTabBar, { props: { active: 'atlas' } });
 
-    await wrapper.find('[aria-label="首页"]').trigger('tap');
+    await wrapper.find('[aria-label="罐头"]').trigger('tap');
 
-    expect(uni.navigateTo).toHaveBeenCalledWith(expect.objectContaining({
+    expect(uni.reLaunch).toHaveBeenCalledWith(expect.objectContaining({
       url: '/pages/index',
     }));
   });

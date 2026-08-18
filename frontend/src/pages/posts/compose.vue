@@ -80,6 +80,7 @@ import PageShell from '@/components/PageShell.vue';
 import SectionBlock from '@/components/SectionBlock.vue';
 import { createCanPost } from '@/services/canSocial';
 import { requireAuth } from '@/services/authGuard';
+import { goPostDetail } from '@/services/navigation';
 import { getCan } from '@/services/guantou';
 import { playAudio } from '@/utils/audio';
 
@@ -130,7 +131,7 @@ export default {
       try {
         const post = await createCanPost(this.canId, this.text, this.visibility);
         uni.showToast({ title: '发布成功', icon: 'success' });
-        uni.redirectTo({ url: `/pages/posts/details?id=${post.id}` });
+        goPostDetail(post.id, { replace: true });
       } catch (error) {
         uni.showToast({ title: error.message || '发布失败', icon: 'none' });
       } finally {

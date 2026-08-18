@@ -1,33 +1,60 @@
 <template>
   <view
-    class="vote-row"
-    :class="{ 'vote-row--supported': supported }"
+    class="plate-card"
+    :class="{ 'plate-card--supported': supported }"
   >
-    <view class="vote-row__main">
-      <view class="vote-row__text">
+    <view
+      class="plate-card__body"
+      role="button"
+      :aria-label="`查看铭牌 ${nameplate.display_text}`"
+      @tap="openDetail"
+    >
+      <view class="plate-card__eyebrow">
+        {{ nameplate.is_primary ? '主铭牌' : '铭牌' }} · {{ dialectText }}
+      </view>
+      <view class="plate-card__writing">
         {{ nameplate.display_text }}
       </view>
       <view
+        v-if="readingText"
+        class="plate-card__reading"
+      >
+        {{ readingText }}
+      </view>
+      <view
         v-if="nameplate.definition"
-        class="vote-row__definition"
+        class="plate-card__definition"
       >
         {{ nameplate.definition }}
       </view>
+      <view class="plate-card__source">
+        {{ sourceText }} · 点按查看依据
+      </view>
     </view>
-    <view
-      class="vote-row__support"
-      :class="{ 'vote-row__support--active': supported }"
-      role="button"
-      :aria-label="`支持铭牌 ${nameplate.display_text}`"
-      @tap.stop="toggle"
-    >
+
+    <view class="plate-card__actions">
       <view
-        class="vote-row__thumb"
-        aria-hidden="true"
-      />
-      <text class="vote-row__count">
+        class="plate-card__action vote-row__support"
+        :class="{ 'plate-card__action--active': supported }"
+        role="button"
+        @tap.stop="toggle"
+      >
         {{ supported ? '已支持' : '支持' }} {{ supportCount }}
-      </text>
+      </view>
+      <view
+        class="plate-card__action plate-card__comment"
+        role="button"
+        @tap.stop="openComments"
+      >
+        评论 {{ commentCount }}
+      </view>
+      <view
+        class="plate-card__action plate-card__action--debate"
+        role="button"
+        @tap.stop="openDebate"
+      >
+        立论
+      </view>
     </view>
   </view>
 </template>
@@ -35,6 +62,22 @@
 <script>
 import { requireAuth } from '@/services/authGuard';
 import { supportNameplate, unsupportNameplate } from '@/services/guantou';
+import {
+  goCreateNameplate,
+  goNameplateComments,
+  goNameplateDetail,
+} from '@/services/navigation';
+
+const SOURCE_LABELS = {
+  creator: '创作者自述',
+  oral: '口述',
+  fieldwork: '田野记录',
+  book: '书籍',
+  article: '论文 / 文章',
+  archive: '档案',
+  web: '网页',
+  other: '其他来源',
+};
 
 export default {
   name: 'NameplateVoteRow',
@@ -56,6 +99,29 @@ export default {
       busy: false,
     };
   },
+  computed: {
+    dialectText() {
+      return this.nameplate.dialect?.name || '方言点待补';
+    },
+    readingText() {
+      const pronunciation = this.nameplate.pronunciation || {};
+      const base = pronunciation.base_romanization || '';
+      const surface = pronunciation.surface_romanization
+        || this.nameplate.pronunciation_text
+        || pronunciation.ipa
+        || '';
+      if (base && surface && base !== surface) return `${base} → ${surface}`;
+      return surface || base;
+    },
+    sourceText() {
+      const type = this.nameplate.source_type || this.nameplate.source?.type || 'other';
+      const title = this.nameplate.source?.title || this.nameplate.source?.attributed_to;
+      return title || SOURCE_LABELS[type] || SOURCE_LABELS.other;
+    },
+    commentCount() {
+      return Number(this.nameplate.comment_count || 0);
+    },
+  },
   watch: {
     nameplate(next) {
       this.supported = Boolean(next.supported_by_current_user);
@@ -63,20 +129,29 @@ export default {
     },
   },
   methods: {
+    openDetail() {
+      goNameplateDetail(this.nameplate.id);
+    },
+    openComments() {
+      goNameplateComments(this.nameplate.id);
+    },
+    openDebate() {
+      // “立论”创建竞争性观点，不代表修订或取代当前铭牌。
+      if (!requireAuth('nameplate_create', {
+        canId: this.canId,
+        nameplateId: this.nameplate.id,
+      })) return;
+      goCreateNameplate(this.canId, this.nameplate.id);
+    },
     async toggle() {
       if (this.busy) return;
       const target = !this.supported;
-      if (
-        target
-        && !requireAuth('nameplate_support', {
-          nameplateId: this.nameplate.id,
-          canId: this.canId,
-        })
-      ) {
-        return;
-      }
+      if (target && !requireAuth('nameplate_support', {
+        nameplateId: this.nameplate.id,
+        canId: this.canId,
+      })) return;
+
       this.busy = true;
-      /* 乐观更新：先改本地态，失败再回滚 */
       this.supported = target;
       this.supportCount += target ? 1 : -1;
       try {
@@ -100,93 +175,84 @@ export default {
 </script>
 
 <style scoped>
-.vote-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 18rpx 22rpx;
-  border-radius: var(--radius-md);
-  background: var(--immersive-surface-color);
+.plate-card {
+  overflow: hidden;
   border: 1rpx solid var(--immersive-border-color);
-  backdrop-filter: blur(8rpx);
+  border-radius: var(--radius-lg);
+  background: var(--immersive-surface-color);
+  backdrop-filter: blur(12rpx);
 }
 
-.vote-row__main {
-  flex: 1;
-  min-width: 0;
+.plate-card__body {
+  padding: 22rpx 24rpx 18rpx;
 }
 
-.vote-row__text {
-  color: var(--on-immersive-color);
-  font-size: var(--font-size-lg);
+.plate-card__eyebrow {
+  color: var(--immersive-accent-color);
+  font-size: 19rpx;
   font-weight: 800;
-  letter-spacing: 2rpx;
-  overflow-wrap: anywhere;
+  letter-spacing: 3rpx;
 }
 
-.vote-row__definition {
-  margin-top: 6rpx;
+.plate-card__writing {
+  margin-top: 8rpx;
+  color: var(--on-immersive-color);
+  font-size: 46rpx;
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: 4rpx;
+}
+
+.plate-card__reading {
+  margin-top: 8rpx;
+  color: var(--on-immersive-color);
+  font-size: 25rpx;
+  letter-spacing: 2rpx;
+}
+
+.plate-card__definition {
+  margin-top: 10rpx;
   color: var(--on-immersive-muted-color);
-  font-size: var(--font-size-xs);
+  font-size: 23rpx;
   line-height: 1.45;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
+  -webkit-line-clamp: 2;
   overflow: hidden;
 }
 
-.vote-row__support {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  padding: 12rpx 22rpx;
-  border-radius: var(--radius-pill);
-  border: 1rpx solid var(--immersive-border-color);
-  background: var(--immersive-surface-strong-color);
-  color: var(--on-immersive-color);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  transition: transform 0.18s ease, background-color 0.25s ease, border-color 0.25s ease;
+.plate-card__source {
+  margin-top: 12rpx;
+  color: var(--on-immersive-muted-color);
+  font-size: 19rpx;
+  letter-spacing: 1rpx;
 }
 
-.vote-row__support:active {
+.plate-card__actions {
+  display: flex;
+  gap: 1rpx;
+  border-top: 1rpx solid var(--immersive-border-color);
+  background: var(--immersive-border-color);
+}
+
+.plate-card__action {
+  flex: 1;
+  padding: 17rpx 8rpx;
+  background: var(--immersive-surface-strong-color);
+  color: var(--on-immersive-color);
+  text-align: center;
+  font-size: 21rpx;
+  font-weight: 800;
+  transition: transform 0.18s ease, background-color 0.25s ease;
+}
+
+.plate-card__action:active {
   transform: scale(0.94);
 }
 
-.vote-row__support--active {
+.plate-card__action--active,
+.plate-card__action--debate {
   background: var(--immersive-accent-color);
-  border-color: var(--immersive-accent-color);
   color: var(--immersive-bg-color);
-}
-
-/* 纯 CSS 拇指图标（双端一致，不依赖字体/图标库） */
-.vote-row__thumb {
-  position: relative;
-  width: 22rpx;
-  height: 20rpx;
-}
-
-.vote-row__thumb::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 7rpx;
-  height: 12rpx;
-  border-radius: 2rpx;
-  background: currentColor;
-}
-
-.vote-row__thumb::after {
-  content: '';
-  position: absolute;
-  left: 9rpx;
-  bottom: 0;
-  width: 13rpx;
-  height: 14rpx;
-  border-radius: 3rpx 6rpx 3rpx 2rpx;
-  background: currentColor;
-  clip-path: polygon(28% 100%, 100% 100%, 100% 30%, 62% 30%, 72% 0, 34% 0, 22% 42%, 28% 100%);
 }
 </style>

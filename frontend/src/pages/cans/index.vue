@@ -43,6 +43,7 @@
 <script>
 import CanList from '@/components/CanList.vue';
 import PageShell from '@/components/PageShell.vue';
+import { goCanDetail, goCreateCan } from '@/services/navigation';
 import { listCans } from '@/services/guantou';
 
 function currentUserIsStaff() {
@@ -95,10 +96,10 @@ export default {
       };
     },
     toCreate() {
-      uni.navigateTo({ url: '/pages/cans/create' });
+      goCreateCan();
     },
     toDetail(id) {
-      uni.navigateTo({ url: `/pages/cans/details?id=${id}` });
+      goCanDetail(id);
     },
   },
 };

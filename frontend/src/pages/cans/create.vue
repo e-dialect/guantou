@@ -200,6 +200,7 @@ import {
   saveCanDraft,
 } from '@/services/canDrafts';
 import { releaseDraftAudioUrl } from '@/services/canDraftAudio';
+import { goCanDetail, goHome, ROUTES } from '@/services/navigation';
 
 function initialForm() {
   return {
@@ -357,7 +358,7 @@ export default {
         this.draftAccessBlocked = true;
         releaseDraftAudioUrl(this.audio);
         uni.showToast({ title: '该草稿属于其他账号', icon: 'none' });
-        uni.reLaunch({ url: '/pages/index?status=me' });
+        goHome(true, { status: 'me' });
         return false;
       }
       if (this.draftOwnerScope.startsWith('anonymous:') && currentOwnerIsUser) {
@@ -600,7 +601,7 @@ export default {
         }
         requireAuth('record_can', {
           page: 'can_create',
-          returnRoute: '/pages/cans/create',
+          returnRoute: ROUTES.canCreate,
           mode: this.mode,
           flavorId: this.targetFlavor.id || undefined,
           draftId: draft.id,
@@ -632,7 +633,7 @@ export default {
         if (this.draftSavePromise) await this.draftSavePromise.catch(() => {});
         if (this.draftId) await removeCanDraft(this.draftId, this.draftOwnerScope);
         releaseDraftAudioUrl(this.audio);
-        uni.redirectTo({ url: `/pages/cans/details?id=${can.id}` });
+        goCanDetail(can.id, { replace: true });
       } catch (error) {
         let draft;
         try {
@@ -643,7 +644,7 @@ export default {
               action: 'record_can',
               context: {
                 page: 'can_create',
-                returnRoute: '/pages/cans/create',
+                returnRoute: ROUTES.canCreate,
                 mode: this.mode,
                 flavorId: this.targetFlavor.id || undefined,
                 draftId: this.draftId,
@@ -659,7 +660,7 @@ export default {
             action: 'record_can',
             context: {
               page: 'can_create',
-              returnRoute: '/pages/cans/create',
+              returnRoute: ROUTES.canCreate,
               mode: this.mode,
               flavorId: this.targetFlavor.id || undefined,
               draftId: draft.id,

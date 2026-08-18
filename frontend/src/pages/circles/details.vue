@@ -54,6 +54,7 @@
 import CanList from '@/components/CanList.vue';
 import PageShell from '@/components/PageShell.vue';
 import { requireAuth } from '@/services/authGuard';
+import { goCanDetail, goCreateCan } from '@/services/navigation';
 import {
   getCircle, joinCircle, leaveCircle, listCircleCans,
 } from '@/services/guantou';
@@ -93,10 +94,10 @@ export default {
         circleId: this.circle.id,
         dialectId: this.circle.dialect.id,
       })) return;
-      uni.navigateTo({ url: `/pages/cans/create?dialect=${this.circle.dialect.id}` });
+      goCreateCan({ dialect: this.circle.dialect.id });
     },
     toCan(id) {
-      uni.navigateTo({ url: `/pages/cans/details?id=${id}` });
+      goCanDetail(id);
     },
   },
 };

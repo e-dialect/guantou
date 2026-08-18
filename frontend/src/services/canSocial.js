@@ -16,6 +16,14 @@ export function createCanComment(canId, content) {
   return request.post('/comments/', { can_id: canId, content });
 }
 
+export function listNameplateComments(nameplateId, params = {}) {
+  return request.get('/comments/', { nameplate_id: nameplateId, ...params });
+}
+
+export function createNameplateComment(nameplateId, content) {
+  return request.post('/comments/', { nameplate_id: nameplateId, content });
+}
+
 export function deleteCanComment(commentId) {
   return request.del(`/comments/${commentId}/`);
 }
@@ -50,6 +58,7 @@ export function deleteCanPost(postId) {
 
 export default {
   createCanComment,
+  createNameplateComment,
   createCanPost,
   deleteCanComment,
   deleteCanPost,
@@ -57,6 +66,7 @@ export default {
   likeCan,
   likeCanComment,
   listCanComments,
+  listNameplateComments,
   listCanPosts,
   unlikeCan,
   unlikeCanComment,

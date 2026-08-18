@@ -26,6 +26,7 @@
 - 写法、义项和方言共同确定 Pronunciation 的语境；三元组不唯一，可以保留多种读法。
 - Pronunciation 通过 Nameplate 获得多条实际录音证据；Can 不直接保存规范 Pronunciation，尚未分析的录音可以暂时没有完整铭牌。
 - 主铭牌是当前共识，不是永久真理：投票、认证或后续考据可以改变主铭牌。
+- 评论复用 `CanComment`，但目标边界严格分离：`nameplate=NULL` 是罐头公共评论，非空时是对应铭牌的论证区，所属 Can 由铭牌推导。
 
 例如“行”这种多义字，`Package(text="行")` 可以连接“行走”“行业”“可以/好”等多个 `Flavor`；“月亮”这个 Flavor 也可以连接“月亮”“月光”“月娘”等多个 Package。用户搜索“行”时先进入写法，再看到其下不同义项；进入“行走”义项后，再按 Dialect 展示对应 Pronunciation 和录音证据。
 
@@ -70,7 +71,7 @@ v1 只实现可追溯的主张与权重，不实现 AI 聚类或自动正字裁�
 
 用户反馈统一进入 `src/services/feedback.js`。加载态、成功提示、错误 toast 和后续可能接入的全局消息通知，都从这里扩展；业务 service 返回结构化数据和异常，不直接替页面决定复杂交互。
 
-前端页面优先用共享组件搭骨架：`PageShell` 负责顶部栏和滚动区，`SectionBlock` 负责详情分区，`CanList` 负责罐头分页列表，`EntityCard` 负责义项/写法/集盒卡片，`SearchPanel` 负责搜索聚焦态，`NameplateComposer` 负责贴铭牌表单。新增列表、详情、创建流程时，先判断是否可以扩展这些组件的 props 和事件，而不是复制一份视觉结构。
+前端页面优先用共享组件搭骨架：`AppShell` 负责罐头、图鉴、集盒、我的四个根入口的品牌框架，`PageShell` 负责详情、登录、编辑和评论页的可靠返回，`SectionBlock` 负责详情分区，`CanList` 负责罐头分页列表，`EntityCard` 负责义项/写法/集盒卡片，`SearchPanel` 负责搜索聚焦态，`NameplateCard` 负责铭牌摘要。新增列表、详情、创建流程时，先判断是否可以扩展这些组件的 props 和事件，而不是复制一份视觉结构。页面导航统一调用 `src/services/navigation.js` 的语义方法；登录恢复只接受该服务白名单生成的目的地。
 
 罐头相关页面继续复用 `CanCard`、`NameplateCard`、`EmptyState`、`ResultSection`、`AudioCapture`。首页、搜索页、罐头列表/详情、义项/写法/集盒页面是给后续贡献者参考的样板页面。
 

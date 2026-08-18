@@ -19,22 +19,8 @@ async function collectPages(fetcher, params = {}, page = 1, collected = []) {
 }
 
 export async function listAllDialects() {
-  const roots = orderedDialects(await collectPages(listDialects));
-  const flattened = [];
-  function appendBranch(items, depth) {
-    return items.reduce(async (previous, item) => {
-      await previous;
-      const dialect = { ...item, depth };
-      flattened.push(dialect);
-      if (!dialect.children_count) return;
-      const children = orderedDialects(await collectPages(listDialects, {
-        parent_id: dialect.id,
-      }));
-      await appendBranch(children, depth + 1);
-    }, Promise.resolve());
-  }
-  await appendBranch(roots, 0);
-  return flattened;
+  const items = await collectPages(listDialects, { flat: true });
+  return orderedDialects(items);
 }
 
 export function resolveDialect(qualifiedCode) {

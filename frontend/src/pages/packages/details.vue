@@ -35,6 +35,7 @@ import EntityCard from '@/components/EntityCard.vue';
 import PageShell from '@/components/PageShell.vue';
 import SectionBlock from '@/components/SectionBlock.vue';
 import { getPackage } from '@/services/guantou';
+import { goFlavorDetail } from '@/services/navigation';
 
 const packageTypeLabels = {
   orthodox: '正字',
@@ -67,7 +68,7 @@ export default {
       return (flavor.mandarin || []).join(' / ') || '未填写普通话概念';
     },
     toFlavor(id) {
-      uni.navigateTo({ url: `/pages/flavors/details?id=${id}` });
+      goFlavorDetail(id);
     },
   },
 };

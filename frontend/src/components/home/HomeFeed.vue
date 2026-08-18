@@ -128,6 +128,7 @@ import { isLoggedIn, requireAuth } from '@/services/authGuard';
 import { getTodayCan, listHomeFeed } from '@/services/homeFeed';
 import { toLoginPage } from '@/routers/login';
 import { preload, stopAudio } from '@/utils/audio';
+import { goCreateCan, goDiscovery, goOnboarding } from '@/services/navigation';
 
 const WINDOW_RADIUS = 2;
 const WINDOW_SIZE = WINDOW_RADIUS * 2 + 1;
@@ -291,14 +292,14 @@ export default {
       }
     },
     toOnboarding() {
-      uni.navigateTo({ url: '/pages/users/onboarding' });
+      goOnboarding();
     },
     toDiscovery() {
-      uni.navigateTo({ url: '/pages/discovery/index' });
+      goDiscovery();
     },
     toCreate() {
       if (!requireAuth('record_can', { page: 'home_feed' })) return;
-      uni.navigateTo({ url: '/pages/cans/create' });
+      goCreateCan();
     },
   },
 };

@@ -5,7 +5,15 @@ from rest_framework.test import APIClient
 from inbox.models import Notification
 from user.models import UserFollow, UserInfo
 
-from .models import Can, CanComment, CanCommentLike, CanLike, CanPost, Dialect
+from .models import (
+    Can,
+    CanComment,
+    CanCommentLike,
+    CanLike,
+    CanPost,
+    Dialect,
+    Nameplate,
+)
 
 
 class CanSocialApiTests(TestCase):
@@ -242,6 +250,73 @@ class CanSocialApiTests(TestCase):
         self.client.force_authenticate(self.staff)
         admin_deleted = self.client.delete(f"/comments/{second.id}/")
         self.assertEqual(admin_deleted.status_code, 204)
+
+    def test_nameplate_comments_are_targeted_and_separate_from_can_comments(self):
+        plate = Nameplate.objects.create(
+            can=self.same_can,
+            creator=self.same_author,
+            text_content="巴适",
+            source={"type": Nameplate.SourceType.CREATOR},
+        )
+        can_comment = CanComment.objects.create(
+            can=self.same_can,
+            author=self.viewer,
+            content="录音很清楚",
+        )
+
+        created = self.client.post(
+            "/comments/",
+            {"nameplate_id": plate.id, "content": "这个写法我也见过"},
+            format="json",
+        )
+
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.data["can_id"], self.same_can.id)
+        self.assertEqual(created.data["nameplate_id"], plate.id)
+        invalid_target = self.client.post(
+            "/comments/",
+            {
+                "can_id": self.same_can.id,
+                "nameplate_id": plate.id,
+                "content": "不能同时挂两个目标",
+            },
+            format="json",
+        )
+        self.assertEqual(invalid_target.status_code, 400)
+        moved = self.client.put(
+            f"/comments/{created.data['id']}/",
+            {"can_id": self.same_can.id, "content": "试图移动评论"},
+            format="json",
+        )
+        self.assertEqual(moved.status_code, 400)
+        self.assertEqual(
+            [
+                item["id"]
+                for item in self.client.get(
+                    "/comments/", {"can_id": self.same_can.id}
+                ).data["results"]
+            ],
+            [can_comment.id],
+        )
+        self.assertEqual(
+            [
+                item["id"]
+                for item in self.client.get(
+                    "/comments/", {"nameplate_id": plate.id}
+                ).data["results"]
+            ],
+            [created.data["id"]],
+        )
+        notice = Notification.objects.get(
+            recipient=self.same_author,
+            verb=Notification.Verb.CAN_COMMENT,
+            related_object_id=str(created.data["id"]),
+        )
+        self.assertEqual(notice.metadata["target_type"], "nameplate")
+        self.assertEqual(
+            notice.metadata["target_url"],
+            f"/pages/nameplates/comments?id={plate.id}",
+        )
 
     def test_use_same_requires_a_visible_can_and_never_creates_text_only_posts(self):
         missing = self.client.post(

@@ -129,6 +129,7 @@
 
 <script>
 import PageShell from '@/components/PageShell.vue';
+import { goOnboarding } from '@/services/navigation';
 import { toIndexPage } from '@/routers';
 import {
   followDialect,
@@ -165,7 +166,7 @@ export default {
   },
   async onLoad() {
     if (!this.primaryDialect?.id) {
-      uni.reLaunch({ url: '/pages/users/onboarding?reason=missing_dialect' });
+      goOnboarding({ reason: 'missing_dialect' }, { reset: true });
       return;
     }
     try {

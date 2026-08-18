@@ -11,7 +11,7 @@ frontend/
     pages.json      uni-app 路由、全局导航和 easycom 配置。
     services/       API 服务层。页面通过这里请求后端。
     utils/          请求封装、音频、剪贴板等通用工具。
-    routers/        页面跳转 helper。
+    routers/        旧入口兼容层；新业务导航统一委托给 services/navigation.js。
     components/     可复用组件。出现重复 UI 时优先沉淀到这里。
     const/          常量、枚举、静态配置。
     colorui/        旧 ColorUI 样式和基础组件。
@@ -47,7 +47,7 @@ pages/*.vue
 - `/dialects/`
 - `/search/`
 
-装罐和个人资料的方言选择器复用同一个递归加载器，按服务端 `sort_order`、`id` 展示 `qualified_code`；前端不维护县/镇静态枚举。
+方言选择器通过 `/dialects/?flat=true` 获取扁平列表，按服务端 `sort_order`、`id` 展示 `qualified_code`；前端不递归请求 `flavors`，也不维护县/镇静态枚举。
 
 读音展示优先并列显示 `base_romanization → surface_romanization`（本调 → 变调后）；缺少其中一项时只展示已有证据，不在客户端猜测或复制。
 
@@ -69,7 +69,9 @@ pages/*.vue
 2. 在 `frontend/src/pages.json` 注册路由。
 3. 在 `frontend/src/services/` 增加或复用服务函数。
 4. 页面里处理 `loading`、`error`、`empty`、`data` 四类状态。
-5. 用 `frontend/src/routers/` 或 `uni.navigateTo` 做跳转，参数名保持简单稳定。
+5. 在 `services/navigation.js` 增加或复用语义化方法（如 `goCanDetail(id)`），页面不拼接路径，也不直接调用 `uni.navigateTo`。
+
+根页面使用 `AppShell` 的品牌页眉、页脚和底部导航；详情、登录、编辑和评论页使用 `PageShell`，其返回按钮在没有历史栈时会回到合理根页面。首页铭牌数据必须由罐头列表响应自包含，卡片组件不得自行补请求。
 
 列表页至少包含：
 
@@ -160,7 +162,7 @@ rawRequest.get('/cans/', params, { silent: true });
 
 ## 搜索与列表
 
-当前搜索页通过 `searchGuantou(keyword, options)` 调用 `/search/` 聚合搜索，返回 `flavors`、`packages`、`cans` 三组结果。建议搜索页使用这个入口；单资源列表筛选仍走各自服务函数，例如 `listFlavors({ search })`、`listPackages({ search })`、`listCans({ search })`。
+当前搜索页通过 `searchGuantou(keyword, options)` 调用 `/search/` 聚合搜索，返回 `flavors`、`packages`、`nameplates`、`cans` 四组结果。建议搜索页使用这个入口；单资源列表筛选仍走各自服务函数，例如 `listFlavors({ search })`、`listPackages({ search })`、`listCans({ search })`。
 
 搜索页通常负责：
 

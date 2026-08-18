@@ -56,6 +56,7 @@ import HomeFeed from '@/components/home/HomeFeed.vue';
 import HomeTabBar from '@/components/home/HomeTabBar.vue';
 import HomeTopBar from '@/components/home/HomeTopBar.vue';
 import { resolveDefaultTab } from '@/services/homeFeed';
+import { ROUTES } from '@/services/navigation';
 import { SHARE_TITLE } from '@/const/branding';
 import { canSharePayload } from '@/utils/shareCan';
 import { stopAudio } from '@/utils/audio';
@@ -78,7 +79,7 @@ export default {
     if (this.pendingShareCan) return canSharePayload(this.pendingShareCan);
     return {
       title: SHARE_TITLE,
-      path: '/pages/index',
+      path: ROUTES.home,
     };
   },
   onShow() {

@@ -59,14 +59,25 @@ describe('auth journey', () => {
     });
   });
 
-  it.each(['like', 'comment'])('returns a %s intent to the can detail', (action) => {
+  it('returns a like intent to the can detail', () => {
     expect(resolveAuthDestination({
-      action,
+      action: 'like',
       context: { page: 'can_detail', canId: 19 },
     })).toEqual({
       kind: 'url',
       route: 'pages/cans/details',
       url: '/pages/cans/details?id=19',
+    });
+  });
+
+  it('returns a comment intent to the can comment thread', () => {
+    expect(resolveAuthDestination({
+      action: 'comment',
+      context: { page: 'can_detail', canId: 19 },
+    })).toEqual({
+      kind: 'url',
+      route: 'pages/cans/comments',
+      url: '/pages/cans/comments?id=19',
     });
   });
 

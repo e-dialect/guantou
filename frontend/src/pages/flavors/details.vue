@@ -74,6 +74,12 @@ import PageShell from '@/components/PageShell.vue';
 import SectionBlock from '@/components/SectionBlock.vue';
 import { requireAuth } from '@/services/authGuard';
 import { getFlavor, listCans } from '@/services/guantou';
+import {
+  goCanDetail,
+  goCreateCan,
+  goPackageDetail,
+  goPronunciationCreate,
+} from '@/services/navigation';
 
 export function formatPronunciationLabel(pronunciation) {
   const base = pronunciation.base_romanization;
@@ -107,10 +113,10 @@ export default {
       this.flavor = await getFlavor(this.id);
     },
     toCan(id) {
-      uni.navigateTo({ url: `/pages/cans/details?id=${id}` });
+      goCanDetail(id);
     },
     toPackage(id) {
-      uni.navigateTo({ url: `/pages/packages/details?id=${id}` });
+      goPackageDetail(id);
     },
     toCreateForFlavor() {
       if (!requireAuth('record_can', {
@@ -118,18 +124,14 @@ export default {
         flavorId: this.id,
         flavorName: this.flavor.name,
       })) return;
-      uni.navigateTo({
-        url: `/pages/cans/create?flavor=${this.id}&flavor_name=${encodeURIComponent(this.flavor.name)}`,
-      });
+      goCreateCan({ flavor: this.id, flavor_name: this.flavor.name });
     },
     toCreatePronunciation() {
       if (!requireAuth('pronunciation_create', {
         page: 'flavor_detail',
         flavorId: this.id,
       })) return;
-      uni.navigateTo({
-        url: `/pages/pronunciations/create?flavor_id=${this.id}`,
-      });
+      goPronunciationCreate(this.id);
     },
   },
 };

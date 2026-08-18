@@ -139,6 +139,23 @@
           </ResultSection>
 
           <ResultSection
+            title="铭牌"
+            :items="results.nameplates"
+            empty-title="没有匹配铭牌"
+          >
+            <EntityCard
+              v-for="item in results.nameplates"
+              :key="`nameplate-${item.id}`"
+              type="铭牌"
+              :title="item.display_text"
+              :description="item.definition || '暂无释义'"
+              :meta="item.dialect?.qualified_code || item.dialect?.name || '方言点待补'"
+              :item="{ ...item, scope: 'nameplates' }"
+              @open="$emit('open', $event)"
+            />
+          </ResultSection>
+
+          <ResultSection
             title="罐头"
             :items="results.cans"
             empty-title="没有匹配罐头"
@@ -202,6 +219,7 @@ export default {
       default: () => ({
         flavors: [],
         packages: [],
+        nameplates: [],
         cans: [],
       }),
     },
@@ -239,6 +257,7 @@ export default {
     totalResults() {
       return (this.results.flavors || []).length
         + (this.results.packages || []).length
+        + (this.results.nameplates || []).length
         + (this.results.cans || []).length;
     },
   },

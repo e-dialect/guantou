@@ -1,7 +1,13 @@
 import { requireAuth } from '@/services/authGuard';
+import {
+  goPostCompose,
+  goPostDetail,
+  pageUrl,
+  ROUTES,
+} from '@/services/navigation';
 
 export function useSameUrl(canId) {
-  return `/pages/posts/compose?can_id=${encodeURIComponent(canId)}`;
+  return pageUrl(ROUTES.postCompose, { can_id: canId });
 }
 
 export function startUseSame(canId, context = {}) {
@@ -11,15 +17,13 @@ export function startUseSame(canId, context = {}) {
     canId,
     postId: context.postId,
   })) return false;
-  uni.navigateTo({ url: useSameUrl(canId) });
+  goPostCompose(canId);
   return true;
 }
 
 export function openCanPost(postId) {
   if (!postId) return false;
-  uni.navigateTo({
-    url: `/pages/posts/details?id=${encodeURIComponent(postId)}`,
-  });
+  goPostDetail(postId);
   return true;
 }
 

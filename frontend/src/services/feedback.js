@@ -8,6 +8,7 @@ const DEFAULT_ERROR_MESSAGES = {
 };
 
 const MAX_TOAST_TITLE_LENGTH = 32;
+let loadingReferences = 0;
 
 function truncateTitle(title) {
   const normalized = String(title || '').trim();
@@ -51,14 +52,25 @@ export function notifyError(error, fallback = '') {
 }
 
 export function showLoading(title = '加载中') {
-  uni.showLoading({
-    title,
-    mask: true,
-  });
+  // 只在 0→1 时打开原生 Loading，避免并发请求互相提前关闭。
+  if (loadingReferences === 0) {
+    uni.showLoading({
+      title,
+      mask: true,
+    });
+  }
+  loadingReferences += 1;
 }
 
 export function hideLoading() {
-  uni.hideLoading();
+  if (loadingReferences === 0) return;
+  loadingReferences -= 1;
+  // 只在最后一个请求结束（1→0）时关闭。
+  if (loadingReferences === 0) uni.hideLoading();
+}
+
+export function resetLoading() {
+  loadingReferences = 0;
 }
 
 export default {
@@ -67,5 +79,6 @@ export default {
   notify,
   notifyError,
   notifySuccess,
+  resetLoading,
   showLoading,
 };

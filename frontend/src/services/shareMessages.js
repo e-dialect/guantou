@@ -1,4 +1,5 @@
 import { SHARE_TITLE } from '@/const/branding';
+import { ROUTES } from '@/services/navigation';
 
 export function message(successMessage, failMessage) {
   return {
@@ -24,7 +25,7 @@ export default {
   onShareTimeline() {
     return {
       title: SHARE_TITLE,
-      path: '/pages/index',
+      path: ROUTES.home,
       imageUrl: 'https://cos.edialect.top/miniprogram/fm.gif',
       ...defaultMessage(),
     };

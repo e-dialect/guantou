@@ -204,6 +204,7 @@ import EntityCard from '@/components/EntityCard.vue';
 import PageShell from '@/components/PageShell.vue';
 import SectionBlock from '@/components/SectionBlock.vue';
 import { requireAuth } from '@/services/authGuard';
+import { goCanDetail, goFlavorDetail } from '@/services/navigation';
 import {
   getShelf,
   listCans,
@@ -355,10 +356,10 @@ export default {
       }
     },
     toFlavor(id) {
-      uni.navigateTo({ url: `/pages/flavors/details?id=${id}` });
+      goFlavorDetail(id);
     },
     toCan(id) {
-      uni.navigateTo({ url: `/pages/cans/details?id=${id}` });
+      goCanDetail(id);
     },
   },
 };

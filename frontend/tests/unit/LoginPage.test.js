@@ -36,8 +36,9 @@ function mountLogin() {
   const wrapper = mount(LoginPage, {
     global: {
       stubs: {
-        CuCustom: true,
-        'cu-custom': true,
+        PageShell: {
+          template: '<div><slot /></div>',
+        },
       },
     },
   });
@@ -48,6 +49,11 @@ function mountLogin() {
 describe('login page intent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    globalThis.uni = {
+      getStorageSync: vi.fn(() => ''),
+      onThemeChange: vi.fn(),
+      offThemeChange: vi.fn(),
+    };
   });
 
   it('explains the intercepted action and lets the guest return to search', async () => {
@@ -72,5 +78,18 @@ describe('login page intent', () => {
     await wrapper.vm.$nextTick();
 
     expect(wrapper.text()).toContain('验证身份后返回「我的」');
+  });
+
+  it('shows only the selected login form', async () => {
+    peekInterceptIntent.mockReturnValue(null);
+    const wrapper = mountLogin();
+
+    expect(wrapper.find('.phone-form').exists()).toBe(true);
+    expect(wrapper.find('.password-form').exists()).toBe(false);
+    wrapper.vm.changeMode({ detail: { value: 'password' } });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('.phone-form').exists()).toBe(false);
+    expect(wrapper.find('.password-form').exists()).toBe(true);
   });
 });

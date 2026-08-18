@@ -1001,10 +1001,21 @@ class NameplateApiTests(DomainFixture):
 class CanNameplatePreviewTests(DomainFixture):
     PREVIEW_KEYS = {
         "id",
+        "is_primary",
         "display_text",
+        "text_content",
         "definition",
+        "pronunciation_text",
+        "package",
+        "flavor",
+        "dialect",
+        "pronunciation",
+        "source",
+        "source_type",
+        "evidence_level",
         "weight",
         "support_count",
+        "comment_count",
         "supported_by_current_user",
     }
 

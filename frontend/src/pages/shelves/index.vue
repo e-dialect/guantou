@@ -1,6 +1,7 @@
 <template>
-  <PageShell
+  <AppShell
     title="主题集盒"
+    active="box"
     action-text="创建"
     @action="openCreate"
   >
@@ -81,15 +82,16 @@
         @action="openCreate"
       />
     </template>
-  </PageShell>
+  </AppShell>
 </template>
 
 <script>
 import EmptyState from '@/components/EmptyState.vue';
 import EntityCard from '@/components/EntityCard.vue';
-import PageShell from '@/components/PageShell.vue';
+import AppShell from '@/components/AppShell.vue';
 import { requireAuth } from '@/services/authGuard';
 import { createShelf, listShelves } from '@/services/guantou';
+import { goShelfDetail } from '@/services/navigation';
 
 export function createShelfSlug(userId, now = Date.now(), random = Math.random()) {
   const owner = Number(userId) || 0;
@@ -105,7 +107,7 @@ export default {
   components: {
     EmptyState,
     EntityCard,
-    PageShell,
+    AppShell,
   },
   data() {
     return {
@@ -181,7 +183,7 @@ export default {
       return `${(item.flavors || []).length} 个义项 · ${(item.cans || []).length} 个罐头`;
     },
     toDetail(id) {
-      uni.navigateTo({ url: `/pages/shelves/details?id=${id}` });
+      goShelfDetail(id);
     },
   },
 };

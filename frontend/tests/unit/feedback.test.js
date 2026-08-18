@@ -4,6 +4,7 @@ const feedback = await import('@/services/feedback');
 
 describe('feedback service', () => {
   beforeEach(() => {
+    feedback.resetLoading();
     global.uni = {
       showLoading: vi.fn(),
       hideLoading: vi.fn(),
@@ -20,6 +21,18 @@ describe('feedback service', () => {
       mask: true,
     });
     expect(uni.hideLoading).toHaveBeenCalled();
+  });
+
+  it('keeps one loading overlay until all concurrent work finishes', () => {
+    feedback.showLoading('加载甲');
+    feedback.showLoading('加载乙');
+    feedback.hideLoading();
+
+    expect(uni.showLoading).toHaveBeenCalledTimes(1);
+    expect(uni.hideLoading).not.toHaveBeenCalled();
+
+    feedback.hideLoading();
+    expect(uni.hideLoading).toHaveBeenCalledTimes(1);
   });
 
   it('maps API errors to user-facing messages', () => {

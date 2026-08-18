@@ -67,6 +67,7 @@
 <script>
 import { HOME_FEED_TABS } from '@/services/homeFeed';
 import { APP_NAME } from '@/const/branding';
+import { goCircleList, goDiscovery, goSearch } from '@/services/navigation';
 
 export default {
   name: 'HomeTopBar',
@@ -90,13 +91,13 @@ export default {
       }
     },
     toCircles() {
-      uni.navigateTo({ url: '/pages/circles/index' });
+      goCircleList();
     },
     toDiscovery() {
-      uni.navigateTo({ url: '/pages/discovery/index' });
+      goDiscovery();
     },
     toSearch() {
-      uni.navigateTo({ url: '/pages/search' });
+      goSearch();
     },
   },
 };

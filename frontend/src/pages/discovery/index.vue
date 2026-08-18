@@ -117,6 +117,9 @@ import PageShell from '@/components/PageShell.vue';
 import SectionBlock from '@/components/SectionBlock.vue';
 import { requireAuth } from '@/services/authGuard';
 import { getDiscovery } from '@/services/guantou';
+import {
+  goAtlas, goCanDetail, goCircleList, goCreateCan, goFlavorDetail,
+} from '@/services/navigation';
 
 function emptyDiscovery() {
   return {
@@ -148,36 +151,35 @@ export default {
       }
     },
     toCan(id) {
-      uni.navigateTo({ url: `/pages/cans/details?id=${id}` });
+      goCanDetail(id);
     },
     toFlavor(id) {
-      uni.navigateTo({ url: `/pages/flavors/details?id=${id}` });
+      goFlavorDetail(id);
     },
     toFlavors() {
-      uni.navigateTo({ url: '/pages/flavors/index' });
+      goAtlas();
     },
     toCircles() {
-      uni.navigateTo({ url: '/pages/circles/index' });
+      goCircleList();
     },
     recordFree() {
       if (!requireAuth('record_can', { page: 'discovery' })) return;
-      uni.navigateTo({ url: '/pages/cans/create' });
+      goCreateCan();
     },
     recordFlavor(flavor) {
       if (!requireAuth('record_can', {
         page: 'flavor_detail', flavorId: flavor.id, flavorName: flavor.name,
       })) return;
-      uni.navigateTo({
-        url: `/pages/cans/create?flavor=${flavor.id}&flavor_name=${encodeURIComponent(flavor.name)}`,
-      });
+      goCreateCan({ flavor: flavor.id, flavor_name: flavor.name });
     },
     joinTopic(topic) {
       if (!requireAuth('record_can', { page: 'discovery', challengeId: topic.id })) return;
-      const flavor = topic.flavor
-        ? `flavor=${topic.flavor.id}&flavor_name=${encodeURIComponent(topic.flavor.name)}`
-        : `prompt=${encodeURIComponent(topic.prompt)}`;
-      const dialect = topic.dialect ? `&dialect=${topic.dialect.id}` : '';
-      uni.navigateTo({ url: `/pages/cans/create?${flavor}${dialect}` });
+      goCreateCan({
+        flavor: topic.flavor?.id,
+        flavor_name: topic.flavor?.name,
+        prompt: topic.flavor ? undefined : topic.prompt,
+        dialect: topic.dialect?.id,
+      });
     },
   },
 };

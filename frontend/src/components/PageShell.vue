@@ -52,6 +52,7 @@
 
 <script>
 import { applyTheme, getThemePreference } from '@/services/theme';
+import { goBack, ROUTES } from '@/services/navigation';
 
 export default {
   name: 'PageShell',
@@ -76,6 +77,10 @@ export default {
       type: [String, Array, Object],
       default: '',
     },
+    backFallback: {
+      type: String,
+      default: ROUTES.home,
+    },
   },
   emits: ['action', 'back', 'scrolltolower'],
   data() {
@@ -96,7 +101,7 @@ export default {
     },
     handleBack() {
       this.$emit('back');
-      uni.navigateBack();
+      goBack(this.backFallback);
     },
   },
 };

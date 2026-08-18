@@ -22,17 +22,24 @@
 import SearchPanel from '@/components/SearchPanel.vue';
 import { APP_NAME } from '@/const/branding';
 import {
-  getNameplate,
   listHotSearches,
   searchGuantou,
   suggestGuantou,
 } from '@/services/guantou';
+import {
+  goBack,
+  goCanDetail,
+  goCreateCan,
+  goNameplateDetail,
+  openPage,
+} from '@/services/navigation';
 import { defaultMessage } from '@/services/shareMessages';
 
 function emptyResults() {
   return {
     flavors: [],
     packages: [],
+    nameplates: [],
     cans: [],
   };
 }
@@ -104,7 +111,7 @@ export default {
       }
     },
     goBack() {
-      uni.navigateBack();
+      goBack();
     },
     async search(keyword = this.keywords) {
       const search = String(keyword || '').trim();
@@ -171,26 +178,25 @@ export default {
       });
     },
     openCan(id) {
-      uni.navigateTo({ url: `/pages/cans/details?id=${id}` });
+      goCanDetail(id);
     },
-    async openItem(item) {
+    openItem(item) {
       if (item.scope === 'cans') {
         this.openCan(item.id);
         return;
       }
       if (item.scope === 'nameplates') {
-        const nameplate = await getNameplate(item.id);
-        this.openCan(nameplate.can.id);
+        goNameplateDetail(item.id);
         return;
       }
       const urls = {
         flavors: `/pages/flavors/details?id=${item.id}`,
         packages: `/pages/packages/details?id=${item.id}`,
       };
-      uni.navigateTo({ url: urls[item.scope] });
+      openPage(urls[item.scope]);
     },
     toCreateCan() {
-      uni.navigateTo({ url: '/pages/cans/create' });
+      goCreateCan();
     },
   },
 };
