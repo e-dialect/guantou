@@ -120,9 +120,22 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - backend
+      - docker
       - frontend-build
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download Docker images
+        uses: actions/download-artifact@v8
+        with:
+          name: ci-docker-images-${{ github.run_id }}
+          path: ${{ runner.temp }}/docker-images
+
+      - name: Load Docker images
+        run: |
+          docker load --input "${RUNNER_TEMP}/docker-images/guantou-backend.tar"
+          docker load --input "${RUNNER_TEMP}/docker-images/guantou-frontend.tar"
+          docker image inspect guantou-backend:latest guantou-frontend:latest >/dev/null
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -145,27 +158,6 @@ jobs:
         working-directory: frontend
         run: yarn playwright install --with-deps chromium
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Build backend image
-        uses: docker/build-push-action@v7
-        with:
-          context: ./backend/guantou
-          load: true
-          tags: guantou-backend:latest
-          cache-from: type=gha,scope=backend
-          cache-to: type=gha,mode=max,scope=backend
-
-      - name: Build frontend image
-        uses: docker/build-push-action@v7
-        with:
-          context: ./frontend
-          load: true
-          tags: guantou-frontend:latest
-          cache-from: type=gha,scope=frontend
-          cache-to: type=gha,mode=max,scope=frontend
-
       - name: Start Docker stack
         run: docker compose up -d
 
@@ -177,9 +169,13 @@ jobs:
         working-directory: frontend
         run: yarn test:e2e:h5
 
-      - name: Show backend logs on failure
+      - name: Show stack and application logs on failure
         if: failure()
-        run: docker compose logs --no-color backend frontend
+        run: |
+          docker compose logs --no-color backend frontend || true
+          if [ -d data/backend/logs ]; then
+            find data/backend/logs -maxdepth 1 -type f -print -exec tail -n 200 {} \;
+          fi
 
   docker:
     name: Docker
@@ -198,6 +194,7 @@ jobs:
         with:
           context: ./backend/guantou
           tags: guantou-backend:latest
+          outputs: type=docker,dest=${{ runner.temp }}/guantou-backend.tar
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
 
@@ -206,5 +203,17 @@ jobs:
         with:
           context: ./frontend
           tags: guantou-frontend:latest
+          outputs: type=docker,dest=${{ runner.temp }}/guantou-frontend.tar
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Upload Docker images
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-docker-images-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/guantou-backend.tar
+            ${{ runner.temp }}/guantou-frontend.tar
+          compression-level: 0
+          retention-days: 1
+          overwrite: true
