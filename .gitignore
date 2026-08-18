@@ -46,3 +46,6 @@ pnpm-debug.log*
 
 # Docker/local build noise
 .docker/
+
+# Local agent implementation plans
+docs/plans/
