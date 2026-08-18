@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('siteconfig', '0002_sitesettings_updated_at'),
+        ("siteconfig", "0002_sitesettings_updated_at"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='sitesettings',
-            name='featured_cans',
-            field=models.JSONField(blank=True, default=list, verbose_name='推荐罐头'),
+            model_name="sitesettings",
+            name="featured_cans",
+            field=models.JSONField(blank=True, default=list, verbose_name="推荐罐头"),
         ),
     ]
