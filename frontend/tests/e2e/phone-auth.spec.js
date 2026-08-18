@@ -7,9 +7,8 @@ test('guest signs in with the visible demo phone code', async ({ page }) => {
   await expect(page.getByText('还没有登录')).toBeVisible();
   await page.locator('.login-button').click();
 
-  const phoneInputs = page.locator('.phone-form input.uni-input-input');
-  const phone = phoneInputs.nth(0);
-  const code = phoneInputs.nth(1);
+  const phone = page.locator('.phone-input input.t-input__control');
+  const code = page.locator('.code-input input.t-input__control');
   await expect(phone).toBeVisible();
   await phone.fill('13800001234');
   await page.getByText('获取验证码', { exact: true }).click();

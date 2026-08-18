@@ -138,10 +138,11 @@ test('nameplate stays the main journey through comments, login resume, and debat
 
   await page.getByText('支持 6', { exact: true }).click();
   await expect(page).toHaveURL(/\/pages\/login\/login/);
-  const inputs = page.locator('.phone-form input.uni-input-input');
-  await inputs.nth(0).fill('13800001234');
+  const phone = page.locator('.phone-input input.t-input__control');
+  const code = page.locator('.code-input input.t-input__control');
+  await phone.fill('13800001234');
   await page.getByText('获取验证码', { exact: true }).click();
-  await inputs.nth(1).fill('123456');
+  await code.fill('123456');
   await page.getByText('登录 / 注册', { exact: true }).click();
 
   await expect(page).toHaveURL(/\/pages\/nameplates\/details\?id=21&resume=support/);

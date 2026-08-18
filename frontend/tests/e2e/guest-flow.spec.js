@@ -124,10 +124,10 @@ test('guest browses immersive feed, plays audio, and opens search', async ({ pag
   });
 
   await page.goto('/');
-  /* 沉浸流首页断言：默认推荐 tab + 大字号概念文字 + 铭牌预览 */
+  /* 铭牌写法和释义是首页权威内容，concept_text 只保留为旧数据兜底。 */
   await expect(page.getByRole('tab', { name: '推荐', selected: true })).toBeVisible();
-  await expect(page.getByText('「舒服」')).toBeVisible();
   await expect(page.getByText('巴适', { exact: true })).toBeVisible();
+  await expect(page.getByText('安逸、舒服', { exact: true })).toBeVisible();
   await expect(page.getByText('支持 12')).toBeVisible();
   if (process.env.E2E_SCREENSHOT_DIR) {
     await page.screenshot({

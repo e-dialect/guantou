@@ -48,6 +48,7 @@
       >
         <t-input
           v-model="phone"
+          class="phone-input"
           label="手机号"
           type="number"
           maxlength="13"
