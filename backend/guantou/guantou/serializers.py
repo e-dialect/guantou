@@ -681,6 +681,11 @@ class NameplateSerializer(NameplateCardSerializer):
         request = self.context.get("request")
         user = request.user if request else None
         validated_data["creator"] = user
+        # Lock and reload the Can before writing nameplates so concurrent
+        # nameplate creation cannot fork the JSON and relational audit history.
+        validated_data["can"] = Can.objects.select_for_update().get(
+            pk=validated_data["can"].pk
+        )
         if not validated_data.get("package"):
             raw_writing = clean_text(validated_data.get("text_content"))
             if raw_writing:

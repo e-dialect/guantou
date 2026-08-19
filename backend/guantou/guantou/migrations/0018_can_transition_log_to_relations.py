@@ -76,7 +76,7 @@ def migrate_rows_to_json(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("guantou", "0016_cantransition"),
+        ("guantou", "0017_cantransition"),
     ]
 
     operations = [

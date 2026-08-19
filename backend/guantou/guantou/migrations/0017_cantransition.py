@@ -9,7 +9,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("guantou", "0015_cancomment_nameplate"),
+        ("guantou", "0016_dailycanselection"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

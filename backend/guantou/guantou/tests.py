@@ -1520,3 +1520,36 @@ class CanTransitionConcurrencyTests(TransactionTestCase):
         self.can.refresh_from_db()
         self.assertEqual(len(self.can.transition_log), 1)
         self.assertEqual(self.can.transition_log[-1]["action"], "submit")
+
+    def test_concurrent_nameplate_creation_has_single_transition(self):
+        can = Can.objects.create(
+            audio_url="https://example.test/race-label.mp3",
+            recorder=self.owner,
+            submitted_dialect=self.dialect,
+            status=Can.Status.UNLABELED,
+        )
+        barrier = threading.Barrier(2)
+        statuses = []
+
+        def attempt():
+            client = APIClient()
+            client.force_authenticate(self.owner)
+            barrier.wait()
+            response = client.post(
+                "/nameplates/",
+                {"can_id": can.id, "text_content": "moon", "source": SOURCE},
+                format="json",
+            )
+            statuses.append(response.status_code)
+
+        threads = [threading.Thread(target=attempt) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        self.assertEqual(sorted(statuses), [201, 201])
+        can.refresh_from_db()
+        self.assertEqual(can.status, Can.Status.PENDING)
+        self.assertEqual(CanTransition.objects.filter(can=can).count(), 1)
+        self.assertEqual(len(can.transition_log), 1)

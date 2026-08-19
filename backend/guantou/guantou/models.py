@@ -435,6 +435,8 @@ class DailyCanSelection(models.Model):
         ordering = ["-date"]
         verbose_name = "今日罐选择"
         verbose_name_plural = "今日罐选择"
+
+
 class CanTransition(models.Model):
     """Append-only domain audit row for Can status transitions.
 

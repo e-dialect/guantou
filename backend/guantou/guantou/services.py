@@ -427,6 +427,7 @@ def record_can_transition(
     can, *, from_status, to_status, action, actor=None, reason=""
 ):
     """Append a CanTransition row and the legacy JSON transition_log entry."""
+    now = timezone.now()
     transition_log = list(can.transition_log or [])
     transition_log.append(
         {
@@ -434,7 +435,7 @@ def record_can_transition(
             "from": from_status,
             "to": to_status,
             "by": _transition_actor(actor) if actor else None,
-            "at": timezone.now().isoformat(),
+            "at": now.isoformat(),
             "reason": reason,
         }
     )
@@ -446,6 +447,7 @@ def record_can_transition(
         action=action,
         actor=actor,
         reason=reason,
+        created_at=now,
     )
 
 
