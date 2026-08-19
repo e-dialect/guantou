@@ -226,7 +226,7 @@ class ShelfThroughMigrationTests(TransactionTestCase):
 
 class CanTransitionMigrationTests(TransactionTestCase):
     migrate_from = ("guantou", "0014_repair_legacy_schema_drift")
-    migrate_to = ("guantou", "0016_can_transition_log_to_relations")
+    migrate_to = ("guantou", "0017_can_transition_log_to_relations")
 
     def setUp(self):
         super().setUp()

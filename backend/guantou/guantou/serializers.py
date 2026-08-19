@@ -23,7 +23,12 @@ from .models import (
     ShelfCan,
     ShelfFlavor,
 )
-from .services import clean_text, create_can_submission, normalize_transition_log
+from .services import (
+    clean_text,
+    create_can_submission,
+    normalize_transition_log,
+    record_can_transition,
+)
 
 
 class UserLiteSerializer(serializers.Serializer):
@@ -705,8 +710,15 @@ class NameplateSerializer(NameplateCardSerializer):
         if old_was_primary or not nameplate.can.primary_nameplate:
             nameplate.promote_to_primary()
         if nameplate.can.status == Can.Status.UNLABELED:
+            record_can_transition(
+                nameplate.can,
+                from_status=Can.Status.UNLABELED,
+                to_status=Can.Status.PENDING,
+                action="label",
+                actor=user,
+            )
             nameplate.can.status = Can.Status.PENDING
-            nameplate.can.save(update_fields=["status", "updated_at"])
+            nameplate.can.save(update_fields=["status", "transition_log", "updated_at"])
         return nameplate
 
     def update(self, instance, validated_data):

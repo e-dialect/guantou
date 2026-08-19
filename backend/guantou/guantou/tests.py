@@ -1446,6 +1446,41 @@ class CanTransitionRelationalTests(TestCase):
         self.can.refresh_from_db()
         self.assertEqual(len(self.can.transition_log), 1)
 
+    def test_nameplate_creation_records_unlabeled_to_pending_transition(self):
+        can = Can.objects.create(
+            audio_url="https://example.test/label.mp3",
+            recorder=self.user,
+            submitted_dialect=self.dialect,
+            status=Can.Status.UNLABELED,
+        )
+        package = Package.objects.create(
+            text="moon", package_type=Package.PackageType.ORTHODOX
+        )
+        flavor = Flavor.objects.create(name="moon", definition="definition")
+        client = APIClient()
+        client.force_authenticate(self.user)
+        response = client.post(
+            "/nameplates/",
+            {
+                "can_id": can.id,
+                "package_id": package.id,
+                "flavor_id": flavor.id,
+                "dialect_id": self.dialect.id,
+                "text_content": "moon",
+                "source": {"type": "oral", "attributed_to": "elder"},
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        can.refresh_from_db()
+        self.assertEqual(can.status, Can.Status.PENDING)
+        row = CanTransition.objects.get(can=can)
+        self.assertEqual(row.from_status, Can.Status.UNLABELED)
+        self.assertEqual(row.to_status, Can.Status.PENDING)
+        self.assertEqual(row.action, "label")
+        self.assertEqual(row.actor, self.user)
+        self.assertEqual(len(can.transition_log), 1)
+
 
 @skipUnless(connection.vendor == "postgresql", "requires PostgreSQL row locking")
 class CanTransitionConcurrencyTests(TransactionTestCase):
