@@ -18,6 +18,7 @@ from utils.exceptions.types.common import CommonException
 from .models import (
     Can,
     CanPost,
+    CanTransition,
     Dialect,
     DialectCircle,
     Flavor,
@@ -1372,3 +1373,73 @@ class CanQueryAndStateTests(DomainFixture):
         can.refresh_from_db()
         self.assertEqual(can.views, 1)
         self.assertEqual(can.updated_at, previous_updated_at)
+
+
+class CanTransitionRelationalTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="owner", password="pw")
+        self.staff = User.objects.create_user(
+            username="staff", password="pw", is_staff=True
+        )
+        self.dialect = Dialect.objects.create(name="Puxian", code="puxian")
+        self.can = Can.objects.create(
+            audio_url="https://example.test/audio.mp3",
+            recorder=self.user,
+            submitted_dialect=self.dialect,
+            status=Can.Status.PENDING,
+        )
+
+    def test_transition_creates_relational_row_and_keeps_json_compat(self):
+        client = APIClient()
+        client.force_authenticate(self.user)
+        response = client.post(
+            f"/cans/{self.can.id}/transition/",
+            {"action": "submit", "reason": "confirm"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.can.refresh_from_db()
+
+        row = CanTransition.objects.get(can=self.can)
+        self.assertEqual(row.from_status, Can.Status.PENDING)
+        self.assertEqual(row.to_status, Can.Status.TENTATIVE)
+        self.assertEqual(row.action, "submit")
+        self.assertEqual(row.actor, self.user)
+        self.assertEqual(row.reason, "confirm")
+
+        self.assertEqual(len(self.can.transition_log), 1)
+        self.assertEqual(self.can.transition_log[-1]["action"], "submit")
+
+    def test_transition_actor_is_nullable_after_user_delete(self):
+        client = APIClient()
+        client.force_authenticate(self.user)
+        response = client.post(
+            f"/cans/{self.can.id}/transition/",
+            {"action": "submit", "reason": "confirm"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        row = CanTransition.objects.get(can=self.can)
+        self.user.delete()
+        row.refresh_from_db()
+        self.assertIsNone(row.actor)
+
+    def test_multiple_transitions_append_in_order(self):
+        client = APIClient()
+        client.force_authenticate(self.staff)
+        self.can.status = Can.Status.TENTATIVE
+        self.can.save(update_fields=["status"])
+        self.assertEqual(
+            client.post(
+                f"/cans/{self.can.id}/transition/",
+                {"action": "verify", "reason": "ok"},
+                format="json",
+            ).status_code,
+            200,
+        )
+        rows = list(CanTransition.objects.filter(can=self.can).order_by("id"))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].action, "verify")
+        self.assertEqual(rows[0].to_status, Can.Status.VERIFIED)
+        self.can.refresh_from_db()
+        self.assertEqual(len(self.can.transition_log), 1)

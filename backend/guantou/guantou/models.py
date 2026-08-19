@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 
 class Dialect(models.Model):
@@ -434,6 +435,56 @@ class DailyCanSelection(models.Model):
         ordering = ["-date"]
         verbose_name = "今日罐选择"
         verbose_name_plural = "今日罐选择"
+class CanTransition(models.Model):
+    """Append-only domain audit row for Can status transitions.
+
+    Kept alongside Can.transition_log while the JSON field remains the v1 API
+    compatibility source; migration to the relational table does not rewrite it.
+    """
+
+    can = models.ForeignKey(
+        Can,
+        on_delete=models.CASCADE,
+        related_name="transitions",
+        verbose_name="罐头",
+    )
+    from_status = models.CharField(
+        max_length=20, choices=Can.Status.choices, verbose_name="转换前状态"
+    )
+    to_status = models.CharField(
+        max_length=20, choices=Can.Status.choices, verbose_name="转换后状态"
+    )
+    action = models.CharField(max_length=20, verbose_name="操作")
+    actor = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="can_transitions",
+        verbose_name="操作者",
+    )
+    reason = models.CharField(max_length=300, blank=True, verbose_name="原因")
+    created_at = models.DateTimeField(default=timezone.now, verbose_name="发生时间")
+
+    def __str__(self):
+        return f"{self.can_id} {self.from_status} -> {self.to_status}"
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        indexes = [
+            models.Index(
+                fields=["can", "created_at"], name="can_transition_can_at_idx"
+            ),
+            models.Index(
+                fields=["actor", "created_at"], name="can_transition_actor_at_idx"
+            ),
+            models.Index(
+                fields=["from_status", "to_status", "created_at"],
+                name="can_transition_status_at_idx",
+            ),
+        ]
+        verbose_name = "罐头状态转换"
+        verbose_name_plural = "罐头状态转换"
 
 
 class CanLike(models.Model):

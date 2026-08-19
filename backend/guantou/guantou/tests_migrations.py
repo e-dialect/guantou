@@ -222,3 +222,106 @@ class ShelfThroughMigrationTests(TransactionTestCase):
         self.assertEqual(
             set(shelf.cans.values_list("id", flat=True)), set(self.ids["cans"])
         )
+
+
+class CanTransitionMigrationTests(TransactionTestCase):
+    migrate_from = ("guantou", "0014_repair_legacy_schema_drift")
+    migrate_to = ("guantou", "0016_can_transition_log_to_relations")
+
+    def setUp(self):
+        super().setUp()
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        old_apps = executor.loader.project_state([self.migrate_from]).apps
+
+        User = old_apps.get_model("auth", "User")
+        Dialect = old_apps.get_model("guantou", "Dialect")
+        Can = old_apps.get_model("guantou", "Can")
+
+        user = User.objects.create(username="legacy-user")
+        missing_user = User.objects.create(username="missing-user")
+        missing_user_id = missing_user.id
+        missing_user.delete()
+        dialect = Dialect.objects.create(name="迁移方言", code="migration")
+        self.original_log = [
+            {
+                "action": "submit",
+                "from": "pending",
+                "to": "tentative",
+                "by": {
+                    "id": user.id,
+                    "username": "legacy-user",
+                    "nickname": "",
+                    "avatar": "",
+                },
+                "at": "2026-01-02T03:04:05+00:00",
+                "reason": "确认",
+            },
+            {
+                "action": "verify",
+                "from": "tentative",
+                "to": "verified",
+                "by": user.id,
+                "at": "2026-01-03T04:05:06+00:00",
+                "reason": "",
+            },
+            {
+                "action": "restore",
+                "from": "rejected",
+                "to": "pending",
+                "by": missing_user_id,
+                "at": "2026-01-04T05:06:07+00:00",
+                "reason": "missing",
+            },
+            "not-a-dict",
+        ]
+        can = Can.objects.create(
+            audio_url="https://example.test/legacy.mp3",
+            recorder=user,
+            submitted_dialect=dialect,
+            concept_text="走路",
+            transition_log=self.original_log,
+        )
+        self.can_id = can.id
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_to])
+        self.apps = executor.loader.project_state([self.migrate_to]).apps
+
+    def tearDown(self):
+        MigrationExecutor(connection).migrate(
+            MigrationExecutor(connection).loader.graph.leaf_nodes()
+        )
+        super().tearDown()
+
+    def test_forward_creates_rows_and_keeps_json_untouched(self):
+        CanTransition = self.apps.get_model("guantou", "CanTransition")
+        Can = self.apps.get_model("guantou", "Can")
+
+        rows = list(
+            CanTransition.objects.filter(can_id=self.can_id).order_by(
+                "created_at", "id"
+            )
+        )
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(rows[0].action, "submit")
+        self.assertEqual(rows[0].from_status, "pending")
+        self.assertEqual(rows[0].to_status, "tentative")
+        self.assertEqual(rows[0].reason, "确认")
+        self.assertEqual(rows[1].action, "verify")
+        self.assertEqual(rows[1].to_status, "verified")
+        self.assertIsNotNone(rows[1].actor)
+        self.assertIsNone(rows[2].actor)
+
+        can = Can.objects.get(pk=self.can_id)
+        self.assertEqual(can.transition_log, self.original_log)
+
+    def test_reverse_drops_rows_and_preserves_json(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        old_apps = executor.loader.project_state([self.migrate_from]).apps
+
+        Can = old_apps.get_model("guantou", "Can")
+        can = Can.objects.get(pk=self.can_id)
+        self.assertEqual(can.transition_log, self.original_log)
+        self.assertFalse("CanTransition" in old_apps.all_models.get("guantou", {}))

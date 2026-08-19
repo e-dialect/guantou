@@ -29,8 +29,10 @@ TRACKED_MODELS = (
     NameplateSupport,
 )
 
+# Can status transitions are audited by guantou.CanTransition; skip the
+# redundant generic ObjectChangeLog snapshot for the transition-only save.
 IGNORED_UPDATE_FIELDS = {
-    Can: {"views", "updated_at"},
+    Can: {"views", "updated_at", "transition_log", "status", "verifier"},
 }
 
 SNAPSHOT_ATTR = "_audit_original_snapshot"

@@ -26,6 +26,7 @@ from .models import (
     DailyCanSelection,
     CanLike,
     CanPost,
+    CanTransition,
     Flavor,
     FlavorPackage,
     Nameplate,
@@ -486,11 +487,12 @@ def transition_can(*, can_id, user, action, reason=""):
     clean_reason = clean_text(reason)
     if len(clean_reason) > 300:
         raise serializers.ValidationError({"reason": "流转理由不能超过 300 字"})
+    from_status = can.status
     transition_log = list(can.transition_log or [])
     transition_log.append(
         {
             "action": action,
-            "from": can.status,
+            "from": from_status,
             "to": target,
             "by": _transition_actor(user),
             "at": timezone.now().isoformat(),
@@ -499,6 +501,14 @@ def transition_can(*, can_id, user, action, reason=""):
     )
     can.status = target
     can.transition_log = transition_log
+    CanTransition.objects.create(
+        can=can,
+        from_status=from_status,
+        to_status=target,
+        action=action,
+        actor=user,
+        reason=clean_reason,
+    )
     if action in {"verify", "reject"}:
         can.verifier = user
     elif action == "restore":
