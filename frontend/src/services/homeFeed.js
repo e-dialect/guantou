@@ -14,7 +14,6 @@ const FEED_PARAM_BY_TAB = {
   recommended: 'recommended',
 };
 
-
 /**
  * 首页内容流列表：四 tab 映射后端 feed 参数（今日罐走独立策略，见 getTodayCan）。
  */
