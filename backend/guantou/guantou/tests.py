@@ -1,10 +1,12 @@
 import json
+import threading
+from unittest import skipUnless
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.db import IntegrityError, connection, transaction
 from django.http import JsonResponse
-from django.test import Client, RequestFactory, TestCase
+from django.test import Client, RequestFactory, TestCase, TransactionTestCase
 from django.test.utils import CaptureQueriesContext
 from rest_framework.exceptions import APIException
 from rest_framework.test import APIClient
@@ -1443,3 +1445,43 @@ class CanTransitionRelationalTests(TestCase):
         self.assertEqual(rows[0].to_status, Can.Status.VERIFIED)
         self.can.refresh_from_db()
         self.assertEqual(len(self.can.transition_log), 1)
+
+
+@skipUnless(connection.vendor == "postgresql", "requires PostgreSQL row locking")
+class CanTransitionConcurrencyTests(TransactionTestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(username="owner", password="pw")
+        self.dialect = Dialect.objects.create(name="Puxian", code="puxian")
+        self.can = Can.objects.create(
+            audio_url="https://example.test/audio.mp3",
+            recorder=self.owner,
+            submitted_dialect=self.dialect,
+            status=Can.Status.PENDING,
+        )
+
+    def test_concurrent_submit_is_deterministic(self):
+        barrier = threading.Barrier(2)
+        statuses = []
+
+        def attempt():
+            client = APIClient()
+            client.force_authenticate(self.owner)
+            barrier.wait()
+            response = client.post(
+                f"/cans/{self.can.id}/transition/",
+                {"action": "submit", "reason": "race"},
+                format="json",
+            )
+            statuses.append(response.status_code)
+
+        threads = [threading.Thread(target=attempt) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        self.assertEqual(sorted(statuses), [200, 409])
+        self.assertEqual(CanTransition.objects.filter(can=self.can).count(), 1)
+        self.can.refresh_from_db()
+        self.assertEqual(len(self.can.transition_log), 1)
+        self.assertEqual(self.can.transition_log[-1]["action"], "submit")
