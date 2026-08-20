@@ -79,7 +79,7 @@
     "@dcloudio/vite-plugin-uni": "3.0.0-4080720251210001",
     "@playwright/test": "^1.61.1",
     "@vitejs/plugin-vue": "5.2.4",
-    "@vue/runtime-core": "^3.5.40",
+    "@vue/runtime-core": "^3.5.41",
     "@vue/test-utils": "^2.4.11",
     "eslint": "^8.31.0",
     "eslint-config-airbnb-base": "^15.0.0",
