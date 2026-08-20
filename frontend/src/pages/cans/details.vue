@@ -1,6 +1,20 @@
 <template>
   <PageShell title="罐头详情">
-    <template v-if="can">
+    <view
+      v-if="loadError && !can"
+      class="load-error"
+    >
+      <text class="load-error__text">
+        {{ loadError }}
+      </text>
+      <button
+        class="load-error__retry"
+        @tap="retry"
+      >
+        重试
+      </button>
+    </view>
+    <template v-else-if="can">
       <view class="can-hero immersive-shell">
         <view class="can-hero__eyebrow">
           录音罐头 · #{{ can.id }}
@@ -250,6 +264,7 @@ export default {
       can: null,
       currentUser: currentSessionUser(),
       likeBusy: false,
+      loadError: '',
       posts: [],
       transitionBusy: '',
       transitionReason: '',
@@ -288,8 +303,16 @@ export default {
     statusText(status) { return statusLabels[status] || status; },
     formatTime(value) { return String(value || '').replace('T', ' ').slice(0, 16); },
     async refresh() {
-      this.can = await getCan(this.id);
-      this.posts = this.can.recent_posts || [];
+      this.loadError = '';
+      try {
+        this.can = await getCan(this.id);
+        this.posts = this.can.recent_posts || [];
+      } catch (error) {
+        this.loadError = error.message || '加载失败，请重试';
+      }
+    },
+    async retry() {
+      await this.refresh();
     },
     async runTransition(action) {
       if (this.transitionBusy) return;
@@ -349,6 +372,39 @@ export default {
 </script>
 
 <style scoped>
+.load-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--danger-subtle-color);
+  color: var(--danger-color);
+  font-size: var(--font-size-sm);
+}
+
+.load-error__text {
+  min-width: 0;
+  flex: 1;
+}
+
+.load-error__retry {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--surface-color);
+  color: var(--danger-color);
+  font-size: var(--font-size-sm);
+  line-height: 52rpx;
+}
+
+.load-error__retry::after {
+  border: 0;
+}
+
 .can-hero {
   padding: 34rpx;
   border-radius: var(--radius-lg);
@@ -384,7 +440,7 @@ export default {
   margin: 28rpx 0 24rpx;
   padding: 18rpx;
   border: 1rpx solid var(--immersive-border-color);
-  border-radius: 8rpx;
+  border-radius: var(--radius-sm);
   background: var(--immersive-surface-color);
 }
 .recorder__avatar {
@@ -407,12 +463,12 @@ export default {
 .review-actions { display: flex; flex-wrap: wrap; gap: 14rpx; margin-top: 14rpx; }
 .section-intro {
   margin-bottom: 20rpx;
-  color: var(--muted-text-color);
+  color: var(--muted-color);
   font-size: 23rpx;
   line-height: 1.6;
 }
 .post-row { padding: 20rpx 0; border-bottom: 1rpx solid var(--border-color); }
 .post-row__author { color: var(--accent-color); font-size: 22rpx; font-weight: 900; }
 .post-row__text { margin-top: 8rpx; color: var(--text-color); font-size: 27rpx; line-height: 1.55; }
-.post-row__time { margin-top: 8rpx; color: var(--muted-text-color); font-size: 20rpx; }
+.post-row__time { margin-top: 8rpx; color: var(--muted-color); font-size: 20rpx; }
 </style>

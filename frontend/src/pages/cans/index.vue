@@ -110,15 +110,15 @@ export default {
   padding: 24rpx 28rpx 0;
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 16rpx;
-  background: #f6f7f3;
+  gap: var(--space-2);
+  background: var(--page-color);
 }
 
 .search,
 .chip {
-  background: #ffffff;
-  border: 1px solid #d9dfd5;
-  border-radius: 999rpx;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
   padding: 18rpx 24rpx;
   font-size: 28rpx;
   box-sizing: border-box;

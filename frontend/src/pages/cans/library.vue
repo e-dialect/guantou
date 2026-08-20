@@ -44,6 +44,7 @@
 import CanDraftList from '@/components/CanDraftList.vue';
 import CanList from '@/components/CanList.vue';
 import PageShell from '@/components/PageShell.vue';
+import confirmDialog from '@/components/ConfirmDialog';
 import { deleteCan, listCans } from '@/services/guantou';
 import { requireAuth } from '@/services/authGuard';
 import { startUseSame } from '@/services/canPostJourney';
@@ -93,23 +94,21 @@ export default {
       if (this.tab === 'liked') goCanList();
       else goCreateCan();
     },
-    confirmDelete(can) {
+    async confirmDelete(can) {
       const title = can.primary_nameplate?.display_text || can.concept_text || `罐头 #${can.id}`;
-      uni.showModal({
+      const confirmed = await confirmDialog({
         title: '删除录音',
         content: `确定删除“${title}”吗？相关铭牌和评论也会一并删除。`,
-        confirmColor: '#9b3a2d',
-        success: async (result) => {
-          if (!result.confirm) return;
-          try {
-            await deleteCan(can.id);
-            this.$refs.canList.removeItem(can.id);
-            uni.showToast({ title: '已删除', icon: 'success' });
-          } catch (error) {
-            uni.showToast({ title: error.message || '删除失败', icon: 'none' });
-          }
-        },
+        danger: true,
       });
+      if (!confirmed) return;
+      try {
+        await deleteCan(can.id);
+        this.$refs.canList.removeItem(can.id);
+        uni.showToast({ title: '已删除', icon: 'success' });
+      } catch (error) {
+        uni.showToast({ title: error.message || '删除失败', icon: 'none' });
+      }
     },
   },
 };
@@ -121,21 +120,21 @@ export default {
   grid-template-columns: repeat(3, 1fr);
   gap: 12rpx;
   padding: 20rpx 28rpx;
-  background: #f6f7f3;
+  background: var(--page-color);
 }
 
 .tab {
   margin: 0;
-  border-radius: 999rpx;
-  background: #e8ece5;
-  color: #617067;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle-color);
+  color: var(--muted-color);
   font-size: 25rpx;
   line-height: 64rpx;
 }
 
 .tab.active {
-  background: #1f5c43;
-  color: #ffffff;
+  background: var(--accent-color);
+  color: var(--on-accent-color);
 }
 
 .tab::after {

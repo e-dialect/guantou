@@ -26,6 +26,20 @@
       v-if="loading && !comments.length"
       text="正在翻阅评论"
     />
+    <view
+      v-else-if="errorMessage && !comments.length"
+      class="comment-thread__error"
+    >
+      <text class="comment-thread__error-text">
+        {{ errorMessage }}
+      </text>
+      <button
+        class="comment-thread__retry"
+        @tap="retry"
+      >
+        重试
+      </button>
+    </view>
     <t-empty
       v-else-if="!comments.length"
       description="还没有评论，来留下第一条依据"
@@ -130,6 +144,7 @@ export default {
       hasMore: true,
       loading: false,
       submitting: false,
+      errorMessage: '',
     };
   },
   mounted() {
@@ -144,6 +159,7 @@ export default {
     async loadMore() {
       if (this.loading || !this.hasMore) return;
       this.loading = true;
+      this.errorMessage = '';
       try {
         const nextPage = this.page + 1;
         const response = this.targetType === 'nameplate'
@@ -154,10 +170,14 @@ export default {
         this.page = nextPage;
         this.hasMore = Boolean(response.next);
       } catch (error) {
+        this.errorMessage = error.message || '评论加载失败';
         uni.showToast({ title: error.message || '评论加载失败', icon: 'none' });
       } finally {
         this.loading = false;
       }
+    },
+    async retry() {
+      await this.loadMore();
     },
     async submit() {
       const content = String(this.draft || '').trim();
@@ -216,9 +236,42 @@ export default {
 
 .comment-thread__rule {
   padding: 28rpx 4rpx 14rpx;
-  color: var(--muted-text-color);
+  color: var(--muted-color);
   font-size: 22rpx;
   letter-spacing: 1rpx;
+}
+
+.comment-thread__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1rpx solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
+}
+
+.comment-thread__error-text {
+  min-width: 0;
+  flex: 1;
+  color: var(--danger-color);
+  font-size: var(--font-size-sm);
+}
+
+.comment-thread__retry {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--danger-subtle-color);
+  color: var(--danger-color);
+  font-size: var(--font-size-sm);
+  line-height: 52rpx;
+}
+
+.comment-thread__retry::after {
+  border: 0;
 }
 
 .comment-row {
@@ -255,7 +308,7 @@ export default {
 
 .comment-row__time,
 .comment-row__actions {
-  color: var(--muted-text-color);
+  color: var(--muted-color);
   font-size: 20rpx;
 }
 

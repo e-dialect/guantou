@@ -28,7 +28,7 @@ export default {
   padding: 20rpx 24rpx;
   border-left: 7rpx solid var(--accent-color);
   background: var(--surface-color);
-  color: var(--muted-text-color);
+  color: var(--muted-color);
   font-size: 22rpx;
   line-height: 1.6;
 }
