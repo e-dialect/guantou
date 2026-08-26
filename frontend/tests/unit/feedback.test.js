@@ -1,4 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  beforeEach, describe, expect, it, vi,
+} from 'vitest';
+import { mount } from '@vue/test-utils';
+
+import FeedbackHost from '@/components/FeedbackHost.vue';
 
 const feedback = await import('@/services/feedback');
 
@@ -50,5 +55,51 @@ describe('feedback service', () => {
     feedback.notify({ title: '这是一段非常非常非常非常非常非常长的错误信息' });
 
     expect(uni.showToast.mock.calls[0][0].title.length).toBeLessThanOrEqual(32);
+  });
+
+  it('uses an active TDesign host before native fallbacks', async () => {
+    const host = {
+      confirm: vi.fn(() => Promise.resolve(true)),
+      showToast: vi.fn(() => true),
+    };
+    feedback.registerFeedbackHost(host);
+
+    feedback.notifySuccess('保存成功');
+    await expect(feedback.confirm({ title: '继续吗？' })).resolves.toBe(true);
+
+    expect(host.showToast).toHaveBeenCalledWith(expect.objectContaining({
+      icon: 'success',
+      title: '保存成功',
+    }));
+    expect(host.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: '继续吗？' }));
+    expect(uni.showToast).not.toHaveBeenCalled();
+    feedback.unregisterFeedbackHost(host);
+  });
+
+  it('drives TDesign toast, message and dialog instances from the shared host', async () => {
+    const wrapper = mount(FeedbackHost);
+    wrapper.vm.$refs.toast.show = vi.fn();
+    wrapper.vm.$refs.message.setMessage = vi.fn();
+
+    expect(wrapper.vm.showToast({ title: '保存成功', icon: 'success' })).toBe(true);
+    expect(wrapper.vm.showMessage({ content: '已同步', theme: 'info' })).toBe(true);
+    expect(wrapper.vm.$refs.toast.show).toHaveBeenCalledWith(expect.objectContaining({
+      message: '保存成功',
+      theme: 'success',
+    }));
+    expect(wrapper.vm.$refs.message.setMessage).toHaveBeenCalledWith(expect.objectContaining({
+      content: '已同步',
+    }), 'info');
+
+    const confirmation = wrapper.vm.confirm({
+      title: '删除？',
+      content: '删除后无法恢复',
+      confirmText: '删除',
+      cancelText: '取消',
+      danger: true,
+    });
+    wrapper.vm.resolveDialog(true);
+    await expect(confirmation).resolves.toBe(true);
+    wrapper.unmount();
   });
 });

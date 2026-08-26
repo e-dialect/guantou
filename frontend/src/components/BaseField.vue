@@ -1,102 +1,98 @@
 <template>
-  <view class="base-field">
-    <view
-      v-if="label"
-      class="base-field-label"
-    >
-      {{ label }}
-      <text
-        v-if="required"
-        class="base-field-required"
-      >
-        *
-      </text>
+  <t-form-item
+    class="base-field"
+    :name="name"
+    :label="label"
+    :help="help"
+    :required-mark="required"
+    :rules="rules"
+    label-align="top"
+  >
+    <view class="base-field-control">
+      <t-textarea
+        v-if="type === 'textarea'"
+        :value="modelValue"
+        :placeholder="placeholder"
+        :maxlength="maxlength"
+        :disabled="disabled"
+        :readonly="readonly"
+        :autosize="resolvedAutosize"
+        :indicator="indicator"
+        bordered
+        @change="handleChange"
+        @blur="$emit('blur', $event)"
+        @focus="$emit('focus', $event)"
+      />
+      <t-input
+        v-else
+        :value="modelValue"
+        :type="inputType"
+        :placeholder="placeholder"
+        :maxlength="maxlength"
+        :disabled="disabled"
+        :readonly="readonly"
+        :clearable="clearable"
+        :status="error ? 'error' : 'default'"
+        borderless
+        @change="handleChange"
+        @blur="$emit('blur', $event)"
+        @focus="$emit('focus', $event)"
+      />
     </view>
-    <textarea
-      v-if="type === 'textarea'"
-      class="base-field-control base-field-textarea"
-      :value="modelValue"
-      :placeholder="placeholder"
-      :maxlength="maxlength"
-      :disabled="disabled"
-      :auto-height="autoHeight"
-      @input="handleInput"
-      @blur="$emit('blur', $event)"
-      @focus="$emit('focus', $event)"
-    />
-    <input
-      v-else
-      class="base-field-control"
-      :type="type"
-      :value="modelValue"
-      :placeholder="placeholder"
-      :maxlength="maxlength"
-      :disabled="disabled"
-      @input="handleInput"
-      @blur="$emit('blur', $event)"
-      @focus="$emit('focus', $event)"
-    >
     <view
       v-if="error"
       class="base-field-error"
     >
       {{ error }}
     </view>
-  </view>
+  </t-form-item>
 </template>
 
 <script>
-/**
- * 基础输入原语（M1·设计系统）
- * 统一输入框/文本域的标签、边框、错误提示样式，全部消费全局 Token；
- * 业务页面禁止再自写 .field/.login-input 等一次性输入样式。
- */
+import TFormItem from '@tdesign/uniapp/form-item/form-item.vue';
+import TInput from '@tdesign/uniapp/input/input.vue';
+import TTextarea from '@tdesign/uniapp/textarea/textarea.vue';
+
 export default {
   name: 'BaseField',
+  components: { TFormItem, TInput, TTextarea },
   props: {
-    modelValue: {
-      type: [String, Number],
-      default: '',
-    },
-    label: {
-      type: String,
-      default: '',
-    },
+    modelValue: { type: [String, Number], default: '' },
+    name: { type: String, required: true },
+    label: { type: String, default: '' },
     type: {
       type: String,
       default: 'text',
-      validator: (value) => ['text', 'textarea', 'number', 'digit', 'password'].includes(value),
+      validator: (value) => ['text', 'textarea', 'number', 'digit', 'password', 'tel'].includes(value),
     },
-    placeholder: {
-      type: String,
-      default: '',
+    placeholder: { type: String, default: '' },
+    maxlength: { type: Number, default: -1 },
+    disabled: { type: Boolean, default: false },
+    readonly: { type: Boolean, default: false },
+    required: { type: Boolean, default: false },
+    rules: { type: Array, default: () => [] },
+    help: { type: String, default: '' },
+    error: { type: String, default: '' },
+    autosize: { type: [Boolean, Object], default: false },
+    indicator: { type: Boolean, default: false },
+    clearable: { type: Boolean, default: false },
+  },
+  emits: ['update:modelValue', 'change', 'input', 'blur', 'focus'],
+  computed: {
+    inputType() {
+      if (this.type === 'tel') return 'number';
+      return this.type;
     },
-    maxlength: {
-      type: Number,
-      default: -1,
-    },
-    disabled: {
-      type: Boolean,
-      default: false,
-    },
-    required: {
-      type: Boolean,
-      default: false,
-    },
-    error: {
-      type: String,
-      default: '',
-    },
-    autoHeight: {
-      type: Boolean,
-      default: false,
+    resolvedAutosize() {
+      if (this.autosize) return this.autosize;
+      return { minHeight: 80 };
     },
   },
-  emits: ['update:modelValue', 'input', 'blur', 'focus'],
   methods: {
-    handleInput(event) {
-      const value = event.detail?.value ?? '';
+    handleChange(event) {
+      const value = event?.detail?.value ?? event?.value ?? event ?? '';
       this.$emit('update:modelValue', value);
+      this.$emit('change', value);
       this.$emit('input', value);
     },
   },
@@ -105,40 +101,23 @@ export default {
 
 <style scoped>
 .base-field {
-  margin-bottom: var(--space-3);
-}
-
-.base-field-label {
-  margin-bottom: var(--space-1);
-  color: var(--text-color);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-}
-
-.base-field-required {
-  margin-left: 4rpx;
-  color: var(--danger-color);
-}
-
-.base-field-control {
-  width: 100%;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  background: var(--surface-color);
-  color: var(--text-color);
-  font-size: var(--font-size-base);
-  box-sizing: border-box;
-}
-
-.base-field-textarea {
-  min-height: 160rpx;
-  line-height: 1.6;
+  --td-form-item-border-color: transparent;
+  --td-form-item-horizontal-padding: 0;
+  --td-form-item-vertical-padding: var(--space-2);
+  --td-input-bg-color: var(--surface-color);
+  --td-input-vertical-padding: var(--space-2) var(--space-3);
+  --td-textarea-background-color: var(--surface-color);
+  --td-textarea-padding: var(--space-2) var(--space-3);
 }
 
 .base-field-error {
   margin-top: var(--space-1);
   color: var(--danger-color);
   font-size: var(--font-size-xs);
+}
+
+.base-field-control {
+  width: 100%;
+  min-width: 0;
 }
 </style>

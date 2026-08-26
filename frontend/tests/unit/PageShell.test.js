@@ -1,11 +1,15 @@
 import { mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  beforeEach, describe, expect, it, vi,
+} from 'vitest';
 
 import PageShell from '@/components/PageShell.vue';
+import BaseButton from '@/components/BaseButton.vue';
+import FeedbackHost from '@/components/FeedbackHost.vue';
 
 describe('PageShell', () => {
   beforeEach(() => {
-    globalThis.uni = {
+    global.uni = {
       $emit: vi.fn(),
       $off: vi.fn(),
       $on: vi.fn(),
@@ -31,6 +35,22 @@ describe('PageShell', () => {
     expect(topbar.find('.shell-back').exists()).toBe(false);
     expect(topbar.find('.shell-back-placeholder').exists()).toBe(true);
     expect(topbar.find('.shell-title').text()).toBe('乡声集盒');
+    expect(wrapper.findComponent(FeedbackHost).exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('uses the shared button contract for topbar actions', () => {
+    const wrapper = mount(PageShell, {
+      props: { title: '编辑', actionText: '保存' },
+      global: {
+        stubs: { 'scroll-view': { template: '<div><slot /></div>' } },
+      },
+    });
+    const action = wrapper.getComponent(BaseButton);
+    expect(action.props('text')).toBe('保存');
+    action.vm.$emit('click');
+    expect(wrapper.emitted('action')).toHaveLength(1);
+    wrapper.unmount();
   });
 
   it('applies a theme update without browser-only globals', async () => {

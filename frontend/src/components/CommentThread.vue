@@ -1,28 +1,28 @@
 <template>
   <view class="comment-thread">
     <view class="comment-thread__composer">
-      <t-textarea
-        v-model:value="draft"
+      <BaseField
+        v-model="draft"
+        name="comment"
+        type="textarea"
         :maxlength="500"
         placeholder="说说你的依据、读法或补充……"
         indicator
         autosize
       />
-      <t-button
+      <BaseButton
         block
-        theme="primary"
+        text="发表评论"
         :loading="submitting"
         @click="submit"
-      >
-        发表评论
-      </t-button>
+      />
     </view>
 
     <view class="comment-thread__rule">
       讨论观点，也尊重每一种真实使用。
     </view>
 
-    <t-loading
+    <BaseLoading
       v-if="loading && !comments.length"
       text="正在翻阅评论"
     />
@@ -33,16 +33,17 @@
       <text class="comment-thread__error-text">
         {{ errorMessage }}
       </text>
-      <button
+      <BaseButton
         class="comment-thread__retry"
-        @tap="retry"
-      >
-        重试
-      </button>
+        variant="ghost"
+        size="small"
+        text="重试"
+        @click="retry"
+      />
     </view>
-    <t-empty
+    <EmptyState
       v-else-if="!comments.length"
-      description="还没有评论，来留下第一条依据"
+      title="还没有评论，来留下第一条依据"
     />
     <view v-else>
       <view
@@ -88,24 +89,23 @@
           </view>
         </view>
       </view>
-      <t-button
+      <BaseButton
         v-if="hasMore"
         block
-        variant="text"
+        variant="ghost"
+        text="加载更多"
         :loading="loading"
         @click="loadMore"
-      >
-        加载更多
-      </t-button>
+      />
     </view>
   </view>
 </template>
 
 <script>
-import TButton from '@tdesign/uniapp/button/button.vue';
-import TEmpty from '@tdesign/uniapp/empty/empty.vue';
-import TLoading from '@tdesign/uniapp/loading/loading.vue';
-import TTextarea from '@tdesign/uniapp/textarea/textarea.vue';
+import BaseButton from '@/components/BaseButton.vue';
+import BaseField from '@/components/BaseField.vue';
+import BaseLoading from '@/components/BaseLoading.vue';
+import EmptyState from '@/components/EmptyState.vue';
 import {
   createCanComment,
   createNameplateComment,
@@ -120,10 +120,10 @@ import { requireAuth } from '@/services/authGuard';
 export default {
   name: 'CommentThread',
   components: {
-    TButton,
-    TEmpty,
-    TLoading,
-    TTextarea,
+    BaseButton,
+    BaseField,
+    BaseLoading,
+    EmptyState,
   },
   props: {
     targetType: {
@@ -262,16 +262,6 @@ export default {
 .comment-thread__retry {
   flex: 0 0 auto;
   margin: 0;
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-pill);
-  background: var(--danger-subtle-color);
-  color: var(--danger-color);
-  font-size: var(--font-size-sm);
-  line-height: 52rpx;
-}
-
-.comment-thread__retry::after {
-  border: 0;
 }
 
 .comment-row {

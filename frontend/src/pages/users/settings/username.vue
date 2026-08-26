@@ -1,44 +1,54 @@
 <template>
-  <view>
-    <cu-custom title="修改用户名" />
-    <view class="cu-form-group text-df">
-      <view>
-        <text class="cuIcon-info" />
-        用户名是识别用户的标示并用于账号登录
-      </view>
+  <PageShell title="修改用户名">
+    <view class="setting-hint">
+      用户名是账号的唯一标识，也用于登录。
     </view>
-    <view class="cu-form-group text-df">
-      <view class="text-df text-bold-less margin-right-sm">
-        用户名
-      </view>
-      <input
-        v-model="username"
-        placeholder="不要超过20位嗷~"
-        maxlength="20"
-      >
-    </view>
-    <button
-      class="cu-btn round bg-gradual-blue shadow text-df margin-top-sm"
-      style="width: 16vw; margin-left: 80vw"
-      @tap="saveUsername"
+    <BaseForm
+      ref="form"
+      :data="form"
+      :rules="rules"
     >
-      保存
-    </button>
-  </view>
+      <BaseField
+        v-model="form.username"
+        name="username"
+        label="用户名"
+        placeholder="请输入不超过 20 位的用户名"
+        :maxlength="20"
+        required
+        clearable
+      />
+      <BaseButton
+        block
+        text="保存"
+        @click="saveUsername"
+      />
+    </BaseForm>
+  </PageShell>
 </template>
 
 <script>
+import BaseButton from '@/components/BaseButton.vue';
+import BaseField from '@/components/BaseField.vue';
+import BaseForm from '@/components/BaseForm.vue';
+import PageShell from '@/components/PageShell.vue';
 import { changeUserInfo } from '@/services/user';
 import { toLoginPage } from '@/routers/login';
-import CuCustom from '@/colorui/components/cu-custom.vue';
 
 const app = getApp();
 export default {
   name: 'ChangeUsername',
-  components: { CuCustom },
+  components: {
+    BaseButton, BaseField, BaseForm, PageShell,
+  },
   data() {
     return {
-      username: '',
+      form: { username: '' },
+      rules: {
+        username: [
+          { required: true, message: '请输入正确的用户名' },
+          { whitespace: true, message: '请输入正确的用户名' },
+        ],
+      },
     };
   },
   computed: {
@@ -47,32 +57,30 @@ export default {
     },
   },
   onShow() {
-    if (!this.currentUsername) {
-      toLoginPage();
-    }
-    this.username = this.currentUsername;
+    if (!this.currentUsername) toLoginPage();
+    this.form.username = this.currentUsername || '';
   },
   methods: {
     async saveUsername() {
-      if (this.username === '') {
-        uni.showModal({
-          content: '请输入正确的用户名',
-          showCancel: false,
-        });
-      } else {
-        const userInfo = { ...app.globalData.userInfo };
-        userInfo.username = this.username;
-        await changeUserInfo(app.globalData.id, userInfo);
-        app.globalData.userInfo = userInfo;
-        setTimeout(() => {
-          uni.navigateBack();
-        }, 1500);
-      }
+      const valid = await this.$refs.form.validate();
+      if (valid !== true) return;
+      const userInfo = { ...app.globalData.userInfo, username: this.form.username };
+      await changeUserInfo(app.globalData.id, userInfo);
+      app.globalData.userInfo = userInfo;
+      setTimeout(() => uni.navigateBack(), 1500);
     },
   },
 };
 </script>
 
 <style scoped>
-
+.setting-hint {
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--accent-subtle-color);
+  color: var(--text-secondary-color);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+}
 </style>

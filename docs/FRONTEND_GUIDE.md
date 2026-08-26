@@ -116,11 +116,16 @@ pages/*.vue
 
 基础原语（`frontend/src/components/`，easycom 自动注册）：
 
-- `BaseButton`：`variant="primary|ghost|danger"`、`size="medium|small"`、`block`、`loading`，事件 `@click`。不要自写 `.primary-button` 类一次性按钮样式。
-- `BaseField`：输入框/文本域统一封装，支持 `v-model`、`label`、`required`、`error`、`type="textarea"`。
-- `ConfirmDialog`：`import confirmDialog from '@/components/ConfirmDialog'`，`await confirmDialog({ title, content, danger: true })` 返回布尔值。删除类危险操作必须走它，不要直接调 `uni.showModal`。
+- `BaseButton`：TDesign Button 的项目语义层，支持 `variant="primary|ghost|danger|danger-ghost|light"`、尺寸、`block`、`loading` 与 `@click`。
+- `BaseForm`：统一封装 TDesign Form，使用 `:data`、`:rules`，并通过 ref 调用 `validate/reset/submit/clearValidate`。
+- `BaseField`：统一封装 TDesign FormItem + Input/Textarea，支持 `v-model`、`name`、`label`、`required`、`error`、`type="textarea"`。
+- `BaseLoading` / `EmptyState`：页面或区块加载、空态和重试操作。
+- `ConfirmDialog` 与 `services/feedback.js`：通过页面 Shell 中的 TDesign Host 展示反馈，旧页面才回退原生 API。
 
-第三方组件库：项目已接入腾讯 TDesign UniApp（`@tdesign/uniapp`），品牌色已映射到 Token。注意：当前 uni-app 版本的 easycom 对 npm 组件在小程序端不生效，**必须手动导入**（如 `import TPicker from '@tdesign/uniapp/picker/picker.vue'`）；常规按钮/输入/确认框优先用上述原语，仅在需要 picker、popup、toast 等复杂交互组件时直接用 TDesign。
+第三方组件库：项目已接入腾讯 TDesign UniApp（`@tdesign/uniapp`），完整明暗语义色已映射到项目 Token。当前 uni-app 版本的 easycom 对 npm 组件在小程序端不可靠，**必须手动导入**（如 `import TPicker from '@tdesign/uniapp/picker/picker.vue'`）。常规按钮、表单、加载、空态和反馈使用上述项目原语；Picker、Popup、Tabs、Cell、Upload 等复杂低频组件可直接使用 TDesign。
+
+新页面和完成迁移的页面禁止新增原生 `button/input/textarea/picker/switch`、`uni-ui` 表单或 `cu-*`。完整选择规则与验收要求见 [`frontend/AGENTS.md`](../frontend/AGENTS.md)。
+逐页迁移状态与延期 issue 见 [`TDESIGN_MIGRATION.md`](TDESIGN_MIGRATION.md)。
 
 `src/colorui/` 为历史遗留样式库，新页面不要新增 `cu-*` 类名引用，待存量页面迁移后移除。
 

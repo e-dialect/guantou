@@ -18,13 +18,13 @@
       <text class="shell-title">
         {{ title }}
       </text>
-      <button
+      <BaseButton
         v-if="actionText"
         class="shell-action"
-        @tap="$emit('action')"
-      >
-        {{ actionText }}
-      </button>
+        size="small"
+        :text="actionText"
+        @click="$emit('action')"
+      />
       <view
         v-else
         class="shell-action-placeholder"
@@ -47,15 +47,19 @@
     >
       <slot />
     </view>
+    <FeedbackHost />
   </view>
 </template>
 
 <script>
 import { applyTheme, getThemePreference } from '@/services/theme';
 import { goBack, ROUTES } from '@/services/navigation';
+import BaseButton from '@/components/BaseButton.vue';
+import FeedbackHost from '@/components/FeedbackHost.vue';
 
 export default {
   name: 'PageShell',
+  components: { BaseButton, FeedbackHost },
   props: {
     title: {
       type: String,
@@ -151,13 +155,6 @@ export default {
 
 .shell-action {
   margin: 0;
-  height: 58rpx;
-  line-height: 58rpx;
-  padding: 0 var(--space-3);
-  background: var(--accent-color);
-  color: var(--on-accent-color);
-  border-radius: var(--radius-pill);
-  font-size: var(--font-size-sm);
 }
 
 .shell-content {

@@ -9,6 +9,21 @@ const DEFAULT_ERROR_MESSAGES = {
 
 const MAX_TOAST_TITLE_LENGTH = 32;
 let loadingReferences = 0;
+const feedbackHosts = [];
+
+export function registerFeedbackHost(host) {
+  if (!host || feedbackHosts.includes(host)) return;
+  feedbackHosts.push(host);
+}
+
+export function unregisterFeedbackHost(host) {
+  const index = feedbackHosts.indexOf(host);
+  if (index >= 0) feedbackHosts.splice(index, 1);
+}
+
+function activeFeedbackHost() {
+  return feedbackHosts[feedbackHosts.length - 1] || null;
+}
 
 function truncateTitle(title) {
   const normalized = String(title || '').trim();
@@ -24,11 +39,66 @@ export function notify({
 } = {}) {
   const normalizedTitle = truncateTitle(title);
   if (!normalizedTitle) return;
+  const host = activeFeedbackHost();
+  if (host && host.showToast({
+    title: normalizedTitle,
+    icon,
+    duration,
+    mask,
+  })) return;
   uni.showToast({
     title: normalizedTitle,
     icon,
     duration,
     mask,
+  });
+}
+
+export function confirm({
+  title = '请确认',
+  content = '',
+  confirmText = '确认',
+  cancelText = '取消',
+  danger = false,
+} = {}) {
+  const host = activeFeedbackHost();
+  if (host && typeof host.confirm === 'function') {
+    return host.confirm({
+      title,
+      content,
+      confirmText,
+      cancelText,
+      danger,
+    });
+  }
+
+  return new Promise((resolve) => {
+    uni.showModal({
+      title,
+      content,
+      confirmText,
+      cancelText,
+      // uni.showModal 不支持 CSS 变量；仅兼容尚未挂载 FeedbackHost 的旧页面。
+      confirmColor: danger ? '#d54941' : undefined,
+      success: (result) => resolve(Boolean(result && result.confirm)),
+      fail: () => resolve(false),
+    });
+  });
+}
+
+export function message({
+  content,
+  theme = 'info',
+  duration = 3000,
+} = {}) {
+  const normalizedContent = truncateTitle(content);
+  if (!normalizedContent) return;
+  const host = activeFeedbackHost();
+  if (host && host.showMessage({ content: normalizedContent, theme, duration })) return;
+  notify({
+    title: normalizedContent,
+    icon: theme === 'info' ? 'none' : theme,
+    duration,
   });
 }
 
@@ -74,11 +144,15 @@ export function resetLoading() {
 }
 
 export default {
+  confirm,
   errorMessage,
   hideLoading,
+  message,
   notify,
   notifyError,
   notifySuccess,
+  registerFeedbackHost,
   resetLoading,
   showLoading,
+  unregisterFeedbackHost,
 };

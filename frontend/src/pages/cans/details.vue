@@ -7,12 +7,13 @@
       <text class="load-error__text">
         {{ loadError }}
       </text>
-      <button
+      <BaseButton
         class="load-error__retry"
-        @tap="retry"
-      >
-        重试
-      </button>
+        variant="ghost"
+        size="small"
+        text="重试"
+        @click="retry"
+      />
     </view>
     <template v-else-if="can">
       <view class="can-hero immersive-shell">
@@ -52,28 +53,24 @@
             主页 ›
           </text>
         </view>
-        <t-button
+        <BaseButton
           block
-          theme="primary"
           size="large"
+          text="播放这段乡音"
           @click="playAudio(can.audio_url)"
-        >
-          播放这段乡音
-        </t-button>
+        />
         <view class="can-hero__actions">
-          <t-button
-            theme="light"
+          <BaseButton
+            variant="light"
+            :text="`${can.liked_by_me ? '已点赞' : '点赞'} ${can.like_count || 0}`"
             :loading="likeBusy"
             @click="toggleLike"
-          >
-            {{ can.liked_by_me ? '已点赞' : '点赞' }} {{ can.like_count || 0 }}
-          </t-button>
-          <t-button
-            theme="light"
+          />
+          <BaseButton
+            variant="light"
+            :text="`用同款 ${can.use_count || 0}`"
             @click="useSame"
-          >
-            用同款 {{ can.use_count || 0 }}
-          </t-button>
+          />
           <t-button
             theme="light"
             open-type="share"
@@ -108,16 +105,15 @@
             autosize
           />
           <view class="review-actions">
-            <t-button
+            <BaseButton
               v-for="item in transitionActions"
               :key="item.action"
               size="small"
-              :theme="item.action === 'reject' ? 'danger' : 'primary'"
+              :variant="item.action === 'reject' ? 'danger' : 'primary'"
+              :text="item.label"
               :loading="transitionBusy === item.action"
               @click="runTransition(item.action)"
-            >
-              {{ item.label }}
-            </t-button>
+            />
           </view>
         </view>
       </SectionBlock>
@@ -136,37 +132,34 @@
           @support="support"
           @unsupport="unsupport"
         />
-        <t-empty
+        <EmptyState
           v-if="!activeNameplates.length"
-          description="这段录音还没有铭牌"
+          title="这段录音还没有铭牌"
         />
-        <t-button
+        <BaseButton
           block
-          variant="outline"
-          theme="primary"
+          variant="ghost"
+          :text="activeNameplates.length ? '发表一张新铭牌' : '补上第一张铭牌'"
           @click="createPlate"
-        >
-          {{ activeNameplates.length ? '发表一张新铭牌' : '补上第一张铭牌' }}
-        </t-button>
+        />
       </SectionBlock>
 
       <SectionBlock :title="`录音评论 · ${can.comment_count || 0}`">
         <view class="section-intro">
           这里讨论录音与录制信息；关于具体写法和读音，请进入对应铭牌评论区。
         </view>
-        <t-button
+        <BaseButton
           block
-          theme="light"
+          variant="light"
+          text="查看罐头评论"
           @click="openCanComments"
-        >
-          查看罐头评论
-        </t-button>
+        />
       </SectionBlock>
 
       <SectionBlock :title="`引用表达 · ${can.use_count || posts.length}`">
-        <t-empty
+        <EmptyState
           v-if="!posts.length"
-          description="还没有人用这段乡音表达"
+          title="还没有人用这段乡音表达"
         />
         <view
           v-for="post in posts"
@@ -186,7 +179,7 @@
         </view>
       </SectionBlock>
     </template>
-    <t-loading
+    <BaseLoading
       v-else
       text="正在开罐"
     />
@@ -196,7 +189,9 @@
 <script>
 import TButton from '@tdesign/uniapp/button/button.vue';
 import TCell from '@tdesign/uniapp/cell/cell.vue';
-import TLoading from '@tdesign/uniapp/loading/loading.vue';
+import BaseButton from '@/components/BaseButton.vue';
+import BaseLoading from '@/components/BaseLoading.vue';
+import EmptyState from '@/components/EmptyState.vue';
 import NameplateCard from '@/components/NameplateCard.vue';
 import PageShell from '@/components/PageShell.vue';
 import SectionBlock from '@/components/SectionBlock.vue';
@@ -251,12 +246,14 @@ function currentSessionUser() {
 
 export default {
   components: {
+    BaseButton,
+    BaseLoading,
+    EmptyState,
     NameplateCard,
     PageShell,
     SectionBlock,
     TButton,
     TCell,
-    TLoading,
   },
   data() {
     return {
@@ -393,16 +390,6 @@ export default {
 .load-error__retry {
   flex: 0 0 auto;
   margin: 0;
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-pill);
-  background: var(--surface-color);
-  color: var(--danger-color);
-  font-size: var(--font-size-sm);
-  line-height: 52rpx;
-}
-
-.load-error__retry::after {
-  border: 0;
 }
 
 .can-hero {

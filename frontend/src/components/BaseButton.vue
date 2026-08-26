@@ -1,58 +1,64 @@
 <template>
-  <button
+  <t-button
     class="base-button"
     :class="rootClass"
-    :disabled="disabled || loading"
-    @tap="handleTap"
+    :theme="tdTheme"
+    :variant="tdVariant"
+    :size="size"
+    :shape="shape"
+    :block="block"
+    :disabled="disabled"
+    :loading="loading"
+    :type="type || undefined"
+    :aria-label="ariaLabel || text"
+    @click="handleClick"
   >
-    <text
-      v-if="loading"
-      class="base-button-loading"
-    >
-      …
-    </text>
     <slot>{{ text }}</slot>
-  </button>
+  </t-button>
 </template>
 
 <script>
-/**
- * 基础按钮原语（M1·设计系统）
- * 样式全部消费全局 Token，随明暗主题自动切换；
- * 业务页面禁止再自写 .primary-button/.small-button 等一次性按钮样式。
- */
+import TButton from '@tdesign/uniapp/button/button.vue';
+
 export default {
   name: 'BaseButton',
+  components: { TButton },
   props: {
     variant: {
       type: String,
       default: 'primary',
-      validator: (value) => ['primary', 'ghost', 'danger'].includes(value),
+      validator: (value) => ['primary', 'ghost', 'danger', 'danger-ghost', 'light'].includes(value),
     },
     size: {
       type: String,
       default: 'medium',
-      validator: (value) => ['small', 'medium'].includes(value),
+      validator: (value) => ['extra-small', 'small', 'medium', 'large'].includes(value),
     },
-    text: {
+    text: { type: String, default: '' },
+    ariaLabel: { type: String, default: '' },
+    block: { type: Boolean, default: false },
+    disabled: { type: Boolean, default: false },
+    loading: { type: Boolean, default: false },
+    shape: {
+      type: String,
+      default: 'round',
+      validator: (value) => ['rectangle', 'square', 'round', 'circle'].includes(value),
+    },
+    type: {
       type: String,
       default: '',
-    },
-    block: {
-      type: Boolean,
-      default: false,
-    },
-    disabled: {
-      type: Boolean,
-      default: false,
-    },
-    loading: {
-      type: Boolean,
-      default: false,
+      validator: (value) => ['', 'submit', 'reset'].includes(value),
     },
   },
   emits: ['click'],
   computed: {
+    tdTheme() {
+      if (this.variant === 'light') return 'light';
+      return this.variant.startsWith('danger') ? 'danger' : 'primary';
+    },
+    tdVariant() {
+      return ['ghost', 'danger-ghost'].includes(this.variant) ? 'outline' : 'base';
+    },
     rootClass() {
       return [
         `base-button--${this.variant}`,
@@ -62,7 +68,7 @@ export default {
     },
   },
   methods: {
-    handleTap(event) {
+    handleClick(event) {
       if (this.disabled || this.loading) return;
       this.$emit('click', event);
     },
@@ -72,59 +78,6 @@ export default {
 
 <style scoped>
 .base-button {
-  margin: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-  border: 1px solid transparent;
-  border-radius: var(--radius-pill);
-  font-weight: 600;
-  box-sizing: border-box;
-}
-
-.base-button::after {
-  border: 0;
-}
-
-.base-button--medium {
-  min-height: 76rpx;
-  padding: 0 var(--space-4);
-  font-size: var(--font-size-base);
-}
-
-.base-button--small {
-  min-height: 58rpx;
-  padding: 0 var(--space-3);
-  font-size: var(--font-size-sm);
-}
-
-.base-button--block {
-  display: flex;
-  width: 100%;
-}
-
-.base-button--primary {
-  background: var(--accent-color);
-  color: var(--on-accent-color);
-}
-
-.base-button--ghost {
-  background: transparent;
-  border-color: var(--accent-color);
-  color: var(--accent-color);
-}
-
-.base-button--danger {
-  background: var(--danger-color);
-  color: var(--on-danger-color);
-}
-
-.base-button[disabled] {
-  opacity: 0.5;
-}
-
-.base-button-loading {
-  line-height: 1;
+  --td-button-border-radius: var(--radius-pill);
 }
 </style>

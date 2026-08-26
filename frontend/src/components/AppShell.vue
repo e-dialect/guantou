@@ -9,14 +9,13 @@
           {{ title }}
         </view>
       </view>
-      <t-button
+      <BaseButton
         v-if="actionText"
         size="small"
-        theme="light"
+        variant="light"
+        :text="actionText"
         @click="$emit('action')"
-      >
-        {{ actionText }}
-      </t-button>
+      />
     </view>
     <scroll-view
       v-if="scroll"
@@ -38,16 +37,20 @@
       <slot />
     </view>
     <HomeTabBar :active="active" />
+    <FeedbackHost />
   </view>
 </template>
 
 <script>
-import TButton from '@tdesign/uniapp/button/button.vue';
+import BaseButton from '@/components/BaseButton.vue';
+import FeedbackHost from '@/components/FeedbackHost.vue';
 import HomeTabBar from '@/components/home/HomeTabBar.vue';
 
 export default {
   name: 'AppShell',
-  components: { HomeTabBar, TButton },
+  components: {
+    BaseButton, FeedbackHost, HomeTabBar,
+  },
   props: {
     title: { type: String, required: true },
     active: { type: String, required: true },

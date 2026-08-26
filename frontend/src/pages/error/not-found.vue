@@ -1,25 +1,25 @@
 <template>
-  <view class="error-page">
-    <text class="title">
-      页面不存在
-    </text>
-    <text class="desc">
-      您访问的页面不存在，请检查您的链接是否正确
-    </text>
-    <button
-      class="cu-btn bg-black shadow"
-      style="width: fit-content"
-      @tap="goHome"
-    >
-      返回首页
-    </button>
-  </view>
+  <PageShell
+    title="页面不存在"
+    :show-back="false"
+  >
+    <EmptyState
+      title="页面不存在"
+      description="您访问的页面不存在，请检查链接是否正确。"
+      action-text="返回首页"
+      @action="goHome"
+    />
+  </PageShell>
 </template>
 
 <script>
+import EmptyState from '@/components/EmptyState.vue';
+import PageShell from '@/components/PageShell.vue';
 import { toIndexPage } from '@/routers';
 
 export default {
+  name: 'NotFoundPage',
+  components: { EmptyState, PageShell },
   methods: {
     goHome() {
       toIndexPage();
@@ -27,23 +27,3 @@ export default {
   },
 };
 </script>
-
-<style scoped>
-.error-page {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding-top: 100rpx;
-}
-
-.title {
-  font-size: 36rpx;
-  margin-top: 30rpx;
-}
-
-.desc {
-  color: #888;
-  margin-top: 20rpx;
-}
-</style>

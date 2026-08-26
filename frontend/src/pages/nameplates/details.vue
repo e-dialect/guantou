@@ -74,29 +74,24 @@
       </view>
 
       <view class="nameplate-actions">
-        <t-button
+        <BaseButton
           class="support-action"
-          theme="primary"
+          :text="`${supported ? '已支持' : '支持'} ${supportCount}`"
           :loading="supportBusy"
           @click="toggleSupport"
-        >
-          {{ supported ? '已支持' : '支持' }} {{ supportCount }}
-        </t-button>
-        <t-button
+        />
+        <BaseButton
           class="comments-action"
-          theme="light"
+          variant="light"
+          :text="`评论 ${nameplate.comment_count || 0}`"
           @click="openComments"
-        >
-          评论 {{ nameplate.comment_count || 0 }}
-        </t-button>
-        <t-button
+        />
+        <BaseButton
           class="debate-action"
-          theme="danger"
-          variant="outline"
+          variant="danger-ghost"
+          text="立论"
           @click="openDebate"
-        >
-          立论
-        </t-button>
+        />
       </view>
 
       <view
@@ -111,7 +106,7 @@
         </view>
       </view>
     </view>
-    <t-loading
+    <BaseLoading
       v-else
       text="正在取出铭牌"
     />
@@ -119,9 +114,9 @@
 </template>
 
 <script>
-import TButton from '@tdesign/uniapp/button/button.vue';
 import TCell from '@tdesign/uniapp/cell/cell.vue';
-import TLoading from '@tdesign/uniapp/loading/loading.vue';
+import BaseButton from '@/components/BaseButton.vue';
+import BaseLoading from '@/components/BaseLoading.vue';
 import PageShell from '@/components/PageShell.vue';
 import { getNameplate, supportNameplate, unsupportNameplate } from '@/services/guantou';
 import { requireAuth } from '@/services/authGuard';
@@ -147,10 +142,10 @@ const EVIDENCE_LABELS = {
 
 export default {
   components: {
+    BaseButton,
+    BaseLoading,
     PageShell,
-    TButton,
     TCell,
-    TLoading,
   },
   data() {
     return {

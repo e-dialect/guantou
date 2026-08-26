@@ -95,6 +95,7 @@ export default {
 @import 'colorui/main.css';
 @import 'colorui/icon.css';
 @import '@/utils/u-parse/u-parse.css';
+@import '@/styles/legacy-form-compat.scss';
 
 page {
   background-color: var(--page-color);

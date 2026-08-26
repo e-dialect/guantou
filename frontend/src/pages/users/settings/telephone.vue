@@ -1,66 +1,69 @@
 <template>
-  <view>
-    <cu-custom title="修改手机" />
-    <view class="cu-form-group">
-      <view class="text-df text-bold-less margin-right-sm">
-        手机
-      </view>
-      <input
-        v-model="telephone"
-        placeholder="请输入11位手机号嗷~"
-        maxlength="11"
-      >
-    </view>
-    <button
-      class="cu-btn round bg-gradual-blue shadow text-df margin-top-sm"
-      style="width: 16vw; margin-left: 80vw"
-      :disabled="currentTelephone===telephone"
-      @tap="savePhone"
+  <PageShell title="修改手机">
+    <BaseForm
+      ref="form"
+      :data="form"
+      :rules="rules"
     >
-      保存
-    </button>
-  </view>
+      <BaseField
+        v-model="form.telephone"
+        name="telephone"
+        type="tel"
+        label="手机号"
+        placeholder="请输入 11 位手机号"
+        :maxlength="11"
+        required
+        clearable
+      />
+      <BaseButton
+        block
+        text="保存"
+        :disabled="form.telephone === currentTelephone"
+        @click="savePhone"
+      />
+    </BaseForm>
+  </PageShell>
 </template>
 
 <script>
+import BaseButton from '@/components/BaseButton.vue';
+import BaseField from '@/components/BaseField.vue';
+import BaseForm from '@/components/BaseForm.vue';
+import PageShell from '@/components/PageShell.vue';
 import { changeUserInfo, getUserInfo } from '@/services/user';
 
 const app = getApp();
 export default {
+  name: 'ChangeTelephone',
+  components: {
+    BaseButton, BaseField, BaseForm, PageShell,
+  },
   data() {
     return {
-      telephone: app.globalData.userInfo.telephone,
+      form: { telephone: app.globalData.userInfo.telephone || '' },
+      rules: {
+        telephone: [{
+          validator: (value) => /^\d{11}$/.test(String(value || '')),
+          message: '请输入正确格式的手机号码',
+        }],
+      },
     };
   },
   computed: {
     currentTelephone() {
-      return app.globalData.userInfo.telephone;
+      return app.globalData.userInfo.telephone || '';
     },
   },
   methods: {
-    /**
-     * 更改手机号
-     */
     async savePhone() {
+      const valid = await this.$refs.form.validate();
+      if (valid !== true) return;
       const userInfo = await getUserInfo(app.globalData.id);
-      userInfo.user.telephone = this.telephone;
-      if (this.telephone.length !== 11) {
-        uni.showModal({
-          title: '提示',
-          content: '请输入正确格式的手机号码',
-          showCancel: false,
-        });
-      } else {
-        changeUserInfo(app.globalData.id, userInfo.user).then(async () => {
-          setTimeout(() => {
-            // 返回上一个页面
-            uni.navigateBack();
-          }, 1000);
-        });
-      }
+      userInfo.user.telephone = this.form.telephone;
+      await changeUserInfo(app.globalData.id, userInfo.user);
+      app.globalData.userInfo.telephone = this.form.telephone;
+      setTimeout(() => uni.navigateBack(), 1000);
     },
   },
 };
 </script>
-<style>
-</style>

@@ -1,0 +1,16 @@
+/**
+ * TDesign 渐进迁移期间的原生表单安全线。
+ *
+ * uni-app 的 input 默认固定为 1.4em；旧页面再叠加 padding 与 border-box 后，
+ * H5 内部 input 可能被压缩为 0px。这里统一给尚未迁移的原生控件提供可用高度。
+ * TDesign 自己管理内部控件尺寸，必须排除。原生表单归零后删除本文件。
+ */
+input:not(.t-input__control) {
+  min-height: 88rpx;
+  box-sizing: border-box;
+}
+
+textarea:not(.t-textarea__wrapper-inner) {
+  min-height: 160rpx;
+  box-sizing: border-box;
+}

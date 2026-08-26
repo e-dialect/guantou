@@ -104,10 +104,9 @@ html[data-theme='dark'] page {
 }
 
 /*
- * TDesign UniApp 品牌对齐：把 @tdesign/uniapp/theme.less 注入的 --td-* 变量
- * 映射到项目品牌色，使直接使用的 t-* 组件（picker/popup/toast 等）与全站视觉一致。
- * 暗色模式下 TDesign 组件保持浅色（其暗色跟随系统 media query，
- * 与项目 data-theme 机制不同步，待后续版本对齐）。
+ * TDesign UniApp 主题桥接：把 @tdesign/uniapp/theme.less 注入的 --td-* 变量
+ * 映射到项目品牌、表面、文字和语义 Token。映射同时注入 page、H5 :root 与
+ * .theme-dark，使 TDesign 不再单独跟随系统 media query。
  */
 @mixin tdesign-brand-overrides {
   --td-brand-color-1: #eef4f0;
@@ -124,6 +123,45 @@ html[data-theme='dark'] page {
   --td-error-color-6: var(--danger-color);
   --td-warning-color-6: var(--warning-color);
   --td-success-color-6: var(--success-color);
+
+  /*
+   * TDesign 语义 Token 桥接。
+   * 项目 Token 仍是品牌与明暗主题的唯一来源；TDesign 组件只消费映射后的
+   * --td-* 变量，避免组件跟随 prefers-color-scheme 而与项目 data-theme 脱节。
+   */
+  --td-brand-color: var(--accent-color);
+  --td-brand-color-active: var(--td-primary-color-7);
+  --td-brand-color-focus: var(--accent-subtle-color);
+  --td-brand-color-light: var(--accent-subtle-color);
+  --td-brand-color-light-active: var(--td-brand-color-2);
+  --td-bg-color-page: var(--page-color);
+  --td-bg-color-container: var(--surface-color);
+  --td-bg-color-container-active: var(--surface-subtle-color);
+  --td-bg-color-secondarycontainer: var(--surface-subtle-color);
+  --td-bg-color-secondarycontainer-active: var(--border-color);
+  --td-bg-color-component: var(--surface-subtle-color);
+  --td-bg-color-component-active: var(--border-color);
+  --td-bg-color-component-disabled: var(--surface-subtle-color);
+  --td-bg-color-specialcomponent: var(--surface-color);
+  --td-text-color-primary: var(--text-color);
+  --td-text-color-secondary: var(--text-secondary-color);
+  --td-text-color-placeholder: var(--muted-color);
+  --td-text-color-disabled: var(--muted-color);
+  --td-text-color-anti: var(--on-accent-color);
+  --td-text-color-brand: var(--accent-color);
+  --td-text-color-link: var(--accent-color);
+  --td-border-level-1-color: var(--border-color);
+  --td-border-level-2-color: var(--border-color);
+  --td-component-stroke: var(--border-color);
+  --td-component-border: var(--border-color);
+  --td-error-color: var(--danger-color);
+  --td-warning-color: var(--warning-color);
+  --td-success-color: var(--success-color);
+  --td-radius-small: var(--radius-sm);
+  --td-radius-default: var(--radius-md);
+  --td-radius-large: var(--radius-lg);
+  --td-radius-extraLarge: var(--radius-lg);
+  --td-radius-round: var(--radius-pill);
 }
 
 page {
