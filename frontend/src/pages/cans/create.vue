@@ -82,8 +82,11 @@
           </text>
         </view>
         <picker
-          :range="dialects"
-          range-key="qualified_code"
+          mode="multiSelector"
+          :range="dialectColumns"
+          range-key="name"
+          :value="dialectIndexes"
+          @columnchange="onDialectColumnChange"
           @change="onDialectChange"
         >
           <view :class="['picker-control', { placeholder: !form.submitted_dialect_id }]">
@@ -328,6 +331,47 @@ export function canApiErrors(error) {
   }, {});
 }
 
+function sortDialects(items) {
+  return items.sort((left, right) => (
+    (left.sort_order || 0) - (right.sort_order || 0) || left.id - right.id
+  ));
+}
+
+export function buildDialectTree(dialects = []) {
+  const nodesByCode = new Map(dialects.map((dialect) => [
+    dialect.qualified_code,
+    { ...dialect, children: [] },
+  ]));
+  const roots = [];
+
+  nodesByCode.forEach((node) => {
+    const segments = node.qualified_code.split('.');
+    const parentCode = segments.slice(0, -1).join('.');
+    const parent = nodesByCode.get(parentCode);
+    if (parent) parent.children.push(node);
+    else roots.push(node);
+  });
+
+  nodesByCode.forEach((node) => sortDialects(node.children));
+  return sortDialects(roots);
+}
+
+export function findDialectPath(nodes, dialectId, path = []) {
+  let matchedPath = [];
+  nodes.some((node) => {
+    const nextPath = [...path, node];
+    if (String(node.id) === String(dialectId)) {
+      matchedPath = nextPath;
+      return true;
+    }
+    const childPath = findDialectPath(node.children, dialectId, nextPath);
+    if (!childPath.length) return false;
+    matchedPath = childPath;
+    return true;
+  });
+  return matchedPath;
+}
+
 export default {
   components: {
     AudioCapture,
@@ -357,6 +401,9 @@ export default {
       optionalOpen: false,
       draftDialectName: '',
       dialects: [],
+      dialectTree: [],
+      dialectColumns: [],
+      dialectIndexes: [],
       audio: {
         path: '',
         name: '',
@@ -493,6 +540,8 @@ export default {
       this.dialectLoadFailed = false;
       try {
         this.dialects = await listAllDialects();
+        this.dialectTree = buildDialectTree(this.dialects);
+        this.restoreDialectPicker(this.form.submitted_dialect_id);
       } catch (error) {
         this.dialectLoadFailed = true;
         uni.showToast({ title: '方言点加载失败，可稍后重试', icon: 'none' });
@@ -583,6 +632,9 @@ export default {
         uni.showToast({ title: '草稿录音已失效，请重新录制', icon: 'none' });
       }
       this.draftDialectName = draft.dialectName || '';
+      if (this.dialectTree.length) {
+        this.restoreDialectPicker(this.form.submitted_dialect_id);
+      }
       this.targetFlavor = flavorDraft
         ? draft.targetFlavor
         : { id: '', name: '' };
@@ -612,8 +664,70 @@ export default {
     onSourceTypeChange(e) {
       this.label.source.type = this.sourceTypes[e.detail.value].value;
     },
+    applyDialectPath(preferredIds = []) {
+      const columns = [];
+      const indexes = [];
+      let options = this.dialectTree;
+      let depth = 0;
+
+      while (options.length) {
+        columns.push(options);
+        const preferredId = String(preferredIds[depth]);
+        const preferredIndex = options
+          .map((node) => String(node.id))
+          .indexOf(preferredId);
+        const index = preferredIndex >= 0 ? preferredIndex : 0;
+        indexes.push(index);
+        options = options[index].children;
+        depth += 1;
+      }
+
+      this.dialectColumns = columns;
+      this.dialectIndexes = indexes;
+    },
+    restoreDialectPicker(dialectId) {
+      const path = findDialectPath(this.dialectTree, dialectId);
+      const leaf = path[path.length - 1];
+      if (leaf && !leaf.children.length) {
+        this.applyDialectPath(path.map((node) => node.id));
+        this.form.submitted_dialect_id = leaf.id;
+        this.draftDialectName = leaf.qualified_code;
+        return;
+      }
+
+      this.applyDialectPath();
+      if (dialectId) {
+        this.form.submitted_dialect_id = null;
+        this.draftDialectName = '';
+      }
+    },
+    onDialectColumnChange(e) {
+      const columnIndex = Number(e.detail.column);
+      const optionIndex = Number(e.detail.value);
+      const preferredIds = this.dialectColumns
+        .slice(0, columnIndex)
+        .map((options, index) => options[this.dialectIndexes[index]]?.id);
+      const dialect = this.dialectColumns[columnIndex]?.[optionIndex];
+      if (!dialect) return;
+
+      preferredIds.push(dialect.id);
+      this.applyDialectPath(preferredIds);
+      this.form.submitted_dialect_id = null;
+      this.draftDialectName = '';
+    },
     onDialectChange(e) {
-      const dialect = this.dialects[e.detail.value];
+      const selectedIndexes = Array.isArray(e.detail.value) ? e.detail.value : [];
+      const selectedPath = this.dialectColumns.map(
+        (options, index) => options[Number(selectedIndexes[index]) || 0],
+      );
+      const dialect = selectedPath[selectedPath.length - 1];
+      if (!dialect || dialect.children.length) {
+        this.form.submitted_dialect_id = null;
+        this.draftDialectName = '';
+        return;
+      }
+
+      this.dialectIndexes = selectedIndexes.map(Number);
       this.form.submitted_dialect_id = dialect.id;
       this.draftDialectName = dialect.qualified_code;
       this.clearFieldError('submitted_dialect_id');
