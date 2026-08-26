@@ -55,6 +55,30 @@ test('TDesign theme bridge supplies readable dark form colors', async ({ page },
   });
 });
 
+test('component-level theme-dark recomputes TDesign tokens', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/pages/mails/send');
+
+  const shell = page.locator('.page-shell');
+  await expect(shell).toHaveClass(/theme-light/);
+  await shell.evaluate((element) => {
+    element.classList.remove('theme-light');
+    element.classList.add('theme-dark');
+  });
+
+  const colors = await page.locator('.t-input').first().evaluate((element) => {
+    const style = getComputedStyle(element);
+    const inputStyle = getComputedStyle(element.querySelector('.t-input__control'));
+    return {
+      background: style.backgroundColor,
+      text: inputStyle.color,
+    };
+  });
+
+  expect(colors.background).toBe('rgb(29, 40, 34)');
+  expect(colors.text).toBe('rgb(237, 244, 239)');
+});
+
 test('legacy native inputs keep a non-zero text area until migration', async ({ page }) => {
   await page.goto('/pages/cans/create');
 

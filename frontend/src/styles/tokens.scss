@@ -168,6 +168,11 @@ page {
   @include tdesign-brand-overrides;
 }
 
+/* PageShell 在小程序/App 端以局部类切换主题，需在同一元素重新计算桥接变量。 */
+.theme-dark {
+  @include tdesign-brand-overrides;
+}
+
 /* #ifdef H5 */
 :root {
   @include tdesign-brand-overrides;
