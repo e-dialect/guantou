@@ -1911,22 +1911,6 @@
     "@dcloudio/uni-shared" "3.0.0-5020420260813003"
     "@vue/shared" "3.4.21"
 
-"@dcloudio/uni-mp-weixin@3.0.0-4080720251210001":
-  version "3.0.0-4080720251210001"
-  resolved "https://registry.npmjs.org/@dcloudio/uni-mp-weixin/-/uni-mp-weixin-3.0.0-4080720251210001.tgz"
-  integrity sha512-Hg3Hqb1YyBpkY5Anj6m5N67ezLLWTZUo1yM5ie3NgXI7z/f9MY3Vm27edg0dqHehKN3PKcF3CbkaJ9JAfCy6/g==
-  dependencies:
-    "@dcloudio/uni-cli-shared" "3.0.0-4080720251210001"
-    "@dcloudio/uni-mp-vite" "3.0.0-4080720251210001"
-    "@dcloudio/uni-mp-vue" "3.0.0-4080720251210001"
-    "@dcloudio/uni-shared" "3.0.0-4080720251210001"
-    "@vue/shared" "3.4.21"
-    jimp "0.10.3"
-    licia "1.41.1"
-    qrcode-reader "1.0.4"
-    qrcode-terminal "0.12.0"
-    ws "8.18.0"
-
 "@dcloudio/uni-mp-weixin@3.0.0-5010520260709002":
   version "3.0.0-5010520260709002"
   resolved "https://registry.yarnpkg.com/@dcloudio/uni-mp-weixin/-/uni-mp-weixin-3.0.0-5010520260709002.tgz#57be8d97f04b860191be9abc9dcf56e4acf3167b"
@@ -1954,6 +1938,23 @@
     "@dcloudio/uni-mp-vite" "3.0.0-5020420260813002"
     "@dcloudio/uni-mp-vue" "3.0.0-5020420260813002"
     "@dcloudio/uni-shared" "3.0.0-5020420260813002"
+    "@vue/shared" "3.4.21"
+    jimp "0.10.3"
+    licia "1.41.1"
+    qrcode-reader "1.0.4"
+    qrcode-terminal "0.12.0"
+    ws "8.18.0"
+
+"@dcloudio/uni-mp-weixin@3.0.0-5020420260813003":
+  version "3.0.0-5020420260813003"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-mp-weixin/-/uni-mp-weixin-3.0.0-5020420260813003.tgz#72fc2eed3abf05d3127f31eef1cb3055172b5071"
+  integrity sha512-qiXoWGQ2lAKx8YLfhc4DCMuS/uid+gYxE3m7sI93L4z+BMjqwL8Yi+Rz79nzU2COHzNrsXuwrtFpNfBXV72ePw==
+  dependencies:
+    "@dcloudio/uni-cli-shared" "3.0.0-5020420260813003"
+    "@dcloudio/uni-mp-compiler" "3.0.0-5020420260813003"
+    "@dcloudio/uni-mp-vite" "3.0.0-5020420260813003"
+    "@dcloudio/uni-mp-vue" "3.0.0-5020420260813003"
+    "@dcloudio/uni-shared" "3.0.0-5020420260813003"
     "@vue/shared" "3.4.21"
     jimp "0.10.3"
     licia "1.41.1"
