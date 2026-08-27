@@ -49,44 +49,157 @@
       <view
         v-for="comment in comments"
         :key="comment.id"
-        class="comment-row"
+        class="comment-block"
       >
-        <image
-          v-if="comment.author.avatar"
-          class="comment-row__avatar"
-          :src="comment.author.avatar"
-          mode="aspectFill"
-        />
+        <view class="comment-row">
+          <image
+            v-if="comment.author.avatar"
+            class="comment-row__avatar"
+            :src="comment.author.avatar"
+            mode="aspectFill"
+          />
+          <view
+            v-else
+            class="comment-row__avatar comment-row__avatar--empty"
+          />
+          <view class="comment-row__body">
+            <view class="comment-row__head">
+              <text class="comment-row__author">
+                {{ comment.author.nickname || comment.author.username }}
+              </text>
+              <text class="comment-row__time">
+                {{ formatTime(comment.created_at) }}
+              </text>
+            </view>
+            <view class="comment-row__content">
+              {{ comment.content }}
+            </view>
+            <view class="comment-row__actions">
+              <text
+                :class="{ 'comment-row__liked': comment.liked_by_me }"
+                @tap="toggleLike(comment)"
+              >
+                {{ comment.liked_by_me ? '已赞' : '赞' }} {{ comment.like_count || 0 }}
+              </text>
+              <text @tap="startReply(comment)">
+                回复
+              </text>
+              <text
+                v-if="canDelete(comment)"
+                @tap="remove(comment)"
+              >
+                删除
+              </text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 二级回复区：按一级评论折叠/展开，回复保持二层平铺 -->
         <view
-          v-else
-          class="comment-row__avatar comment-row__avatar--empty"
-        />
-        <view class="comment-row__body">
-          <view class="comment-row__head">
-            <text class="comment-row__author">
-              {{ comment.author.nickname || comment.author.username }}
-            </text>
-            <text class="comment-row__time">
-              {{ formatTime(comment.created_at) }}
-            </text>
+          v-if="replyCount(comment)"
+          class="comment-block__toggle"
+          @tap="toggleReplies(comment)"
+        >
+          {{ comment.expanded ? '收起回复' : `查看 ${replyCount(comment)} 条回复` }}
+        </view>
+
+        <view
+          v-if="comment.expanded"
+          class="comment-replies"
+        >
+          <view
+            v-for="reply in comment.replies"
+            :key="reply.id"
+            class="comment-reply"
+          >
+            <image
+              v-if="reply.author.avatar"
+              class="comment-reply__avatar"
+              :src="reply.author.avatar"
+              mode="aspectFill"
+            />
+            <view
+              v-else
+              class="comment-reply__avatar comment-reply__avatar--empty"
+            />
+            <view class="comment-reply__body">
+              <view class="comment-reply__head">
+                <text class="comment-reply__author">
+                  {{ reply.author.nickname || reply.author.username }}
+                </text>
+                <text class="comment-reply__time">
+                  {{ formatTime(reply.created_at) }}
+                </text>
+              </view>
+              <view class="comment-reply__content">
+                <text
+                  v-if="reply.reply_to"
+                  class="comment-reply__at"
+                >
+                  回复 @{{ reply.reply_to.nickname || reply.reply_to.username }}：
+                </text>
+                {{ reply.content }}
+              </view>
+              <view class="comment-reply__actions">
+                <text
+                  :class="{ 'comment-row__liked': reply.liked_by_me }"
+                  @tap="toggleLike(reply)"
+                >
+                  {{ reply.liked_by_me ? '已赞' : '赞' }} {{ reply.like_count || 0 }}
+                </text>
+                <text @tap="startReply(reply)">
+                  回复
+                </text>
+                <text
+                  v-if="canDelete(reply)"
+                  @tap="remove(reply)"
+                >
+                  删除
+                </text>
+              </view>
+            </view>
           </view>
-          <view class="comment-row__content">
-            {{ comment.content }}
-          </view>
-          <view class="comment-row__actions">
+          <BaseButton
+            v-if="comment.repliesHasMore"
+            block
+            variant="ghost"
+            size="small"
+            text="展开更多回复"
+            :loading="comment.repliesLoading"
+            @click="loadReplies(comment)"
+          />
+        </view>
+
+        <!-- 回复输入：挂在所属一级评论下 -->
+        <view
+          v-if="replyTarget && replyTarget.parentId === comment.id"
+          class="comment-reply-composer"
+        >
+          <view class="comment-reply-composer__hint">
+            回复 @{{ replyTarget.nickname }}
             <text
-              :class="{ 'comment-row__liked': comment.liked_by_me }"
-              @tap="toggleLike(comment)"
+              class="comment-reply-composer__cancel"
+              @tap="cancelReply"
             >
-              {{ comment.liked_by_me ? '已赞' : '赞' }} {{ comment.like_count || 0 }}
-            </text>
-            <text
-              v-if="canDelete(comment)"
-              @tap="remove(comment)"
-            >
-              删除
+              取消
             </text>
           </view>
+          <BaseField
+            v-model="replyDraft"
+            name="reply"
+            type="textarea"
+            :maxlength="500"
+            placeholder="回复……"
+            indicator
+            autosize
+          />
+          <BaseButton
+            block
+            size="small"
+            text="发表回复"
+            :loading="replySubmitting"
+            @click="submitReply"
+          />
         </view>
       </view>
       <BaseButton
@@ -112,7 +225,9 @@ import {
   deleteCanComment,
   likeCanComment,
   listCanComments,
+  listCommentReplies,
   listNameplateComments,
+  replyToComment,
   unlikeCanComment,
 } from '@/services/canSocial';
 import { requireAuth } from '@/services/authGuard';
@@ -145,6 +260,9 @@ export default {
       loading: false,
       submitting: false,
       errorMessage: '',
+      replyTarget: null,
+      replyDraft: '',
+      replySubmitting: false,
     };
   },
   mounted() {
@@ -156,6 +274,20 @@ export default {
         ? { page: 'nameplate_comments', nameplateId: this.targetId }
         : { page: 'can_comments', canId: this.targetId };
     },
+    normalizeComment(item) {
+      return {
+        ...item,
+        expanded: false,
+        replies: [],
+        repliesLoaded: false,
+        repliesLoading: false,
+        repliesHasMore: true,
+        replyPage: 0,
+      };
+    },
+    replyCount(comment) {
+      return Number(comment.reply_count || 0);
+    },
     async loadMore() {
       if (this.loading || !this.hasMore) return;
       this.loading = true;
@@ -166,7 +298,7 @@ export default {
           ? await listNameplateComments(this.targetId, { page: nextPage })
           : await listCanComments(this.targetId, { page: nextPage });
         const items = response.results || response || [];
-        this.comments = this.comments.concat(items);
+        this.comments = this.comments.concat(items.map((item) => this.normalizeComment(item)));
         this.page = nextPage;
         this.hasMore = Boolean(response.next);
       } catch (error) {
@@ -192,11 +324,88 @@ export default {
         const comment = this.targetType === 'nameplate'
           ? await createNameplateComment(this.targetId, content)
           : await createCanComment(this.targetId, content);
-        this.comments = [comment, ...this.comments];
+        this.comments = [this.normalizeComment(comment), ...this.comments];
         this.draft = '';
         this.$emit('created', comment);
       } finally {
         this.submitting = false;
+      }
+    },
+    updateComment(commentId, updater) {
+      this.comments = this.comments.map((item) => {
+        if (item.id === commentId) return updater(item);
+        if (item.replies.some((reply) => reply.id === commentId)) {
+          return {
+            ...item,
+            replies: item.replies.map((reply) => (
+              reply.id === commentId ? updater(reply) : reply
+            )),
+          };
+        }
+        return item;
+      });
+    },
+    toggleReplies(comment) {
+      const willExpand = !comment.expanded;
+      this.updateComment(comment.id, (item) => ({ ...item, expanded: willExpand }));
+      if (willExpand && !comment.repliesLoaded) {
+        this.updateComment(comment.id, (item) => ({ ...item, repliesLoaded: true }));
+        this.loadReplies(comment);
+      }
+    },
+    async loadReplies(comment) {
+      if (comment.repliesLoading || !comment.repliesHasMore) return;
+      this.updateComment(comment.id, (item) => ({ ...item, repliesLoading: true }));
+      try {
+        const nextPage = comment.replyPage + 1;
+        const response = await listCommentReplies(comment.id, { page: nextPage });
+        const items = response.results || response || [];
+        this.updateComment(comment.id, (item) => ({
+          ...item,
+          replies: item.replies.concat(items),
+          replyPage: nextPage,
+          repliesHasMore: Boolean(response.next),
+          repliesLoading: false,
+        }));
+      } catch (error) {
+        this.updateComment(comment.id, (item) => ({ ...item, repliesLoading: false }));
+        uni.showToast({ title: error.message || '回复加载失败', icon: 'none' });
+      }
+    },
+    startReply(item) {
+      const isReply = Boolean(item.parent_id);
+      this.replyTarget = {
+        parentId: isReply ? item.parent_id : item.id,
+        replyToId: item.id,
+        nickname: item.author?.nickname || item.author?.username || '',
+      };
+      this.replyDraft = '';
+    },
+    cancelReply() {
+      this.replyTarget = null;
+      this.replyDraft = '';
+    },
+    async submitReply() {
+      const content = String(this.replyDraft || '').trim();
+      if (!content) {
+        uni.showToast({ title: '先写下回复', icon: 'none' });
+        return;
+      }
+      const action = this.targetType === 'nameplate' ? 'nameplate_comment' : 'comment';
+      if (!requireAuth(action, this.authContext())) return;
+      this.replySubmitting = true;
+      try {
+        const reply = await replyToComment(this.replyTarget.replyToId, content);
+        const parent = this.comments.find((item) => item.id === this.replyTarget.parentId);
+        if (parent) {
+          parent.replies = parent.replies.concat(reply);
+          parent.reply_count = Number(parent.reply_count || 0) + 1;
+        }
+        this.replyTarget = null;
+        this.replyDraft = '';
+        this.$emit('created', reply);
+      } finally {
+        this.replySubmitting = false;
       }
     },
     async toggleLike(comment) {
@@ -205,13 +414,23 @@ export default {
       const result = comment.liked_by_me
         ? await unlikeCanComment(comment.id)
         : await likeCanComment(comment.id);
-      this.comments = this.comments.map((item) => (item.id === comment.id
-        ? { ...item, liked_by_me: result.liked, like_count: result.like_count }
-        : item));
+      this.updateComment(comment.id, (item) => ({
+        ...item,
+        liked_by_me: result.liked,
+        like_count: result.like_count,
+      }));
     },
     async remove(comment) {
       await deleteCanComment(comment.id);
-      this.comments = this.comments.filter((item) => item.id !== comment.id);
+      if (comment.parent_id) {
+        const parent = this.comments.find((item) => item.id === comment.parent_id);
+        if (parent) {
+          parent.replies = parent.replies.filter((item) => item.id !== comment.id);
+          parent.reply_count = Math.max(0, Number(parent.reply_count || 0) - 1);
+        }
+      } else {
+        this.comments = this.comments.filter((item) => item.id !== comment.id);
+      }
     },
     canDelete(comment) {
       return Number(comment.author?.id) === Number(uni.getStorageSync('id'));
@@ -264,11 +483,14 @@ export default {
   margin: 0;
 }
 
+.comment-block {
+  border-bottom: 1rpx solid var(--border-color);
+}
+
 .comment-row {
   display: flex;
   gap: 18rpx;
   padding: 26rpx 0;
-  border-bottom: 1rpx solid var(--border-color);
 }
 
 .comment-row__avatar {
@@ -318,5 +540,103 @@ export default {
 .comment-row__liked {
   color: var(--accent-color);
   font-weight: 800;
+}
+
+.comment-block__toggle {
+  margin: 0 0 20rpx 76rpx;
+  color: var(--muted-color);
+  font-size: 22rpx;
+}
+
+.comment-replies {
+  margin: 0 0 8rpx 76rpx;
+  padding: 8rpx 0;
+  background: var(--surface-subtle-color);
+  border-radius: var(--radius-sm);
+}
+
+.comment-reply {
+  display: flex;
+  gap: 16rpx;
+  padding: 20rpx;
+  border-bottom: 1rpx solid var(--border-color);
+}
+
+.comment-reply:last-child {
+  border-bottom: 0;
+}
+
+.comment-reply__avatar {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: var(--surface-color);
+  flex: 0 0 auto;
+}
+
+.comment-reply__body {
+  min-width: 0;
+  flex: 1;
+}
+
+.comment-reply__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 24rpx;
+}
+
+.comment-reply__author {
+  color: var(--text-secondary-color);
+  font-size: 23rpx;
+  font-weight: 800;
+}
+
+.comment-reply__time {
+  color: var(--muted-color);
+  font-size: 19rpx;
+}
+
+.comment-reply__content {
+  margin-top: 8rpx;
+  color: var(--text-color);
+  font-size: 25rpx;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.comment-reply__at {
+  color: var(--accent-color);
+}
+
+.comment-reply__actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 24rpx;
+  margin-top: 12rpx;
+  color: var(--muted-color);
+  font-size: 20rpx;
+}
+
+.comment-reply-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+  margin: 0 0 20rpx 76rpx;
+  padding: 20rpx;
+  border: 1rpx solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
+}
+
+.comment-reply-composer__hint {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-secondary-color);
+  font-size: 22rpx;
+}
+
+.comment-reply-composer__cancel {
+  color: var(--muted-color);
 }
 </style>

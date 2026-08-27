@@ -804,7 +804,14 @@ class CanCommentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = (
             CanComment.objects.select_related(
-                "author", "author__user_info", "can", "nameplate", "nameplate__creator"
+                "author",
+                "author__user_info",
+                "can",
+                "nameplate",
+                "nameplate__creator",
+                "reply_to",
+                "reply_to__author",
+                "reply_to__author__user_info",
             )
             .filter(can__visibility=True)
             .annotate(like_count=Count("likes", distinct=True))
@@ -816,9 +823,13 @@ class CanCommentViewSet(viewsets.ModelViewSet):
                     CanCommentLike.objects.filter(comment_id=OuterRef("pk"), user=user)
                 )
             )
+        parent_id = self.request.query_params.get("parent_id")
         can_id = self.request.query_params.get("can_id")
         nameplate_id = self.request.query_params.get("nameplate_id")
         if self.action == "list":
+            if parent_id:
+                # 二重评论层级：按 parent_id 返回某条一级评论下的回复（二层平铺，按时间正序）。
+                return queryset.filter(parent_id=parent_id).order_by("created_at", "id")
             if bool(can_id) == bool(nameplate_id):
                 raise BadRequestException("can_id 与 nameplate_id 必须且只能提供一个")
             if nameplate_id:
@@ -826,10 +837,17 @@ class CanCommentViewSet(viewsets.ModelViewSet):
             else:
                 # nameplate=NULL 是罐头公共评论与具体铭牌讨论的隔离边界。
                 queryset = queryset.filter(can_id=can_id, nameplate__isnull=True)
+            # 顶层列表只返回一级评论，并附带回复数。
+            queryset = queryset.filter(parent__isnull=True).annotate(
+                reply_count=Count("replies", distinct=True)
+            )
         return queryset.order_by("-created_at", "-id")
 
     def perform_create(self, serializer):
         comment = serializer.save(author=self.request.user)
+        # 回复（parent 非空）不触发「罐头有新评论」通知；被回复人通知暂不实现（见 issue #164）。
+        if comment.parent_id is not None:
+            return
         is_nameplate_comment = bool(comment.nameplate_id)
         target_type = "nameplate" if is_nameplate_comment else "can"
         target_id = comment.nameplate_id or comment.can_id

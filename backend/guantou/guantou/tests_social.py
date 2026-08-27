@@ -318,6 +318,92 @@ class CanSocialApiTests(TestCase):
             f"/pages/nameplates/comments?id={plate.id}",
         )
 
+    def test_replies_are_two_level_and_do_not_notify_the_recorder(self):
+        top = self.client.post(
+            "/comments/",
+            {"can_id": self.same_can.id, "content": "一级评论"},
+            format="json",
+        )
+        self.assertEqual(top.status_code, 201)
+        self.assertIsNone(top.data["parent_id"])
+        self.assertIsNone(top.data["reply_to"])
+
+        reply = self.client.post(
+            "/comments/",
+            {"reply_to_id": top.data["id"], "content": "回复一级评论"},
+            format="json",
+        )
+        self.assertEqual(reply.status_code, 201)
+        # 回复顶层评论：parent=该顶层评论、reply_to=null。
+        self.assertEqual(reply.data["parent_id"], top.data["id"])
+        self.assertIsNone(reply.data["reply_to"])
+        self.assertEqual(reply.data["can_id"], self.same_can.id)
+
+        reply_to_reply = self.client.post(
+            "/comments/",
+            {"reply_to_id": reply.data["id"], "content": "回复那条回复"},
+            format="json",
+        )
+        self.assertEqual(reply_to_reply.status_code, 201)
+        # 回复某条回复：parent=其顶层评论、reply_to=该回复，二层平铺。
+        self.assertEqual(reply_to_reply.data["parent_id"], top.data["id"])
+        self.assertEqual(reply_to_reply.data["reply_to"]["id"], reply.data["author"]["id"])
+        self.assertIsNotNone(reply_to_reply.data["reply_to"]["nickname"])
+
+        # 顶层列表只返回一级评论，并带回复数。
+        top_list = self.client.get("/comments/", {"can_id": self.same_can.id})
+        self.assertEqual([item["id"] for item in top_list.data["results"]], [top.data["id"]])
+        self.assertEqual(top_list.data["results"][0]["reply_count"], 2)
+
+        # 按 parent_id 返回该一级评论下的回复（二层平铺，时间正序）。
+        replies = self.client.get(
+            "/comments/", {"parent_id": top.data["id"]}
+        )
+        self.assertEqual(
+            [item["id"] for item in replies.data["results"]],
+            [reply.data["id"], reply_to_reply.data["id"]],
+        )
+
+        # 回复不触发「罐头有新评论」通知（仅顶层评论通知）。
+        self.assertEqual(
+            Notification.objects.filter(
+                recipient=self.same_author, verb=Notification.Verb.CAN_COMMENT
+            ).count(),
+            1,
+        )
+
+    def test_reply_target_must_be_visible_and_cannot_be_reassigned(self):
+        top = CanComment.objects.create(
+            can=self.same_can,
+            author=self.viewer,
+            content="顶层",
+        )
+        private_can_comment = CanComment.objects.create(
+            can=self.private_can,
+            author=self.same_author,
+            content="私密罐里的评论",
+        )
+        # 回复私密罐的评论应被 can 可见性过滤挡住（目标查不到 → 400）。
+        invalid = self.client.post(
+            "/comments/",
+            {"reply_to_id": private_can_comment.id, "content": "不能回复"},
+            format="json",
+        )
+        self.assertEqual(invalid.status_code, 400)
+
+        reply = self.client.post(
+            "/comments/",
+            {"reply_to_id": top.id, "content": "正常回复"},
+            format="json",
+        )
+        # 已创建的回复不可改挂到别处。
+        moved = self.client.put(
+            f"/comments/{reply.data['id']}/",
+            {"reply_to_id": top.id, "content": "试图改目标"},
+            format="json",
+        )
+        self.assertEqual(moved.status_code, 400)
+
     def test_use_same_requires_a_visible_can_and_never_creates_text_only_posts(self):
         missing = self.client.post(
             "/posts/", {"text": "没有语音的纯文字"}, format="json"

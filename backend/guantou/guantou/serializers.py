@@ -955,9 +955,21 @@ class CanCommentSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
+    # 回复目标（仅创建时写入）：被直接回复的评论。后端据此推导所属一级评论 parent
+    # 与展示用 reply_to。顶层评论无需提供。
+    reply_to_id = serializers.PrimaryKeyRelatedField(
+        source="reply_target",
+        queryset=CanComment.objects.filter(can__visibility=True),
+        required=False,
+        allow_null=True,
+        write_only=True,
+    )
+    parent_id = serializers.PrimaryKeyRelatedField(source="parent", read_only=True)
+    reply_to = serializers.SerializerMethodField()
     author = UserLiteSerializer(read_only=True)
     like_count = serializers.SerializerMethodField()
     liked_by_me = serializers.SerializerMethodField()
+    reply_count = serializers.SerializerMethodField()
 
     class Meta:
         model = CanComment
@@ -965,10 +977,14 @@ class CanCommentSerializer(serializers.ModelSerializer):
             "id",
             "can_id",
             "nameplate_id",
+            "reply_to_id",
+            "parent_id",
+            "reply_to",
             "author",
             "content",
             "like_count",
             "liked_by_me",
+            "reply_count",
             "created_at",
         ]
         read_only_fields = ["id", "author", "created_at"]
@@ -976,8 +992,21 @@ class CanCommentSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         attrs = super().validate(attrs)
         if self.instance:
-            if "can" in attrs or "nameplate" in attrs:
+            if "can" in attrs or "nameplate" in attrs or "reply_target" in attrs:
                 raise serializers.ValidationError("评论目标创建后不可修改")
+            return attrs
+        reply_target = attrs.pop("reply_target", None)
+        if reply_target is not None:
+            # 二重层级：回复始终挂在顶层评论 parent 之下；reply_to 记录直接回复对象。
+            # 回复顶层评论 → parent=该评论、reply_to=None；回复某条回复 → parent=其顶层、reply_to=该回复。
+            if reply_target.parent_id is None:
+                attrs["parent"] = reply_target
+                attrs["reply_to"] = None
+            else:
+                attrs["parent"] = reply_target.parent
+                attrs["reply_to"] = reply_target
+            attrs["can"] = reply_target.can
+            attrs["nameplate"] = reply_target.nameplate
             return attrs
         can = attrs.get("can")
         nameplate = attrs.get("nameplate")
@@ -1010,6 +1039,17 @@ class CanCommentSerializer(serializers.ModelSerializer):
             and user.is_authenticated
             and CanCommentLike.objects.filter(comment=obj, user=user).exists()
         )
+
+    def get_reply_to(self, obj):
+        # 展示「回复 @某人」所需的最小作者信息；回复顶层评论时返回 null。
+        target = getattr(obj, "reply_to", None)
+        if target is None:
+            return None
+        return UserLiteSerializer(target.author, context=self.context).data
+
+    def get_reply_count(self, obj):
+        annotated = getattr(obj, "reply_count", None)
+        return annotated if annotated is not None else obj.replies.count()
 
 
 class CanSerializer(CanCardSerializer):
@@ -1061,9 +1101,10 @@ class CanSerializer(CanCardSerializer):
     def get_recent_comments(self, obj):
         request = self.context.get("request")
         user = request.user if request else None
-        # nameplate=NULL 是罐头公共评论与具体铭牌讨论的隔离边界。
+        # nameplate=NULL 是罐头公共评论与具体铭牌讨论的隔离边界；
+        # 最近评论只取一级评论，回复在评论区二层内展示。
         queryset = (
-            obj.comments.filter(nameplate__isnull=True)
+            obj.comments.filter(nameplate__isnull=True, parent__isnull=True)
             .select_related("author", "author__user_info")
             .annotate(like_count=Count("likes", distinct=True))
         )

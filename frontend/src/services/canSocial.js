@@ -16,6 +16,16 @@ export function createCanComment(canId, content) {
   return request.post('/comments/', { can_id: canId, content });
 }
 
+// 回复某条评论（顶层评论或某条回复）：后端据此推导所属一级评论与展示用 reply_to。
+export function replyToComment(replyToId, content) {
+  return request.post('/comments/', { reply_to_id: replyToId, content });
+}
+
+// 拉取某条一级评论下的回复（二层平铺）。
+export function listCommentReplies(parentId, params = {}) {
+  return request.get('/comments/', { parent_id: parentId, ...params });
+}
+
 export function listNameplateComments(nameplateId, params = {}) {
   return request.get('/comments/', { nameplate_id: nameplateId, ...params });
 }
@@ -66,8 +76,10 @@ export default {
   likeCan,
   likeCanComment,
   listCanComments,
+  listCommentReplies,
   listNameplateComments,
   listCanPosts,
+  replyToComment,
   unlikeCan,
   unlikeCanComment,
 };

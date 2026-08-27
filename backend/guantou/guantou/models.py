@@ -535,11 +535,32 @@ class CanComment(models.Model):
         verbose_name="作者",
     )
     content = models.CharField(max_length=500, verbose_name="内容")
+    # 二重评论层级：parent 指向所属一级评论（顶层评论为 null），reply_to 指向
+    # 被直接回复的具体评论（回复一级评论时为 null，回复某条回复时指向该回复）。
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        related_name="replies",
+        null=True,
+        blank=True,
+        verbose_name="所属一级评论",
+    )
+    reply_to = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        related_name="+",
+        null=True,
+        blank=True,
+        verbose_name="回复对象",
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
 
     class Meta:
         ordering = ["created_at", "id"]
-        indexes = [models.Index(fields=["nameplate", "created_at"])]
+        indexes = [
+            models.Index(fields=["nameplate", "created_at"]),
+            models.Index(fields=["parent", "created_at"]),
+        ]
         verbose_name = "罐头评论"
         verbose_name_plural = "罐头评论"
 
