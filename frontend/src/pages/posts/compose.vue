@@ -44,6 +44,7 @@
       <SectionBlock title="补一句自己的表达">
         <BaseField
           v-model="text"
+          name="text"
           label="想说的话（选填）"
           type="textarea"
           :error="fieldErrors.text"

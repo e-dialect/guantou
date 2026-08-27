@@ -23,7 +23,7 @@ export default {
     label: { type: String, default: '' },
     loading: { type: Boolean, default: false },
     maxlength: { type: [String, Number], default: -1 },
-    modelValue: { type: [String, Number], default: '' },
+    modelValue: { type: [String, Number, Array], default: '' },
     name: { type: String, default: '' },
     placeholder: { type: String, default: '' },
     readonly: { type: Boolean, default: false },
@@ -34,7 +34,7 @@ export default {
     text: { type: String, default: '' },
     theme: { type: String, default: '' },
     type: { type: String, default: '' },
-    value: { type: [String, Number], default: '' },
+    value: { type: [String, Number, Array], default: '' },
     variant: { type: String, default: '' },
   },
 };

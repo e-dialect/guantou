@@ -739,20 +739,6 @@ export default {
 
 <style scoped>
 .pronunciation-create-page {
-  --td-bg-color-container: var(--surface-color);
-  --td-bg-color-container-active: var(--surface-subtle-color);
-  --td-bg-color-component: var(--surface-subtle-color);
-  --td-bg-color-component-active: var(--accent-subtle-color);
-  --td-text-color-primary: var(--text-color);
-  --td-text-color-secondary: var(--text-secondary-color);
-  --td-text-color-placeholder: var(--muted-color);
-  --td-component-stroke: var(--border-color);
-  --td-component-border: var(--border-color);
-  --td-brand-color: var(--accent-color);
-  --td-brand-color-light: var(--accent-subtle-color);
-  --td-brand-color-light-active: var(--accent-subtle-color);
-  --td-text-color-anti: var(--on-accent-color);
-  --td-error-color: var(--danger-color);
   width: 100%;
   max-width: 760rpx;
   margin: 0 auto;

@@ -258,15 +258,13 @@
                   <view class="picker-label">
                     写法类型
                   </view>
-                  <picker
-                    :range="packageTypes"
-                    range-key="label"
-                    @change="onPackageTypeChange"
-                  >
-                    <view class="picker-control picker-control--simple">
-                      {{ packageTypeLabel }}
-                    </view>
-                  </picker>
+                  <t-cell
+                    :title="packageTypeLabel"
+                    arrow
+                    :bordered="false"
+                    hover
+                    @click="packageTypePickerVisible = true"
+                  />
                 </view>
               </view>
 
@@ -282,29 +280,25 @@
                   <view class="picker-label">
                     证据等级
                   </view>
-                  <picker
-                    :range="evidenceLevels"
-                    range-key="label"
-                    @change="onEvidenceChange"
-                  >
-                    <view class="picker-control picker-control--simple">
-                      {{ evidenceLabel }}
-                    </view>
-                  </picker>
+                  <t-cell
+                    :title="evidenceLabel"
+                    arrow
+                    :bordered="false"
+                    hover
+                    @click="evidencePickerVisible = true"
+                  />
                 </view>
                 <view class="picker-field">
                   <view class="picker-label">
                     资料来源类型
                   </view>
-                  <picker
-                    :range="sourceTypes"
-                    range-key="label"
-                    @change="onSourceTypeChange"
-                  >
-                    <view class="picker-control picker-control--simple">
-                      {{ sourceTypeLabel }}
-                    </view>
-                  </picker>
+                  <t-cell
+                    :title="sourceTypeLabel"
+                    arrow
+                    :bordered="false"
+                    hover
+                    @click="sourceTypePickerVisible = true"
+                  />
                 </view>
 
                 <t-input
@@ -338,6 +332,36 @@
             </view>
           </t-collapse-panel>
         </t-collapse>
+
+        <t-picker
+          :visible="packageTypePickerVisible"
+          :value="[label.package_type]"
+          title="选择写法类型"
+          @change="onPackageTypeChange"
+          @close="packageTypePickerVisible = false"
+        >
+          <t-picker-item :options="packageTypes" />
+        </t-picker>
+
+        <t-picker
+          :visible="evidencePickerVisible"
+          :value="[label.evidence_level]"
+          title="选择证据等级"
+          @change="onEvidenceChange"
+          @close="evidencePickerVisible = false"
+        >
+          <t-picker-item :options="evidenceLevels" />
+        </t-picker>
+
+        <t-picker
+          :visible="sourceTypePickerVisible"
+          :value="[label.source.type]"
+          title="选择资料来源类型"
+          @change="onSourceTypeChange"
+          @close="sourceTypePickerVisible = false"
+        >
+          <t-picker-item :options="sourceTypes" />
+        </t-picker>
 
         <view class="submit-card">
           <text class="submit-card__hint">
@@ -385,6 +409,8 @@ import TFormItem from '@tdesign/uniapp/form-item/form-item.vue';
 import TIcon from '@tdesign/uniapp/icon/icon.vue';
 import TInput from '@tdesign/uniapp/input/input.vue';
 import TLoading from '@tdesign/uniapp/loading/loading.vue';
+import TPicker from '@tdesign/uniapp/picker/picker.vue';
+import TPickerItem from '@tdesign/uniapp/picker-item/picker-item.vue';
 import TResult from '@tdesign/uniapp/result/result.vue';
 import TSkeleton from '@tdesign/uniapp/skeleton/skeleton.vue';
 import TTextarea from '@tdesign/uniapp/textarea/textarea.vue';
@@ -522,6 +548,8 @@ export default {
     TIcon,
     TInput,
     TLoading,
+    TPicker,
+    TPickerItem,
     TResult,
     TSkeleton,
     TTextarea,
@@ -548,7 +576,10 @@ export default {
       },
       optionalOpen: false,
       dialectPickerVisible: false,
+      evidencePickerVisible: false,
+      packageTypePickerVisible: false,
       recentDialectIds: [],
+      sourceTypePickerVisible: false,
       draftDialectName: '',
       dialects: [],
       dialectTree: [],
@@ -931,15 +962,18 @@ export default {
       uni.showToast({ title: '请从义项详情进入补录音', icon: 'none' });
       this.mode = 'free';
     },
-    onPackageTypeChange(e) {
-      this.label.package_type = this.packageTypes[e.detail.value].value;
+    onPackageTypeChange(context = {}) {
+      this.label.package_type = context.value?.[0] || this.label.package_type;
+      this.packageTypePickerVisible = false;
       this.clearFieldError('package_type');
     },
-    onEvidenceChange(e) {
-      this.label.evidence_level = this.evidenceLevels[e.detail.value].value;
+    onEvidenceChange(context = {}) {
+      this.label.evidence_level = Number(context.value?.[0] || this.label.evidence_level);
+      this.evidencePickerVisible = false;
     },
-    onSourceTypeChange(e) {
-      this.label.source.type = this.sourceTypes[e.detail.value].value;
+    onSourceTypeChange(context = {}) {
+      this.label.source.type = context.value?.[0] || this.label.source.type;
+      this.sourceTypePickerVisible = false;
     },
     applyDialectPath(preferredIds = []) {
       const columns = [];
@@ -1478,13 +1512,9 @@ export default {
   font-size: var(--font-size-sm);
 }
 
-.essential-form {
-  --td-form-item-horizontal-padding: var(--space-4);
-  --td-form-item-vertical-padding: var(--space-3);
-}
-
 .essential-form :deep(.t-form__item) {
   min-height: 52px;
+  padding: var(--space-3) var(--space-4);
   box-sizing: border-box;
 }
 
@@ -1701,26 +1731,6 @@ export default {
   --font-size-base: 15px;
   --font-size-lg: 18px;
   --font-size-xl: 22px;
-  --td-font-size-s: 12px;
-  --td-font-size-base: 14px;
-  --td-font-size-m: 15px;
-  --td-font-body-small: 12px / 18px var(--td-font-family, sans-serif);
-  --td-font-body-medium: 14px / 20px var(--td-font-family, sans-serif);
-  --td-font-body-large: 15px / 22px var(--td-font-family, sans-serif);
-  --td-font-mark-medium: 600 14px / 20px var(--td-font-family, sans-serif);
-  --td-font-mark-large: 600 16px / 24px var(--td-font-family, sans-serif);
-  --td-button-small-font: 600 13px / 20px var(--td-font-family, sans-serif);
-  --td-button-medium-font: 600 14px / 22px var(--td-font-family, sans-serif);
-  --td-button-large-font: 600 16px / 24px var(--td-font-family, sans-serif);
-  --td-cell-right-icon-size: 20px;
-  --td-cell-vertical-padding: 12px;
-  --td-cell-horizontal-padding: 12px;
-  --td-input-vertical-padding: 12px;
-  --td-collapse-header-height: 84px;
-  --td-collapse-horizontal-padding: 24px;
-  --td-button-primary-disabled-bg: var(--surface-subtle-color);
-  --td-button-primary-disabled-color: var(--muted-color);
-  --td-button-primary-disabled-border-color: var(--surface-subtle-color);
 }
 
 .can-create-page :deep(.audio-capture) {
