@@ -347,18 +347,20 @@ class CanSocialApiTests(TestCase):
         self.assertEqual(reply_to_reply.status_code, 201)
         # 回复某条回复：parent=其顶层评论、reply_to=该回复，二层平铺。
         self.assertEqual(reply_to_reply.data["parent_id"], top.data["id"])
-        self.assertEqual(reply_to_reply.data["reply_to"]["id"], reply.data["author"]["id"])
+        self.assertEqual(
+            reply_to_reply.data["reply_to"]["id"], reply.data["author"]["id"]
+        )
         self.assertIsNotNone(reply_to_reply.data["reply_to"]["nickname"])
 
         # 顶层列表只返回一级评论，并带回复数。
         top_list = self.client.get("/comments/", {"can_id": self.same_can.id})
-        self.assertEqual([item["id"] for item in top_list.data["results"]], [top.data["id"]])
+        self.assertEqual(
+            [item["id"] for item in top_list.data["results"]], [top.data["id"]]
+        )
         self.assertEqual(top_list.data["results"][0]["reply_count"], 2)
 
         # 按 parent_id 返回该一级评论下的回复（二层平铺，时间正序）。
-        replies = self.client.get(
-            "/comments/", {"parent_id": top.data["id"]}
-        )
+        replies = self.client.get("/comments/", {"parent_id": top.data["id"]})
         self.assertEqual(
             [item["id"] for item in replies.data["results"]],
             [reply.data["id"], reply_to_reply.data["id"]],
