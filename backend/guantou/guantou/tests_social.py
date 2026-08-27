@@ -251,6 +251,24 @@ class CanSocialApiTests(TestCase):
         admin_deleted = self.client.delete(f"/comments/{second.id}/")
         self.assertEqual(admin_deleted.status_code, 204)
 
+    def test_anonymous_guests_can_browse_public_comments(self):
+        # 评论属于可浏览内容：游客可 GET 公开罐头的评论列表（发布/回复仍需登录，见 #202）。
+        comment = CanComment.objects.create(
+            can=self.same_can,
+            author=self.viewer,
+            content="游客可见的评论",
+        )
+
+        self.client.force_authenticate(None)
+        response = self.client.get("/comments/", {"can_id": self.same_can.id})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [item["id"] for item in response.data["results"]], [comment.id]
+        )
+        # 游客态 liked_by_me 恒为假，前端不得依赖其为真值。
+        self.assertFalse(response.data["results"][0]["liked_by_me"])
+
     def test_nameplate_comments_are_targeted_and_separate_from_can_comments(self):
         plate = Nameplate.objects.create(
             can=self.same_can,
