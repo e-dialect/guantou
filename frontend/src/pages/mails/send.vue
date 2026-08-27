@@ -46,6 +46,7 @@
         <view class="submit-action">
           <BaseButton
             block
+            aria-label="提交"
             :loading="submitting"
             :disabled="submitting"
             :text="submitting ? '发送中…' : '发送邮件'"
