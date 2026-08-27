@@ -1,18 +1,14 @@
 <template>
-  <view class="audio-capture">
-    <view
-      :class="[
-        'record-zone',
-        recording ? 'recording' : '',
-        audio.path ? 'ready' : '',
-        recordingSupported ? '' : 'disabled',
-      ]"
-      @longpress="startRecord"
-      @touchend="stopRecord"
-      @mousedown="startRecord"
-      @mouseup="stopRecord"
-      @mouseleave="stopRecord"
-    >
+  <view
+    class="audio-capture"
+    :class="{
+      'audio-capture--recording': recording,
+      'audio-capture--playing': playing,
+      'audio-capture--ready': Boolean(audio.path),
+      'audio-capture--disabled': !supported,
+    }"
+  >
+    <view class="record-copy">
       <text class="record-title">
         {{ titleText }}
       </text>
@@ -21,89 +17,169 @@
       </text>
     </view>
 
-    <view class="actions">
-      <button
-        v-if="audio.path"
-        class="secondary-button"
-        @tap="previewAudio"
+    <view
+      class="sound-wave"
+      aria-hidden="true"
+    >
+      <view
+        v-for="index in 11"
+        :key="index"
+        class="sound-wave__bar"
+        :class="{ 'sound-wave__bar--active': waveBarActive(index) }"
+      />
+    </view>
+
+    <button
+      v-if="!audio.path || recording"
+      class="record-primary"
+      :disabled="!supported"
+      hover-class="record-primary--pressed"
+      @tap="handlePrimaryAction"
+    >
+      <text class="record-primary__icon">
+        {{ primaryIcon }}
+      </text>
+      <text class="record-primary__label">
+        {{ primaryLabel }}
+      </text>
+    </button>
+
+    <view
+      v-if="audio.path && !recording"
+      class="record-ready-actions"
+    >
+      <t-button
+        class="record-ready-action record-ready-action--secondary"
+        theme="default"
+        variant="outline"
+        size="large"
+        icon="refresh"
+        block
+        @click="restartRecording"
       >
-        试听
-      </button>
-      <button
-        v-if="audio.path || audio.invalid"
-        class="secondary-button danger"
-        @tap="clearAudio"
+        重新录制
+      </t-button>
+      <t-button
+        class="record-ready-action record-ready-action--primary"
+        theme="primary"
+        size="large"
+        :icon="playing ? 'pause-circle' : 'play-circle'"
+        block
+        @click="togglePlayback"
       >
-        重录
-      </button>
-      <button
-        class="secondary-button"
+        {{ playing ? '暂停播放' : '播放录音' }}
+      </t-button>
+    </view>
+
+    <view class="record-actions">
+      <t-button
+        class="record-action"
+        theme="light"
+        variant="text"
+        size="small"
         :disabled="!fileSelectionSupported"
-        @tap="chooseFile"
+        @click="chooseFile"
       >
-        上传音频
-      </button>
+        {{ audio.path ? '选择其他录音' : '选择已有录音' }}
+      </t-button>
     </view>
   </view>
 </template>
 
 <script>
-import {
-  chooseAudioFile,
-  supportsAudioFileSelection,
-} from '@/services/file';
-import { playAudio } from '@/utils/audio';
+import TButton from '@tdesign/uniapp/button/button.vue';
+import { chooseAudioFile, supportsAudioFileSelection } from '@/services/file';
+import { playAudio, playManaged, stopAudio } from '@/utils/audio';
 
-const MAX_DURATION_MS = 15000;
-const MIN_DURATION_MS = 1000;
+const MAX_RECORD_MS = 15 * 1000;
+const MIN_RECORD_MS = 1000;
+
+function formatSeconds(milliseconds) {
+  return `${Math.max(0, Math.ceil(Number(milliseconds || 0) / 1000))} 秒`;
+}
 
 export default {
   name: 'AudioCapture',
+  components: { TButton },
   props: {
     audio: {
       type: Object,
-      default: () => ({
-        path: '',
-        name: '',
-        durationMs: 0,
-        origin: '',
-      }),
+      default: () => ({}),
+    },
+    invalid: {
+      type: Boolean,
+      default: false,
     },
   },
-  emits: ['change', 'clear'],
+  emits: ['change', 'clear', 'error'],
   data() {
     return {
+      recorder: null,
       recorderManager: null,
-      mediaStream: null,
-      recordingSupported: false,
-      fileSelectionSupported: supportsAudioFileSelection(),
+      stream: null,
+      chunks: [],
       recording: false,
-      recordIntentActive: false,
-      recordStartedAt: 0,
+      supported: true,
+      recordingSupported: true,
+      fileSelectionSupported: supportsAudioFileSelection(),
+      startAt: 0,
+      recordingElapsed: 0,
       stopTimer: null,
+      progressTimer: null,
+      playing: false,
+      playbackHandle: null,
+      playbackPosition: 0,
+      playbackDuration: 0,
     };
   },
   computed: {
+    resolvedDurationMs() {
+      return Number(this.audio.durationMs || this.audio.duration || this.playbackDuration || 0);
+    },
+    playbackProgress() {
+      if (!this.resolvedDurationMs) return 0;
+      return Math.min(1, this.playbackPosition / this.resolvedDurationMs);
+    },
     titleText() {
-      if (this.recording) return '录音中，松手完成';
-      if (this.audio.invalid) return '录音已失效，请重录';
-      if (this.audio.path) return this.audio.name || '已准备好音频';
-      if (!this.recordingSupported) return '当前环境不支持录音';
-      return '按住录音';
+      if (this.playing) return '正在播放';
+      if (this.recording) return '录音中';
+      if (this.invalid) return '录音已失效';
+      if (this.audio.path) return '录好了';
+      if (!this.supported) return '当前环境不能直接录音';
+      return '让这句乡音留下来';
     },
     subtitleText() {
-      if (this.recording) return '最长 15 秒';
-      if (this.audio.invalid) return '草稿的其他内容已恢复';
-      if (this.audio.path && this.audio.durationMs) {
-        return `约 ${Math.max(1, Math.round(this.audio.durationMs / 1000))} 秒`;
+      if (this.recording) {
+        return `${formatSeconds(this.recordingElapsed)} / ${formatSeconds(MAX_RECORD_MS)}`;
       }
-      if (this.audio.path) return '可以试听或重录';
-      if (!this.recordingSupported) {
-        return this.fileSelectionSupported
-          ? '请上传音频文件继续'
-          : '当前环境也不支持选择音频文件';
+      if (this.playing) {
+        return `${formatSeconds(this.playbackPosition)} / ${formatSeconds(this.resolvedDurationMs)}`;
       }
-      return '也可以上传 mp3、wav、m4a';
+      if (this.invalid) return '请重新录制，或选择一段录音';
+      if (this.audio.path) {
+        return `${formatSeconds(this.resolvedDurationMs)} · 点击播放检查一下`;
+      }
+      return '点击开始，说一次你熟悉的家乡话，最长 15 秒';
+    },
+    primaryIcon() {
+      if (this.playing) return 'Ⅱ';
+      if (this.recording) return '■';
+      if (this.audio.path) return '▶';
+      return '●';
+    },
+    primaryLabel() {
+      if (this.playing) return '暂停';
+      if (this.recording) return '点击完成';
+      if (this.audio.path) return '播放';
+      return '开始录音';
+    },
+  },
+  watch: {
+    audio: {
+      deep: true,
+      handler() {
+        this.stopPlayback();
+      },
     },
   },
   mounted() {
@@ -111,226 +187,397 @@ export default {
   },
   beforeUnmount() {
     this.clearTimer();
-    if (this.recorderManager && typeof this.recorderManager.stop === 'function') {
+    this.stopPlayback();
+    const activeRecorder = this.recorderManager || this.recorder;
+    if (this.recording && activeRecorder) {
       try {
-        this.recorderManager.stop();
+        activeRecorder.stop();
       } catch (error) {
-        // Recorder may already be inactive.
+        // 录音器已经停止时无需再处理。
       }
     }
-    if (this.mediaStream) {
-      this.mediaStream.getTracks().forEach((track) => track.stop());
-      this.mediaStream = null;
+    if (this.stream) {
+      this.stream.getTracks().forEach((track) => track.stop());
     }
   },
   methods: {
-    emitAudio(path, durationMs, origin, name = '', blob = null) {
-      this.$emit('change', {
-        path,
-        name,
-        durationMs,
-        origin,
-        available: true,
-        invalid: false,
-        ...(blob ? { blob } : {}),
-      });
+    emitAudio(payload) {
+      this.$emit('change', payload);
+    },
+    waveBarActive(index) {
+      if (this.recording) return true;
+      if (!this.playing) return false;
+      return index / 11 <= this.playbackProgress;
     },
     clearTimer() {
-      if (!this.stopTimer) return;
-      clearTimeout(this.stopTimer);
+      if (this.stopTimer) clearTimeout(this.stopTimer);
+      if (this.progressTimer) clearInterval(this.progressTimer);
       this.stopTimer = null;
+      this.progressTimer = null;
+    },
+    stopPlayback() {
+      if (this.playbackHandle) {
+        stopAudio();
+        this.playbackHandle = null;
+      }
+      this.playing = false;
+      this.playbackPosition = 0;
     },
     initRecorder() {
-      // #ifndef H5
-      if (typeof uni.getRecorderManager !== 'function') return;
-      this.recorderManager = uni.getRecorderManager();
-      this.recordingSupported = Boolean(this.recorderManager);
-      this.recorderManager.onStop((res) => {
-        const durationMs = Date.now() - this.recordStartedAt;
-        this.onRecordStop(res.tempFilePath, durationMs);
-      });
-      this.recorderManager.onError(() => {
-        this.recording = false;
-        this.recordIntentActive = false;
-        this.clearTimer();
-        uni.showToast({ title: '需要麦克风权限才能录音', icon: 'none' });
-      });
+      // #ifdef MP-WEIXIN
+      if (typeof uni.getRecorderManager === 'function') {
+        this.recorderManager = uni.getRecorderManager();
+        this.recorder = this.recorderManager;
+        this.recorderManager.onStop(
+          (res) => this.onRecordStop(res.tempFilePath, res.duration),
+        );
+        this.recorderManager.onError((error) => {
+          this.recording = false;
+          this.clearTimer();
+          this.$emit('error', error);
+        });
+      }
       // #endif
 
       // #ifdef H5
-      this.recordingSupported = Boolean(
+      this.supported = Boolean(
         typeof navigator !== 'undefined'
         && navigator.mediaDevices
-        && navigator.mediaDevices.getUserMedia
+        && typeof navigator.mediaDevices.getUserMedia === 'function'
         && typeof MediaRecorder !== 'undefined',
       );
+      this.recordingSupported = this.supported;
       // #endif
     },
     async prepareH5Recorder() {
-      let prepared = false;
       // #ifdef H5
-      if (this.recorderManager) return true;
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        this.mediaStream = stream;
-        this.recorderManager = new MediaRecorder(stream);
-        let chunks = [];
-        this.recorderManager.onstart = () => {
-          chunks = [];
-        };
-        this.recorderManager.ondataavailable = (event) => {
-          chunks.push(event.data);
-        };
-        this.recorderManager.onstop = () => {
-          const durationMs = Date.now() - this.recordStartedAt;
-          const blob = new Blob(chunks, { type: this.recorderManager.mimeType });
-          const path = window.URL.createObjectURL(blob);
-          this.onRecordStop(path, durationMs, blob);
-        };
-        prepared = true;
-      } catch (error) {
-        this.recorderManager = null;
-        uni.showToast({ title: '需要麦克风权限才能录音', icon: 'none' });
-      }
+      if (!this.supported) return false;
+      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.chunks = [];
+      this.recorder = new MediaRecorder(this.stream);
+      this.recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size) this.chunks.push(event.data);
+      };
+      this.recorder.onstop = () => {
+        const blob = new Blob(this.chunks, { type: this.recorder.mimeType || 'audio/webm' });
+        const duration = Date.now() - this.startAt;
+        this.onRecordStop(URL.createObjectURL(blob), duration, blob);
+        this.stream.getTracks().forEach((track) => track.stop());
+        this.stream = null;
+      };
+      return true;
       // #endif
-
       // #ifndef H5
-      prepared = Boolean(this.recorderManager);
+      // eslint-disable-next-line no-unreachable
+      return true;
       // #endif
-      return prepared;
     },
-    async startRecord() {
-      if (this.recording) return;
-      this.recordIntentActive = true;
-      if (!this.recordingSupported) {
-        this.recordIntentActive = false;
-        uni.showToast({ title: '当前环境不能录音，请上传音频', icon: 'none' });
+    async handlePrimaryAction() {
+      if (this.recording) {
+        this.stopRecord();
         return;
       }
-      if (!this.recorderManager && !await this.prepareH5Recorder()) return;
-      if (!this.recordIntentActive) return;
-      this.recording = true;
-      this.recordStartedAt = Date.now();
-      this.clearTimer();
-      this.stopTimer = setTimeout(() => {
-        this.stopRecord(true);
-      }, MAX_DURATION_MS);
-      this.recorderManager.start();
+      if (this.audio.path) {
+        this.togglePlayback();
+        return;
+      }
+      await this.startRecord();
+    },
+    async startRecord() {
+      this.stopPlayback();
+      if (!this.recordingSupported) {
+        uni.showToast({ title: '请选择已有录音', icon: 'none' });
+        return;
+      }
+      try {
+        if (!this.recorderManager) {
+          const ready = await this.prepareH5Recorder();
+          if (!ready) return;
+        }
+        const activeRecorder = this.recorderManager || this.recorder;
+        if (!activeRecorder) return;
+        this.recording = true;
+        this.recordingElapsed = 0;
+        this.startAt = Date.now();
+        this.progressTimer = setInterval(() => {
+          this.recordingElapsed = Math.min(MAX_RECORD_MS, Date.now() - this.startAt);
+        }, 200);
+        this.stopTimer = setTimeout(() => this.stopRecord(true), MAX_RECORD_MS);
+
+        // #ifdef MP-WEIXIN
+        activeRecorder.start({ duration: MAX_RECORD_MS, format: 'mp3' });
+        // #endif
+        // #ifdef H5
+        if (activeRecorder !== this.recorderManager) activeRecorder.start();
+        // #endif
+      } catch (error) {
+        this.recording = false;
+        this.clearTimer();
+        this.$emit('error', error);
+      }
     },
     stopRecord(autoStopped = false) {
-      this.recordIntentActive = false;
-      if (!this.recording || !this.recorderManager) return;
+      const activeRecorder = this.recorderManager || this.recorder;
+      if (!this.recording || !activeRecorder) return;
+      this.recordingElapsed = Date.now() - this.startAt;
       this.recording = false;
       this.clearTimer();
       try {
-        this.recorderManager.stop();
+        activeRecorder.stop();
+        if (autoStopped) uni.showToast({ title: '已自动截取前15秒', icon: 'none' });
       } catch (error) {
-        this.recording = false;
-      }
-      if (autoStopped) {
-        uni.showToast({ title: '已自动截取前15秒', icon: 'none' });
+        this.$emit('error', error);
       }
     },
-    onRecordStop(path, durationMs, blob = null) {
-      this.recording = false;
-      this.clearTimer();
-      if (!path) return;
-      if (durationMs < MIN_DURATION_MS) {
+    onRecordStop(path, duration, blob = null) {
+      const resolvedDuration = Number(duration || this.recordingElapsed || 0);
+      if (resolvedDuration < MIN_RECORD_MS) {
         uni.showToast({ title: '录音太短了，再试一次吧', icon: 'none' });
         return;
       }
-      this.emitAudio(
+      this.emitAudio({
         path,
-        Math.min(durationMs, MAX_DURATION_MS),
-        'record',
-        '刚录好的乡音',
-        blob,
-      );
+        name: '刚录好的乡音',
+        durationMs: Math.min(resolvedDuration, MAX_RECORD_MS),
+        origin: 'record',
+        available: true,
+        invalid: false,
+        mimeType: blob?.type || 'audio/mpeg',
+        ...(blob ? { blob } : {}),
+      });
     },
-    previewAudio() {
-      playAudio(this.audio.path);
-    },
-    clearAudio() {
-      this.$emit('clear');
-    },
-    async chooseFile() {
-      if (!this.fileSelectionSupported) {
-        uni.showToast({ title: '当前环境不支持选择音频文件', icon: 'none' });
+    togglePlayback() {
+      if (!this.audio.path) return;
+      if (this.playing) {
+        this.stopPlayback();
         return;
       }
+      this.playbackPosition = 0;
+      this.playbackDuration = Number(this.audio.durationMs || this.audio.duration || 0);
+      this.playing = true;
+      this.playbackHandle = playManaged(this.audio.path, {
+        onTimeUpdate: ({ currentTime, duration } = {}) => {
+          this.playbackPosition = Number(currentTime || 0) * 1000;
+          if (duration) this.playbackDuration = Number(duration) * 1000;
+        },
+        onEnded: () => {
+          this.playing = false;
+          this.playbackHandle = null;
+          this.playbackPosition = 0;
+        },
+        onError: () => {
+          this.playing = false;
+          this.playbackHandle = null;
+          uni.showToast({ title: '录音播放失败', icon: 'none' });
+        },
+      });
+    },
+    previewAudio() {
+      if (this.audio.path) playAudio(this.audio.path);
+    },
+    clearAudio() {
+      this.stopPlayback();
+      this.$emit('clear');
+    },
+    restartRecording() {
+      this.stopPlayback();
+      this.$emit('clear');
+      this.$nextTick(() => this.startRecord());
+    },
+    async chooseFile() {
+      this.stopPlayback();
       try {
-        const file = await chooseAudioFile();
-        this.emitAudio(file.path, 0, 'upload', file.name);
+        const selected = await chooseAudioFile();
+        if (!selected) return;
+        this.emitAudio({ ...selected, origin: selected.origin || 'upload' });
       } catch (error) {
-        uni.showToast({
-          title: error.errMsg || error.message || '选择音频失败',
-          icon: 'none',
-        });
+        uni.showToast({ title: error?.message || '选择录音失败', icon: 'none' });
       }
     },
   },
 };
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .audio-capture {
-  margin: 28rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-5) var(--space-4) var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  background: var(--accent-color);
+  color: var(--on-accent-color);
+  box-shadow: 0 12rpx 32rpx var(--border-color);
 }
 
-.record-zone {
-  border: 2rpx dashed #9db2a6;
-  border-radius: 16rpx;
-  background: #ffffff;
-  min-height: 220rpx;
+.record-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.record-title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.record-subtitle {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  opacity: 0.82;
+}
+
+.sound-wave {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  height: 72rpx;
+  margin-top: var(--space-5);
+}
+
+.sound-wave__bar {
+  width: 6rpx;
+  height: 18rpx;
+  border-radius: var(--radius-pill);
+  background: var(--on-accent-color);
+  opacity: 0.35;
+  transition: height 160ms ease, opacity 160ms ease;
+}
+
+.sound-wave__bar:nth-child(2n) { height: 34rpx; }
+.sound-wave__bar:nth-child(3n) { height: 50rpx; }
+.sound-wave__bar:nth-child(5n) { height: 64rpx; }
+
+.sound-wave__bar--active {
+  opacity: 1;
+}
+
+.audio-capture--recording .sound-wave__bar--active {
+  animation: wave-pulse 720ms ease-in-out infinite alternate;
+}
+
+.audio-capture--recording .sound-wave__bar:nth-child(2n) {
+  animation-delay: 120ms;
+}
+
+.audio-capture--recording .sound-wave__bar:nth-child(3n) {
+  animation-delay: 240ms;
+}
+
+.record-primary {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12rpx;
-  color: #2f4638;
+  width: 184rpx;
+  height: 184rpx;
+  margin-top: var(--space-3);
+  padding: 0;
+  border: 12rpx solid var(--accent-subtle-color);
+  border-radius: 50%;
+  background: var(--surface-color);
+  color: var(--accent-color);
+  line-height: 1;
 }
 
-.record-zone.recording {
-  border-color: #1f5c43;
-  background: #e8f1eb;
+.record-primary::after {
+  border: 0;
 }
 
-.record-zone.ready {
-  border-style: solid;
+.record-primary--pressed {
+  transform: scale(0.97);
 }
 
-.record-zone.disabled {
-  opacity: 0.6;
-}
-
-.record-title {
-  font-size: 34rpx;
+.record-primary__icon {
+  font-size: 46rpx;
   font-weight: 700;
 }
 
-.record-subtitle {
-  font-size: 26rpx;
-  color: #6a766e;
+.record-primary__label {
+  margin-top: 14rpx;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
 }
 
-.actions {
+.record-actions {
   display: flex;
-  gap: 16rpx;
   align-items: center;
-  margin-top: 18rpx;
-  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 64rpx;
+  margin-top: var(--space-2);
 }
 
-.secondary-button {
-  margin: 0;
-  background: #ffffff;
-  border: 1px solid #cbd5c5;
-  color: #2f4638;
-  border-radius: 12rpx;
-  font-size: 26rpx;
+.record-ready-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 520rpx;
+  margin-top: var(--space-4);
 }
 
-.danger {
-  color: #a33a2d;
+.record-ready-action {
+  min-width: 0;
+}
+
+:deep(.record-ready-action.t-button) {
+  border-radius: var(--radius-pill);
+}
+
+:deep(.record-ready-action--primary.t-button) {
+  --td-button-primary-bg-color: var(--success-color);
+  --td-button-primary-border-color: var(--success-color);
+  --td-button-primary-active-bg-color: var(--accent-color);
+  --td-button-primary-active-border-color: var(--accent-color);
+}
+
+:deep(.record-ready-action--secondary.t-button) {
+  --td-button-default-outline-color: var(--text-color);
+  --td-button-default-outline-border-color: var(--border-strong-color, var(--border-color));
+  background: var(--surface-color);
+}
+
+:deep(.record-action.t-button--light),
+:deep(.record-action .t-button__content) {
+  color: var(--on-accent-color);
+}
+
+.audio-capture--disabled {
+  opacity: 0.72;
+}
+
+.audio-capture--ready:not(.audio-capture--playing):not(.audio-capture--recording) {
+  border-color: var(--border-color);
+  background: var(--surface-color);
+  color: var(--text-color);
+}
+
+.audio-capture--ready:not(.audio-capture--playing):not(.audio-capture--recording) .sound-wave__bar {
+  background: var(--success-color);
+  opacity: 0.62;
+}
+
+.audio-capture--ready:not(.audio-capture--playing):not(.audio-capture--recording) .record-primary {
+  border-color: var(--accent-subtle-color);
+  background: var(--success-color);
+  color: var(--on-accent-color);
+}
+
+.audio-capture--ready:not(.audio-capture--playing):not(.audio-capture--recording)
+  :deep(.record-action),
+.audio-capture--ready:not(.audio-capture--playing):not(.audio-capture--recording)
+  :deep(.record-action .t-button__content) {
+  color: var(--muted-color);
+}
+
+@keyframes wave-pulse {
+  from { transform: scaleY(0.55); }
+  to { transform: scaleY(1); }
 }
 </style>

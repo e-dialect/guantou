@@ -79,6 +79,8 @@ describe('can creation draft recovery', () => {
     globalThis.uni = {
       redirectTo: vi.fn(),
       reLaunch: vi.fn(),
+      getStorageSync: vi.fn(() => ''),
+      setStorageSync: vi.fn(),
       showModal: vi.fn(),
       showToast: vi.fn(),
     };
@@ -125,6 +127,32 @@ describe('can creation draft recovery', () => {
 
     wrapper.vm.onDialectChange({ detail: { value: [1, 0] } });
     expect(wrapper.vm.form.submitted_dialect_id).toBe(7);
+  });
+
+  it('shows the complete dialect path and remembers a cascader selection', async () => {
+    listAllDialects.mockResolvedValue([
+      { id: 1, name: '闽语', qualified_code: '闽', sort_order: 1 },
+      { id: 4, name: '闽南片', qualified_code: '闽.闽南', sort_order: 1 },
+      { id: 5, name: '厦门话', qualified_code: '闽.闽南.厦门', sort_order: 1 },
+    ]);
+    const wrapper = mountCreate();
+    await wrapper.vm.loadDialects();
+    const [root] = wrapper.vm.dialectTree;
+    const [branch] = root.children;
+    const [leaf] = branch.children;
+
+    wrapper.vm.onDialectCascadeChange({
+      value: leaf.id,
+      selectedOptions: [root, branch, leaf],
+    });
+
+    expect(wrapper.vm.dialectDisplayLabel).toBe('闽语 · 闽南片 · 厦门话');
+    expect(wrapper.vm.filterDialectOption('厦门', leaf, [root, branch])).toBe(true);
+    expect(wrapper.vm.filterDialectOption('闽.闽南.厦门', leaf, [root, branch])).toBe(true);
+    expect(uni.setStorageSync).toHaveBeenCalledWith(
+      'can_create_recent_dialects_v1:user:7',
+      JSON.stringify([5]),
+    );
   });
 
   it('restores a draft leaf into every dialect cascade column', async () => {

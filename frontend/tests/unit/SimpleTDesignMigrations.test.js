@@ -129,7 +129,7 @@ describe('simple TDesign page migrations', () => {
       recipients: ['12'],
       title: '测试邮件',
       content: '正文',
-    });
+    }, true);
     expect(wrapper.vm.submitting).toBe(false);
   });
 

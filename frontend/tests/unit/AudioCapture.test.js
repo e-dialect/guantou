@@ -1,15 +1,21 @@
 import { mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  beforeEach, describe, expect, it, vi,
+} from 'vitest';
+
+import AudioCapture from '@/components/AudioCapture.vue';
+import { chooseAudioFile } from '@/services/file';
+import { playAudio, playManaged, stopAudio } from '@/utils/audio';
 
 vi.mock('@/services/file', () => ({
   chooseAudioFile: vi.fn(),
   supportsAudioFileSelection: vi.fn(() => true),
 }));
-vi.mock('@/utils/audio', () => ({ playAudio: vi.fn() }));
-
-import AudioCapture from '@/components/AudioCapture.vue';
-import { chooseAudioFile } from '@/services/file';
-import { playAudio } from '@/utils/audio';
+vi.mock('@/utils/audio', () => ({
+  playAudio: vi.fn(),
+  playManaged: vi.fn(),
+  stopAudio: vi.fn(),
+}));
 
 function mountCapture(audio = {}) {
   return mount(AudioCapture, {
@@ -28,6 +34,7 @@ function mountCapture(audio = {}) {
 describe('AudioCapture', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    playManaged.mockReturnValue({ destroy: vi.fn() });
     globalThis.uni = { showToast: vi.fn() };
   });
 
@@ -80,5 +87,47 @@ describe('AudioCapture', () => {
       name: 'voice.m4a',
       origin: 'upload',
     });
+  });
+
+  it('plays and pauses a completed recording', () => {
+    const wrapper = mountCapture({
+      path: '/tmp/voice.mp3',
+      name: 'voice.mp3',
+      durationMs: 3200,
+    });
+
+    wrapper.vm.togglePlayback();
+
+    expect(playManaged).toHaveBeenCalledWith(
+      '/tmp/voice.mp3',
+      expect.objectContaining({
+        onEnded: expect.any(Function),
+        onTimeUpdate: expect.any(Function),
+      }),
+    );
+    expect(wrapper.vm.playing).toBe(true);
+
+    wrapper.vm.togglePlayback();
+
+    expect(stopAudio).toHaveBeenCalledTimes(1);
+    expect(wrapper.vm.playing).toBe(false);
+  });
+
+  it('offers playback and starts a fresh recording from the ready state', async () => {
+    const wrapper = mountCapture({
+      path: '/tmp/voice.mp3',
+      name: 'voice.mp3',
+      durationMs: 3200,
+    });
+    wrapper.vm.startRecord = vi.fn();
+
+    expect(wrapper.text()).toContain('重新录制');
+    expect(wrapper.text()).toContain('播放录音');
+
+    wrapper.vm.restartRecording();
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.emitted('clear')).toHaveLength(1);
+    expect(wrapper.vm.startRecord).toHaveBeenCalledTimes(1);
   });
 });

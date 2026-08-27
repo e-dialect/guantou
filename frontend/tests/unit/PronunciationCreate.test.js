@@ -14,6 +14,8 @@ const {
 const PronunciationModule = await import('@/pages/pronunciations/create.vue');
 const PronunciationCreate = PronunciationModule.default;
 const {
+  buildDialectTree,
+  findDialectPath,
   pronunciationApiErrors,
   validatePronunciationDraft,
 } = PronunciationModule;
@@ -32,7 +34,12 @@ function validDraft() {
 describe('pronunciation authoring flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    globalThis.uni = { showToast: vi.fn(), navigateBack: vi.fn() };
+    globalThis.uni = {
+      getStorageSync: vi.fn(() => ''),
+      navigateBack: vi.fn(),
+      setStorageSync: vi.fn(),
+      showToast: vi.fn(),
+    };
   });
 
   it('requires IPA, a linked package, a dialect, and paired sandhi forms', () => {
@@ -86,6 +93,22 @@ describe('pronunciation authoring flow', () => {
       package_id: '该写法尚未与所选义项建立关联',
       ipa: '不能为空',
     });
+  });
+
+  it('uses the same hierarchical dialect path as the can creation cascader', () => {
+    const tree = buildDialectTree([
+      { id: 1, name: '闽语', qualified_code: '闽', sort_order: 1 },
+      { id: 2, name: '莆仙片', qualified_code: '闽.莆仙', sort_order: 1 },
+      { id: 3, name: '仙游', qualified_code: '闽.莆仙.仙游', sort_order: 1 },
+      { id: 4, name: '城关', qualified_code: '闽.莆仙.仙游.城关', sort_order: 1 },
+    ]);
+
+    expect(findDialectPath(tree, 4).map((item) => item.name)).toEqual([
+      '闽语',
+      '莆仙片',
+      '仙游',
+      '城关',
+    ]);
   });
 
   it('keeps the locked flavor id in the create payload', async () => {

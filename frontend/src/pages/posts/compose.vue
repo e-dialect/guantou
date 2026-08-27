@@ -8,12 +8,16 @@
     </view>
     <view
       v-else-if="loadError"
-      class="state-card error"
+      class="state-card state-card--error"
     >
       <view>{{ loadError }}</view>
-      <button @tap="loadCan">
-        重试
-      </button>
+      <BaseButton
+        v-if="canId"
+        variant="ghost"
+        size="small"
+        text="重试"
+        @click="loadCan"
+      />
     </view>
     <template v-else-if="can">
       <SectionBlock title="已带入的乡音">
@@ -24,49 +28,67 @@
           {{ can.concept_text || '未填写普通话概念' }}
         </view>
         <view class="source-meta">
-          {{ can.recorder.nickname || can.recorder.username }} ·
+          {{ can.recorder?.nickname || can.recorder?.username || '匿名录音者' }} ·
           {{ can.submitted_dialect?.qualified_code || '未标方言点' }}
         </view>
-        <button
-          class="listen-button"
-          @tap="playAudio(can.audio_url)"
-        >
-          ▶ 试听原罐头
-        </button>
+        <view class="listen-action">
+          <BaseButton
+            variant="ghost"
+            text="▶ 试听原罐头"
+            :disabled="!can.audio_url"
+            @click="playAudio(can.audio_url)"
+          />
+        </view>
       </SectionBlock>
 
       <SectionBlock title="补一句自己的表达">
-        <textarea
+        <BaseField
           v-model="text"
-          class="post-input"
-          maxlength="500"
+          label="想说的话（选填）"
+          type="textarea"
+          :error="fieldErrors.text"
+          :maxlength="500"
           placeholder="可选，例如：我家也这样说"
-          :focus="true"
+          @input="clearFieldError('text')"
         />
         <view class="counter">
           {{ text.length }}/500
         </view>
         <view class="visibility-row">
-          <button
-            :class="['visibility-button', { active: visibility === 'public' }]"
-            @tap="visibility = 'public'"
-          >
-            公开
-          </button>
-          <button
-            :class="['visibility-button', { active: visibility === 'private' }]"
-            @tap="visibility = 'private'"
-          >
-            仅自己
-          </button>
+          <BaseButton
+            block
+            :variant="visibility === 'public' ? 'primary' : 'ghost'"
+            text="公开"
+            @click="setVisibility('public')"
+          />
+          <BaseButton
+            block
+            :variant="visibility === 'private' ? 'primary' : 'ghost'"
+            text="仅自己"
+            @click="setVisibility('private')"
+          />
         </view>
-        <button
-          class="publish-button"
-          :disabled="submitting"
-          @tap="publish"
+        <view
+          v-if="fieldErrors.visibility"
+          class="field-error"
         >
-          {{ submitting ? '发布中…' : '发布表达' }}
-        </button>
+          {{ fieldErrors.visibility }}
+        </view>
+        <view
+          v-if="fieldErrors.can_id"
+          class="field-error"
+        >
+          {{ fieldErrors.can_id }}
+        </view>
+        <view class="publish-action">
+          <BaseButton
+            block
+            :loading="submitting"
+            :disabled="submitting || !can"
+            :text="submitting ? '发布中…' : '发布表达'"
+            @click="publish"
+          />
+        </view>
         <view class="hint">
           每条表达都必须保留这段罐头来源，不支持纯文字发布。
         </view>
@@ -76,6 +98,8 @@
 </template>
 
 <script>
+import BaseButton from '@/components/BaseButton.vue';
+import BaseField from '@/components/BaseField.vue';
 import PageShell from '@/components/PageShell.vue';
 import SectionBlock from '@/components/SectionBlock.vue';
 import { createCanPost } from '@/services/canSocial';
@@ -84,12 +108,35 @@ import { goPostDetail } from '@/services/navigation';
 import { getCan } from '@/services/guantou';
 import { playAudio } from '@/utils/audio';
 
+const POST_FIELDS = new Set(['can_id', 'text', 'visibility']);
+
+function fieldMessage(value) {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return fieldMessage(value[0]);
+  return value.message || value.detail || '';
+}
+
+export function postApiErrors(error) {
+  return Object.entries(error?.data || {}).reduce((result, [field, value]) => {
+    const message = fieldMessage(value);
+    if (!message || !POST_FIELDS.has(field)) return result;
+    return { ...result, [field]: message };
+  }, {});
+}
+
 export default {
-  components: { PageShell, SectionBlock },
+  components: {
+    BaseButton,
+    BaseField,
+    PageShell,
+    SectionBlock,
+  },
   data() {
     return {
       can: null,
       canId: 0,
+      fieldErrors: {},
       loadError: '',
       loading: true,
       submitting: false,
@@ -114,6 +161,13 @@ export default {
   },
   methods: {
     playAudio,
+    clearFieldError(field) {
+      if (this.fieldErrors[field]) delete this.fieldErrors[field];
+    },
+    setVisibility(value) {
+      this.visibility = value;
+      this.clearFieldError('visibility');
+    },
     async loadCan() {
       this.loading = true;
       this.loadError = '';
@@ -127,13 +181,15 @@ export default {
     },
     async publish() {
       if (this.submitting || !this.can) return;
+      this.fieldErrors = {};
       this.submitting = true;
       try {
         const post = await createCanPost(this.canId, this.text, this.visibility);
         uni.showToast({ title: '发布成功', icon: 'success' });
         goPostDetail(post.id, { replace: true });
       } catch (error) {
-        uni.showToast({ title: error.message || '发布失败', icon: 'none' });
+        // httpClient 负责通用失败 toast；页面只展示 data.<field> 的字段错误。
+        this.fieldErrors = postApiErrors(error);
       } finally {
         this.submitting = false;
       }
@@ -143,26 +199,33 @@ export default {
 </script>
 
 <style scoped>
-.state-card,
-.post-input {
-  box-sizing: border-box;
-  width: 100%;
-  border: 1px solid #dfe5db;
-  border-radius: 14rpx;
-  background: #fff;
+.state-card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
 }
 
 .state-card {
-  padding: 32rpx;
-  color: #617067;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  color: var(--muted-color);
 }
 
-.state-card.error {
-  color: #934438;
+.state-card--error,
+.field-error {
+  color: var(--danger-color);
+}
+
+.state-card--error {
+  border-color: var(--danger-color);
 }
 
 .source-label {
-  font-size: 38rpx;
+  color: var(--text-color);
+  font-size: var(--font-size-xl);
   font-weight: 800;
 }
 
@@ -170,51 +233,34 @@ export default {
 .source-meta,
 .hint,
 .counter {
-  margin-top: 10rpx;
-  color: #68766e;
+  margin-top: var(--space-1);
+  color: var(--muted-color);
 }
 
-.listen-button,
-.publish-button {
-  margin-top: 22rpx;
-  border-radius: 12rpx;
-  background: #1f5c43;
-  color: #fff;
-}
-
-.post-input {
-  min-height: 220rpx;
-  padding: 20rpx;
-  font-size: 28rpx;
+.listen-action,
+.publish-action {
+  margin-top: var(--space-3);
 }
 
 .counter {
   text-align: right;
-  font-size: 22rpx;
+  font-size: var(--font-size-xs);
 }
 
 .visibility-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14rpx;
-  margin-top: 18rpx;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
 }
 
-.visibility-button {
-  margin: 0;
-  background: #edf1eb;
-  color: #58675e;
-  font-size: 25rpx;
-}
-
-.visibility-button.active {
-  background: #dcebe1;
-  color: #164b36;
-  font-weight: 800;
+.field-error {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
 }
 
 .hint {
-  font-size: 22rpx;
+  font-size: var(--font-size-xs);
   text-align: center;
 }
 </style>
