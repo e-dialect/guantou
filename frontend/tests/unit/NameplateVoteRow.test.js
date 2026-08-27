@@ -10,9 +10,14 @@ vi.mock('@/services/authGuard', () => ({
   requireAuth: vi.fn(() => true),
 }));
 
+vi.mock('@/services/commentSheet', () => ({
+  openCommentSheet: vi.fn(),
+}));
+
 import NameplateVoteRow from '@/components/home/NameplateVoteRow.vue';
 import { supportNameplate, unsupportNameplate } from '@/services/guantou';
 import { requireAuth } from '@/services/authGuard';
+import { openCommentSheet } from '@/services/commentSheet';
 
 function setupUni(token = 'token-value') {
   globalThis.uni = {
@@ -169,7 +174,7 @@ describe('NameplateVoteRow optimistic voting', () => {
     expect(wrapper.vm.supportCount).toBe(4);
   });
 
-  it('routes the body, comments and debate as separate nameplate actions', async () => {
+  it('routes the body and debate, and opens the comment sheet for comments', async () => {
     requireAuth.mockReturnValue(true);
     const wrapper = mountRow({}, { canId: 33 });
 
@@ -180,10 +185,13 @@ describe('NameplateVoteRow optimistic voting', () => {
     expect(uni.navigateTo).toHaveBeenNthCalledWith(1, {
       url: '/pages/nameplates/details?id=7',
     });
-    expect(uni.navigateTo).toHaveBeenNthCalledWith(2, {
-      url: '/pages/nameplates/comments?id=7',
+    // 评论改为半屏浮层（见 #219），不再整页跳转。
+    expect(openCommentSheet).toHaveBeenCalledWith({
+      targetType: 'nameplate',
+      targetId: 7,
+      theme: 'immersive',
     });
-    expect(uni.navigateTo).toHaveBeenNthCalledWith(3, {
+    expect(uni.navigateTo).toHaveBeenNthCalledWith(2, {
       url: '/pages/nameplates/create?can_id=33&reference_id=7',
     });
   });

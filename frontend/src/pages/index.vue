@@ -52,10 +52,14 @@
     </view>
 
     <HomeTabBar active="home" />
+
+    <!-- 半屏评论区（见 #219）：全局浮层，包装 CommentThread，沉浸流内嵌深色主题 -->
+    <CommentSheet />
   </view>
 </template>
 
 <script>
+import CommentSheet from '@/components/CommentSheet.vue';
 import HomeFeed from '@/components/home/HomeFeed.vue';
 import HomeTabBar from '@/components/home/HomeTabBar.vue';
 import HomeTopBar from '@/components/home/HomeTopBar.vue';
@@ -68,6 +72,7 @@ import { stopAudio } from '@/utils/audio';
 
 export default {
   components: {
+    CommentSheet,
     HomeFeed,
     HomeTabBar,
     HomeTopBar,

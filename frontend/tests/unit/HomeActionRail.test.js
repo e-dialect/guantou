@@ -18,11 +18,15 @@ vi.mock('@/routers/user', () => ({
 vi.mock('@/utils/shareCan', () => ({
   shareCanOnWeb: vi.fn(),
 }));
+vi.mock('@/services/commentSheet', () => ({
+  openCommentSheet: vi.fn(),
+}));
 
 import HomeActionRail from '@/components/home/HomeActionRail.vue';
 import { requireAuth } from '@/services/authGuard';
 import { likeCan } from '@/services/canSocial';
 import { followUser, unfollowUser } from '@/services/following';
+import { openCommentSheet } from '@/services/commentSheet';
 
 function setupUni(storage = {}) {
   globalThis.uni = {
@@ -107,22 +111,19 @@ describe('HomeActionRail', () => {
   });
 
   describe('comment', () => {
-    it('blocks guest comments via the auth guard', async () => {
-      requireAuth.mockReturnValue(false);
+    it('opens the half-screen comment sheet without requiring auth', async () => {
       const wrapper = mountRail(canFixture());
 
       await wrapper.find('[aria-label="评论"]').trigger('tap');
 
-      expect(requireAuth).toHaveBeenCalledWith('comment', { page: 'home_feed', canId: 12 });
+      // 评论属于可浏览内容（见 #202），游客无需登录即可查看，故不再走 requireAuth。
+      expect(requireAuth).not.toHaveBeenCalled();
+      expect(openCommentSheet).toHaveBeenCalledWith({
+        targetType: 'can',
+        targetId: 12,
+        theme: 'immersive',
+      });
       expect(uni.navigateTo).not.toHaveBeenCalled();
-    });
-
-    it('navigates to the comments page when allowed', async () => {
-      const wrapper = mountRail(canFixture());
-
-      await wrapper.find('[aria-label="评论"]').trigger('tap');
-
-      expect(uni.navigateTo).toHaveBeenCalledWith({ url: '/pages/cans/comments?id=12' });
     });
   });
 

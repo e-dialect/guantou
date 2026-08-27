@@ -65,9 +65,9 @@
 <script>
 import { requireAuth } from '@/services/authGuard';
 import { supportNameplate, unsupportNameplate } from '@/services/guantou';
+import { openCommentSheet } from '@/services/commentSheet';
 import {
   goCreateNameplate,
-  goNameplateComments,
   goNameplateDetail,
 } from '@/services/navigation';
 
@@ -142,7 +142,8 @@ export default {
       goNameplateDetail(this.nameplate.id);
     },
     openComments() {
-      goNameplateComments(this.nameplate.id);
+      // 半屏评论区（见 #219）：评论属于可浏览内容，发布/回复/点赞才需登录。
+      openCommentSheet({ targetType: 'nameplate', targetId: this.nameplate.id, theme: 'immersive' });
     },
     openDebate() {
       // “立论”创建竞争性观点，不代表修订或取代当前铭牌。

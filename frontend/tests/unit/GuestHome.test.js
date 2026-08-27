@@ -58,6 +58,7 @@ function mountHome() {
           template: '<div class="home-top-bar-stub" :data-active="activeTab">乡声集盒</div>',
         },
         HomeTabBar: true,
+        CommentSheet: true,
       },
     },
   });

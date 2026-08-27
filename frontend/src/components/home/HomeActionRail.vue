@@ -98,7 +98,7 @@ import { likeCan, unlikeCan } from '@/services/canSocial';
 import { followUser, unfollowUser } from '@/services/following';
 import { toUserPage } from '@/routers/user';
 import { shareCanOnWeb } from '@/utils/shareCan';
-import { goCanComments } from '@/services/navigation';
+import { openCommentSheet } from '@/services/commentSheet';
 
 export default {
   name: 'HomeActionRail',
@@ -184,8 +184,8 @@ export default {
       }
     },
     openComments() {
-      if (!requireAuth('comment', { page: 'home_feed', canId: this.can.id })) return;
-      goCanComments(this.can.id);
+      // 半屏评论区（见 #219）：评论属于可浏览内容，发布/回复/点赞才需登录（见 #202）。
+      openCommentSheet({ targetType: 'can', targetId: this.can.id, theme: 'immersive' });
     },
     async share() {
       this.$emit('share', this.can);
