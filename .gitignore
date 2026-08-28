@@ -29,6 +29,7 @@ backend/guantou/media/
 backend/guantou/material/
 backend/guantou/logs/
 backend/guantou/migration-reports/
+backend/guantou/staticfiles/
 data/
 
 # Node / uni-app

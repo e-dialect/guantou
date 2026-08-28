@@ -56,7 +56,7 @@ jobs:
         run: python manage.py makemigrations --check --dry-run
 
       - name: Run Django tests
-        run: python manage.py test guantou announcements user siteconfig files inbox audit
+        run: python manage.py test config guantou announcements user siteconfig files inbox audit
 
       - name: Check backend formatting
         run: black --check announcements guantou user siteconfig files inbox audit utils config

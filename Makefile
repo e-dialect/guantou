@@ -13,7 +13,7 @@ setup:
 backend-check:
 	cd $(BACKEND_DIR) && ./.venv/bin/python manage.py check
 	cd $(BACKEND_DIR) && ./.venv/bin/python manage.py makemigrations --check --dry-run
-	cd $(BACKEND_DIR) && ./.venv/bin/python manage.py test guantou announcements user siteconfig files inbox audit
+	cd $(BACKEND_DIR) && ./.venv/bin/python manage.py test config guantou announcements user siteconfig files inbox audit
 	cd $(BACKEND_DIR) && ./.venv/bin/python -m black --check announcements guantou user siteconfig files inbox audit utils config
 
 frontend-check:

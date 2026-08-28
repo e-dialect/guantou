@@ -1,4 +1,6 @@
+from django.conf import settings
 from django.contrib import admin
+from django.contrib.staticfiles import views as staticfiles_views
 from django.urls import path, include
 
 from user import views as user
@@ -17,3 +19,16 @@ urlpatterns = [
     path("notifications", include("inbox.urls", namespace="inbox")),
     path("files/<type>/<id>/<Y>/<M>/<D>/<X>", open_file_url),
 ]
+
+# Test and development deployments intentionally support Django's built-in
+# server. Serve app-provided admin assets even when DEBUG stays disabled; real
+# production deployments must serve STATIC_ROOT through their web server.
+if settings.ENVIRONMENT != "production":
+    urlpatterns.insert(
+        0,
+        path(
+            "static/<path:path>",
+            staticfiles_views.serve,
+            {"insecure": True},
+        ),
+    )

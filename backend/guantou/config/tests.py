@@ -4,7 +4,7 @@ import sys
 import tempfile
 
 from django.conf import settings
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 
 
 class RuntimeConfigurationTests(SimpleTestCase):
@@ -82,3 +82,16 @@ class RuntimeConfigurationTests(SimpleTestCase):
                 check=False,
             )
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_static_root_is_project_local(self):
+        self.assertEqual(
+            settings.STATIC_ROOT,
+            os.path.join(settings.BASE_DIR, "staticfiles"),
+        )
+
+    @override_settings(DEBUG=False)
+    def test_non_production_serves_admin_static_assets(self):
+        response = self.client.get("/static/admin/simpleui-x/js/vue.min.js")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/javascript")

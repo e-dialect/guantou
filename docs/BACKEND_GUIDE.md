@@ -128,7 +128,7 @@ DRF 默认配置在 `config/settings.py`：
 
 字段校验错误直接位于 `data.<field>`，形如 `{"code": "required", "message": "该字段是必填项。"}`；嵌套输入保持嵌套。未处理异常只在服务端日志保留原文，500 客户端响应固定为通用消息并携带 `request_id`。
 
-生产默认 `DEBUG=false`；包括非 DRF 404 在内的所有 HTTP 错误都由异常中间件转换为 JSON。仅在本地 `.env` 显式设置 `DEBUG=true`。
+生产默认 `DEBUG=false`；包括非 DRF 404 在内的所有 HTTP 错误都由异常中间件转换为 JSON。开发和测试环境即使保持 `DEBUG=false`，本地 `runserver` 也会通过 `config.urls` 提供 Django Admin 静态资源；生产环境必须由 Web 服务器提供收集到 `STATIC_ROOT` 的文件。
 
 `ExceptionMiddleware` 会为请求生成或透传 `X-Request-ID`，并把它写回响应头；排查线上问题时，前端和后端都应保留这个 id。
 
