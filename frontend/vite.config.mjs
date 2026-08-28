@@ -1,9 +1,11 @@
 import { defineConfig } from 'vite';
-import uni from '@dcloudio/vite-plugin-uni';
+import uniModule from '@dcloudio/vite-plugin-uni';
 import alias from '@rollup/plugin-alias';
 import { resolve } from 'path';
+import { fileURLToPath } from 'url';
 
-const projectRootDir = resolve(__dirname);
+const projectRootDir = fileURLToPath(new URL('.', import.meta.url));
+const uni = uniModule.default;
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
