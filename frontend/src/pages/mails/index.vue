@@ -10,12 +10,14 @@
       <view class="filters">
         <button
           :class="['filter', { active: filter === 'all' }]"
+          hover-class="filter--pressed"
           @tap="setFilter('all')"
         >
           全部
         </button>
         <button
           :class="['filter', { active: filter === 'unread' }]"
+          hover-class="filter--pressed"
           @tap="setFilter('unread')"
         >
           未读
@@ -42,7 +44,11 @@
         class="state error"
       >
         <text>{{ error }}</text>
-        <button @tap="refresh">
+        <button
+          class="retry-button"
+          hover-class="filter--pressed"
+          @tap="refresh"
+        >
           重试
         </button>
       </view>
@@ -59,6 +65,7 @@
         v-for="item in notifications"
         :key="item.id"
         :class="['notification-card', { unread: item.unread }]"
+        hover-class="notification-card--pressed"
         @tap="openNotification(item)"
       >
         <image
@@ -72,9 +79,11 @@
               {{ item.title }}
             </text>
             <text
-              v-if="item.unread"
-              class="unread-dot"
-            />
+              class="status-badge"
+              :class="{ unread: item.unread }"
+            >
+              {{ item.unread ? '未读' : '已读' }}
+            </text>
           </view>
           <view class="actor">
             {{ item.from.nickname }}
@@ -184,29 +193,35 @@ export default {
 <style scoped>
 .filters {
   display: flex;
-  gap: 12rpx;
-  padding: 16rpx 28rpx;
-  background: #f6f7f3;
+  gap: var(--space-2);
+  padding: var(--space-2) 28rpx;
+  background: var(--surface-subtle-color);
 }
 
 .filter {
   width: auto;
   margin: 0;
-  padding: 0 30rpx;
-  border-radius: 999rpx;
-  background: #e8ece5;
-  color: #617067;
-  font-size: 25rpx;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--surface-color);
+  color: var(--text-secondary-color);
+  font-size: var(--font-size-sm);
   line-height: 62rpx;
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
 .filter.active {
-  background: #1f5c43;
-  color: #ffffff;
+  background: var(--accent-color);
+  color: var(--on-accent-color);
 }
 
 .filter::after {
   border: 0;
+}
+
+.filter--pressed {
+  transform: scale(0.98);
+  opacity: 0.85;
 }
 
 .notification-scroll {
@@ -215,24 +230,30 @@ export default {
 
 .notification-card {
   display: flex;
-  gap: 18rpx;
-  margin-bottom: 16rpx;
-  padding: 24rpx;
-  border: 1px solid #e1e6dc;
-  border-radius: 14rpx;
-  background: #ffffff;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
 .notification-card.unread {
-  border-color: #b9cfba;
-  background: #f4f9f1;
+  border-color: var(--accent-color);
+  background: var(--accent-subtle-color);
+}
+
+.notification-card--pressed {
+  transform: scale(0.99);
+  opacity: 0.85;
 }
 
 .avatar {
   width: 68rpx;
   height: 68rpx;
   border-radius: 50%;
-  background: #e5eae2;
+  background: var(--surface-subtle-color);
 }
 
 .notification-body {
@@ -243,32 +264,43 @@ export default {
 .notification-head {
   display: flex;
   align-items: center;
-  gap: 10rpx;
+  gap: var(--space-2);
 }
 
 .title {
-  font-size: 29rpx;
+  min-width: 0;
+  flex: 1;
+  color: var(--text-color);
+  font-size: var(--font-size-base);
   font-weight: 800;
 }
 
-.unread-dot {
-  width: 14rpx;
-  height: 14rpx;
-  border-radius: 50%;
-  background: #b04432;
+.status-badge {
+  flex: 0 0 auto;
+  padding: 2rpx var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle-color);
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+}
+
+.status-badge.unread {
+  background: var(--danger-subtle-color);
+  color: var(--danger-color);
 }
 
 .actor,
 .time {
   margin-top: 6rpx;
-  color: #7a867d;
-  font-size: 22rpx;
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
 }
 
 .description {
-  margin-top: 10rpx;
-  color: #405148;
-  font-size: 25rpx;
+  margin-top: var(--space-1);
+  color: var(--text-secondary-color);
+  font-size: var(--font-size-sm);
   line-height: 1.45;
 }
 
@@ -276,27 +308,40 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16rpx;
-  padding: 100rpx 30rpx;
-  color: #728078;
+  gap: var(--space-2);
+  padding: 100rpx var(--space-4);
+  color: var(--muted-color);
   text-align: center;
 }
 
 .state-copy {
-  color: #929c95;
-  font-size: 24rpx;
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
 }
 
-.state.error button {
-  border-radius: 999rpx;
-  background: #1f5c43;
-  color: #ffffff;
-  font-size: 24rpx;
+.retry-button {
+  border-radius: var(--radius-pill);
+  background: var(--accent-color);
+  color: var(--on-accent-color);
+  font-size: var(--font-size-xs);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.retry-button::after {
+  border: 0;
 }
 
 :deep(.notification-content) {
   height: calc(100vh - 154rpx);
   min-height: 0;
-  padding: 18rpx 28rpx 60rpx;
+  padding: var(--space-2) 28rpx 60rpx;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filter,
+  .notification-card,
+  .retry-button {
+    transition: none;
+  }
 }
 </style>

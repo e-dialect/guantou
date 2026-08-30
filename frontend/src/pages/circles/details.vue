@@ -18,6 +18,7 @@
       </view>
       <button
         class="record-button"
+        hover-class="record-button--pressed"
         @tap="recordHere"
       >
         录一罐 {{ circle.dialect.name }}
@@ -36,7 +37,8 @@
     />
     <view
       v-else-if="error"
-      class="state"
+      class="state error"
+      hover-class="state--pressed"
       @tap="loadCircle"
     >
       {{ error }}，点此重试
@@ -109,24 +111,66 @@ export default {
   height: calc(100vh - 96rpx);
   min-height: 0;
   flex-direction: column;
-  padding: 20rpx 28rpx 40rpx;
+  padding: var(--space-3) 28rpx var(--space-5);
 }
+
 .circle-header {
   flex: 0 0 auto;
-  margin-bottom: 20rpx;
-  padding: 24rpx;
-  border-radius: 16rpx;
-  background: #eef5ed;
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--accent-subtle-color);
 }
-.description { color: #32463b; line-height: 1.55; }
-.meta { margin-top: 10rpx; color: #718078; font-size: 24rpx; }
+
+.description {
+  color: var(--text-secondary-color);
+  line-height: 1.55;
+}
+
+.meta {
+  margin-top: var(--space-1);
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
+}
+
 .record-button {
-  margin: 20rpx 0 0;
-  border-radius: 999rpx;
-  background: #1f5c43;
-  color: #fff;
-  font-size: 26rpx;
+  margin: var(--space-3) 0 0;
+  border-radius: var(--radius-pill);
+  background: var(--accent-color);
+  color: var(--on-accent-color);
+  font-size: var(--font-size-sm);
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
-.record-button::after { border: 0; }
-.state { padding: 80rpx 20rpx; color: #6b786f; text-align: center; }
+
+.record-button::after {
+  border: 0;
+}
+
+.record-button--pressed {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+.state {
+  padding: 80rpx var(--space-3);
+  color: var(--muted-color);
+  text-align: center;
+  transition: opacity 0.15s ease;
+}
+
+.state.error {
+  color: var(--danger-color);
+}
+
+.state--pressed {
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .record-button,
+  .state {
+    transition: none;
+  }
+}
 </style>

@@ -13,6 +13,7 @@
     <view
       v-else-if="error"
       class="state error"
+      hover-class="state--pressed"
       @tap="load"
     >
       {{ error }}，点此重试
@@ -26,6 +27,7 @@
       >
         <view
           class="daily-card"
+          hover-class="card--pressed"
           @tap="toFlavor(discovery.daily_flavor.id)"
         >
           <view class="daily-name">
@@ -34,7 +36,11 @@
           <view class="daily-definition">
             {{ discovery.daily_flavor.definition }}
           </view>
-          <button @tap.stop="recordFlavor(discovery.daily_flavor)">
+          <button
+            class="card-button"
+            hover-class="card-button--pressed"
+            @tap.stop="recordFlavor(discovery.daily_flavor)"
+          >
             补录这个词
           </button>
         </view>
@@ -71,6 +77,7 @@
             v-for="flavor in discovery.hot_flavors"
             :key="flavor.id"
             class="flavor-card"
+            hover-class="card--pressed"
             @tap="toFlavor(flavor.id)"
           >
             <view class="flavor-name">
@@ -102,7 +109,11 @@
           <view class="topic-prompt">
             {{ topic.prompt }}
           </view>
-          <button @tap="joinTopic(topic)">
+          <button
+            class="card-button"
+            hover-class="card-button--pressed"
+            @tap="joinTopic(topic)"
+          >
             参与挑战
           </button>
         </view>
@@ -186,34 +197,120 @@ export default {
 </script>
 
 <style scoped>
-.state { padding: 90rpx 20rpx; color: #6e7b72; text-align: center; }
-.state.error { color: #9b3a2d; }
-.daily-card { padding: 6rpx 4rpx; }
-.daily-name { color: #1f5c43; font-size: 44rpx; font-weight: 900; }
-.daily-definition { margin-top: 12rpx; color: #425148; line-height: 1.6; }
-.daily-card button, .topic-card button {
-  width: auto;
-  margin: 20rpx 0 0;
-  border-radius: 999rpx;
-  background: #1f5c43;
-  color: #fff;
-  font-size: 25rpx;
+.state {
+  padding: 90rpx var(--space-3);
+  color: var(--muted-color);
+  text-align: center;
+  transition: opacity 0.15s ease;
 }
-.daily-card button::after, .topic-card button::after { border: 0; }
-.flavor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14rpx; }
-.flavor-card { min-width: 0; padding: 20rpx; border-radius: 14rpx; background: #f1f5ef; }
-.flavor-name { color: #1d2a24; font-size: 30rpx; font-weight: 800; overflow-wrap: anywhere; }
+
+.state.error {
+  color: var(--danger-color);
+}
+
+.state--pressed {
+  opacity: 0.7;
+}
+
+.daily-card {
+  padding: 6rpx 4rpx;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.daily-name {
+  color: var(--accent-color);
+  font-size: var(--font-size-xl);
+  font-weight: 900;
+}
+
+.daily-definition {
+  margin-top: var(--space-2);
+  color: var(--text-secondary-color);
+  line-height: 1.6;
+}
+
+.card-button {
+  width: auto;
+  margin: var(--space-3) 0 0;
+  border-radius: var(--radius-pill);
+  background: var(--accent-color);
+  color: var(--on-accent-color);
+  font-size: var(--font-size-sm);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.card-button::after {
+  border: 0;
+}
+
+.card-button--pressed {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+.flavor-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.flavor-card {
+  min-width: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle-color);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.flavor-name {
+  color: var(--text-color);
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
 .flavor-definition {
   display: -webkit-box;
-  margin-top: 8rpx;
+  margin-top: var(--space-1);
   overflow: hidden;
-  color: #657168;
-  font-size: 24rpx;
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
   line-height: 1.45;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
-.topic-card { margin-bottom: 14rpx; padding: 22rpx; border-radius: 14rpx; background: #fff6e8; }
-.topic-title { color: #694c24; font-size: 30rpx; font-weight: 800; }
-.topic-prompt { margin-top: 8rpx; color: #6d5a3e; line-height: 1.5; }
+
+.topic-card {
+  margin-bottom: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle-color);
+}
+
+.topic-title {
+  color: var(--warning-color);
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+}
+
+.topic-prompt {
+  margin-top: var(--space-1);
+  color: var(--text-secondary-color);
+  line-height: 1.5;
+}
+
+.card--pressed {
+  transform: scale(0.99);
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .state,
+  .daily-card,
+  .card-button,
+  .flavor-card {
+    transition: none;
+  }
+}
 </style>

@@ -9,6 +9,7 @@
       >
       <button
         class="search-button"
+        hover-class="search-button--pressed"
         @tap="refresh"
       >
         搜索
@@ -23,6 +24,7 @@
     <view
       v-else-if="error"
       class="state error"
+      hover-class="state--pressed"
       @tap="refresh"
     >
       {{ error }}，点此重试
@@ -32,6 +34,7 @@
         v-for="circle in circles"
         :key="circle.id"
         class="circle-card"
+        hover-class="card--pressed"
         @tap="toDetail(circle.id)"
       >
         <view class="circle-copy">
@@ -47,6 +50,7 @@
         </view>
         <button
           :class="['join-button', { joined: circle.is_member }]"
+          hover-class="join-button--pressed"
           @tap.stop="toggleMembership(circle)"
         >
           {{ circle.is_member ? '已加入' : '加入' }}
@@ -118,48 +122,123 @@ export default {
 .search-row {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 14rpx;
-  margin-bottom: 24rpx;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
 }
+
 .search {
   box-sizing: border-box;
-  border: 1px solid #d9dfd5;
-  border-radius: 999rpx;
-  padding: 18rpx 24rpx;
-  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  padding: 18rpx var(--space-3);
+  background: var(--surface-color);
+  color: var(--text-color);
 }
+
 .search-button {
   margin: 0;
-  border-radius: 999rpx;
-  background: #1f5c43;
-  color: #fff;
-  font-size: 26rpx;
+  border-radius: var(--radius-pill);
+  background: var(--accent-color);
+  color: var(--on-accent-color);
+  font-size: var(--font-size-sm);
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
+
+.search-button::after {
+  border: 0;
+}
+
+.search-button--pressed {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
 .circle-card {
   display: flex;
   align-items: center;
-  gap: 20rpx;
-  margin-bottom: 18rpx;
-  padding: 24rpx;
-  border: 1px solid #e1e6dc;
-  border-radius: 16rpx;
-  background: #fff;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
-.circle-copy { min-width: 0; flex: 1; }
-.circle-title { color: #1d2a24; font-size: 34rpx; font-weight: 800; }
-.circle-description { margin-top: 10rpx; color: #4d5c53; line-height: 1.5; }
-.circle-meta { margin-top: 12rpx; color: #7a867d; font-size: 24rpx; }
+
+.circle-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.circle-title {
+  color: var(--text-color);
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+}
+
+.circle-description {
+  margin-top: var(--space-1);
+  color: var(--text-secondary-color);
+  line-height: 1.5;
+}
+
+.circle-meta {
+  margin-top: var(--space-2);
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
+}
+
 .join-button {
   width: auto;
   margin: 0;
-  padding: 0 24rpx;
-  border-radius: 999rpx;
-  background: #1f5c43;
-  color: #fff;
-  font-size: 25rpx;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--accent-color);
+  color: var(--on-accent-color);
+  font-size: var(--font-size-sm);
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
-.join-button.joined { background: #e7eee7; color: #526258; }
-.join-button::after { border: 0; }
-.state { padding: 70rpx 20rpx; color: #6a766e; text-align: center; }
-.state.error { color: #9b3a2d; }
+
+.join-button.joined {
+  background: var(--surface-subtle-color);
+  color: var(--text-secondary-color);
+}
+
+.join-button::after {
+  border: 0;
+}
+
+.join-button--pressed {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+.state {
+  padding: 70rpx var(--space-3);
+  color: var(--muted-color);
+  text-align: center;
+  transition: opacity 0.15s ease;
+}
+
+.state.error {
+  color: var(--danger-color);
+}
+
+.state--pressed,
+.card--pressed {
+  opacity: 0.7;
+}
+
+.card--pressed {
+  transform: scale(0.99);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-button,
+  .circle-card,
+  .join-button,
+  .state {
+    transition: none;
+  }
+}
 </style>

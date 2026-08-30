@@ -11,7 +11,11 @@
       class="state-card error"
     >
       <view>{{ loadError }}</view>
-      <button @tap="loadPost">
+      <button
+        class="retry-button"
+        hover-class="page-button--pressed"
+        @tap="loadPost"
+      >
         重试
       </button>
     </view>
@@ -56,6 +60,7 @@
         <button
           class="listen-button"
           :disabled="!post.can.audio_url"
+          hover-class="page-button--pressed"
           @tap="playAudio(post.can.audio_url)"
         >
           ▶ 播放完整乡音
@@ -63,15 +68,20 @@
         <view class="action-grid">
           <button
             :disabled="post.source.source_unavailable"
+            hover-class="page-button--pressed"
             @tap="toSourceCan"
           >
             查看原罐
           </button>
-          <button @tap="useSame">
+          <button
+            hover-class="page-button--pressed"
+            @tap="useSame"
+          >
             我也用同款
           </button>
           <button
             open-type="share"
+            hover-class="page-button--pressed"
             @tap="shareCurrent"
           >
             分享
@@ -93,12 +103,14 @@
           <view class="dictionary-actions">
             <button
               v-if="post.can.primary_nameplate.package"
+              hover-class="page-button--pressed"
               @tap="toPackage(post.can.primary_nameplate.package.id)"
             >
               查看写法
             </button>
             <button
               v-if="post.can.primary_nameplate.flavor"
+              hover-class="page-button--pressed"
               @tap="toFlavor(post.can.primary_nameplate.flavor.id)"
             >
               查看义项
@@ -198,88 +210,124 @@ export default {
 .state-card {
   box-sizing: border-box;
   width: 100%;
-  padding: 32rpx;
-  border: 1px solid #dfe5db;
-  border-radius: 14rpx;
-  background: #fff;
-  color: #617067;
+  padding: var(--space-4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
+  color: var(--muted-color);
+  transition: opacity 0.15s ease;
 }
 
 .state-card.error,
 .source-warning {
-  color: #934438;
+  color: var(--danger-color);
+}
+
+.source-warning {
+  margin-bottom: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--danger-subtle-color);
+  font-size: var(--font-size-xs);
+}
+
+.retry-button {
+  margin: var(--space-3) 0 0;
+  border-radius: var(--radius-pill);
+  background: var(--accent-color);
+  color: var(--on-accent-color);
 }
 
 .author-row {
   display: flex;
   align-items: center;
-  gap: 16rpx;
+  gap: var(--space-2);
 }
 
 .avatar {
   width: 64rpx;
   height: 64rpx;
   border-radius: 50%;
-  background: #e7ebe4;
+  background: var(--surface-subtle-color);
 }
 
 .author-name,
 .source-title {
+  color: var(--text-color);
   font-weight: 800;
+}
+
+.source-title {
+  font-size: var(--font-size-xl);
 }
 
 .created-at,
 .source-concept,
 .source-byline {
   margin-top: 6rpx;
-  color: #6d7b72;
-  font-size: 24rpx;
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
 }
 
 .post-text {
-  margin-top: 24rpx;
-  color: #26372e;
-  font-size: 32rpx;
+  margin-top: var(--space-3);
+  color: var(--text-color);
+  font-size: var(--font-size-lg);
   line-height: 1.6;
   white-space: pre-wrap;
 }
 
-.source-warning {
-  margin-bottom: 18rpx;
-  padding: 14rpx;
-  border-radius: 10rpx;
-  background: #faede9;
-  font-size: 24rpx;
-}
-
-.source-title {
-  font-size: 36rpx;
-}
-
 .listen-button {
-  margin-top: 20rpx;
-  border-radius: 12rpx;
-  background: #1f5c43;
-  color: #fff;
+  margin-top: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--accent-color);
+  color: var(--on-accent-color);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.listen-button[disabled] {
+  background: var(--surface-subtle-color);
+  color: var(--muted-color);
 }
 
 .action-grid,
 .dictionary-actions {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12rpx;
-  margin-top: 16rpx;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.action-grid button,
+.dictionary-actions button,
+.retry-button {
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
 .action-grid button,
 .dictionary-actions button {
   margin: 0;
-  background: #edf1eb;
-  color: #415248;
-  font-size: 24rpx;
+  background: var(--surface-subtle-color);
+  color: var(--text-secondary-color);
+  font-size: var(--font-size-xs);
 }
 
 .dictionary-actions {
   grid-template-columns: 1fr 1fr;
+}
+
+.page-button--pressed {
+  transform: scale(0.98);
+  opacity: 0.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .state-card,
+  .listen-button,
+  .action-grid button,
+  .dictionary-actions button,
+  .retry-button {
+    transition: none;
+  }
 }
 </style>
