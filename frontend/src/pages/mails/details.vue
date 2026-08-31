@@ -12,7 +12,7 @@
     <view
       v-else-if="error"
       class="state error"
-      @tap="load"
+      @tap="retry"
     >
       {{ error }}，点此重试
     </view>
@@ -64,6 +64,7 @@ export default {
     return {
       loading: true,
       error: '',
+      mailId: 0,
       email: {
         from: { nickname: '', avatar: '' },
         to: { nickname: '', avatar: '' },
@@ -71,15 +72,18 @@ export default {
         title: '',
         content: '',
         unread: false,
-        id: 0,
       },
     };
   },
   onLoad(options) {
-    this.load(Number(options.id));
+    this.mailId = Number(options.id || 0);
+    this.load(this.mailId);
   },
   methods: {
-    async load(id = this.email.id) {
+    retry() {
+      this.load(this.mailId);
+    },
+    async load(id) {
       this.loading = true;
       this.error = '';
       try {
