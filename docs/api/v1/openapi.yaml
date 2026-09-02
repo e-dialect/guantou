@@ -47,6 +47,8 @@ tags:
     description: 公开站点配置与管理操作。
   - name: Notifications
     description: 本人的站内通知与管理员发送操作。
+  - name: Comments
+    description: 录音证据与资料铭牌上的讨论评论（二级评论层级）。
 
 paths:
   /login/:
@@ -895,6 +897,147 @@ paths:
         - bearerAuth: []
       responses:
         "204": { description: 已取消；此前未支持时结果相同 }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /comments/:
+    get:
+      tags: [Comments]
+      operationId: listComments
+      summary: 列出顶层评论或某条一级评论下的回复
+      description: >-
+        二级评论层级：不带 parent_id 时返回顶层评论（parent 为空）并按时间倒序，
+        附带 reply_count；带 parent_id 时返回该一级评论下的全部回复（二层平铺、时间正序）。
+        仅在不带 parent_id 的顶层列表，can_id 与 nameplate_id 才必须且只能提供一个；
+        带 parent_id 时无需提供目标。游客可浏览公开罐头的评论（见 #202）。
+      security: []
+      parameters:
+        - name: can_id
+          in: query
+          schema: { type: integer }
+          description: 罐头 id；不带 parent_id 的顶层列表时与 nameplate_id 二选一。
+        - name: nameplate_id
+          in: query
+          schema: { type: integer }
+          description: 铭牌 id；不带 parent_id 的顶层列表时与 can_id 二选一。
+        - name: parent_id
+          in: query
+          schema: { type: integer }
+          description: 一级评论 id；提供时返回其下的回复列表，且无需 can_id/nameplate_id。
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: 评论分页列表
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommentPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+    post:
+      tags: [Comments]
+      operationId: createComment
+      summary: 发表评论或回复
+      description: >-
+        顶层评论提交 can_id 或 nameplate_id 与 content；回复提交 reply_to_id（被直接
+        回复的评论 id，可为一级评论或另一条回复）与 content，后端据此推导所属一级评论
+        parent 与展示用 reply_to。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CommentWrite" }
+      responses:
+        "201":
+          description: 已创建
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Comment" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /comments/{comment_id}/:
+    parameters:
+      - name: comment_id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Comments]
+      operationId: getComment
+      summary: 获取单条评论
+      security: []
+      responses:
+        "200":
+          description: 评论详情
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Comment" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Comments]
+      operationId: updateComment
+      summary: 修改本人评论正文
+      description: 目标（can/nameplate/parent/reply_to）创建后不可修改；仅本人可改正文，故只接受 content。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CommentUpdate" }
+      responses:
+        "200":
+          description: 修改后的评论
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Comment" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Comments]
+      operationId: deleteComment
+      summary: 删除本人评论
+      description: 删除顶层评论会级联移除其下回复；删除回复仅移除该条。
+      security:
+        - bearerAuth: []
+      responses:
+        "204": { description: 已删除 }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /comments/{comment_id}/like/:
+    parameters:
+      - name: comment_id
+        in: path
+        required: true
+        schema: { type: integer }
+    put:
+      tags: [Comments]
+      operationId: likeComment
+      summary: 点赞评论
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 当前点赞状态
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommentLike" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    delete:
+      tags: [Comments]
+      operationId: unlikeComment
+      summary: 取消点赞评论
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 当前点赞状态
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommentLike" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
   /shelves/:
@@ -2061,6 +2204,67 @@ components:
             results:
               type: array
               items: { $ref: "#/components/schemas/NameplateCard" }
+    Comment:
+      type: object
+      required: [id, parent_id, reply_to, author, content, like_count, liked_by_me, reply_count, created_at]
+      properties:
+        id: { type: integer }
+        can_id: { oneOf: [{ type: integer }, { type: "null" }] }
+        nameplate_id: { oneOf: [{ type: integer }, { type: "null" }] }
+        parent_id:
+          oneOf:
+            - { type: integer }
+            - { type: "null" }
+          description: 所属一级评论 id；顶层评论为 null。
+        reply_to:
+          oneOf:
+            - $ref: "#/components/schemas/UserRef"
+            - { type: "null" }
+          description: 直接回复对象的作者信息；回复顶层评论时为 null。
+        author: { $ref: "#/components/schemas/UserRef" }
+        content: { type: string, maxLength: 500 }
+        like_count: { type: integer, minimum: 0 }
+        liked_by_me: { type: boolean }
+        reply_count:
+          type: integer
+          minimum: 0
+          description: 该顶层评论下的回复总数。
+        created_at: { type: string, format: date-time }
+    CommentWrite:
+      type: object
+      minProperties: 1
+      oneOf:
+        - required: [content, can_id]
+        - required: [content, nameplate_id]
+        - required: [content, reply_to_id]
+      properties:
+        can_id: { type: integer }
+        nameplate_id: { type: integer }
+        reply_to_id:
+          type: integer
+          description: 被直接回复的评论 id；回复时使用，后端据此推导 parent 与 reply_to。
+        content: { type: string, maxLength: 500 }
+    CommentUpdate:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string, maxLength: 500 }
+    CommentPage:
+      allOf:
+        - $ref: "#/components/schemas/PageBase"
+        - type: object
+          properties:
+            results:
+              type: array
+              items: { $ref: "#/components/schemas/Comment" }
+    CommentLike:
+      type: object
+      required: [comment_id, liked, like_count]
+      properties:
+        comment_id: { type: integer }
+        liked: { type: boolean }
+        changed: { type: boolean }
+        like_count: { type: integer, minimum: 0 }
 
     CanTransitionRequest:
       type: object

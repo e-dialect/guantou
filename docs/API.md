@@ -31,7 +31,7 @@
 - 列表统一使用 `{ count, next, previous, results }` 分页结构，时间统一使用 RFC 3339。
 - `/search/suggest/` 的已实现容错、可见性、去重和排序规则已经纳入 v1 契约，详见 OpenAPI 与中文说明。
 - `/search/` 按 `flavors`、`packages`、`nameplates`、`cans` 分组，每组使用同一个 `limit`（默认 8，范围 1～20）；它不是资源列表分页接口。`/search/hot/` 返回按热度排序的 `[{ keyword, rank }]`。
-- 评论列表与创建必须且只能指定 `can_id` 或 `nameplate_id`。前者只表示罐头公共评论（数据库中 `nameplate=NULL`），后者表示具体铭牌的独立讨论。
+- 评论的顶层列表与顶层创建必须且只能指定 `can_id` 或 `nameplate_id`：前者表示罐头公共评论（数据库中 `nameplate=NULL`），后者表示具体铭牌的独立讨论。回复列表按 `parent_id` 拉取、回复创建用 `reply_to_id` 推导目标，均不需 `can_id`/`nameplate_id`。
 
 ## 维护检查
 
