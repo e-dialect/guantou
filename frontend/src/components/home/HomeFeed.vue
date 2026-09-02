@@ -80,6 +80,25 @@
       </view>
     </view>
 
+    <!-- 评论面板打开时锁定罐头流：不渲染 swiper，改为静态当前页，杜绝共享滑动 -->
+    <view
+      v-else-if="swipeDisabled"
+      class="home-feed__slide"
+    >
+      <CanStageCard
+        v-if="currentCan"
+        class="home-feed__card"
+        :can="currentCan"
+        :active="true"
+      />
+      <HomeActionRail
+        v-if="currentCan"
+        class="home-feed__rail"
+        :can="currentCan"
+        @share="$emit('share', $event)"
+      />
+    </view>
+
     <!-- 沉浸流主体 -->
     <swiper
       v-else
@@ -87,7 +106,6 @@
       vertical
       :current="relativeCurrent"
       :duration="280"
-      :disable-touch="swipeDisabled"
       @change="onSwiperChange"
     >
       <swiper-item
@@ -236,6 +254,9 @@ export default {
     },
     relativeCurrent() {
       return this.currentIndex - this.windowStart;
+    },
+    currentCan() {
+      return this.items[this.currentIndex] || null;
     },
   },
   mounted() {
