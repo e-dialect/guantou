@@ -15,6 +15,7 @@ import {
 import { goCanComments, goNameplateComments, goNotFound } from '@/services/navigation';
 
 const submitComment = vi.fn(() => Promise.resolve({ id: 1 }));
+const submitReply = vi.fn(() => Promise.resolve({ id: 2, parent_id: 1 }));
 
 function mountSheet() {
   return mount(CommentSheet, {
@@ -23,7 +24,7 @@ function mountSheet() {
         CommentThread: {
           props: ['targetType', 'targetId'],
           template: '<div class="thread-stub" :data-type="targetType" :data-id="targetId" />',
-          methods: { submitComment },
+          methods: { submitComment, submitReply },
         },
         // uni-app 原生滚动容器在 jsdom 中不可解析，静默其解析告警；透传默认插槽以保留 CommentThread
         'scroll-view': {
@@ -193,6 +194,25 @@ describe('CommentSheet (Issue #219 后续)', () => {
 
       expect(submitComment).toHaveBeenCalledWith('  你好  ');
       expect(wrapper.vm.draft).toBe('');
+
+      wrapper.unmount();
+    });
+
+    it('回复模式：onReply 设置目标，submit 走 submitReply 并清空（问题2）', async () => {
+      const wrapper = mountSheet();
+      openCommentSheet({ targetType: 'can', targetId: 12 });
+      await wrapper.vm.$nextTick();
+
+      wrapper.vm.onReply({ parentId: 1, replyToId: 2, nickname: '昵称2' });
+      expect(wrapper.vm.replyTarget).toEqual({ parentId: 1, replyToId: 2, nickname: '昵称2' });
+
+      wrapper.vm.draft = '回复内容';
+      await wrapper.vm.submit();
+
+      expect(submitReply).toHaveBeenCalledWith({ replyToId: 2, parentId: 1, content: '回复内容' });
+      expect(submitComment).not.toHaveBeenCalled();
+      expect(wrapper.vm.draft).toBe('');
+      expect(wrapper.vm.replyTarget).toBeNull();
 
       wrapper.unmount();
     });

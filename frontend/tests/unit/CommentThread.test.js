@@ -118,18 +118,28 @@ describe('CommentThread 二级评论', () => {
     expect(wrapper.text()).toContain('回复 @昵称2');
   });
 
-  it('回复一级评论时以该评论为 reply_to 并累加回复数', async () => {
+  it('startReply 上抛回复意图，submitReply 创建并追加回复（#问题2）', async () => {
     listCanComments.mockResolvedValue({ results: [topComment()], next: null });
     replyToComment.mockResolvedValue(reply({ id: 9, parent_id: 1, content: '新回复' }));
     const wrapper = mountThread();
     await flush();
 
     wrapper.vm.startReply(wrapper.vm.comments[0]);
-    wrapper.vm.replyDraft = '新回复';
-    await wrapper.vm.submitReply();
+    expect(wrapper.emitted('reply')[0]).toEqual([{
+      parentId: 1,
+      replyToId: 1,
+      nickname: '昵称1',
+    }]);
+
+    const result = await wrapper.vm.submitReply({
+      replyToId: 1,
+      parentId: 1,
+      content: '  新回复  ',
+    });
     await flush();
 
     expect(replyToComment).toHaveBeenCalledWith(1, '新回复');
+    expect(result).toBeTruthy();
     expect(wrapper.vm.comments[0].replies.map((item) => item.id)).toContain(9);
     expect(wrapper.vm.comments[0].reply_count).toBe(3);
   });
@@ -143,8 +153,13 @@ describe('CommentThread 二级评论', () => {
     await flush();
 
     wrapper.vm.startReply(reply({ id: 2, parent_id: 1 }));
-    wrapper.vm.replyDraft = '再回复';
-    await wrapper.vm.submitReply();
+    expect(wrapper.emitted('reply')[0]).toEqual([{
+      parentId: 1,
+      replyToId: 2,
+      nickname: '昵称2',
+    }]);
+
+    await wrapper.vm.submitReply({ replyToId: 2, parentId: 1, content: '再回复' });
     await flush();
 
     expect(replyToComment).toHaveBeenCalledWith(2, '再回复');

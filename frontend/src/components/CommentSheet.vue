@@ -37,25 +37,42 @@
             ref="thread"
             :target-type="targetType"
             :target-id="targetId"
+            @reply="onReply"
           />
         </scroll-view>
-        <!-- 发表评论固定在面板底部（半屏/全屏都如此），占位小（问题 2） -->
+        <!-- 发表评论/回复固定在面板底部（半屏/全屏都如此），占位小（问题 2） -->
         <view class="comment-sheet__composer">
-          <BaseField
-            v-model="draft"
-            name="comment"
-            type="textarea"
-            :maxlength="500"
-            placeholder="说说你的依据、读法或补充……"
-            :autosize="{ minHeight: 44, maxHeight: 160 }"
-          />
-          <BaseButton
-            class="comment-sheet__send"
-            text="发送"
-            size="small"
-            :loading="submitting"
-            @click="submit"
-          />
+          <view
+            v-if="replyTarget"
+            class="comment-sheet__reply-hint"
+          >
+            <text class="comment-sheet__reply-hint-text">
+              回复 @{{ replyTarget.nickname }}
+            </text>
+            <text
+              class="comment-sheet__reply-cancel"
+              @tap="cancelReply"
+            >
+              取消
+            </text>
+          </view>
+          <view class="comment-sheet__composer-row">
+            <BaseField
+              v-model="draft"
+              name="comment"
+              type="textarea"
+              :maxlength="500"
+              :placeholder="replyTarget ? '回复……' : '说说你的依据、读法或补充……'"
+              :autosize="{ minHeight: 36, maxHeight: 160 }"
+            />
+            <BaseButton
+              class="comment-sheet__send"
+              text="发送"
+              size="small"
+              :loading="submitting"
+              @click="submit"
+            />
+          </view>
         </view>
       </view>
     </view>
@@ -93,6 +110,7 @@ export default {
       dragDelta: 0,
       draft: '',
       submitting: false,
+      replyTarget: null,
     };
   },
   computed: {
@@ -129,6 +147,7 @@ export default {
       this.theme = theme;
       this.mode = 'half';
       this.draft = '';
+      this.replyTarget = null;
       // 先挂载内容，再触发滑入过渡，保证内容在面板出现前已就绪。
       this.$nextTick(() => {
         this.active = true;
@@ -149,12 +168,33 @@ export default {
     isActive() {
       return this.active;
     },
+    onReply(payload) {
+      // 回复特定评论：切换到底部输入框的「回复 @某人」模式（问题 2）
+      this.replyTarget = payload;
+      this.draft = '';
+    },
+    cancelReply() {
+      this.replyTarget = null;
+      this.draft = '';
+    },
     async submit() {
       if (this.submitting) return;
       this.submitting = true;
       try {
-        const comment = await this.$refs.thread.submitComment(this.draft);
-        if (comment) this.draft = '';
+        if (this.replyTarget) {
+          const reply = await this.$refs.thread.submitReply({
+            replyToId: this.replyTarget.replyToId,
+            parentId: this.replyTarget.parentId,
+            content: this.draft,
+          });
+          if (reply) {
+            this.draft = '';
+            this.replyTarget = null;
+          }
+        } else {
+          const comment = await this.$refs.thread.submitComment(this.draft);
+          if (comment) this.draft = '';
+        }
       } finally {
         this.submitting = false;
       }
@@ -291,20 +331,44 @@ export default {
   box-sizing: border-box;
 }
 
-/* 底部固定发表评论框：横向输入 + 小发送键，占位小 */
+/* 底部固定发表评论/回复框：横向输入 + 小发送键，占位小 */
 .comment-sheet__composer {
   flex: 0 0 auto;
-  display: flex;
-  align-items: flex-end;
-  gap: 16rpx;
-  padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
+  padding: 0 24rpx calc(16rpx + env(safe-area-inset-bottom));
   border-top: 1rpx solid var(--border-color);
   background: var(--surface-color);
 }
 
-.comment-sheet__composer .base-field {
+.comment-sheet__reply-hint {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12rpx 0 0;
+}
+
+.comment-sheet__reply-hint-text {
+  color: var(--accent-color);
+  font-size: 22rpx;
+}
+
+.comment-sheet__reply-cancel {
+  color: var(--muted-color);
+  font-size: 22rpx;
+}
+
+.comment-sheet__composer-row {
+  display: flex;
+  /* 输入框与发送键上下对齐（问题 1） */
+  align-items: center;
+  gap: 16rpx;
+  padding: 12rpx 0 0;
+}
+
+.comment-sheet__composer-row .base-field {
   flex: 1;
   min-width: 0;
+  /* 去掉表单项上下内边距，让输入框更紧凑、与发送键对齐 */
+  --td-form-item-vertical-padding: 0;
 }
 
 .comment-sheet__send {

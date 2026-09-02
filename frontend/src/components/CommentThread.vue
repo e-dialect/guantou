@@ -151,38 +151,6 @@
             @click="loadReplies(comment)"
           />
         </view>
-
-        <!-- 回复输入：挂在所属一级评论下 -->
-        <view
-          v-if="replyTarget && replyTarget.parentId === comment.id"
-          class="comment-reply-composer"
-        >
-          <view class="comment-reply-composer__hint">
-            回复 @{{ replyTarget.nickname }}
-            <text
-              class="comment-reply-composer__cancel"
-              @tap="cancelReply"
-            >
-              取消
-            </text>
-          </view>
-          <BaseField
-            v-model="replyDraft"
-            name="reply"
-            type="textarea"
-            :maxlength="500"
-            placeholder="回复……"
-            indicator
-            autosize
-          />
-          <BaseButton
-            block
-            size="small"
-            text="发表回复"
-            :loading="replySubmitting"
-            @click="submitReply"
-          />
-        </view>
       </view>
       <BaseButton
         v-if="hasMore"
@@ -198,7 +166,6 @@
 
 <script>
 import BaseButton from '@/components/BaseButton.vue';
-import BaseField from '@/components/BaseField.vue';
 import BaseLoading from '@/components/BaseLoading.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import {
@@ -218,7 +185,6 @@ export default {
   name: 'CommentThread',
   components: {
     BaseButton,
-    BaseField,
     BaseLoading,
     EmptyState,
   },
@@ -233,6 +199,7 @@ export default {
       required: true,
     },
   },
+  emits: ['created', 'reply'],
   data() {
     return {
       comments: [],
@@ -240,9 +207,6 @@ export default {
       hasMore: true,
       loading: false,
       errorMessage: '',
-      replyTarget: null,
-      replyDraft: '',
-      replySubmitting: false,
     };
   },
   mounted() {
@@ -356,39 +320,33 @@ export default {
     },
     startReply(item) {
       const isReply = Boolean(item.parent_id);
-      this.replyTarget = {
+      // 回复意图上抛给 CommentSheet，由其底部输入框承接（问题 2）
+      this.$emit('reply', {
         parentId: isReply ? item.parent_id : item.id,
         replyToId: item.id,
         nickname: item.author?.nickname || item.author?.username || '',
-      };
-      this.replyDraft = '';
+      });
     },
-    cancelReply() {
-      this.replyTarget = null;
-      this.replyDraft = '';
-    },
-    async submitReply() {
-      const content = String(this.replyDraft || '').trim();
-      if (!content) {
+    /*
+     * 回复提交：由 CommentSheet 底部输入框调用。校验/鉴权/创建后挂到所属一级评论，
+     * 返回新回复；返回 null 表示未提交（空内容或被鉴权拦截）。
+     */
+    async submitReply({ replyToId, parentId, content }) {
+      const trimmed = String(content || '').trim();
+      if (!trimmed) {
         uni.showToast({ title: '先写下回复', icon: 'none' });
-        return;
+        return null;
       }
       const action = this.targetType === 'nameplate' ? 'nameplate_comment' : 'comment';
-      if (!requireAuth(action, this.authContext())) return;
-      this.replySubmitting = true;
-      try {
-        const reply = await replyToComment(this.replyTarget.replyToId, content);
-        const parent = this.comments.find((item) => item.id === this.replyTarget.parentId);
-        if (parent) {
-          parent.replies = parent.replies.concat(reply);
-          parent.reply_count = Number(parent.reply_count || 0) + 1;
-        }
-        this.replyTarget = null;
-        this.replyDraft = '';
-        this.$emit('created', reply);
-      } finally {
-        this.replySubmitting = false;
+      if (!requireAuth(action, this.authContext())) return null;
+      const reply = await replyToComment(replyToId, trimmed);
+      const parent = this.comments.find((item) => item.id === parentId);
+      if (parent) {
+        parent.replies = parent.replies.concat(reply);
+        parent.reply_count = Number(parent.reply_count || 0) + 1;
       }
+      this.$emit('created', reply);
+      return reply;
     },
     async toggleLike(comment) {
       const action = this.targetType === 'nameplate' ? 'nameplate_comment' : 'comment_like';
@@ -589,26 +547,4 @@ export default {
   font-size: 20rpx;
 }
 
-.comment-reply-composer {
-  display: flex;
-  flex-direction: column;
-  gap: 14rpx;
-  margin: 0 0 20rpx 76rpx;
-  padding: 20rpx;
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: var(--surface-color);
-}
-
-.comment-reply-composer__hint {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: var(--text-secondary-color);
-  font-size: 22rpx;
-}
-
-.comment-reply-composer__cancel {
-  color: var(--muted-color);
-}
 </style>
