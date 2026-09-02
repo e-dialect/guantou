@@ -342,7 +342,11 @@ export default {
       const reply = await replyToComment(replyToId, trimmed);
       const parent = this.comments.find((item) => item.id === parentId);
       if (parent) {
-        parent.replies = parent.replies.concat(reply);
+        // 仅当回复列表已加载（已展开）时才本地追加，立即展示；未加载时只累加回复数，
+        // 等展开时由 loadReplies 从服务端一次性拉取——避免「本地追加 + 重新拉取」造成同一条回复重复。
+        if (parent.repliesLoaded) {
+          parent.replies = parent.replies.concat(reply);
+        }
         parent.reply_count = Number(parent.reply_count || 0) + 1;
       }
       this.$emit('created', reply);

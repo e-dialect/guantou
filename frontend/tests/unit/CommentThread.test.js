@@ -118,7 +118,7 @@ describe('CommentThread 二级评论', () => {
     expect(wrapper.text()).toContain('回复 @昵称2');
   });
 
-  it('startReply 上抛回复意图，submitReply 创建并追加回复（#问题2）', async () => {
+  it('startReply 上抛回复意图；submitReply 未加载时只累加回复数、不本地追加', async () => {
     listCanComments.mockResolvedValue({ results: [topComment()], next: null });
     replyToComment.mockResolvedValue(reply({ id: 9, parent_id: 1, content: '新回复' }));
     const wrapper = mountThread();
@@ -140,8 +140,43 @@ describe('CommentThread 二级评论', () => {
 
     expect(replyToComment).toHaveBeenCalledWith(1, '新回复');
     expect(result).toBeTruthy();
+    // 未加载过回复：不本地追加，只累加回复数（展开时由 loadReplies 拉取，避免重复）
+    expect(wrapper.vm.comments[0].replies).toHaveLength(0);
+    expect(wrapper.vm.comments[0].reply_count).toBe(3);
+  });
+
+  it('submitReply 已加载回复时本地追加并立即展示', async () => {
+    listCanComments.mockResolvedValue({ results: [topComment()], next: null });
+    replyToComment.mockResolvedValue(reply({ id: 9, parent_id: 1, content: '新回复' }));
+    const wrapper = mountThread();
+    await flush();
+
+    wrapper.vm.comments[0].repliesLoaded = true;
+    await wrapper.vm.submitReply({ replyToId: 1, parentId: 1, content: '新回复' });
+    await flush();
+
     expect(wrapper.vm.comments[0].replies.map((item) => item.id)).toContain(9);
     expect(wrapper.vm.comments[0].reply_count).toBe(3);
+  });
+
+  it('回复后再展开回复列表不重复展示（修复重复发送）', async () => {
+    listCanComments.mockResolvedValue({ results: [topComment()], next: null });
+    replyToComment.mockResolvedValue(reply({ id: 9, parent_id: 1, content: '新回复' }));
+    listCommentReplies.mockResolvedValue({ results: [reply({ id: 9, parent_id: 1 })], next: null });
+    const wrapper = mountThread();
+    await flush();
+
+    // 未展开时回复：不本地追加
+    await wrapper.vm.submitReply({ replyToId: 1, parentId: 1, content: '新回复' });
+    await flush();
+    expect(wrapper.vm.comments[0].replies).toHaveLength(0);
+
+    // 展开：从服务端拉取（含这条新回复），只出现一次
+    await wrapper.vm.toggleReplies(wrapper.vm.comments[0]);
+    await flush();
+
+    expect(wrapper.vm.comments[0].replies).toHaveLength(1);
+    expect(wrapper.vm.comments[0].replies[0].id).toBe(9);
   });
 
   it('回复某条回复时以该回复为 reply_to、根评论为父级', async () => {
