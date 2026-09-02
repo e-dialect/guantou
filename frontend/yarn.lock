@@ -4700,10 +4700,10 @@ eslint-module-utils@^2.12.1:
   dependencies:
     debug "^3.2.7"
 
-eslint-plugin-html@^8.1.4:
-  version "8.1.4"
-  resolved "https://registry.yarnpkg.com/eslint-plugin-html/-/eslint-plugin-html-8.1.4.tgz#50750ed7e4d396431e268a63c76c23438a15794d"
-  integrity sha512-Eno3oPEj3s6AhvDJ5zHhnHPDvXp6LNFXuy3w51fNebOKYuTrfjOHUGwP+mOrGFpR6eOJkO1xkB8ivtbfMjbMjg==
+eslint-plugin-html@^8.2.0:
+  version "8.2.0"
+  resolved "https://registry.yarnpkg.com/eslint-plugin-html/-/eslint-plugin-html-8.2.0.tgz#cee7cf203c532df77c562712d7646af0b6b6d624"
+  integrity sha512-L6F37uij4uq3cZah46BawXeZlZYW9IfFeep7BwkuxBZA++BbihvEpoJPhq0NpCruPRzVkG/tpgvQYM53Re4pVA==
   dependencies:
     htmlparser2 "^10.0.0"
 
