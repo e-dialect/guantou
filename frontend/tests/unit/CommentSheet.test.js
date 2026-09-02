@@ -14,6 +14,8 @@ import {
 } from '@/services/commentSheet';
 import { goCanComments, goNameplateComments, goNotFound } from '@/services/navigation';
 
+const submitComment = vi.fn(() => Promise.resolve({ id: 1 }));
+
 function mountSheet() {
   return mount(CommentSheet, {
     global: {
@@ -21,6 +23,7 @@ function mountSheet() {
         CommentThread: {
           props: ['targetType', 'targetId'],
           template: '<div class="thread-stub" :data-type="targetType" :data-id="targetId" />',
+          methods: { submitComment },
         },
         // uni-app 原生滚动容器在 jsdom 中不可解析，静默其解析告警；透传默认插槽以保留 CommentThread
         'scroll-view': {
@@ -134,7 +137,7 @@ describe('CommentSheet (Issue #219 后续)', () => {
       vi.useRealTimers();
     });
 
-    it('拖拽超过阈值关闭面板，未达阈值回弹（#257）', async () => {
+    it('半屏时下拉超过阈值关闭面板（问题1）', async () => {
       vi.useFakeTimers();
       const wrapper = mountSheet();
       openCommentSheet({ targetType: 'can', targetId: 12 });
@@ -142,9 +145,6 @@ describe('CommentSheet (Issue #219 后续)', () => {
 
       const grip = wrapper.find('.comment-sheet__grip');
       await grip.trigger('touchstart', { touches: [{ clientY: 100 }] });
-      // 向上位移不跟随（交给 scroll-view 滚动）
-      await grip.trigger('touchmove', { touches: [{ clientY: 40 }] });
-      expect(wrapper.vm.dragDelta).toBe(0);
       // 向下位移跟手
       await grip.trigger('touchmove', { touches: [{ clientY: 300 }] });
       expect(wrapper.vm.dragDelta).toBe(200);
@@ -156,6 +156,45 @@ describe('CommentSheet (Issue #219 后续)', () => {
 
       wrapper.unmount();
       vi.useRealTimers();
+    });
+
+    it('上拉进入全屏，全屏下拉退回半屏（问题1）', async () => {
+      const wrapper = mountSheet();
+      openCommentSheet({ targetType: 'can', targetId: 12 });
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.mode).toBe('half');
+
+      const grip = wrapper.find('.comment-sheet__grip');
+      // 上拉 → 全屏
+      await grip.trigger('touchstart', { touches: [{ clientY: 300 }] });
+      await grip.trigger('touchmove', { touches: [{ clientY: 100 }] });
+      expect(wrapper.vm.dragDelta).toBe(-200);
+      await grip.trigger('touchend');
+      expect(wrapper.vm.mode).toBe('full');
+      expect(wrapper.find('.comment-sheet__panel').classes()).toContain('comment-sheet__panel--full');
+
+      // 全屏下拉 → 回半屏
+      await grip.trigger('touchstart', { touches: [{ clientY: 100 }] });
+      await grip.trigger('touchmove', { touches: [{ clientY: 300 }] });
+      await grip.trigger('touchend');
+      expect(wrapper.vm.mode).toBe('half');
+      expect(wrapper.vm.active).toBe(true);
+
+      wrapper.unmount();
+    });
+
+    it('底部评论框：提交成功清空草稿（问题2）', async () => {
+      const wrapper = mountSheet();
+      openCommentSheet({ targetType: 'can', targetId: 12 });
+      await wrapper.vm.$nextTick();
+
+      wrapper.vm.draft = '  你好  ';
+      await wrapper.vm.submit();
+
+      expect(submitComment).toHaveBeenCalledWith('  你好  ');
+      expect(wrapper.vm.draft).toBe('');
+
+      wrapper.unmount();
     });
 
     it('手势取消时复位状态且不关闭（#257）', async () => {

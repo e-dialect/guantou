@@ -19,6 +19,7 @@ vi.mock('@/services/canSocial', () => ({
 import CommentThread from '@/components/CommentThread.vue';
 import { requireAuth } from '@/services/authGuard';
 import {
+  createCanComment,
   deleteCanComment,
   listCanComments,
   listCommentReplies,
@@ -201,6 +202,24 @@ describe('CommentThread 二级评论', () => {
 
     expect(listCommentReplies).toHaveBeenCalledTimes(3);
     expect(wrapper.vm.comments[0].replies).toHaveLength(2);
+  });
+
+  it('submitComment 创建并前置新评论，空内容返回 null（#问题2）', async () => {
+    listCanComments.mockResolvedValue({ results: [topComment()], next: null });
+    createCanComment.mockResolvedValue(topComment({ id: 99, content: '新评论' }));
+    const wrapper = mountThread();
+    await flush();
+
+    const comment = await wrapper.vm.submitComment('  新评论  ');
+    await flush();
+
+    expect(createCanComment).toHaveBeenCalledWith(12, '新评论');
+    expect(comment).toBeTruthy();
+    expect(wrapper.vm.comments[0].id).toBe(99);
+
+    const empty = await wrapper.vm.submitComment('   ');
+    expect(empty).toBeNull();
+    expect(createCanComment).toHaveBeenCalledTimes(1);
   });
 
   it('删除一条回复会从所属一级评论移除并减回复数', async () => {

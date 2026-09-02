@@ -1,23 +1,5 @@
 <template>
   <view class="comment-thread">
-    <view class="comment-thread__composer">
-      <BaseField
-        v-model="draft"
-        name="comment"
-        type="textarea"
-        :maxlength="500"
-        placeholder="说说你的依据、读法或补充……"
-        indicator
-        autosize
-      />
-      <BaseButton
-        block
-        text="发表评论"
-        :loading="submitting"
-        @click="submit"
-      />
-    </view>
-
     <view class="comment-thread__rule">
       讨论观点，也尊重每一种真实使用。
     </view>
@@ -253,12 +235,10 @@ export default {
   },
   data() {
     return {
-      draft: '',
       comments: [],
       page: 0,
       hasMore: true,
       loading: false,
-      submitting: false,
       errorMessage: '',
       replyTarget: null,
       replyDraft: '',
@@ -311,25 +291,25 @@ export default {
     async retry() {
       await this.loadMore();
     },
-    async submit() {
-      const content = String(this.draft || '').trim();
-      if (!content) {
+    /*
+     * 顶层评论的输入框已上移到 CommentSheet 底部（问题 2），此处只保留提交逻辑：
+     * 由外部（CommentSheet）传入正文，校验/鉴权/创建/前置后返回新评论；
+     * 返回 null 表示未提交（空内容或被鉴权拦截），供调用方决定是否清空草稿。
+     */
+    async submitComment(content) {
+      const trimmed = String(content || '').trim();
+      if (!trimmed) {
         uni.showToast({ title: '先写下评论', icon: 'none' });
-        return;
+        return null;
       }
       const action = this.targetType === 'nameplate' ? 'nameplate_comment' : 'comment';
-      if (!requireAuth(action, this.authContext())) return;
-      this.submitting = true;
-      try {
-        const comment = this.targetType === 'nameplate'
-          ? await createNameplateComment(this.targetId, content)
-          : await createCanComment(this.targetId, content);
-        this.comments = [this.normalizeComment(comment), ...this.comments];
-        this.draft = '';
-        this.$emit('created', comment);
-      } finally {
-        this.submitting = false;
-      }
+      if (!requireAuth(action, this.authContext())) return null;
+      const comment = this.targetType === 'nameplate'
+        ? await createNameplateComment(this.targetId, trimmed)
+        : await createCanComment(this.targetId, trimmed);
+      this.comments = [this.normalizeComment(comment), ...this.comments];
+      this.$emit('created', comment);
+      return comment;
     },
     updateComment(commentId, updater) {
       this.comments = this.comments.map((item) => {
@@ -445,16 +425,6 @@ export default {
 </script>
 
 <style scoped>
-.comment-thread__composer {
-  display: flex;
-  flex-direction: column;
-  gap: 18rpx;
-  padding: 24rpx;
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-lg);
-  background: var(--surface-color);
-}
-
 .comment-thread__rule {
   padding: 28rpx 4rpx 14rpx;
   color: var(--muted-color);

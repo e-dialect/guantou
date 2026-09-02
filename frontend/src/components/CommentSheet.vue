@@ -14,7 +14,10 @@
       />
       <view
         class="comment-sheet__panel"
-        :class="{ 'comment-sheet__panel--active': active }"
+        :class="{
+          'comment-sheet__panel--active': active,
+          'comment-sheet__panel--full': mode === 'full',
+        }"
         :style="panelStyle"
       >
         <view
@@ -31,10 +34,29 @@
           scroll-y
         >
           <CommentThread
+            ref="thread"
             :target-type="targetType"
             :target-id="targetId"
           />
         </scroll-view>
+        <!-- 发表评论固定在面板底部（半屏/全屏都如此），占位小（问题 2） -->
+        <view class="comment-sheet__composer">
+          <BaseField
+            v-model="draft"
+            name="comment"
+            type="textarea"
+            :maxlength="500"
+            placeholder="说说你的依据、读法或补充……"
+            :autosize="{ minHeight: 44, maxHeight: 160 }"
+          />
+          <BaseButton
+            class="comment-sheet__send"
+            text="发送"
+            size="small"
+            :loading="submitting"
+            @click="submit"
+          />
+        </view>
       </view>
     </view>
   </view>
@@ -42,6 +64,8 @@
 
 <script>
 import CommentThread from '@/components/CommentThread.vue';
+import BaseField from '@/components/BaseField.vue';
+import BaseButton from '@/components/BaseButton.vue';
 import {
   registerCommentSheetHost,
   unregisterCommentSheetHost,
@@ -49,31 +73,42 @@ import {
 
 // 与下方 .comment-sheet__mask / __panel 的 transition 时长（0.28s）同步，改动需两边一致（#257）。
 const CLOSE_MS = 280;
-const DRAG_CLOSE_PX = 80;
+// 上拉/下拉触发吸附的位移阈值（px）。
+const DRAG_SNAP_PX = 60;
 
 export default {
   name: 'CommentSheet',
-  components: { CommentThread },
+  components: { CommentThread, BaseField, BaseButton },
   data() {
     return {
       targetType: null,
       targetId: null,
       theme: 'default',
       active: false,
+      // half | full：半屏为默认态，上拉进入全屏、下拉退回半屏/退出。
+      mode: 'half',
       closeTimer: null,
       dragging: false,
       dragStartY: 0,
       dragDelta: 0,
+      draft: '',
+      submitting: false,
     };
   },
   computed: {
-    /* 拖拽跟手：仅消费向下位移（下拉关闭方向），拖拽期间关闭过渡，松手由 CSS 过渡回弹（#257）。 */
+    /*
+     * 拖拽跟手：下拉整体下移、半屏上拉增高，拖拽期间关闭过渡，松手由 CSS 过渡吸附。
+     * 全屏态上拉无效果（已到顶），半屏态上拉增高预览「进入全屏」。
+     */
     panelStyle() {
-      if (!this.dragging || this.dragDelta <= 0) return {};
-      return {
-        transform: `translateY(${this.dragDelta}px)`,
-        transition: 'none',
-      };
+      if (!this.dragging) return {};
+      if (this.dragDelta > 0) {
+        return { transform: `translateY(${this.dragDelta}px)`, transition: 'none' };
+      }
+      if (this.dragDelta < 0 && this.mode === 'half') {
+        return { height: `calc(50vh + ${-this.dragDelta}px)`, transition: 'none' };
+      }
+      return {};
     },
   },
   mounted() {
@@ -92,6 +127,8 @@ export default {
       this.targetType = targetType;
       this.targetId = targetId;
       this.theme = theme;
+      this.mode = 'half';
+      this.draft = '';
       // 先挂载内容，再触发滑入过渡，保证内容在面板出现前已就绪。
       this.$nextTick(() => {
         this.active = true;
@@ -105,11 +142,22 @@ export default {
       this.closeTimer = setTimeout(() => {
         this.targetId = null;
         this.targetType = null;
+        this.mode = 'half';
       }, CLOSE_MS);
     },
     /* 返回键拦截（#255）：面板激活时由 pages/index.vue 的 onBackPress 调用 */
     isActive() {
       return this.active;
+    },
+    async submit() {
+      if (this.submitting) return;
+      this.submitting = true;
+      try {
+        const comment = await this.$refs.thread.submitComment(this.draft);
+        if (comment) this.draft = '';
+      } finally {
+        this.submitting = false;
+      }
     },
     onDragStart(event) {
       this.dragStartY = event.touches && event.touches[0]
@@ -121,17 +169,24 @@ export default {
     onDragMove(event) {
       if (!this.dragging) return;
       const y = event.touches && event.touches[0] ? event.touches[0].clientY : 0;
-      // 只跟随向下位移；向上位移交给 scroll-view 滚动，不动面板。
-      this.dragDelta = Math.max(0, y - this.dragStartY);
+      // 负值=上拉、正值=下拉。
+      this.dragDelta = y - this.dragStartY;
     },
     onDragEnd() {
       if (!this.dragging) return;
-      if (this.dragDelta > DRAG_CLOSE_PX) {
-        this.close();
-        return;
-      }
+      const delta = this.dragDelta;
       this.dragDelta = 0;
       this.dragging = false;
+      if (delta < -DRAG_SNAP_PX) {
+        // 上拉进入全屏评论（问题 1）
+        if (this.mode === 'half') this.mode = 'full';
+        return;
+      }
+      if (delta > DRAG_SNAP_PX) {
+        // 下拉：全屏退回半屏、半屏直接退出（问题 1）
+        if (this.mode === 'full') this.mode = 'half';
+        else this.close();
+      }
     },
     onDragCancel() {
       // 手势被系统打断（来电/通知栏等）：复位状态，不关闭面板（#257）。
@@ -204,8 +259,8 @@ export default {
   background: var(--surface-color);
   border-radius: 24rpx 24rpx 0 0;
   transform: translateY(100%);
-  /* 时长须与 JS CLOSE_MS（280ms）同步 */
-  transition: transform 0.28s ease;
+  /* 时长须与 JS CLOSE_MS（280ms）同步；height 用于半屏↔全屏吸附 */
+  transition: transform 0.28s ease, height 0.28s ease;
   overflow: hidden;
   pointer-events: none;
 }
@@ -213,6 +268,11 @@ export default {
 .comment-sheet__panel--active {
   transform: translateY(0);
   pointer-events: auto;
+}
+
+.comment-sheet__panel--full {
+  height: 100%;
+  border-radius: 0;
 }
 
 .comment-sheet__grip {
@@ -227,8 +287,29 @@ export default {
 .comment-sheet__scroll {
   flex: 1;
   min-height: 0;
-  padding: 0 24rpx calc(24rpx + env(safe-area-inset-bottom));
+  padding: 0 24rpx 24rpx;
   box-sizing: border-box;
+}
+
+/* 底部固定发表评论框：横向输入 + 小发送键，占位小 */
+.comment-sheet__composer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-end;
+  gap: 16rpx;
+  padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
+  border-top: 1rpx solid var(--border-color);
+  background: var(--surface-color);
+}
+
+.comment-sheet__composer .base-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-sheet__send {
+  flex: 0 0 auto;
+  margin: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
