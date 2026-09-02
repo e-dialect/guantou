@@ -198,6 +198,20 @@ describe('CommentSheet (Issue #219 后续)', () => {
       wrapper.unmount();
     });
 
+    it('快速连点只提交一次（防抖，避免回复重复发送）', async () => {
+      const wrapper = mountSheet();
+      openCommentSheet({ targetType: 'can', targetId: 12 });
+      await wrapper.vm.$nextTick();
+
+      wrapper.vm.draft = '你好';
+      await wrapper.vm.submit();
+      // 第二次提交落在 500ms 防抖窗口内，应被拦截
+      await wrapper.vm.submit();
+
+      expect(submitComment).toHaveBeenCalledTimes(1);
+      wrapper.unmount();
+    });
+
     it('回复模式：onReply 设置目标，submit 走 submitReply 并清空（问题2）', async () => {
       const wrapper = mountSheet();
       openCommentSheet({ targetType: 'can', targetId: 12 });

@@ -111,6 +111,7 @@ export default {
       draft: '',
       submitting: false,
       replyTarget: null,
+      lastSubmitAt: 0,
     };
   },
   computed: {
@@ -178,7 +179,11 @@ export default {
       this.draft = '';
     },
     async submit() {
-      if (this.submitting) return;
+      const now = Date.now();
+      // 防连点/双击：`submitting` 只覆盖提交进行中，双击（tap+click）第二次可能落在提交完成后，
+      // 用时间窗再拦一道，避免回复/评论被重复发送。
+      if (this.submitting || (this.lastSubmitAt && now - this.lastSubmitAt < 500)) return;
+      this.lastSubmitAt = now;
       this.submitting = true;
       try {
         if (this.replyTarget) {
