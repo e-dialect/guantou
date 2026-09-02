@@ -1,29 +1,27 @@
 <template>
-  <PageShell title="提交读音">
+  <PageShell
+    title="提交读音"
+    :scroll="false"
+    :back-fallback="backFallback"
+  >
     <view class="pronunciation-create-page">
-      <view
+      <BaseLoading
         v-if="loading"
-        class="state-card"
-      >
-        正在准备读音表单…
-      </view>
-      <view
+        text="正在准备读音表单…"
+      />
+      <EmptyState
         v-else-if="loadError"
-        class="state-card state-card--error"
-      >
-        <text>{{ loadError }}</text>
-        <t-button
-          v-if="flavorId"
-          theme="primary"
-          variant="outline"
-          size="small"
-          @click="loadOptions"
-        >
-          重试
-        </t-button>
-      </view>
+        :title="loadError"
+        :action-text="flavorId ? '重试' : ''"
+        @action="loadOptions"
+      />
 
-      <template v-else-if="flavor">
+      <BaseForm
+        v-else-if="flavor"
+        ref="form"
+        :data="draft"
+        :rules="rules"
+      >
         <view class="flavor-hero">
           <text class="flavor-eyebrow">
             为义项补充地方读法
@@ -58,34 +56,29 @@
           </view>
 
           <view class="field-sheet">
-            <t-input
-              v-model:value="draft.ipa"
+            <BaseField
+              v-model="draft.ipa"
+              name="ipa"
               label="IPA"
-              layout="vertical"
               required
               clearable
               :maxlength="120"
               placeholder="例如 hiŋ²³"
-              :status="fieldErrors.ipa ? 'error' : 'default'"
-              :tips="fieldErrors.ipa || '不确定声调值时，可以先按熟悉的方式填写'"
+              help="不确定声调值时，可以先按熟悉的方式填写"
               @change="clearFieldError('ipa')"
             />
 
-            <t-cell
-              :class="{ 'selection-cell--complete': draft.package_id }"
-              title="写法"
-              required
-              hover
-              :note="selectedPackageLabel"
-              :right-icon="packageRightIcon"
-              @click="openPackagePicker"
-            />
-            <view
-              v-if="fieldErrors.package_id"
-              class="field-error cell-error"
-            >
-              {{ fieldErrors.package_id }}
-            </view>
+            <t-form-item name="package_id">
+              <t-cell
+                :class="{ 'selection-cell--complete': draft.package_id }"
+                title="写法"
+                required
+                hover
+                :note="selectedPackageLabel"
+                :right-icon="packageRightIcon"
+                @click="openPackagePicker"
+              />
+            </t-form-item>
             <view
               v-if="!packageOptions.length"
               class="field-hint field-hint--warning"
@@ -93,49 +86,40 @@
               该义项还没有关联写法，请先通过贴铭牌建立写法关系。
             </view>
 
-            <t-cell
-              :class="{ 'selection-cell--complete': draft.dialect_id }"
-              title="方言点"
-              required
-              hover
-              :note="selectedDialectLabel"
-              :right-icon="dialectRightIcon"
-              :bordered="false"
-              @click="openDialectPicker"
-            />
-            <view
-              v-if="fieldErrors.dialect_id"
-              class="field-error cell-error"
-            >
-              {{ fieldErrors.dialect_id }}
-            </view>
+            <t-form-item name="dialect_id">
+              <t-cell
+                :class="{ 'selection-cell--complete': draft.dialect_id }"
+                title="方言点"
+                required
+                hover
+                :note="selectedDialectLabel"
+                :right-icon="dialectRightIcon"
+                :bordered="false"
+                @click="openDialectPicker"
+              />
+            </t-form-item>
           </view>
 
-          <view class="reading-type">
-            <view class="reading-type__label">
-              读音类型
-            </view>
+          <t-form-item
+            name="reading_type"
+            label="读音类型"
+            :required-mark="false"
+            class="reading-type"
+          >
             <view class="reading-type__options">
-              <t-button
+              <BaseButton
                 v-for="item in readingTypes"
                 :key="item.value"
                 block
                 size="small"
                 shape="round"
-                :theme="draft.reading_type === item.value ? 'primary' : 'default'"
-                :variant="draft.reading_type === item.value ? 'base' : 'text'"
+                :variant="draft.reading_type === item.value ? 'primary' : 'ghost'"
                 @click="selectReadingType(item.value)"
               >
                 {{ item.label }}
-              </t-button>
+              </BaseButton>
             </view>
-            <view
-              v-if="fieldErrors.reading_type"
-              class="field-error"
-            >
-              {{ fieldErrors.reading_type }}
-            </view>
-          </view>
+          </t-form-item>
         </view>
 
         <t-picker
@@ -174,14 +158,13 @@
                 <text class="dialect-shortcut-group__label">
                   默认方言点
                 </text>
-                <t-button
+                <BaseButton
                   size="small"
-                  theme="primary"
-                  variant="outline"
+                  variant="ghost"
                   @click="selectDialectShortcut(primaryDialect)"
                 >
                   {{ dialectFullPath(primaryDialect.id) }}
-                </t-button>
+                </BaseButton>
               </view>
               <view
                 v-if="recentDialects.length"
@@ -191,16 +174,15 @@
                   最近使用
                 </text>
                 <view class="dialect-shortcut-list">
-                  <t-button
+                  <BaseButton
                     v-for="dialect in recentDialects"
                     :key="dialect.id"
                     size="small"
-                    theme="default"
-                    variant="outline"
+                    variant="ghost"
                     @click="selectDialectShortcut(dialect)"
                   >
                     {{ dialectFullPath(dialect.id) }}
-                  </t-button>
+                  </BaseButton>
                 </view>
               </view>
             </view>
@@ -218,67 +200,53 @@
             header-right-content="变调、用法和来源"
           >
             <view class="advanced-fields">
-              <t-input
-                v-model:value="draft.base_romanization"
+              <BaseField
+                v-model="draft.base_romanization"
+                name="base_romanization"
                 label="变调前形式"
-                layout="vertical"
                 clearable
                 :maxlength="120"
                 placeholder="例如 hing5"
-                :status="fieldErrors.base_romanization ? 'error' : 'default'"
-                :tips="fieldErrors.base_romanization"
                 @change="clearSandhiErrors"
               />
-              <t-input
-                v-model:value="draft.surface_romanization"
+              <BaseField
+                v-model="draft.surface_romanization"
+                name="surface_romanization"
                 label="变调后形式"
-                layout="vertical"
                 clearable
                 :maxlength="120"
                 placeholder="例如 hing2"
-                :status="fieldErrors.surface_romanization ? 'error' : 'default'"
-                :tips="fieldErrors.surface_romanization"
                 @change="clearSandhiErrors"
               />
-              <t-input
-                v-model:value="draft.sandhi_environment"
+              <BaseField
+                v-model="draft.sandhi_environment"
+                name="sandhi_environment"
                 label="变调环境"
-                layout="vertical"
                 clearable
                 :maxlength="160"
                 placeholder="例如词中、连读或特定句法环境"
-                :status="fieldErrors.sandhi_info ? 'error' : 'default'"
-                :tips="fieldErrors.sandhi_info"
                 @change="clearSandhiErrors"
               />
 
-              <view class="textarea-field">
-                <t-textarea
-                  v-model:value="draft.usage_note"
-                  label="用法说明"
-                  autosize
-                  indicator
-                  :maxlength="300"
-                  placeholder="适用语境、文白差异或其他说明"
-                  @change="clearFieldError('usage_note')"
-                />
-                <view
-                  v-if="fieldErrors.usage_note"
-                  class="field-error textarea-error"
-                >
-                  {{ fieldErrors.usage_note }}
-                </view>
-              </view>
+              <BaseField
+                v-model="draft.usage_note"
+                name="usage_note"
+                type="textarea"
+                label="用法说明"
+                autosize
+                indicator
+                :maxlength="300"
+                placeholder="适用语境、文白差异或其他说明"
+                @change="clearFieldError('usage_note')"
+              />
 
-              <t-input
-                v-model:value="draft.source_citation"
+              <BaseField
+                v-model="draft.source_citation"
+                name="source_citation"
                 label="资料来源"
-                layout="vertical"
                 clearable
                 :maxlength="300"
                 placeholder="田野记录、方言志或其他来源"
-                :status="fieldErrors.source_citation ? 'error' : 'default'"
-                :tips="fieldErrors.source_citation"
                 @change="clearFieldError('source_citation')"
               />
             </view>
@@ -294,39 +262,43 @@
               {{ submitting ? '请勿重复提交' : '保存成功后将返回义项详情' }}
             </text>
           </view>
-          <t-button
+          <BaseButton
             block
             size="large"
-            theme="primary"
             :loading="submitting"
             :disabled="submitting || !packageOptions.length"
             @click="submit"
           >
             {{ submitting ? '提交中…' : '保存读音' }}
-          </t-button>
+          </BaseButton>
         </view>
-      </template>
+      </BaseForm>
     </view>
   </PageShell>
 </template>
 
 <script>
 import PageShell from '@/components/PageShell.vue';
-import TButton from '@tdesign/uniapp/button/button.vue';
+import BaseButton from '@/components/BaseButton.vue';
+import BaseField from '@/components/BaseField.vue';
+import BaseForm from '@/components/BaseForm.vue';
+import BaseLoading from '@/components/BaseLoading.vue';
+import EmptyState from '@/components/EmptyState.vue';
 import TCascader from '@tdesign/uniapp/cascader/cascader.vue';
 import TCell from '@tdesign/uniapp/cell/cell.vue';
 import TCollapse from '@tdesign/uniapp/collapse/collapse.vue';
 import TCollapsePanel from '@tdesign/uniapp/collapse-panel/collapse-panel.vue';
-import TInput from '@tdesign/uniapp/input/input.vue';
+import TFormItem from '@tdesign/uniapp/form-item/form-item.vue';
 import TPicker from '@tdesign/uniapp/picker/picker.vue';
 import TPickerItem from '@tdesign/uniapp/picker-item/picker-item.vue';
-import TTextarea from '@tdesign/uniapp/textarea/textarea.vue';
 import {
   createPronunciation,
   getFlavor,
   listAllDialects,
 } from '@/services/guantou';
 import { getCanDraftOwnerScope } from '@/services/canDrafts';
+import { notify, notifySuccess } from '@/services/feedback';
+import { goBack, pageUrl, ROUTES } from '@/services/navigation';
 
 const READING_TYPES = [
   { value: 'general', label: '通用' },
@@ -357,6 +329,10 @@ const ADVANCED_FIELDS = new Set([
 
 const RECENT_DIALECTS_STORAGE_KEY = 'can_create_recent_dialects_v1';
 const MAX_RECENT_DIALECTS = 3;
+
+function formFieldName(field) {
+  return field === 'sandhi_info' ? 'sandhi_environment' : field;
+}
 
 function recentDialectOwnerScope() {
   try {
@@ -456,15 +432,18 @@ export function pronunciationApiErrors(error) {
 export default {
   components: {
     PageShell,
-    TButton,
+    BaseButton,
+    BaseField,
+    BaseForm,
+    BaseLoading,
+    EmptyState,
     TCascader,
     TCell,
     TCollapse,
     TCollapsePanel,
-    TInput,
+    TFormItem,
     TPicker,
     TPickerItem,
-    TTextarea,
   },
   data() {
     return {
@@ -487,6 +466,23 @@ export default {
     };
   },
   computed: {
+    backFallback() {
+      return this.flavorId
+        ? pageUrl(ROUTES.flavorDetail, { id: this.flavorId })
+        : ROUTES.atlas;
+    },
+    rules() {
+      return Object.fromEntries([...PRONUNCIATION_FIELDS].map((field) => [
+        formFieldName(field),
+        [{
+          validator: () => {
+            const message = this.fieldErrors[field]
+              || validatePronunciationDraft(this.draft)[field];
+            return message ? { result: false, message, type: 'error' } : true;
+          },
+        }],
+      ]));
+    },
     packagePickerValue() {
       return this.draft.package_id ? [Number(this.draft.package_id)] : [];
     },
@@ -634,8 +630,12 @@ export default {
         }));
         this.dialects = dialects;
         this.dialectTree = buildDialectTree(dialects);
-        if (this.packageOptions.length === 1) {
-          this.draft.package_id = this.packageOptions[0].value;
+        const selectedPackageExists = this.packageOptions.some(
+          (item) => Number(item.value) === Number(this.draft.package_id),
+        );
+        if (!selectedPackageExists) {
+          this.draft.package_id = this.packageOptions.length === 1
+            ? Number(this.packageOptions[0].value) : null;
         }
       } catch (error) {
         this.loadError = '读音表单加载失败，请重试';
@@ -645,6 +645,7 @@ export default {
     },
     clearFieldError(field) {
       if (this.fieldErrors[field]) delete this.fieldErrors[field];
+      this.$refs.form?.clearValidate([formFieldName(field)]);
     },
     clearSandhiErrors() {
       this.clearFieldError('base_romanization');
@@ -655,6 +656,16 @@ export default {
       if (Object.keys(this.fieldErrors).some((field) => ADVANCED_FIELDS.has(field))) {
         this.optionalOpen = true;
       }
+    },
+    async validateForm() {
+      const wasOpen = this.optionalOpen;
+      this.openAdvancedForErrors();
+      await this.$nextTick();
+      if (!wasOpen && this.optionalOpen) {
+        // CollapsePanel 的展开动画为 300ms；nextTick 只保证挂载，需等高度稳定后定位。
+        await new Promise((resolve) => { setTimeout(resolve, 350); });
+      }
+      return this.$refs.form.validate();
     },
     openPackagePicker() {
       if (!this.packageOptions.length) return;
@@ -710,24 +721,25 @@ export default {
       };
     },
     async submit() {
-      if (this.submitting) return;
-      this.fieldErrors = validatePronunciationDraft(this.draft);
-      this.openAdvancedForErrors();
-      if (Object.keys(this.fieldErrors).length) {
-        uni.showToast({ title: '请检查读音表单', icon: 'none' });
-        return;
-      }
+      if (this.submitting || this.loading || this.loadError || !this.flavor) return;
       this.submitting = true;
       try {
+        this.fieldErrors = validatePronunciationDraft(this.draft);
+        const valid = await this.validateForm();
+        if (valid !== true) {
+          notify({ title: '请检查读音表单' });
+          return;
+        }
         await createPronunciation(this.payload());
-        uni.showToast({ title: '读音已保存', icon: 'success' });
-        setTimeout(() => uni.navigateBack(), 500);
+        notifySuccess('读音已保存');
+        setTimeout(() => goBack(this.backFallback), 500);
       } catch (error) {
         // createPronunciation 使用 silent 请求；字段错误只在控件下方展示，避免重复弹窗。
         this.fieldErrors = pronunciationApiErrors(error);
-        this.openAdvancedForErrors();
-        if (!Object.keys(this.fieldErrors).length) {
-          uni.showToast({ title: error.message || '读音保存失败', icon: 'none' });
+        if (Object.keys(this.fieldErrors).length) {
+          await this.validateForm();
+        } else {
+          notify({ title: error.message || '读音保存失败' });
         }
       } finally {
         this.submitting = false;
@@ -743,23 +755,6 @@ export default {
   max-width: 760rpx;
   margin: 0 auto;
   padding-bottom: var(--space-5);
-}
-
-.state-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  background: var(--surface-color);
-  color: var(--muted-color);
-}
-
-.state-card--error {
-  border-color: var(--danger-color);
-  color: var(--danger-color);
 }
 
 .flavor-hero {
@@ -836,15 +831,15 @@ export default {
 .field-sheet,
 .advanced-fields {
   overflow: hidden;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background: var(--surface-color);
 }
 
-.field-sheet :deep(.t-input),
-.advanced-fields :deep(.t-input),
-.advanced-fields :deep(.t-textarea) {
-  border-bottom: 1px solid var(--border-color);
+.field-sheet :deep(.t-cell),
+.reading-type__options {
+  width: 100%;
 }
 
 .field-sheet :deep(.t-cell) {
@@ -878,18 +873,11 @@ export default {
   color: var(--success-color);
 }
 
-.advanced-fields > :last-child :deep(.t-input),
-.advanced-fields > :last-child :deep(.t-textarea) {
-  border-bottom: 0;
-}
-
-.cell-error,
 .field-hint {
-  padding: var(--space-1) var(--space-4) var(--space-2);
+  padding: var(--space-1) 0 var(--space-2);
   background: var(--surface-color);
 }
 
-.field-error,
 .field-hint--warning {
   color: var(--danger-color);
   font-size: var(--font-size-xs);
@@ -897,13 +885,6 @@ export default {
 
 .reading-type {
   margin-top: var(--space-3);
-}
-
-.reading-type__label {
-  margin-bottom: var(--space-2);
-  color: var(--text-secondary-color);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
 }
 
 .reading-type__options {
@@ -939,15 +920,6 @@ export default {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
-}
-
-.textarea-field {
-  border-bottom: 1px solid var(--border-color);
-}
-
-.textarea-error {
-  padding: 0 var(--space-4) var(--space-2);
-  background: var(--surface-color);
 }
 
 .submit-card {
