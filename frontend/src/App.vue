@@ -106,6 +106,40 @@ html[data-theme='dark'] page {
   background: var(--page-color);
   color-scheme: dark;
 }
+
+/* 页面背景色跟随主题/页面切换时平滑过渡，避免深色↔浅色硬切闪变 */
+page {
+  transition: background-color 0.25s ease;
+}
+
+/*
+ * P1 页面切换动画（H5 端）：新页面插入时淡入 + 轻微滑入。
+ * - 仅使用 transform / opacity 合成属性，不触发布局重排；动画结束后不保留
+ *   transform（默认 fill-mode），避免为 position:fixed 后代创建新的包含块。
+ * - opacity 从 0 渐显，让新页面（含背景）平滑浮现，天然承担深色首页 ↔ 浅色
+ *   普通页切换时的背景 bridging：旧页面仍在下方垫底，避免背景色瞬间闪变。
+ */
+uni-page-wrapper {
+  animation: page-enter 0.25s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(16px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* 尊重系统「减弱动态效果」设置，关闭页面切换动画 */
+@media (prefers-reduced-motion: reduce) {
+  uni-page-wrapper {
+    animation: none;
+  }
+}
 /* #endif */
 
 .scrollPage {
