@@ -348,8 +348,13 @@ export default {
 .comment-sheet__scroll {
   flex: 1;
   min-height: 0;
+  /* 关键：uni-scroll-view 默认 height:100% 会撑满整个面板、挤掉底部输入框并破坏滚动，
+   * 这里归零高度交给 flex:1 计算剩余空间；overscroll-behavior 阻断滚动链，避免评论滚到底
+   * 又把底层罐头流/页面一起带起来 */
+  height: 0;
   padding: 0 24rpx 24rpx;
   box-sizing: border-box;
+  overscroll-behavior: contain;
 }
 
 /* 底部固定发表评论/回复框：横向输入 + 小发送键，占位小 */
