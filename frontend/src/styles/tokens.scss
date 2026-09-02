@@ -36,6 +36,8 @@
   --on-danger-color: #ffffff;
   --warning-color: #ed7b2f;
   --success-color: #2ba471;
+  /* 全屏浮层遮罩（如半屏评论面板）：中性深色，深浅主题通用 */
+  --veil-color: rgba(0, 0, 0, 0.5);
 }
 
 @mixin dark-color-tokens {
@@ -54,6 +56,7 @@
   --on-danger-color: #2b1010;
   --warning-color: #f5a56c;
   --success-color: #5fce9f;
+  --veil-color: rgba(0, 0, 0, 0.5);
 }
 
 @mixin static-tokens {
@@ -205,6 +208,8 @@ page {
   --immersive-border-color: rgba(238, 246, 240, 0.16);
   /* 深底强调色与波形 */
   --immersive-accent-color: #8fd6ac;
+  /* 深底语义色：错误文案（如评论区加载失败）在深绿底上的可读版本 */
+  --immersive-danger-color: #ff9d95;
   --immersive-wave-color: rgba(238, 246, 240, 0.3);
   --immersive-wave-active-color: #9fe0bd;
   /* 情感互动暖色（点赞等情绪表达）：与品牌深绿形成情绪分层 ——

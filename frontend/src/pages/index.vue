@@ -70,6 +70,10 @@ import HomeFeed from '@/components/home/HomeFeed.vue';
 import HomeTabBar from '@/components/home/HomeTabBar.vue';
 import HomeTopBar from '@/components/home/HomeTopBar.vue';
 import { isLoggedIn } from '@/services/authGuard';
+import {
+  closeCommentSheet,
+  isCommentSheetActive,
+} from '@/services/commentSheet';
 import { resolveDefaultTab } from '@/services/homeFeed';
 import { ROUTES } from '@/services/navigation';
 import { SHARE_TITLE } from '@/const/branding';
@@ -131,6 +135,16 @@ export default {
   },
   onHide() {
     stopAudio();
+    // 半屏评论面板不随页面保留：离开首页即收起，避免从详情页/登录页返回时陈旧目标仍打开（#255）。
+    closeCommentSheet();
+  },
+  onBackPress() {
+    // 面板打开时返回键先关闭面板而非退出页面；关闭后再返回保持原有退出行为（#255）。
+    if (isCommentSheetActive()) {
+      closeCommentSheet();
+      return true;
+    }
+    return false;
   },
   onUnload() {
     stopAudio();

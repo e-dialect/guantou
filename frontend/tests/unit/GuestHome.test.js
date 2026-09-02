@@ -60,10 +60,16 @@ vi.mock('@/utils/audio', () => {
   };
 });
 
+vi.mock('@/services/commentSheet', () => ({
+  closeCommentSheet: vi.fn(),
+  isCommentSheetActive: vi.fn(() => false),
+}));
+
 import HomePage from '@/pages/index.vue';
 import CanStageCard from '@/components/home/CanStageCard.vue';
 import HomeTabBar from '@/components/home/HomeTabBar.vue';
 import NameplateVoteRow from '@/components/home/NameplateVoteRow.vue';
+import { closeCommentSheet, isCommentSheetActive } from '@/services/commentSheet';
 import { getNameplatePreview, resolveDefaultTab } from '@/services/homeFeed';
 import { supportNameplate } from '@/services/guantou';
 import * as audioModule from '@/utils/audio';
@@ -99,7 +105,10 @@ function mountHome() {
           template: '<div class="home-top-bar-stub" :data-active="activeTab">乡声集盒</div>',
         },
         HomeTabBar: true,
-        CommentSheet: true,
+        CommentSheet: {
+          name: 'CommentSheet',
+          template: '<div />',
+        },
       },
     },
   });
@@ -131,6 +140,11 @@ function mountStageCard(overrides = {}) {
       active: true,
     },
   });
+}
+
+function triggerBackPress(wrapper) {
+  const hook = wrapper.vm.$options.onBackPress;
+  return (Array.isArray(hook) ? hook : [hook]).map((fn) => fn.call(wrapper.vm));
 }
 
 describe('immersive home (Issue #192)', () => {
@@ -483,5 +497,29 @@ describe('immersive home (Issue #192)', () => {
     expect(cardA.vm.playing).toBe(false);
     expect(cardB.vm.playing).toBe(false);
     expect(cardB.vm.playbackHandle).toBeNull();
+  });
+
+  it('首页挂载全局 CommentSheet 浮层（#257）', () => {
+    const wrapper = mountHome();
+
+    expect(wrapper.findComponent({ name: 'CommentSheet' }).exists()).toBe(true);
+  });
+
+  it('评论面板打开时返回键先关闭面板而非退出页面（#255）', () => {
+    isCommentSheetActive.mockReturnValue(true);
+    const wrapper = mountHome();
+
+    const results = triggerBackPress(wrapper);
+    expect(results).toContain(true);
+    expect(closeCommentSheet).toHaveBeenCalled();
+  });
+
+  it('面板关闭时返回键保持原有退出行为（#255）', () => {
+    isCommentSheetActive.mockReturnValue(false);
+    const wrapper = mountHome();
+
+    const results = triggerBackPress(wrapper);
+    expect(results.every((value) => value === false)).toBe(true);
+    expect(closeCommentSheet).not.toHaveBeenCalled();
   });
 });

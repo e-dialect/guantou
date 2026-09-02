@@ -76,7 +76,8 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('CommentThread 二级评论', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // resetAllMocks 同时清空 mockResolvedValueOnce/RejectedValueOnce 队列，避免用例间互相污染。
+    vi.resetAllMocks();
     requireAuth.mockReturnValue(true);
     setupUni();
   });
@@ -146,6 +147,60 @@ describe('CommentThread 二级评论', () => {
     await flush();
 
     expect(replyToComment).toHaveBeenCalledWith(2, '再回复');
+  });
+
+  it('首屏回复加载失败后折叠再展开可重试（#254）', async () => {
+    listCanComments.mockResolvedValue({ results: [topComment()], next: null });
+    listCommentReplies
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce({ results: [reply()], next: null });
+    const wrapper = mountThread();
+    await flush();
+
+    // 首次展开：加载失败，回复未标记已加载
+    await wrapper.find('.comment-block__toggle').trigger('tap');
+    await flush();
+    expect(wrapper.vm.comments[0].repliesLoaded).toBe(false);
+    expect(wrapper.vm.comments[0].replies).toHaveLength(0);
+
+    // 折叠再展开：repliesLoaded 仍为 false，触发重试
+    await wrapper.find('.comment-block__toggle').trigger('tap');
+    await wrapper.find('.comment-block__toggle').trigger('tap');
+    await flush();
+
+    expect(listCommentReplies).toHaveBeenCalledTimes(2);
+    expect(wrapper.vm.comments[0].repliesLoaded).toBe(true);
+    expect(wrapper.vm.comments[0].replies).toHaveLength(1);
+  });
+
+  it('分页加载失败保留已加载回复且可再次重试（#254）', async () => {
+    listCanComments.mockResolvedValue({ results: [topComment()], next: null });
+    listCommentReplies
+      .mockResolvedValueOnce({ results: [reply()], next: 'http://example.com?page=2' })
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce({ results: [reply({ id: 4, parent_id: 1 })], next: null });
+    const wrapper = mountThread();
+    await flush();
+
+    // 展开并加载第一页（成功）
+    await wrapper.find('.comment-block__toggle').trigger('tap');
+    await flush();
+    expect(wrapper.vm.comments[0].replies).toHaveLength(1);
+
+    // 展开更多：第二页失败 → 已加载回复保留、仍可再点重试
+    // 注：TDesign stub（inheritAttrs:false）吞掉 DOM 点击监听，测试里用 $emit('click') 走 BaseButton→CommentThread 的 @click 通道。
+    const moreButton = () => wrapper.findAllComponents({ name: 'BaseButton' })
+      .find((button) => button.props('text') === '展开更多回复');
+    await moreButton().vm.$emit('click');
+    await flush();
+    expect(wrapper.vm.comments[0].replies).toHaveLength(1);
+    expect(wrapper.vm.comments[0].repliesHasMore).toBe(true);
+
+    await moreButton().vm.$emit('click');
+    await flush();
+
+    expect(listCommentReplies).toHaveBeenCalledTimes(3);
+    expect(wrapper.vm.comments[0].replies).toHaveLength(2);
   });
 
   it('删除一条回复会从所属一级评论移除并减回复数', async () => {

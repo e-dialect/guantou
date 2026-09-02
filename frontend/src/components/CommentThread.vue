@@ -349,7 +349,6 @@ export default {
       const willExpand = !comment.expanded;
       this.updateComment(comment.id, (item) => ({ ...item, expanded: willExpand }));
       if (willExpand && !comment.repliesLoaded) {
-        this.updateComment(comment.id, (item) => ({ ...item, repliesLoaded: true }));
         this.loadReplies(comment);
       }
     },
@@ -365,9 +364,12 @@ export default {
           replies: item.replies.concat(items),
           replyPage: nextPage,
           repliesHasMore: Boolean(response.next),
+          // 仅加载成功后标记已加载；失败保持 false，折叠再展开即可重试（#254）。
+          repliesLoaded: true,
           repliesLoading: false,
         }));
       } catch (error) {
+        // 失败只清 loading：已加载的回复保留、repliesHasMore 不变，分页失败可直接再点重试。
         this.updateComment(comment.id, (item) => ({ ...item, repliesLoading: false }));
         uni.showToast({ title: error.message || '回复加载失败', icon: 'none' });
       }
