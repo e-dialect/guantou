@@ -87,6 +87,7 @@
       vertical
       :current="relativeCurrent"
       :duration="280"
+      :disable-touch="swipeDisabled"
       @change="onSwiperChange"
     >
       <swiper-item
@@ -153,6 +154,11 @@ export default {
     tab: {
       type: String,
       required: true,
+    },
+    /* 评论面板打开时锁定罐头流滑动，避免上下滑同时驱动 swiper 与评论列表 */
+    swipeDisabled: {
+      type: Boolean,
+      default: false,
     },
   },
   emits: ['share'],

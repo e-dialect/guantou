@@ -29,6 +29,7 @@
         :key="`today-${feedRevision}`"
         class="home-page__feed"
         tab="today"
+        :swipe-disabled="sheetActive"
         @share="prepareShare"
       />
       <HomeFeed
@@ -37,6 +38,7 @@
         :key="`dialect-${feedRevision}`"
         class="home-page__feed"
         tab="dialect"
+        :swipe-disabled="sheetActive"
         @share="prepareShare"
       />
       <HomeFeed
@@ -45,6 +47,7 @@
         :key="`following-${feedRevision}`"
         class="home-page__feed"
         tab="following"
+        :swipe-disabled="sheetActive"
         @share="prepareShare"
       />
       <HomeFeed
@@ -53,6 +56,7 @@
         :key="`recommended-${feedRevision}`"
         class="home-page__feed"
         tab="recommended"
+        :swipe-disabled="sheetActive"
         @share="prepareShare"
       />
     </view>
@@ -60,7 +64,7 @@
     <HomeTabBar active="home" />
 
     <!-- 半屏评论区（见 #219）：全局浮层，包装 CommentThread，沉浸流内嵌深色主题 -->
-    <CommentSheet />
+    <CommentSheet @active-change="onSheetActiveChange" />
   </view>
 </template>
 
@@ -99,6 +103,7 @@ export default {
       userSelectedTab: false,
       pendingShareCan: null,
       feedRevision: 0,
+      sheetActive: false,
     };
   },
   created() {
@@ -183,6 +188,10 @@ export default {
       this.userSelectedTab = true;
       this.ensureTabVisited(tab);
       this.activeTab = tab;
+    },
+    onSheetActiveChange(active) {
+      // 评论面板打开时锁定底层罐头流滑动，避免上下滑同时驱动 swiper 与评论列表
+      this.sheetActive = active;
     },
     prepareShare(can) {
       this.pendingShareCan = can;

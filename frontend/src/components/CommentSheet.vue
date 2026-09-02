@@ -26,7 +26,9 @@
           @touchmove="onDragMove"
           @touchend="onDragEnd"
           @touchcancel="onDragCancel"
-        />
+        >
+          <view class="comment-sheet__grip-bar" />
+        </view>
         <!-- key 随目标切换重挂载，归零滚动位置（#257） -->
         <scroll-view
           :key="`${targetType}-${targetId}`"
@@ -96,6 +98,7 @@ const DRAG_SNAP_PX = 60;
 export default {
   name: 'CommentSheet',
   components: { CommentThread, BaseField, BaseButton },
+  emits: ['active-change'],
   data() {
     return {
       targetType: null,
@@ -128,6 +131,12 @@ export default {
         return { height: `calc(50vh + ${-this.dragDelta}px)`, transition: 'none' };
       }
       return {};
+    },
+  },
+  watch: {
+    active(value) {
+      // 面板开合同步给宿主页面，用于锁定底层罐头流的滑动（问题 1）
+      this.$emit('active-change', value);
     },
   },
   mounted() {
@@ -320,11 +329,18 @@ export default {
   border-radius: 0;
 }
 
+/* 拖拽命中区：一整条扁平长条（比可见小横条大得多），便于一次命中上拉/下拉 */
 .comment-sheet__grip {
   flex: 0 0 auto;
-  width: 72rpx;
-  height: 8rpx;
-  margin: 16rpx auto 8rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.comment-sheet__grip-bar {
+  width: 96rpx;
+  height: 10rpx;
   border-radius: var(--radius-pill);
   background: var(--border-color);
 }

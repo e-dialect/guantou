@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/services/navigation', () => ({
@@ -102,6 +102,19 @@ describe('CommentSheet (Issue #219 后续)', () => {
       expect(wrapper.find('.comment-sheet__layer').exists()).toBe(true);
       expect(wrapper.find('.comment-sheet__mask').exists()).toBe(true);
       expect(wrapper.find('.comment-sheet__panel').exists()).toBe(true);
+
+      wrapper.unmount();
+    });
+
+    it('面板开合时发射 active-change（用于锁定底层滑动）', async () => {
+      const wrapper = mountSheet();
+      openCommentSheet({ targetType: 'can', targetId: 12 });
+      await flushPromises();
+      expect(wrapper.emitted('active-change').slice(-1)[0]).toEqual([true]);
+
+      wrapper.vm.close();
+      await flushPromises();
+      expect(wrapper.emitted('active-change').slice(-1)[0]).toEqual([false]);
 
       wrapper.unmount();
     });
