@@ -1128,12 +1128,12 @@
     "@dcloudio/uni-stat" "3.0.0-5010520260709002"
     "@vue/shared" "3.4.21"
 
-"@dcloudio/uni-automator@3.0.0-5020420260813002":
-  version "3.0.0-5020420260813002"
-  resolved "https://registry.yarnpkg.com/@dcloudio/uni-automator/-/uni-automator-3.0.0-5020420260813002.tgz#c2274e6e6f27edd81aeef0392c755041fd0073a1"
-  integrity sha512-wUAJhGYSzBCcGsl1q6l+OZmXtX55WT6PUQftWm5DB4X18wOIZK3Vl5lngjFHKEtXEPgTOPkzZoFssXT74CoyRA==
+"@dcloudio/uni-automator@3.0.0-5020420260813003":
+  version "3.0.0-5020420260813003"
+  resolved "https://registry.yarnpkg.com/@dcloudio/uni-automator/-/uni-automator-3.0.0-5020420260813003.tgz#999a5674cc0fd1fe06d61c292f9ff6d6b8347152"
+  integrity sha512-WesOU05kpPBQdC94LjrXvtFOeaCScVJtpQQUifwi5D33HcNkyiQf4mMXM11jWDC/a1jzmKmcRIJJw9UoFtxATQ==
   dependencies:
-    "@dcloudio/uni-cli-shared" "3.0.0-5020420260813002"
+    "@dcloudio/uni-cli-shared" "3.0.0-5020420260813003"
     address "^1.1.2"
     cross-env "^7.0.3"
     debug "4.3.7"
