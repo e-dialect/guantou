@@ -85,6 +85,12 @@ export function resolveAuthDestination(intent) {
     return routeDestination(ROUTES.canComments, { id: context.canId });
   }
 
+  if (intent.action === 'comment_like' && context.page === 'can_comments') {
+    // 评论点赞登录后回跳评论线程，而非罐头详情（#248）。
+    if (!context.canId) return { kind: AUTH_DESTINATION_KINDS.FALLBACK };
+    return routeDestination(ROUTES.canComments, { id: context.canId });
+  }
+
   if (intent.action === 'like' || intent.action === 'comment_like') {
     if (!context.canId) return { kind: AUTH_DESTINATION_KINDS.FALLBACK };
     return routeDestination(ROUTES.canDetail, { id: context.canId });

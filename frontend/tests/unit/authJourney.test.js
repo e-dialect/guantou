@@ -81,6 +81,17 @@ describe('auth journey', () => {
     });
   });
 
+  it('returns a comment-like intent back to the comment thread, not can detail (#248)', () => {
+    expect(resolveAuthDestination({
+      action: 'comment_like',
+      context: { page: 'can_comments', canId: 19 },
+    })).toEqual({
+      kind: 'url',
+      route: 'pages/cans/comments',
+      url: '/pages/cans/comments?id=19',
+    });
+  });
+
   it('returns a use-same intent directly to the locked composer', () => {
     expect(resolveAuthDestination({
       action: 'use_same',
