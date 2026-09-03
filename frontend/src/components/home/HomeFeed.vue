@@ -80,29 +80,12 @@
       </view>
     </view>
 
-    <!-- 评论面板打开时锁定罐头流：不渲染 swiper，改为静态当前页，杜绝共享滑动 -->
-    <view
-      v-else-if="swipeDisabled"
-      class="home-feed__slide"
-    >
-      <CanStageCard
-        v-if="currentCan"
-        class="home-feed__card"
-        :can="currentCan"
-        :active="true"
-      />
-      <HomeActionRail
-        v-if="currentCan"
-        class="home-feed__rail"
-        :can="currentCan"
-        @share="$emit('share', $event)"
-      />
-    </view>
-
-    <!-- 沉浸流主体 -->
+    <!-- 沉浸流主体：面板打开时用 CSS 锁定触摸（pointer-events/touch-action），
+         而非切换子树——否则会销毁并重建 HomeActionRail，把刚点赞/关注后的本地状态回退为旧值 -->
     <swiper
       v-else
       class="home-feed__swiper"
+      :class="{ 'home-feed__swiper--locked': swipeDisabled }"
       vertical
       :current="relativeCurrent"
       :duration="280"
@@ -255,9 +238,6 @@ export default {
     relativeCurrent() {
       return this.currentIndex - this.windowStart;
     },
-    currentCan() {
-      return this.items[this.currentIndex] || null;
-    },
   },
   mounted() {
     this.loadFirst();
@@ -352,6 +332,12 @@ export default {
 .home-feed__swiper {
   height: 100%;
   width: 100%;
+}
+
+/* 面板打开时锁定 swiper：不销毁子树（保住操作栏状态），仅阻断触摸命中与手势 */
+.home-feed__swiper--locked {
+  pointer-events: none;
+  touch-action: none;
 }
 
 .home-feed__slide {

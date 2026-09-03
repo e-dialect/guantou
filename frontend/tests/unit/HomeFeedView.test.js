@@ -172,4 +172,31 @@ describe('HomeFeed five states', () => {
     await flushPromises();
     expect(wrapper.find('.home-feed__load-more').exists()).toBe(false);
   });
+
+  it('面板打开时锁定 swiper 而非销毁子树（保留操作栏状态）', async () => {
+    listHomeFeed.mockResolvedValue({
+      results: [{ id: 1, audio_url: 'https://example.test/a.mp3' }],
+      next: null,
+    });
+
+    const wrapper = mount(HomeFeed, {
+      props: { tab: 'recommended', swipeDisabled: true },
+      global: {
+        stubs: {
+          CanStageCard: true,
+          HomeActionRail: true,
+        },
+      },
+    });
+    await flushPromises();
+
+    const swiper = wrapper.find('.home-feed__swiper');
+    expect(swiper.exists()).toBe(true);
+    expect(swiper.classes()).toContain('home-feed__swiper--locked');
+
+    // 解锁后同一 swiper 仍在、锁定类移除，全程未重挂载子树
+    await wrapper.setProps({ swipeDisabled: false });
+    expect(wrapper.find('.home-feed__swiper').exists()).toBe(true);
+    expect(wrapper.find('.home-feed__swiper').classes()).not.toContain('home-feed__swiper--locked');
+  });
 });
