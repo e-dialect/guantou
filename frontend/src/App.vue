@@ -114,12 +114,15 @@ page {
 
 /*
  * P1 页面切换动画（H5 端）：新页面插入时淡入 + 轻微滑入。
+ * - 仅在 services/navigation.js 的 openPage / goBack 导航时，为 <html> 临时
+ *   加上 page-transitioning 类后才启用；首屏加载 / 硬刷新 / 深链直达不会带
+ *   该类，因此首屏不会误触发动画（满足 #203/#217「首屏无劣化」）。
  * - 仅使用 transform / opacity 合成属性，不触发布局重排；动画结束后不保留
  *   transform（默认 fill-mode），避免为 position:fixed 后代创建新的包含块。
  * - opacity 从 0 渐显，让新页面（含背景）平滑浮现，天然承担深色首页 ↔ 浅色
  *   普通页切换时的背景 bridging：旧页面仍在下方垫底，避免背景色瞬间闪变。
  */
-uni-page-wrapper {
+html.page-transitioning uni-page-wrapper {
   animation: page-enter 0.25s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
@@ -136,7 +139,7 @@ uni-page-wrapper {
 
 /* 尊重系统「减弱动态效果」设置，关闭页面切换动画 */
 @media (prefers-reduced-motion: reduce) {
-  uni-page-wrapper {
+  html.page-transitioning uni-page-wrapper {
     animation: none;
   }
 }

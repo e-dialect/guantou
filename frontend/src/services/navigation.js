@@ -68,8 +68,26 @@ export function currentRoute() {
   return String(page?.route || '').replace(/^\//, '');
 }
 
+let pageTransitionTimer = null;
+
+// 在 H5 端标记一次真实页面导航，让新插入的页面容器播放进入动画。
+// 只在 openPage / goBack 中调用，首屏加载与硬刷新不会触发，从而满足
+// #203/#217 的「首屏无劣化」验收要求：仅前进/返回导航启用动画。
+function markPageTransition() {
+  // #ifdef H5
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  root.classList.add('page-transitioning');
+  if (pageTransitionTimer) clearTimeout(pageTransitionTimer);
+  pageTransitionTimer = setTimeout(() => {
+    root.classList.remove('page-transitioning');
+  }, 300);
+  // #endif
+}
+
 export function openPage(path, params = {}, options = {}) {
   const url = pageUrl(path, params);
+  markPageTransition();
   if (options.reset) {
     uni.reLaunch({ url });
   } else if (options.replace) {
@@ -83,6 +101,7 @@ export function openPage(path, params = {}, options = {}) {
 export function goBack(fallback = ROUTES.home) {
   const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : [];
   if (pages.length > 1) {
+    markPageTransition();
     uni.navigateBack({ delta: 1 });
     return;
   }
