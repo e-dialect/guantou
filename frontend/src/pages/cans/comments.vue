@@ -7,6 +7,7 @@
       v-if="canId"
       target-type="can"
       :target-id="canId"
+      standalone
     />
   </PageShell>
 </template>

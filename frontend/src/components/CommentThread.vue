@@ -1,5 +1,41 @@
 <template>
   <view class="comment-thread">
+    <!-- 独立评论页（无 CommentSheet 宿主）时启用内置 composer，恢复顶层发表与回复能力（#289）。
+         半屏面板场景由 CommentSheet 底部输入框承接，此处不渲染，避免双输入框。 -->
+    <view
+      v-if="standalone"
+      class="comment-thread__composer"
+    >
+      <view
+        v-if="replyTarget"
+        class="comment-thread__reply-hint"
+      >
+        <text class="comment-thread__reply-hint-text">
+          回复 @{{ replyTarget.nickname }}
+        </text>
+        <text
+          class="comment-thread__reply-cancel"
+          @tap="cancelReply"
+        >
+          取消
+        </text>
+      </view>
+      <BaseField
+        v-model="draft"
+        name="comment"
+        type="textarea"
+        :maxlength="500"
+        :placeholder="replyTarget ? '回复……' : '说说你的依据、读法或补充……'"
+        :autosize="{ minHeight: 36, maxHeight: 160 }"
+      />
+      <BaseButton
+        block
+        :text="replyTarget ? '发送回复' : '发表评论'"
+        :loading="submitting"
+        @click="submit"
+      />
+    </view>
+
     <view class="comment-thread__rule">
       讨论观点，也尊重每一种真实使用。
     </view>
@@ -166,6 +202,7 @@
 
 <script>
 import BaseButton from '@/components/BaseButton.vue';
+import BaseField from '@/components/BaseField.vue';
 import BaseLoading from '@/components/BaseLoading.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import {
@@ -185,6 +222,7 @@ export default {
   name: 'CommentThread',
   components: {
     BaseButton,
+    BaseField,
     BaseLoading,
     EmptyState,
   },
@@ -198,6 +236,12 @@ export default {
       type: [Number, String],
       required: true,
     },
+    /* 独立评论页模式：渲染内置 composer 并内部承接回复意图；
+     * 半屏面板（CommentSheet）不设此值，仍由宿主底部输入框承接。 */
+    standalone: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['created', 'reply'],
   data() {
@@ -207,6 +251,10 @@ export default {
       hasMore: true,
       loading: false,
       errorMessage: '',
+      draft: '',
+      submitting: false,
+      replyTarget: null,
+      lastSubmitAt: 0,
     };
   },
   mounted() {
@@ -320,12 +368,48 @@ export default {
     },
     startReply(item) {
       const isReply = Boolean(item.parent_id);
-      // 回复意图上抛给 CommentSheet，由其底部输入框承接（问题 2）
-      this.$emit('reply', {
+      const payload = {
         parentId: isReply ? item.parent_id : item.id,
         replyToId: item.id,
         nickname: item.author?.nickname || item.author?.username || '',
-      });
+      };
+      // 独立评论页：内部承接回复意图；半屏面板：上抛给 CommentSheet 底部输入框（问题 2）
+      if (this.standalone) {
+        this.replyTarget = payload;
+        this.draft = '';
+      } else {
+        this.$emit('reply', payload);
+      }
+    },
+    cancelReply() {
+      this.replyTarget = null;
+      this.draft = '';
+    },
+    /* 独立评论页内置 composer 的提交入口：与 CommentSheet 一致地防连点，再路由到
+     * 顶层评论或回复的提交逻辑（空内容/鉴权拦截由各自方法返回 null 兜底）。 */
+    async submit() {
+      const now = Date.now();
+      if (this.submitting || (this.lastSubmitAt && now - this.lastSubmitAt < 500)) return;
+      this.lastSubmitAt = now;
+      this.submitting = true;
+      try {
+        if (this.replyTarget) {
+          const reply = await this.submitReply({
+            replyToId: this.replyTarget.replyToId,
+            parentId: this.replyTarget.parentId,
+            content: this.draft,
+          });
+          if (reply) {
+            this.draft = '';
+            this.replyTarget = null;
+          }
+        } else {
+          const comment = await this.submitComment(this.draft);
+          if (comment) this.draft = '';
+        }
+      } finally {
+        this.submitting = false;
+      }
     },
     /*
      * 回复提交：由 CommentSheet 底部输入框调用。校验/鉴权/创建后挂到所属一级评论，
@@ -387,6 +471,33 @@ export default {
 </script>
 
 <style scoped>
+.comment-thread__composer {
+  padding: 0 0 20rpx;
+  margin-bottom: 8rpx;
+  border-bottom: 1rpx solid var(--border-color);
+}
+
+.comment-thread__composer .base-field {
+  --td-form-item-vertical-padding: 0;
+}
+
+.comment-thread__reply-hint {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 0 12rpx;
+}
+
+.comment-thread__reply-hint-text {
+  color: var(--accent-color);
+  font-size: 22rpx;
+}
+
+.comment-thread__reply-cancel {
+  color: var(--muted-color);
+  font-size: 22rpx;
+}
+
 .comment-thread__rule {
   padding: 28rpx 4rpx 14rpx;
   color: var(--muted-color);

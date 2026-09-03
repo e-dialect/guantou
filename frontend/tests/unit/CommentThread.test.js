@@ -289,3 +289,69 @@ describe('CommentThread 二级评论', () => {
     expect(wrapper.vm.comments[0].reply_count).toBe(0);
   });
 });
+
+describe('CommentThread standalone（独立评论页内置 composer，#289）', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    requireAuth.mockReturnValue(true);
+    setupUni();
+  });
+
+  function mountStandalone() {
+    return mount(CommentThread, {
+      props: { targetType: 'can', targetId: 12, standalone: true },
+    });
+  }
+
+  it('standalone 渲染内置 composer，非 standalone 不渲染', async () => {
+    listCanComments.mockResolvedValue({ results: [topComment()], next: null });
+
+    const standalone = mountStandalone();
+    await flush();
+    expect(standalone.find('.comment-thread__composer').exists()).toBe(true);
+
+    const embedded = mountThread();
+    await flush();
+    expect(embedded.find('.comment-thread__composer').exists()).toBe(false);
+  });
+
+  it('standalone 时 startReply 内部承接回复意图、不上抛 reply 事件', async () => {
+    listCanComments.mockResolvedValue({ results: [topComment()], next: null });
+    const wrapper = mountStandalone();
+    await flush();
+
+    wrapper.vm.startReply(wrapper.vm.comments[0]);
+
+    expect(wrapper.emitted('reply')).toBeUndefined();
+    expect(wrapper.vm.replyTarget).toEqual({ parentId: 1, replyToId: 1, nickname: '昵称1' });
+  });
+
+  it('standalone 非回复态 submit 走顶层评论并清空草稿', async () => {
+    listCanComments.mockResolvedValue({ results: [topComment()], next: null });
+    createCanComment.mockResolvedValue(topComment({ id: 99, content: '新评论' }));
+    const wrapper = mountStandalone();
+    await flush();
+
+    wrapper.vm.draft = '  新评论  ';
+    await wrapper.vm.submit();
+
+    expect(createCanComment).toHaveBeenCalledWith(12, '新评论');
+    expect(replyToComment).not.toHaveBeenCalled();
+    expect(wrapper.vm.draft).toBe('');
+  });
+
+  it('standalone 回复态 submit 走 submitReply 并清空目标与草稿', async () => {
+    listCanComments.mockResolvedValue({ results: [topComment()], next: null });
+    replyToComment.mockResolvedValue(reply({ id: 9, parent_id: 1 }));
+    const wrapper = mountStandalone();
+    await flush();
+
+    wrapper.vm.startReply(wrapper.vm.comments[0]);
+    wrapper.vm.draft = '  回复内容  ';
+    await wrapper.vm.submit();
+
+    expect(replyToComment).toHaveBeenCalledWith(1, '回复内容');
+    expect(wrapper.vm.replyTarget).toBeNull();
+    expect(wrapper.vm.draft).toBe('');
+  });
+});

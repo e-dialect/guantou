@@ -19,6 +19,7 @@
       v-if="id"
       target-type="nameplate"
       :target-id="id"
+      standalone
     />
   </PageShell>
 </template>
