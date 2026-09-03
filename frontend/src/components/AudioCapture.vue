@@ -29,65 +29,67 @@
       />
     </view>
 
-    <button
+    <BaseButton
       v-if="!audio.path || recording"
       class="record-primary"
       :disabled="!supported"
-      hover-class="record-primary--pressed"
-      @tap="handlePrimaryAction"
+      variant="light"
+      shape="circle"
+      :aria-label="primaryLabel"
+      @click="handlePrimaryAction"
     >
-      <text class="record-primary__icon">
-        {{ primaryIcon }}
-      </text>
-      <text class="record-primary__label">
-        {{ primaryLabel }}
-      </text>
-    </button>
+      <view class="record-primary__content">
+        <text class="record-primary__icon">
+          {{ primaryIcon }}
+        </text>
+        <text class="record-primary__label">
+          {{ primaryLabel }}
+        </text>
+      </view>
+    </BaseButton>
 
     <view
       v-if="audio.path && !recording"
       class="record-ready-actions"
     >
-      <t-button
+      <BaseButton
         class="record-ready-action record-ready-action--secondary"
-        theme="default"
-        variant="outline"
+        variant="ghost"
         size="large"
         icon="refresh"
         block
         @click="restartRecording"
       >
         重新录制
-      </t-button>
-      <t-button
+      </BaseButton>
+      <BaseButton
         class="record-ready-action record-ready-action--primary"
-        theme="primary"
         size="large"
         :icon="playing ? 'pause-circle' : 'play-circle'"
         block
         @click="togglePlayback"
       >
         {{ playing ? '暂停播放' : '播放录音' }}
-      </t-button>
+      </BaseButton>
     </view>
 
     <view class="record-actions">
-      <t-button
+      <BaseButton
         class="record-action"
-        theme="light"
-        variant="text"
+        variant="light"
         size="small"
         :disabled="!fileSelectionSupported"
         @click="chooseFile"
       >
         {{ audio.path ? '选择其他录音' : '选择已有录音' }}
-      </t-button>
+      </BaseButton>
     </view>
   </view>
 </template>
 
 <script>
-import TButton from '@tdesign/uniapp/button/button.vue';
+import BaseButton from '@/components/BaseButton.vue';
+import { notify } from '@/services/feedback';
 import { chooseAudioFile, supportsAudioFileSelection } from '@/services/file';
 import { playAudio, playManaged, stopAudio } from '@/utils/audio';
 
@@ -100,7 +102,7 @@ function formatSeconds(milliseconds) {
 
 export default {
   name: 'AudioCapture',
-  components: { TButton },
+  components: { BaseButton },
   props: {
     audio: {
       type: Object,
@@ -286,7 +288,7 @@ export default {
     async startRecord() {
       this.stopPlayback();
       if (!this.recordingSupported) {
-        uni.showToast({ title: '请选择已有录音', icon: 'none' });
+        notify({ title: '请选择已有录音', icon: 'none' });
         return;
       }
       try {
@@ -324,7 +326,7 @@ export default {
       this.clearTimer();
       try {
         activeRecorder.stop();
-        if (autoStopped) uni.showToast({ title: '已自动截取前15秒', icon: 'none' });
+        if (autoStopped) notify({ title: '已自动截取前15秒', icon: 'none' });
       } catch (error) {
         this.$emit('error', error);
       }
@@ -332,7 +334,7 @@ export default {
     onRecordStop(path, duration, blob = null) {
       const resolvedDuration = Number(duration || this.recordingElapsed || 0);
       if (resolvedDuration < MIN_RECORD_MS) {
-        uni.showToast({ title: '录音太短了，再试一次吧', icon: 'none' });
+        notify({ title: '录音太短了，再试一次吧', icon: 'none' });
         return;
       }
       this.emitAudio({
@@ -368,7 +370,7 @@ export default {
         onError: () => {
           this.playing = false;
           this.playbackHandle = null;
-          uni.showToast({ title: '录音播放失败', icon: 'none' });
+          notify({ title: '录音播放失败', icon: 'none' });
         },
       });
     },
@@ -391,7 +393,7 @@ export default {
         if (!selected) return;
         this.emitAudio({ ...selected, origin: selected.origin || 'upload' });
       } catch (error) {
-        uni.showToast({ title: error?.message || '选择录音失败', icon: 'none' });
+        notify({ title: error?.message || '选择录音失败', icon: 'none' });
       }
     },
   },
@@ -489,7 +491,13 @@ export default {
   border: 0;
 }
 
-.record-primary--pressed {
+.record-primary__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.record-primary:active {
   transform: scale(0.97);
 }
 
@@ -528,24 +536,6 @@ export default {
 
 :deep(.record-ready-action.t-button) {
   border-radius: var(--radius-pill);
-}
-
-:deep(.record-ready-action--primary.t-button) {
-  --td-button-primary-bg-color: var(--success-color);
-  --td-button-primary-border-color: var(--success-color);
-  --td-button-primary-active-bg-color: var(--accent-color);
-  --td-button-primary-active-border-color: var(--accent-color);
-}
-
-:deep(.record-ready-action--secondary.t-button) {
-  --td-button-default-outline-color: var(--text-color);
-  --td-button-default-outline-border-color: var(--border-strong-color, var(--border-color));
-  background: var(--surface-color);
-}
-
-:deep(.record-action.t-button--light),
-:deep(.record-action .t-button__content) {
-  color: var(--on-accent-color);
 }
 
 .audio-capture--disabled {

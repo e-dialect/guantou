@@ -31,6 +31,11 @@ vi.mock('@/services/canDraftAudio', () => ({
   releaseDraftAudioUrl: vi.fn(),
 }));
 
+vi.mock('@/services/feedback', () => ({ notify: vi.fn(), confirm: vi.fn() }));
+
+import BaseForm from '@/components/BaseForm.vue';
+import BaseField from '@/components/BaseField.vue';
+import { confirm, notify } from '@/services/feedback';
 import CanCreate from '@/pages/cans/create.vue';
 import { uploadFile } from '@/services/file';
 import {
@@ -41,12 +46,15 @@ import {
 import {
   getCanDraftOwnerScope,
   getCanDraftWithAudio,
+  listCanDrafts,
+  removeCanDraft,
   saveCanDraft,
 } from '@/services/canDrafts';
-import { saveInterceptIntent } from '@/services/authGuard';
+import { isLoggedIn, requireAuth, saveInterceptIntent } from '@/services/authGuard';
+import { releaseDraftAudioUrl } from '@/services/canDraftAudio';
 
 function mountCreate() {
-  return mount(CanCreate, {
+  const wrapper = mount(CanCreate, {
     global: {
       stubs: {
         AudioCapture: true,
@@ -54,19 +62,11 @@ function mountCreate() {
           props: ['title'],
           template: '<main><h1>{{ title }}</h1><slot /></main>',
         },
-        picker: {
-          template: '<div><slot /></div>',
-        },
-        'uni-forms': {
-          template: '<form><slot /></form>',
-        },
-        'uni-forms-item': {
-          props: ['label'],
-          template: '<label>{{ label }}<slot /></label>',
-        },
       },
     },
   });
+  wrapper.getComponent(BaseForm).vm.validate = vi.fn().mockResolvedValue(true);
+  return wrapper;
 }
 
 describe('can creation draft recovery', () => {
@@ -76,6 +76,8 @@ describe('can creation draft recovery', () => {
     createCanWithNameplate.mockReset();
     createCanForFlavor.mockReset();
     getCanDraftOwnerScope.mockReturnValue('user:7');
+    isLoggedIn.mockReturnValue(true);
+    listCanDrafts.mockReturnValue([]);
     globalThis.uni = {
       redirectTo: vi.fn(),
       reLaunch: vi.fn(),
@@ -229,7 +231,7 @@ describe('can creation draft recovery', () => {
     );
     expect(wrapper.vm.form.concept_text).toBe('膝盖');
     expect(wrapper.vm.audio.path).toBe('/tmp/knee.mp3');
-    expect(uni.showToast).toHaveBeenCalledWith({
+    expect(notify).toHaveBeenCalledWith({
       title: '提交失败，已保存草稿',
       icon: 'none',
     });
@@ -293,7 +295,7 @@ describe('can creation draft recovery', () => {
 
     await expect(wrapper.vm.loadDialects()).resolves.toBeUndefined();
 
-    expect(uni.showToast).toHaveBeenCalledWith({
+    expect(notify).toHaveBeenCalledWith({
       title: '方言点加载失败，可稍后重试',
       icon: 'none',
     });
@@ -357,7 +359,7 @@ describe('can creation draft recovery', () => {
 
     expect(wrapper.vm.audio.invalid).toBe(true);
     expect(wrapper.vm.canSubmit).toBe(false);
-    expect(uni.showToast).toHaveBeenCalledWith({
+    expect(notify).toHaveBeenCalledWith({
       title: '草稿录音已失效，请重新录制',
       icon: 'none',
     });
@@ -377,7 +379,7 @@ describe('can creation draft recovery', () => {
     expect(wrapper.vm.draftAccessBlocked).toBe(true);
     expect(uploadFile).not.toHaveBeenCalled();
     expect(uni.reLaunch).toHaveBeenCalledWith({ url: '/pages/index?status=me' });
-    expect(uni.showToast).toHaveBeenCalledWith({
+    expect(notify).toHaveBeenCalledWith({
       title: '该草稿属于其他账号',
       icon: 'none',
     });
@@ -405,5 +407,150 @@ describe('can creation draft recovery', () => {
       flavorId: 12,
     });
     expect(uni.redirectTo).toHaveBeenCalledWith({ url: '/pages/cans/details?id=31' });
+  });
+
+  it('persists a guest draft before requesting login with its return context', async () => {
+    isLoggedIn.mockReturnValue(false);
+    getCanDraftOwnerScope.mockReturnValue('anonymous:guest');
+    const wrapper = mountCreate();
+    wrapper.vm.form.concept_text = '月亮';
+    wrapper.vm.form.submitted_dialect_id = 1;
+    wrapper.vm.audio = { path: 'blob:moon', origin: 'record' };
+
+    await wrapper.vm.submit();
+
+    expect(uploadFile).not.toHaveBeenCalled();
+    expect(saveCanDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ concept_text: '月亮' }),
+      expect.any(Object),
+      expect.objectContaining({ ownerScope: 'anonymous:guest', reason: 'login_required' }),
+    );
+    expect(requireAuth).toHaveBeenCalledWith('record_can', expect.objectContaining({
+      returnRoute: '/pages/cans/create', draftId: 'draft-1', ownerScope: 'anonymous:guest',
+    }));
+    expect(removeCanDraft).not.toHaveBeenCalled();
+  });
+
+  it('keeps a guest on the form if saving before login fails', async () => {
+    isLoggedIn.mockReturnValue(false);
+    saveCanDraft.mockRejectedValue(new Error('storage full'));
+    const wrapper = mountCreate();
+    wrapper.vm.form.concept_text = '月亮';
+    wrapper.vm.form.submitted_dialect_id = 1;
+    wrapper.vm.audio = { path: 'blob:moon' };
+
+    await wrapper.vm.submit();
+
+    expect(requireAuth).not.toHaveBeenCalled();
+    expect(wrapper.vm.audio.path).toBe('blob:moon');
+    expect(wrapper.vm.submitted).toBe(false);
+  });
+
+  it('uses the signed-in owner for subsequent saves after a guest logs in', async () => {
+    getCanDraftOwnerScope.mockReturnValue('anonymous:guest');
+    const wrapper = mountCreate();
+    wrapper.vm.form.concept_text = '月亮';
+    getCanDraftOwnerScope.mockReturnValue('user:7');
+
+    CanCreate.onShow.call(wrapper.vm);
+    await wrapper.vm.persistDirtyDraft('page_hidden');
+
+    expect(saveCanDraft).toHaveBeenCalledWith(
+      expect.any(Object), expect.any(Object), expect.objectContaining({ ownerScope: 'user:7' }),
+    );
+  });
+
+  it('cleans up the owner-scoped draft only after creation succeeds', async () => {
+    uploadFile.mockResolvedValue({ url: '/media/moon.mp3', duration_ms: 2200 });
+    createCanWithNameplate.mockResolvedValue({ id: 41 });
+    const wrapper = mountCreate();
+    wrapper.vm.draftId = 'draft-existing';
+    wrapper.vm.form.concept_text = '月亮';
+    wrapper.vm.form.submitted_dialect_id = 1;
+    wrapper.vm.audio = { path: '/saved/moon.mp3' };
+    wrapper.vm.label.text_content = '月娘';
+    wrapper.vm.label.source = { type: 'oral', attributed_to: '奶奶', note: '小时候听到' };
+
+    await wrapper.vm.submit();
+    await wrapper.vm.persistDirtyDraft('page_hidden');
+
+    expect(createCanWithNameplate).toHaveBeenCalledWith({
+      can: expect.objectContaining({ audio_url: '/media/moon.mp3', duration_ms: 2200 }),
+      label: expect.objectContaining({
+        text_content: '月娘',
+        source: { type: 'oral', attributed_to: '奶奶', note: '小时候听到' },
+      }),
+    });
+    expect(removeCanDraft).toHaveBeenCalledWith('draft-existing', 'user:7');
+    expect(releaseDraftAudioUrl).toHaveBeenCalledWith(wrapper.vm.audio);
+    expect(wrapper.vm.submitted).toBe(true);
+    expect(saveCanDraft).not.toHaveBeenCalled();
+    expect(uni.redirectTo).toHaveBeenCalledWith({ url: '/pages/cans/details?id=41' });
+  });
+
+  it('waits for primitive validation and blocks both invalid and duplicate submissions', async () => {
+    const wrapper = mountCreate();
+    wrapper.vm.form.concept_text = '月亮';
+    wrapper.vm.form.submitted_dialect_id = 1;
+    wrapper.vm.audio = { path: '/saved/moon.mp3' };
+    let resolveValidation;
+    const validate = wrapper.getComponent(BaseForm).vm.validate;
+    validate.mockImplementation(() => new Promise((resolve) => { resolveValidation = resolve; }));
+
+    const pending = wrapper.vm.submit();
+    await wrapper.vm.submit();
+    expect(validate).toHaveBeenCalledTimes(1);
+    expect(uploadFile).not.toHaveBeenCalled();
+    resolveValidation({ concept_text: [{ message: '请填写普通话概念' }] });
+    await pending;
+
+    expect(uploadFile).not.toHaveBeenCalled();
+    expect(wrapper.vm.submitting).toBe(false);
+    expect(wrapper.vm.rules.concept_text[0].validator('  ')).toBe(false);
+    wrapper.vm.mode = 'flavor';
+    expect(wrapper.vm.rules.concept_text[0].validator('月亮')).toBe(false);
+    wrapper.vm.targetFlavor.id = 12;
+    expect(wrapper.vm.rules.concept_text[0].validator('')).toBe(true);
+  });
+
+  it('keeps optional fields bound to the original payload and clears their server errors', async () => {
+    const wrapper = mountCreate();
+    wrapper.vm.optionalOpen = true;
+    wrapper.vm.fieldErrors = { note: '来源有误' };
+    await wrapper.vm.$nextTick();
+    const note = wrapper.findAllComponents(BaseField)
+      .find((field) => field.props('name') === 'label.source.note');
+
+    expect(note.props('required')).toBe(false);
+    expect(note.props('error')).toBe('来源有误');
+    note.vm.$emit('update:modelValue', '小时候听奶奶说的');
+    note.vm.$emit('change', '小时候听奶奶说的');
+    wrapper.vm.onEvidenceChange({ value: [3] });
+    wrapper.vm.onSourceTypeChange({ value: ['book'] });
+    wrapper.vm.onPackageTypeChange({ value: ['popular'] });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.label.source).toMatchObject({ type: 'book', note: '小时候听奶奶说的' });
+    expect(wrapper.vm.label.evidence_level).toBe(3);
+    expect(wrapper.vm.label.package_type).toBe('popular');
+    expect(wrapper.vm.fieldErrors.note).toBeUndefined();
+    expect(wrapper.vm.formData.label).toBe(wrapper.vm.label);
+    expect(wrapper.vm.form).not.toHaveProperty('label');
+  });
+
+  it.each([true, false])('restores a suggested draft only when confirmed (%s)', async (accepted) => {
+    listCanDrafts.mockReturnValue([{ id: 'draft-restore' }]);
+    confirm.mockResolvedValue(accepted);
+    getCanDraftWithAudio.mockResolvedValue({
+      id: 'draft-restore', ownerScope: 'user:7', mode: 'free',
+      form: { concept_text: '月亮' }, label: {}, audio: { path: '/saved/moon.mp3' },
+    });
+    const wrapper = mountCreate();
+
+    await wrapper.vm.restoreDraftIfNeeded({});
+
+    expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ title: '发现未完成草稿' }));
+    expect(wrapper.vm.form.concept_text).toBe(accepted ? '月亮' : '');
+    expect(getCanDraftWithAudio).toHaveBeenCalledTimes(accepted ? 1 : 0);
   });
 });

@@ -23,7 +23,7 @@
 | `pages/login/register` | issue | [#228](https://github.com/e-dialect/guantou/issues/228)：验证码、协议与注册校验 |
 | `pages/login/register/wechat` | issue | [#230](https://github.com/e-dialect/guantou/issues/230)：微信昵称/授权能力 |
 | `pages/login/forget` | issue | [#226](https://github.com/e-dialect/guantou/issues/226)：多阶段找回密码流程 |
-| `pages/cans/create` | partial | [#195](https://github.com/e-dialect/guantou/issues/195) / [PR #216](https://github.com/e-dialect/guantou/pull/216)：录音、草稿、TDesign 级联与枚举 Picker 已迁移；项目表单原语的进一步收敛由 [#232](https://github.com/e-dialect/guantou/issues/232) 跟踪 |
+| `pages/cans/create` | done | [#232](https://github.com/e-dialect/guantou/issues/232) / [PR #282](https://github.com/e-dialect/guantou/pull/282)：BaseForm / BaseField、按钮、加载、空态与共享反馈；保留方言级联、枚举 Picker、录音及草稿业务，见下方验收记录 |
 | `pages/pronunciations/create` | done | [#234](https://github.com/e-dialect/guantou/issues/234)：PageShell + BaseForm/BaseField/BaseButton、统一加载/重试/反馈；保留写法 Picker、方言级联、联合校验、字段错误定位与成功返回 |
 | `pages/shelves/index` | issue | [#231](https://github.com/e-dialect/guantou/issues/231)：创建表单与列表状态 |
 | `pages/shelves/details` | issue | [#235](https://github.com/e-dialect/guantou/issues/235)：编辑、双搜索和成员管理 |
@@ -41,6 +41,19 @@
 | `pages/discovery/index` | queued | 操作按钮与加载状态 |
 | `pages/users/me` / `details` / `recommend-follow` | queued | 开放能力与关注交互分别迁移 |
 | `pages/mails/index` / `details` | queued | Cell、加载和通用操作 |
+
+## 装罐页 #232 验收记录
+
+- 基于 #216 已完成的方言级联与录音布局迁移，继续使用一次加载的方言树、默认/最近方言快捷入口及三个枚举 Picker，不增加惰性请求。
+- 普通话概念与方言点通过 BaseForm 校验；音频可用性仍由页面业务校验。家乡话写法、说明、读音、来源及备注继续选填，字段长度和提交 payload 保持原样。补录模式继续锁定义项并调用原有提交服务。
+- BaseField 支持自定义控件插槽和完成状态图标；BaseButton 显式传递录音操作图标，兼容小程序编译。AudioCapture 仅替换按钮与反馈，保留录音器、文件选择和播放适配。
+- 草稿基线测试先于迁移建立；覆盖临时音频持久化、失效音频、账号隔离、游客登录归属、登录前保存失败、401 返回上下文、提交失败保留和成功后清理。异步校验期间也阻止重复提交。
+- 自动化验证：前端 lint、完整单元测试、H5 与微信小程序构建；新增浏览器测试使用模拟 API 和浏览器测试音源，覆盖真实 H5 控件、麦克风拒绝后重试、IndexedDB 恢复/缺失音频、游客登录拦截、提交失败与成功清理。
+- 浅暗主题在 390×844 视口验收；长图仅展开页面滚动容器以展示完整内容：[浅色](assets/tdesign-migration/can-create-light-390x844.png)、[暗色](assets/tdesign-migration/can-create-dark-390x844.png)。
+- PR 展示使用提交者提供的三张截图：[草稿恢复弹窗](assets/tdesign-migration/issue-232/draft-restore.png)、[补充表单](assets/tdesign-migration/issue-232/optional-fields.png)、[录音完成状态](assets/tdesign-migration/issue-232/recording-ready.png)。
+- 微信录音回调与临时文件恢复已做模拟回归，并通过小程序构建；本次未连接微信真机，系统授权弹窗、实际设备录音与重启后的文件恢复仍需真机验收。
+
+浏览器复现：启动 H5 预览后，设置 `E2E_BASE_URL` 为预览地址，运行 `npx playwright test tests/e2e/can-create-form.spec.js --workers=1`。可选设置 `E2E_SCREENSHOT_DIR=../docs/assets/tdesign-migration` 保存长图。
 
 ## 发表立论页（#237）
 

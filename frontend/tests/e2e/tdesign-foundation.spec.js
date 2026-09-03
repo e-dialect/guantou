@@ -79,14 +79,14 @@ test('component-level theme-dark recomputes TDesign tokens', async ({ page }) =>
   expect(colors.text).toBe('rgb(237, 244, 239)');
 });
 
-test('legacy native inputs keep a non-zero text area until migration', async ({ page }) => {
+test('can creation uses a BaseField with a non-zero text area', async ({ page }) => {
   await page.goto('/pages/cans/create');
 
-  const legacyInput = page.locator('input:not(.t-input__control)').first();
-  await expect(legacyInput).toBeVisible();
-  const legacyInputBox = await rect(legacyInput);
+  const conceptInput = page.locator('.base-field input').first();
+  await expect(conceptInput).toBeVisible();
+  const conceptInputBox = await rect(conceptInput);
 
-  expect(legacyInputBox.height).toBeGreaterThan(20);
+  expect(conceptInputBox.height).toBeGreaterThan(20);
 });
 
 test('PageShell and AppShell mount the shared feedback host', async ({ page }) => {

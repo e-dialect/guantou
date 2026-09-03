@@ -8,39 +8,18 @@
       v-if="loading"
       class="page-state page-state--loading"
     >
-      <t-skeleton
-        animation="flashed"
-        :row-col="[
-          { width: '100%', height: '320rpx' },
-          1,
-          [{ width: '58%' }, { width: '34%', marginLeft: '8%' }],
-          1,
-        ]"
-      />
-      <t-loading
-        class="page-state__loading"
-        theme="dots"
-        size="36rpx"
-        text="正在准备录音页…"
-      />
+      <BaseLoading text="正在准备录音页…" />
     </view>
     <view
       v-else-if="loadError"
       class="page-state"
     >
-      <t-result
-        theme="error"
+      <EmptyState
         title="页面暂时没准备好"
         :description="loadError"
+        action-text="重试"
+        @action="loadPage"
       />
-      <t-button
-        theme="primary"
-        variant="outline"
-        size="small"
-        @click="loadPage"
-      >
-        重试
-      </t-button>
     </view>
     <template v-else>
       <view class="can-create-page">
@@ -71,30 +50,25 @@
           {{ fieldErrors.initial_nameplate }}
         </view>
 
-        <view class="form-sheet">
-          <view class="form-sheet__heading">
-            <text class="form-sheet__title">
-              再告诉我们两件事
-            </text>
-          </view>
+        <BaseForm
+          ref="form"
+          :data="formData"
+          :rules="rules"
+          :required-mark="false"
+        >
+          <view class="form-sheet">
+            <view class="form-sheet__heading">
+              <text class="form-sheet__title">
+                再告诉我们两件事
+              </text>
+            </view>
 
-          <t-form
-            class="essential-form"
-            :data="form"
-            label-align="left"
-            label-width="112px"
-            :show-error-message="false"
-          >
-            <t-form-item
-              name="concept_text"
-              label="普通话概念"
-              :help="fieldErrors.concept_text"
-              :required-mark="false"
-            >
-              <t-input
-                v-model:value="form.concept_text"
-                :class="{ 'concept-input--complete': conceptComplete }"
-                borderless
+            <view class="essential-form">
+              <BaseField
+                v-model="form.concept_text"
+                name="concept_text"
+                label="普通话概念"
+                :error="fieldErrors.concept_text"
                 :disabled="mode === 'flavor'"
                 placeholder="例如：膝盖、奶奶、走路"
                 :maxlength="20"
@@ -102,294 +76,280 @@
                 :suffix-icon="conceptSuffixIcon"
                 @change="clearFieldError('concept_text')"
               />
-            </t-form-item>
 
-            <t-form-item
-              name="submitted_dialect_id"
-              label="方言点"
-              :help="fieldErrors.submitted_dialect_id"
-              :required-mark="false"
-            >
-              <t-cell
-                v-if="dialects.length"
-                :class="{ 'dialect-cell--complete': form.submitted_dialect_id }"
-                :title="form.submitted_dialect_id ? dialectDisplayLabel : '选择省、市、区县'"
-                :right-icon="dialectRightIcon"
-                :bordered="false"
-                hover
-                @click="openDialectPicker"
-              />
-              <t-empty
-                v-else
-                class="dialect-empty-state"
-                icon="map-location"
-                description="方言点暂时加载失败"
+              <BaseField
+                name="submitted_dialect_id"
+                label="方言点"
+                :error="fieldErrors.submitted_dialect_id"
               >
-                <template #action>
-                  <t-button
-                    theme="primary"
-                    variant="outline"
-                    size="small"
-                    @click="loadPage"
-                  >
-                    重新加载
-                  </t-button>
-                </template>
-              </t-empty>
-            </t-form-item>
-          </t-form>
-        </view>
-
-        <t-cascader
-          :visible="dialectPickerVisible"
-          :value="form.submitted_dialect_id || undefined"
-          title="选择方言点"
-          placeholder="请选择"
-          theme="tab"
-          filterable
-          filter-placeholder="搜索名称或方言点编码"
-          :filter="filterDialectOption"
-          :keys="dialectCascadeKeys"
-          :options="dialectCascadeOptions"
-          @change="onDialectCascadeChange"
-          @close="dialectPickerVisible = false"
-        >
-          <template #middle-content>
-            <view
-              v-if="primaryDialect || recentDialects.length"
-              class="dialect-shortcuts"
-            >
-              <view
-                v-if="primaryDialect"
-                class="dialect-shortcut-group"
-              >
-                <text class="dialect-shortcut-group__label">
-                  默认方言点
-                </text>
-                <t-button
-                  size="small"
-                  theme="primary"
-                  variant="outline"
-                  @click="selectDialectShortcut(primaryDialect)"
-                >
-                  {{ dialectFullPath(primaryDialect.id) }}
-                </t-button>
-              </view>
-              <view
-                v-if="recentDialects.length"
-                class="dialect-shortcut-group"
-              >
-                <text class="dialect-shortcut-group__label">
-                  最近使用
-                </text>
-                <view class="dialect-shortcut-list">
-                  <t-button
-                    v-for="dialect in recentDialects"
-                    :key="dialect.id"
-                    size="small"
-                    theme="default"
-                    variant="outline"
-                    @click="selectDialectShortcut(dialect)"
-                  >
-                    {{ dialectFullPath(dialect.id) }}
-                  </t-button>
-                </view>
-              </view>
+                <t-cell
+                  v-if="dialects.length"
+                  :class="{ 'dialect-cell--complete': form.submitted_dialect_id }"
+                  :title="form.submitted_dialect_id ? dialectDisplayLabel : '选择省、市、区县'"
+                  :right-icon="dialectRightIcon"
+                  :bordered="false"
+                  hover
+                  @click="openDialectPicker"
+                />
+                <EmptyState
+                  v-else
+                  class="dialect-empty-state"
+                  title="方言点暂时加载失败"
+                  action-text="重新加载"
+                  @action="loadPage"
+                />
+              </BaseField>
             </view>
-          </template>
-        </t-cascader>
+          </view>
 
-        <t-collapse
-          v-model:value="optionalSections"
-          class="optional-collapse"
-          theme="card"
-        >
-          <t-collapse-panel
-            value="extra"
+          <t-cascader
+            :visible="dialectPickerVisible"
+            :value="form.submitted_dialect_id || undefined"
+            title="选择方言点"
+            placeholder="请选择"
+            theme="tab"
+            filterable
+            filter-placeholder="搜索名称或方言点编码"
+            :filter="filterDialectOption"
+            :keys="dialectCascadeKeys"
+            :options="dialectCascadeOptions"
+            @change="onDialectCascadeChange"
+            @close="dialectPickerVisible = false"
           >
-            <template #header>
-              <view class="optional-summary">
-                <text class="optional-summary__title">
-                  想多说一点？（可选）
-                </text>
-                <text class="optional-summary__description">
-                  可以补充写法、读音或来历
-                </text>
+            <template #middle-content>
+              <view
+                v-if="primaryDialect || recentDialects.length"
+                class="dialect-shortcuts"
+              >
+                <view
+                  v-if="primaryDialect"
+                  class="dialect-shortcut-group"
+                >
+                  <text class="dialect-shortcut-group__label">
+                    默认方言点
+                  </text>
+                  <BaseButton
+                    size="small"
+                    variant="ghost"
+                    @click="selectDialectShortcut(primaryDialect)"
+                  >
+                    {{ dialectFullPath(primaryDialect.id) }}
+                  </BaseButton>
+                </view>
+                <view
+                  v-if="recentDialects.length"
+                  class="dialect-shortcut-group"
+                >
+                  <text class="dialect-shortcut-group__label">
+                    最近使用
+                  </text>
+                  <view class="dialect-shortcut-list">
+                    <BaseButton
+                      v-for="dialect in recentDialects"
+                      :key="dialect.id"
+                      size="small"
+                      variant="ghost"
+                      @click="selectDialectShortcut(dialect)"
+                    >
+                      {{ dialectFullPath(dialect.id) }}
+                    </BaseButton>
+                  </view>
+                </view>
               </view>
             </template>
-            <view class="optional-fields">
-              <view class="optional-group">
-                <view class="optional-group__heading">
-                  <t-icon
-                    name="edit-1"
-                    size="36rpx"
-                  />
-                  <text>写法与释义</text>
-                </view>
-                <t-input
-                  v-model:value="label.text_content"
-                  label="家乡话写法"
-                  :maxlength="10"
-                  placeholder="不确定可以留空"
-                  :status="fieldErrors.text_content ? 'error' : 'default'"
-                  :tips="fieldErrors.text_content"
-                  @change="clearFieldError('text_content')"
-                />
-                <t-textarea
-                  v-model:value="label.definition"
-                  label="补充说明"
-                  :maxlength="50"
-                  placeholder="这句话什么时候会说？"
-                  :status="fieldErrors.definition ? 'error' : 'default'"
-                  :tips="fieldErrors.definition"
-                  @change="clearFieldError('definition')"
-                />
-                <t-input
-                  v-model:value="label.pronunciation_text"
-                  label="原样读音"
-                  :maxlength="40"
-                  placeholder="按你熟悉的方式记下读音"
-                  :status="fieldErrors.pronunciation_text ? 'error' : 'default'"
-                  :tips="fieldErrors.pronunciation_text"
-                  @change="clearFieldError('pronunciation_text')"
-                />
+          </t-cascader>
 
-                <view class="picker-field">
-                  <view class="picker-label">
-                    写法类型
-                  </view>
-                  <t-cell
-                    :title="packageTypeLabel"
-                    arrow
-                    :bordered="false"
-                    hover
-                    @click="packageTypePickerVisible = true"
-                  />
-                </view>
-              </view>
-
-              <view class="optional-group">
-                <view class="optional-group__heading">
-                  <t-icon
-                    name="map-information-1"
-                    size="36rpx"
-                  />
-                  <text>来源与采集信息</text>
-                </view>
-                <view class="picker-field">
-                  <view class="picker-label">
-                    证据等级
-                  </view>
-                  <t-cell
-                    :title="evidenceLabel"
-                    arrow
-                    :bordered="false"
-                    hover
-                    @click="evidencePickerVisible = true"
-                  />
-                </view>
-                <view class="picker-field">
-                  <view class="picker-label">
-                    资料来源类型
-                  </view>
-                  <t-cell
-                    :title="sourceTypeLabel"
-                    arrow
-                    :bordered="false"
-                    hover
-                    @click="sourceTypePickerVisible = true"
-                  />
-                </view>
-
-                <t-input
-                  v-model:value="label.source.attributed_to"
-                  label="是谁说的"
-                  :maxlength="50"
-                  placeholder="例如：奶奶、村里的老人"
-                  :status="fieldErrors.attributed_to ? 'error' : 'default'"
-                  :tips="fieldErrors.attributed_to"
-                  @change="clearFieldError('attributed_to')"
-                />
-                <t-input
-                  v-model:value="label.source.note"
-                  label="从哪里听到"
-                  :maxlength="50"
-                  placeholder="例如：小时候听奶奶说的"
-                  :status="fieldErrors.note ? 'error' : 'default'"
-                  :tips="fieldErrors.note"
-                  @change="clearFieldError('note')"
-                />
-                <t-textarea
-                  v-model:value="form.source_note"
-                  label="其他备注"
-                  :maxlength="80"
-                  placeholder="还有想告诉我们的吗？"
-                  :status="fieldErrors.source_note ? 'error' : 'default'"
-                  :tips="fieldErrors.source_note"
-                  @change="clearFieldError('source_note')"
-                />
-              </view>
-            </view>
-          </t-collapse-panel>
-        </t-collapse>
-
-        <t-picker
-          :visible="packageTypePickerVisible"
-          :value="[label.package_type]"
-          title="选择写法类型"
-          @change="onPackageTypeChange"
-          @close="packageTypePickerVisible = false"
-        >
-          <t-picker-item :options="packageTypes" />
-        </t-picker>
-
-        <t-picker
-          :visible="evidencePickerVisible"
-          :value="[label.evidence_level]"
-          title="选择证据等级"
-          @change="onEvidenceChange"
-          @close="evidencePickerVisible = false"
-        >
-          <t-picker-item :options="evidenceLevels" />
-        </t-picker>
-
-        <t-picker
-          :visible="sourceTypePickerVisible"
-          :value="[label.source.type]"
-          title="选择资料来源类型"
-          @change="onSourceTypeChange"
-          @close="sourceTypePickerVisible = false"
-        >
-          <t-picker-item :options="sourceTypes" />
-        </t-picker>
-
-        <view class="submit-card">
-          <text class="submit-card__hint">
-            {{ submitHint }}
-          </text>
-          <t-button
-            block
-            size="large"
-            theme="primary"
-            :loading="submitting"
-            :disabled="submitting || !dialects.length || !canSubmit"
-            @click="submit"
+          <t-collapse
+            v-model:value="optionalSections"
+            class="optional-collapse"
+            theme="card"
           >
-            {{ submitting ? '保存中…' : '保存这段乡音' }}
-          </t-button>
-        </view>
+            <t-collapse-panel
+              value="extra"
+            >
+              <template #header>
+                <view class="optional-summary">
+                  <text class="optional-summary__title">
+                    想多说一点？（可选）
+                  </text>
+                  <text class="optional-summary__description">
+                    可以补充写法、读音或来历
+                  </text>
+                </view>
+              </template>
+              <view class="optional-fields">
+                <view class="optional-group">
+                  <view class="optional-group__heading">
+                    <t-icon
+                      name="edit-1"
+                      size="36rpx"
+                    />
+                    <text>写法与释义</text>
+                  </view>
+                  <BaseField
+                    v-model="label.text_content"
+                    name="label.text_content"
+                    label="家乡话写法"
+                    :maxlength="10"
+                    placeholder="不确定可以留空"
+                    :error="fieldErrors.text_content"
+                    @change="clearFieldError('text_content')"
+                  />
+                  <BaseField
+                    v-model="label.definition"
+                    name="label.definition"
+                    type="textarea"
+                    label="补充说明"
+                    :maxlength="50"
+                    placeholder="这句话什么时候会说？"
+                    :error="fieldErrors.definition"
+                    @change="clearFieldError('definition')"
+                  />
+                  <BaseField
+                    v-model="label.pronunciation_text"
+                    name="label.pronunciation_text"
+                    label="原样读音"
+                    :maxlength="40"
+                    placeholder="按你熟悉的方式记下读音"
+                    :error="fieldErrors.pronunciation_text"
+                    @change="clearFieldError('pronunciation_text')"
+                  />
 
-        <t-button
+                  <view class="picker-field">
+                    <view class="picker-label">
+                      写法类型
+                    </view>
+                    <t-cell
+                      :title="packageTypeLabel"
+                      arrow
+                      :bordered="false"
+                      hover
+                      @click="packageTypePickerVisible = true"
+                    />
+                  </view>
+                </view>
+
+                <view class="optional-group">
+                  <view class="optional-group__heading">
+                    <t-icon
+                      name="map-information-1"
+                      size="36rpx"
+                    />
+                    <text>来源与采集信息</text>
+                  </view>
+                  <view class="picker-field">
+                    <view class="picker-label">
+                      证据等级
+                    </view>
+                    <t-cell
+                      :title="evidenceLabel"
+                      arrow
+                      :bordered="false"
+                      hover
+                      @click="evidencePickerVisible = true"
+                    />
+                  </view>
+                  <view class="picker-field">
+                    <view class="picker-label">
+                      资料来源类型
+                    </view>
+                    <t-cell
+                      :title="sourceTypeLabel"
+                      arrow
+                      :bordered="false"
+                      hover
+                      @click="sourceTypePickerVisible = true"
+                    />
+                  </view>
+
+                  <BaseField
+                    v-model="label.source.attributed_to"
+                    name="label.source.attributed_to"
+                    label="是谁说的"
+                    :maxlength="50"
+                    placeholder="例如：奶奶、村里的老人"
+                    :error="fieldErrors.attributed_to"
+                    @change="clearFieldError('attributed_to')"
+                  />
+                  <BaseField
+                    v-model="label.source.note"
+                    name="label.source.note"
+                    label="从哪里听到"
+                    :maxlength="50"
+                    placeholder="例如：小时候听奶奶说的"
+                    :error="fieldErrors.note"
+                    @change="clearFieldError('note')"
+                  />
+                  <BaseField
+                    v-model="form.source_note"
+                    name="source_note"
+                    type="textarea"
+                    label="其他备注"
+                    :maxlength="80"
+                    placeholder="还有想告诉我们的吗？"
+                    :error="fieldErrors.source_note"
+                    @change="clearFieldError('source_note')"
+                  />
+                </view>
+              </view>
+            </t-collapse-panel>
+          </t-collapse>
+
+          <t-picker
+            :visible="packageTypePickerVisible"
+            :value="[label.package_type]"
+            title="选择写法类型"
+            @change="onPackageTypeChange"
+            @close="packageTypePickerVisible = false"
+          >
+            <t-picker-item :options="packageTypes" />
+          </t-picker>
+
+          <t-picker
+            :visible="evidencePickerVisible"
+            :value="[label.evidence_level]"
+            title="选择证据等级"
+            @change="onEvidenceChange"
+            @close="evidencePickerVisible = false"
+          >
+            <t-picker-item :options="evidenceLevels" />
+          </t-picker>
+
+          <t-picker
+            :visible="sourceTypePickerVisible"
+            :value="[label.source.type]"
+            title="选择资料来源类型"
+            @change="onSourceTypeChange"
+            @close="sourceTypePickerVisible = false"
+          >
+            <t-picker-item :options="sourceTypes" />
+          </t-picker>
+
+          <view class="submit-card">
+            <text class="submit-card__hint">
+              {{ submitHint }}
+            </text>
+            <BaseButton
+              block
+              size="large"
+              :loading="submitting"
+              :disabled="submitting || !dialects.length || !canSubmit"
+              @click="submit"
+            >
+              {{ submitting ? '保存中…' : '保存这段乡音' }}
+            </BaseButton>
+          </view>
+        </BaseForm>
+
+        <BaseButton
           v-if="mode === 'free'"
           class="existing-flavor-link"
           block
-          variant="text"
-          theme="primary"
+          variant="ghost"
           @click="goFlavorPicker"
         >
           想给已有词条补录声音？去选择词条
-        </t-button>
-        <t-toast ref="pageToast" />
+        </BaseButton>
       </view>
     </template>
   </PageShell>
@@ -399,24 +359,20 @@
 import { buildDialectTree, findDialectPath } from '@/utils/dialectTree';
 import SOURCE_OPTIONS from '@/utils/sourceOptions';
 import AudioCapture from '@/components/AudioCapture.vue';
+import BaseButton from '@/components/BaseButton.vue';
+import BaseField from '@/components/BaseField.vue';
+import BaseForm from '@/components/BaseForm.vue';
+import BaseLoading from '@/components/BaseLoading.vue';
+import EmptyState from '@/components/EmptyState.vue';
+import { confirm, notify } from '@/services/feedback';
 import PageShell from '@/components/PageShell.vue';
-import TButton from '@tdesign/uniapp/button/button.vue';
 import TCascader from '@tdesign/uniapp/cascader/cascader.vue';
 import TCell from '@tdesign/uniapp/cell/cell.vue';
 import TCollapse from '@tdesign/uniapp/collapse/collapse.vue';
 import TCollapsePanel from '@tdesign/uniapp/collapse-panel/collapse-panel.vue';
-import TEmpty from '@tdesign/uniapp/empty/empty.vue';
-import TForm from '@tdesign/uniapp/form/form.vue';
-import TFormItem from '@tdesign/uniapp/form-item/form-item.vue';
 import TIcon from '@tdesign/uniapp/icon/icon.vue';
-import TInput from '@tdesign/uniapp/input/input.vue';
-import TLoading from '@tdesign/uniapp/loading/loading.vue';
 import TPicker from '@tdesign/uniapp/picker/picker.vue';
 import TPickerItem from '@tdesign/uniapp/picker-item/picker-item.vue';
-import TResult from '@tdesign/uniapp/result/result.vue';
-import TSkeleton from '@tdesign/uniapp/skeleton/skeleton.vue';
-import TTextarea from '@tdesign/uniapp/textarea/textarea.vue';
-import TToast from '@tdesign/uniapp/toast/toast.vue';
 import { uploadFile } from '@/services/file';
 import {
   createCanForFlavor,
@@ -499,24 +455,19 @@ export { buildDialectTree, findDialectPath };
 export default {
   components: {
     AudioCapture,
+    BaseButton,
+    BaseField,
+    BaseForm,
+    BaseLoading,
+    EmptyState,
     PageShell,
-    TButton,
     TCascader,
     TCell,
     TCollapse,
     TCollapsePanel,
-    TEmpty,
-    TForm,
-    TFormItem,
     TIcon,
-    TInput,
-    TLoading,
     TPicker,
     TPickerItem,
-    TResult,
-    TSkeleton,
-    TTextarea,
-    TToast,
   },
   data() {
     return {
@@ -576,6 +527,20 @@ export default {
     };
   },
   computed: {
+    formData() {
+      return { ...this.form, label: this.label };
+    },
+    rules() {
+      return {
+        concept_text: [{
+          validator: (value) => (this.mode === 'flavor'
+            ? Boolean(this.targetFlavor.id)
+            : Boolean(String(value || '').trim())),
+          message: this.mode === 'flavor' ? '请重新选择要补录的义项' : '请填写普通话概念',
+        }],
+        submitted_dialect_id: [{ required: true, message: '请选择方言点' }],
+      };
+    },
     conceptComplete() {
       return this.mode === 'flavor'
         ? Boolean(this.targetFlavor.id)
@@ -789,7 +754,7 @@ export default {
       ) {
         this.draftAccessBlocked = true;
         releaseDraftAudioUrl(this.audio);
-        uni.showToast({ title: '该草稿属于其他账号', icon: 'none' });
+        notify({ title: '该草稿属于其他账号', icon: 'none' });
         goHome(true, { status: 'me' });
         return false;
       }
@@ -806,7 +771,7 @@ export default {
         this.restoreDialectPicker(this.form.submitted_dialect_id);
       } catch (error) {
         this.dialectLoadFailed = true;
-        uni.showToast({ title: '方言点加载失败，可稍后重试', icon: 'none' });
+        notify({ title: '方言点加载失败，可稍后重试', icon: 'none' });
       }
     },
     applyEntryContext(options) {
@@ -850,13 +815,11 @@ export default {
         ))
         : drafts[0];
       if (!latestDraft) return;
-      uni.showModal({
+      const shouldRestore = await confirm({
         title: '发现未完成草稿',
         content: '是否恢复上次没提交成功的装罐内容？',
-        success: async (res) => {
-          if (res.confirm) await this.restoreDraft(latestDraft.id);
-        },
       });
+      if (shouldRestore) await this.restoreDraft(latestDraft.id);
     },
     async restoreDraft(id) {
       const draft = await getCanDraftWithAudio(id);
@@ -891,7 +854,7 @@ export default {
       };
       this.audio = draft.audio || this.audio;
       if (draft.audio?.invalid) {
-        uni.showToast({ title: '草稿录音已失效，请重新录制', icon: 'none' });
+        notify({ title: '草稿录音已失效，请重新录制', icon: 'none' });
       }
       this.draftDialectName = draft.dialectName || '';
       if (this.dialectTree.length) {
@@ -913,7 +876,7 @@ export default {
         this.targetFlavor = { id: '', name: '' };
         return;
       }
-      uni.showToast({ title: '请从义项详情进入补录音', icon: 'none' });
+      notify({ title: '请从义项详情进入补录音', icon: 'none' });
       this.mode = 'free';
     },
     onPackageTypeChange(context = {}) {
@@ -1025,18 +988,10 @@ export default {
       this.persistDirtyDraft('audio_changed');
     },
     showPageToast(message) {
-      this.$nextTick(() => {
-        if (typeof this.$refs.pageToast?.show !== 'function') return;
-        this.$refs.pageToast.show({
-          theme: 'success',
-          message,
-          duration: 1200,
-          placement: 'bottom',
-        });
-      });
+      notify({ title: message, icon: 'success', duration: 1200 });
     },
     onAudioError() {
-      uni.showToast({ title: '录音暂时无法使用，请重试', icon: 'none' });
+      notify({ title: '录音暂时无法使用，请重试', icon: 'none' });
     },
     clearAudio() {
       releaseDraftAudioUrl(this.audio);
@@ -1052,7 +1007,7 @@ export default {
       delete this.fieldErrors.audio_url;
       if (this.draftId) {
         this.saveDraft('audio_cleared').catch(() => {
-          uni.showToast({ title: '草稿保存失败，请稍后重试', icon: 'none' });
+          notify({ title: '草稿保存失败，请稍后重试', icon: 'none' });
         });
       }
     },
@@ -1103,7 +1058,7 @@ export default {
     persistDirtyDraft(reason) {
       if (!this.submitted && !this.draftAccessBlocked && this.isDirty) {
         return this.saveDraft(reason).catch(() => {
-          uni.showToast({ title: '草稿保存失败，请稍后重试', icon: 'none' });
+          notify({ title: '草稿保存失败，请稍后重试', icon: 'none' });
         });
       }
       return Promise.resolve();
@@ -1117,82 +1072,91 @@ export default {
     goFlavorPicker() {
       goAtlas();
     },
-    validateForm() {
+    async validateForm() {
+      const valid = await this.$refs.form.validate();
       const errors = {};
-      if (this.mode !== 'flavor' && !this.form.concept_text.trim()) {
-        errors.concept_text = '请填写普通话概念';
-      }
-      if (this.mode === 'flavor' && !this.targetFlavor.id) {
-        errors.concept_text = '请重新选择要补录的义项';
-      }
-      if (!this.form.submitted_dialect_id) {
-        errors.submitted_dialect_id = '请选择方言点';
-      }
       if (!this.audio.path || this.audio.invalid) {
         errors.audio_url = this.audio.invalid
           ? '草稿录音已失效，请重新录制'
           : '请先录音或上传音频';
       }
       this.fieldErrors = errors;
-      if (Object.keys(errors).length) {
-        uni.showToast({ title: '请检查装罐表单', icon: 'none' });
+      if (valid !== true || Object.keys(errors).length) {
+        notify({ title: '请检查装罐表单', icon: 'none' });
         return false;
       }
       return true;
     },
     async submit() {
-      if (!this.ensureCurrentDraftOwner()) return;
-      if (!this.validateForm()) return;
-      if (!isLoggedIn()) {
-        let draft;
-        try {
-          draft = await this.saveDraft('login_required');
-        } catch (error) {
-          uni.showToast({ title: '草稿保存失败，请稍后重试', icon: 'none' });
-          return;
-        }
-        requireAuth('record_can', {
-          page: 'can_create',
-          returnRoute: ROUTES.canCreate,
-          mode: this.mode,
-          flavorId: this.targetFlavor.id || undefined,
-          draftId: draft.id,
-          ownerScope: draft.ownerScope,
-        });
-        return;
-      }
-
+      if (this.submitting || !this.ensureCurrentDraftOwner()) return;
       this.submitting = true;
       try {
-        if (this.draftSavePromise) await this.draftSavePromise.catch(() => {});
-        if (!this.ensureCurrentDraftOwner()) return;
-        const uploaded = await uploadFile(this.audio.path);
-        const canPayload = {
-          ...this.form,
-          audio_url: uploaded.url,
-          duration_ms: uploaded.duration_ms ?? this.form.duration_ms,
-        };
-        const can = this.mode === 'flavor' && this.targetFlavor.id
-          ? await createCanForFlavor({
-            can: canPayload,
-            flavorId: this.targetFlavor.id,
-          })
-          : await createCanWithNameplate({
-            can: canPayload,
-            label: this.label,
+        if (!await this.validateForm() || !this.ensureCurrentDraftOwner()) return;
+        if (!isLoggedIn()) {
+          let draft;
+          try {
+            draft = await this.saveDraft('login_required');
+          } catch (error) {
+            notify({ title: '草稿保存失败，请稍后重试', icon: 'none' });
+            return;
+          }
+          requireAuth('record_can', {
+            page: 'can_create',
+            returnRoute: ROUTES.canCreate,
+            mode: this.mode,
+            flavorId: this.targetFlavor.id || undefined,
+            draftId: draft.id,
+            ownerScope: draft.ownerScope,
           });
-        this.submitted = true;
-        if (this.draftSavePromise) await this.draftSavePromise.catch(() => {});
-        if (this.draftId) await removeCanDraft(this.draftId, this.draftOwnerScope);
-        releaseDraftAudioUrl(this.audio);
-        uni.showToast({ title: '乡音已封存', icon: 'success' });
-        goCanDetail(can.id, { replace: true });
-      } catch (error) {
-        this.fieldErrors = canApiErrors(error);
-        let draft;
+          return;
+        }
+
         try {
-          draft = await this.saveDraft(error.code || error.message || 'submit_failed');
-        } catch (draftError) {
+          if (this.draftSavePromise) await this.draftSavePromise.catch(() => {});
+          if (!this.ensureCurrentDraftOwner()) return;
+          const uploaded = await uploadFile(this.audio.path);
+          const canPayload = {
+            ...this.form,
+            audio_url: uploaded.url,
+            duration_ms: uploaded.duration_ms ?? this.form.duration_ms,
+          };
+          const can = this.mode === 'flavor' && this.targetFlavor.id
+            ? await createCanForFlavor({
+              can: canPayload,
+              flavorId: this.targetFlavor.id,
+            })
+            : await createCanWithNameplate({
+              can: canPayload,
+              label: this.label,
+            });
+          this.submitted = true;
+          if (this.draftSavePromise) await this.draftSavePromise.catch(() => {});
+          if (this.draftId) await removeCanDraft(this.draftId, this.draftOwnerScope);
+          releaseDraftAudioUrl(this.audio);
+          notify({ title: '乡音已封存', icon: 'success' });
+          goCanDetail(can.id, { replace: true });
+        } catch (error) {
+          this.fieldErrors = canApiErrors(error);
+          let draft;
+          try {
+            draft = await this.saveDraft(error.code || error.message || 'submit_failed');
+          } catch (draftError) {
+            if (error.statusCode === 401) {
+              saveInterceptIntent({
+                action: 'record_can',
+                context: {
+                  page: 'can_create',
+                  returnRoute: ROUTES.canCreate,
+                  mode: this.mode,
+                  flavorId: this.targetFlavor.id || undefined,
+                  draftId: this.draftId,
+                  ownerScope: this.draftOwnerScope,
+                },
+              });
+            }
+            notify({ title: '提交失败，草稿也未能保存', icon: 'none' });
+            return;
+          }
           if (error.statusCode === 401) {
             saveInterceptIntent({
               action: 'record_can',
@@ -1201,31 +1165,16 @@ export default {
                 returnRoute: ROUTES.canCreate,
                 mode: this.mode,
                 flavorId: this.targetFlavor.id || undefined,
-                draftId: this.draftId,
-                ownerScope: this.draftOwnerScope,
+                draftId: draft.id,
+                ownerScope: draft.ownerScope,
               },
             });
           }
-          uni.showToast({ title: '提交失败，草稿也未能保存', icon: 'none' });
-          return;
+          const title = this.audio.path && !draft.audio?.available
+            ? '表单已保存，录音未能持久保留'
+            : '提交失败，已保存草稿';
+          notify({ title, icon: 'none' });
         }
-        if (error.statusCode === 401) {
-          saveInterceptIntent({
-            action: 'record_can',
-            context: {
-              page: 'can_create',
-              returnRoute: ROUTES.canCreate,
-              mode: this.mode,
-              flavorId: this.targetFlavor.id || undefined,
-              draftId: draft.id,
-              ownerScope: draft.ownerScope,
-            },
-          });
-        }
-        const title = this.audio.path && !draft.audio?.available
-          ? '表单已保存，录音未能持久保留'
-          : '提交失败，已保存草稿';
-        uni.showToast({ title, icon: 'none' });
       } finally {
         this.submitting = false;
       }
@@ -1438,7 +1387,7 @@ export default {
 }
 
 .can-create-page :deep(.audio-capture .record-subtitle) {
-  color: var(--on-accent-color);
+  color: inherit;
 }
 
 .form-sheet {
@@ -1466,14 +1415,8 @@ export default {
   font-size: var(--font-size-sm);
 }
 
-.essential-form :deep(.t-form__item) {
-  min-height: 52px;
-  padding: var(--space-3) var(--space-4);
-  box-sizing: border-box;
-}
-
-.essential-form :deep(.t-form__label) {
-  align-self: center;
+.essential-form {
+  padding: 0 var(--space-4) var(--space-3);
 }
 
 .essential-form :deep(.t-form__controls-content) {
@@ -1495,12 +1438,6 @@ export default {
   color: var(--text-color);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.essential-form :deep(.t-form__item-help) {
-  padding: 0 var(--space-4) var(--space-2);
-  color: var(--danger-color);
-  font-size: var(--font-size-xs);
 }
 
 .essential-form :deep(.t-input--success .t-input__suffix-icon),
@@ -1584,6 +1521,7 @@ export default {
 }
 
 .optional-group {
+  padding: 0 var(--space-4) var(--space-3);
   overflow: hidden;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -1591,6 +1529,7 @@ export default {
 }
 
 .optional-group__heading {
+  margin: 0 calc(var(--space-4) * -1);
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -1603,7 +1542,7 @@ export default {
 
 .optional-fields .picker-field {
   margin: 0;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-3) 0;
   border-top: 1px solid var(--border-color);
 }
 
@@ -1742,13 +1681,6 @@ export default {
 .can-create-page :deep(.record-actions) {
   min-height: 36px;
   margin-top: 4px;
-}
-
-.essential-form :deep(.t-form__label) {
-  padding-right: 16px;
-  font-size: 15px;
-  line-height: 22px;
-  word-break: keep-all;
 }
 
 .essential-form :deep(.t-form__label-text) {

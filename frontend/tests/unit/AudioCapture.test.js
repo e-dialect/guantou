@@ -3,6 +3,8 @@ import {
   beforeEach, describe, expect, it, vi,
 } from 'vitest';
 
+vi.mock('@/services/feedback', () => ({ notify: vi.fn() }));
+import { notify } from '@/services/feedback';
 import AudioCapture from '@/components/AudioCapture.vue';
 import { chooseAudioFile } from '@/services/file';
 import { playAudio, playManaged, stopAudio } from '@/utils/audio';
@@ -32,6 +34,51 @@ function mountCapture(audio = {}) {
 }
 
 describe('AudioCapture', () => {
+  it('allows recording again after H5 microphone authorization fails', async () => {
+    const wrapper = mountCapture();
+    wrapper.vm.supported = true;
+    wrapper.vm.recordingSupported = true;
+    const recorder = { start: vi.fn(), stop: vi.fn() };
+    vi.spyOn(wrapper.vm, 'prepareH5Recorder')
+      .mockRejectedValueOnce(new Error('Permission denied'))
+      .mockImplementationOnce(async () => { wrapper.vm.recorder = recorder; return true; });
+
+    await wrapper.vm.startRecord();
+    expect(wrapper.emitted('error')).toHaveLength(1);
+    expect(wrapper.vm.recording).toBe(false);
+    expect(wrapper.vm.stopTimer).toBeNull();
+    await wrapper.vm.startRecord();
+    expect(wrapper.vm.recording).toBe(true);
+    // Vitest retains both uni-app platform branches; production builds select one.
+    expect(recorder.start).toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it('recovers after a mini-program recorder error and accepts the next recording', async () => {
+    let onStop;
+    let onError;
+    const recorder = {
+      start: vi.fn(), stop: vi.fn(),
+      onStop: vi.fn((callback) => { onStop = callback; }),
+      onError: vi.fn((callback) => { onError = callback; }),
+    };
+    uni.getRecorderManager = () => recorder;
+    const wrapper = mountCapture();
+    wrapper.vm.recordingSupported = true;
+    await wrapper.vm.startRecord();
+    onError({ errMsg: 'auth deny' });
+    expect(wrapper.vm.recording).toBe(false);
+    expect(wrapper.vm.stopTimer).toBeNull();
+    expect(wrapper.emitted('error')).toHaveLength(1);
+
+    await wrapper.vm.startRecord();
+    onStop({ tempFilePath: 'wxfile://record.mp3', duration: 2000 });
+    expect(wrapper.emitted('change')[0][0]).toMatchObject({
+      path: 'wxfile://record.mp3', durationMs: 2000, invalid: false, available: true,
+    });
+    wrapper.unmount();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     playManaged.mockReturnValue({ destroy: vi.fn() });
@@ -44,7 +91,7 @@ describe('AudioCapture', () => {
     wrapper.vm.onRecordStop('blob:short', 999);
 
     expect(wrapper.emitted('change')).toBeUndefined();
-    expect(uni.showToast).toHaveBeenCalledWith({
+    expect(notify).toHaveBeenCalledWith({
       title: '录音太短了，再试一次吧',
       icon: 'none',
     });
@@ -62,7 +109,7 @@ describe('AudioCapture', () => {
 
     expect(recorder.start).toHaveBeenCalledTimes(1);
     expect(recorder.stop).toHaveBeenCalledTimes(1);
-    expect(uni.showToast).toHaveBeenCalledWith({
+    expect(notify).toHaveBeenCalledWith({
       title: '已自动截取前15秒',
       icon: 'none',
     });

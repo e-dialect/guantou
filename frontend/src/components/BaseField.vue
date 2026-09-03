@@ -33,7 +33,8 @@
           :disabled="disabled"
           :readonly="readonly"
           :clearable="clearable"
-          :status="error ? 'error' : 'default'"
+          :status="error ? 'error' : status"
+          :suffix-icon="suffixIcon"
           borderless
           @change="handleChange"
           @blur="$emit('blur', $event)"
@@ -62,6 +63,12 @@ export default {
     modelValue: { type: [String, Number], default: '' },
     name: { type: String, required: true },
     label: { type: String, default: '' },
+    status: {
+      type: String,
+      default: 'default',
+      validator: (value) => ['default', 'success', 'warning', 'error'].includes(value),
+    },
+    suffixIcon: { type: [String, Object], default: undefined },
     type: {
       type: String,
       default: 'text',
