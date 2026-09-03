@@ -396,6 +396,8 @@
 </template>
 
 <script>
+import { buildDialectTree, findDialectPath } from '@/utils/dialectTree';
+import SOURCE_OPTIONS from '@/utils/sourceOptions';
 import AudioCapture from '@/components/AudioCapture.vue';
 import PageShell from '@/components/PageShell.vue';
 import TButton from '@tdesign/uniapp/button/button.vue';
@@ -492,46 +494,7 @@ export function canApiErrors(error) {
   }, {});
 }
 
-function sortDialects(items) {
-  return items.sort((left, right) => (
-    (left.sort_order || 0) - (right.sort_order || 0) || left.id - right.id
-  ));
-}
-
-export function buildDialectTree(dialects = []) {
-  const nodesByCode = new Map(dialects.map((dialect) => [
-    dialect.qualified_code,
-    { ...dialect, children: [] },
-  ]));
-  const roots = [];
-
-  nodesByCode.forEach((node) => {
-    const segments = node.qualified_code.split('.');
-    const parentCode = segments.slice(0, -1).join('.');
-    const parent = nodesByCode.get(parentCode);
-    if (parent) parent.children.push(node);
-    else roots.push(node);
-  });
-
-  nodesByCode.forEach((node) => sortDialects(node.children));
-  return sortDialects(roots);
-}
-
-export function findDialectPath(nodes, dialectId, path = []) {
-  let matchedPath = [];
-  nodes.some((node) => {
-    const nextPath = [...path, node];
-    if (String(node.id) === String(dialectId)) {
-      matchedPath = nextPath;
-      return true;
-    }
-    const childPath = findDialectPath(node.children, dialectId, nextPath);
-    if (!childPath.length) return false;
-    matchedPath = childPath;
-    return true;
-  });
-  return matchedPath;
-}
+export { buildDialectTree, findDialectPath };
 
 export default {
   components: {
@@ -609,16 +572,7 @@ export default {
         { label: '文献考据', value: 3 },
         { label: '官方认证', value: 4 },
       ],
-      sourceTypes: [
-        { label: '创作者自述', value: 'creator' },
-        { label: '口述', value: 'oral' },
-        { label: '田野记录', value: 'fieldwork' },
-        { label: '书籍', value: 'book' },
-        { label: '论文/文章', value: 'article' },
-        { label: '档案', value: 'archive' },
-        { label: '网页', value: 'web' },
-        { label: '其他', value: 'other' },
-      ],
+      sourceTypes: SOURCE_OPTIONS,
     };
   },
   computed: {

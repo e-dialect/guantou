@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import BaseField from '@/components/BaseField.vue';
 import BaseForm from '@/components/BaseForm.vue';
@@ -6,6 +6,7 @@ import BaseForm from '@/components/BaseForm.vue';
 vi.mock('@/services/guantou', () => ({
   createNameplate: vi.fn(), getNameplate: vi.fn(), listAllDialects: vi.fn(),
 }));
+vi.mock('@/services/canDrafts', () => ({ getCanDraftOwnerScope: () => 'user:7' }));
 vi.mock('@/services/authGuard', () => ({ requireAuth: vi.fn(() => true) }));
 vi.mock('@/services/feedback', () => ({ notifySuccess: vi.fn() }));
 vi.mock('@/services/navigation', () => ({
@@ -46,11 +47,15 @@ function createPage(overrides = {}) {
 describe('nameplate authoring', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.stubGlobal('uni', { getStorageSync: vi.fn(() => ''), setStorageSync: vi.fn() });
+    vi.stubGlobal('getApp', () => ({ globalData: { userInfo: { primary_dialect: { id: 8 } } } }));
     requireAuth.mockReturnValue(true);
     listAllDialects.mockResolvedValue(dialects);
     getNameplate.mockResolvedValue({ id: 21, display_text: '刣', dialect: { id: 8 } });
     createNameplate.mockResolvedValue({ id: 31 });
   });
+
+  afterEach(() => { vi.unstubAllGlobals(); });
 
   it('preserves auth intent and never loads context for a guest', async () => {
     requireAuth.mockReturnValue(false);
@@ -76,7 +81,7 @@ describe('nameplate authoring', () => {
     expect(getNameplate).toHaveBeenCalledWith(21);
     expect(page.reference.display_text).toBe('刣');
     expect(page.selectedDialect.id).toBe(8);
-    page.chooseDialect({ value: [3] });
+    page.chooseDialect({ value: 3 });
     expect(page.selectedDialect.id).toBe(3);
     expect(page.reference.dialect.id).toBe(8);
     expect(page.form.text_content).toBe('');
@@ -199,7 +204,7 @@ describe('nameplate authoring', () => {
     await page.submit();
     page.openDialectPicker();
     page.openSourcePicker();
-    page.chooseDialect({ detail: { value: [8] } });
+    page.chooseDialect({ detail: { value: 8 } });
     page.chooseSource({ value: ['book'] });
     expect(page.dialectIndex).toBe(0);
     expect(page.sourceIndex).toBe(0);
@@ -219,17 +224,56 @@ describe('nameplate authoring', () => {
     expect(createNameplate).not.toHaveBeenCalled();
   });
 
+  it('uses the can page hierarchy, full path, search, and account-scoped recent shortcuts', async () => {
+    const page = createPage({ dialects: [
+      { id: 1, name: '闽语', qualified_code: '闽' },
+      { id: 2, name: '莆仙片', qualified_code: '闽.莆仙' },
+      ...dialects,
+    ] });
+    uni.getStorageSync.mockReturnValue('[3,999,8]');
+    page.loadRecentDialectIds();
+    expect(uni.getStorageSync).toHaveBeenCalledWith('can_create_recent_dialects_v1:user:7');
+    expect(page.primaryDialect.id).toBe(8);
+    expect(page.recentDialects.map((item) => item.id)).toEqual([3]);
+    expect(page.dialectFullPath(3)).toBe('闽语 · 莆仙片 · 城关');
+    const branch = page.dialectCascadeOptions[0].children[0];
+    expect(branch.children.map((item) => item.id)).toEqual([3, 8]);
+    expect(branch.children[0]).not.toHaveProperty('children');
+    expect(page.filterDialectOption('莆仙', dialects[0], [branch])).toBe(true);
+    expect(page.filterDialectOption('  闽.莆仙.城关  ', dialects[0])).toBe(true);
+    expect(page.filterDialectOption('粤', dialects[0])).toBe(false);
+    page.openDialectPicker();
+    page.chooseDialect({ value: 2 });
+    expect(page.dialectPickerVisible).toBe(true);
+    expect(page.dialectIndex).toBe(0);
+    page.chooseDialect({ detail: { value: 8 } });
+    expect(page.selectedDialect.id).toBe(8);
+    expect(page.dialectPickerVisible).toBe(false);
+    expect(page.recentDialectIds).toEqual([8, 3, 999]);
+    expect(uni.setStorageSync).toHaveBeenCalledWith('can_create_recent_dialects_v1:user:7', '[8,3,999]');
+  });
+
+  it('keeps dialect selection working when recent history is invalid or storage is full', () => {
+    const page = createPage();
+    uni.getStorageSync.mockReturnValue('{');
+    page.loadRecentDialectIds();
+    expect(page.recentDialectIds).toEqual([]);
+    uni.setStorageSync.mockImplementation(() => { throw new Error('storage full'); });
+    page.chooseDialect({ value: 8 });
+    expect(page.selectedDialect.id).toBe(8);
+  });
+
   it('wires fields and picker confirmation/close without committing canceled or invalid choices', async () => {
     const wrapper = mount(NameplateCreate, {
       data: () => ({ loading: false, contextLoaded: true, dialects }),
       global: { stubs: { PageShell: { template: '<div><slot /></div>' } } },
     });
     expect(wrapper.findComponent(BaseForm).props('data')).toBe(wrapper.vm.form);
-    expect(wrapper.findAllComponents(BaseField)).toHaveLength(7);
+    expect(wrapper.findAllComponents(BaseField)).toHaveLength(8);
     const pickers = wrapper.findAllComponents(NameplateCreate.components.TPicker);
-    // TDesign imports share a stub; select the two picker instances by their titles.
+    // TDesign imports share a stub; select the cascader and picker by their titles.
     const dialect = pickers.find((item) => item.vm.$attrs.title === '选择方言点');
-    const source = pickers.find((item) => item.vm.$attrs.title === '选择来源类型');
+    const source = pickers.find((item) => item.vm.$attrs.title === '选择资料来源类型');
     wrapper.vm.openDialectPicker();
     dialect.vm.$emit('close');
     wrapper.vm.openSourcePicker();
@@ -238,11 +282,11 @@ describe('nameplate authoring', () => {
     expect(wrapper.vm.sourceIndex).toBe(0);
     expect(wrapper.vm.dialectPickerVisible).toBe(false);
     expect(wrapper.vm.sourcePickerVisible).toBe(false);
-    dialect.vm.$emit('change', { value: [8] });
+    dialect.vm.$emit('change', { value: 8 });
     source.vm.$emit('change', { value: ['book'] });
     expect(wrapper.vm.selectedDialect.id).toBe(8);
     expect(wrapper.vm.sourceIndex).toBe(3);
-    dialect.vm.$emit('change', { value: [999] });
+    dialect.vm.$emit('change', { value: 999 });
     source.vm.$emit('change', { value: ['invalid'] });
     expect(wrapper.vm.selectedDialect.id).toBe(8);
     expect(wrapper.vm.sourceIndex).toBe(3);

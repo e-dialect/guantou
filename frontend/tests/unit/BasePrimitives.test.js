@@ -88,6 +88,18 @@ describe('BaseField', () => {
     expect(wrapper.findAllComponents({ name: 'TDesignStub' })).toHaveLength(2);
   });
 
+  it('keeps field semantics with a custom picker control instead of rendering an input', () => {
+    const wrapper = mount(BaseField, {
+      props: { name: 'dialect_id', label: '方言点', help: '请选择当地记录', required: true },
+      slots: { default: '<div class="custom-control">闽语 · 莆仙片</div>' },
+    });
+    expect(wrapper.findAllComponents({ name: 'TDesignStub' })).toHaveLength(1);
+    expect(wrapper.getComponent({ name: 'TDesignStub' }).props()).toMatchObject({
+      name: 'dialect_id', label: '方言点', help: '请选择当地记录', requiredMark: true,
+    });
+    expect(wrapper.get('.custom-control').text()).toBe('闽语 · 莆仙片');
+  });
+
   it('uses textarea and emits v-model updates on input', async () => {
     const wrapper = mount(BaseField, {
       props: { name: 'definition', type: 'textarea', modelValue: '' },

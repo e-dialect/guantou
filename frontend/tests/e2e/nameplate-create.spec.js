@@ -3,12 +3,14 @@ import { resolve } from 'node:path';
 
 const createUrl = '/pages/nameplates/create?can_id=11&reference_id=21';
 const dialects = [
+  { id: 1, name: '闽语', qualified_code: '闽', sort_order: 1 },
+  { id: 2, name: '莆仙片', qualified_code: '闽.莆仙', sort_order: 1 },
   { id: 3, name: '城关', qualified_code: '闽.莆仙.城关', sort_order: 1 },
   { id: 8, name: '游洋', qualified_code: '闽.莆仙.游洋', sort_order: 2 },
 ];
 const reference = {
   id: 21, display_text: '刣', definition: '宰杀，保留来自当地的记录。',
-  dialect: dialects[1], source: {}, can: { id: 11 },
+  dialect: dialects[3], source: {}, can: { id: 11 },
 };
 
 // Isolated API fixtures keep authoring tests from writing real business data.
@@ -25,7 +27,7 @@ async function mockApi(page, options = {}) {
     let json = { results: [], next: null };
     if (pathname === '/login') json = { token: 'e2e-token', id: 7 };
     else if (pathname === '/users/7') {
-      json = { user: { id: 7, nickname: '采集者', primary_dialect: dialects[1] } };
+      json = { user: { id: 7, nickname: '采集者', primary_dialect: dialects[3] } };
     } else if (pathname === '/dialects/') {
       state.dialectLoads += 1;
       json = { results: options.emptyDialects ? [] : dialects, next: null };
@@ -67,7 +69,7 @@ for (const theme of ['light', 'dark']) {
     await expect(page.locator('.page-shell')).toHaveClass(new RegExp(`theme-${theme}`));
     await expect(page.locator('.reference-card')).toContainText('刣');
     await expect(page.locator('.dialect-cell')).toContainText('游洋');
-    await expect(page.locator('.base-field')).toHaveCount(7);
+    await expect(page.locator('.base-field')).toHaveCount(8);
     const dimensions = await field(page, 'text_content').locator('input').evaluate((input) => ({
       width: input.getBoundingClientRect().width,
       foreground: getComputedStyle(input).color,
@@ -88,18 +90,30 @@ for (const theme of ['light', 'dark']) {
     await field(page, 'pronunciation_text').locator('input').fill(' tai ');
     await expect(field(page, 'text_content').locator('.t-form__item-extra')).toHaveCount(0);
     await page.locator('.dialect-cell').click();
-    await expect(picker(page).locator('.t-picker-item__item--active')).toContainText('闽.莆仙.游洋');
-    await expect(picker(page)).toBeInViewport({ ratio: 1 });
+    const cascader = page.locator('.t-cascader:visible');
+    await expect(cascader).toContainText('莆仙片');
+    await expect(cascader).toBeInViewport({ ratio: 1 });
     await snapshot(page, testInfo, `nameplate-create-picker-${theme}-390x844`);
-    await picker(page).getByText('闽.莆仙.城关', { exact: true }).click();
-    await picker(page).locator('.t-picker__cancel').click();
+    await cascader.locator('.t-tabs').getByText('闽语', { exact: true }).click();
+    await cascader.locator('.cascader-radio-group-0').getByText('闽语', { exact: true }).click();
+    await expect(page.locator('.dialect-cell')).toContainText('游洋');
+    await cascader.locator('.t-cascader__close-btn').click();
+    await expect(page.locator('.dialect-cell')).toContainText('闽语 · 莆仙片 · 游洋');
+    await page.locator('.dialect-cell').click();
+    await cascader.locator('input').fill('闽.莆仙.城关');
+    await cascader.locator('.t-cascader__filter-result-item').filter({ hasText: '城关' }).click();
+    await expect(page.locator('.dialect-cell')).toContainText('闽语 · 莆仙片 · 城关');
+    await page.locator('.dialect-cell').click();
+    await expect(cascader.locator('.dialect-shortcuts')).toContainText('最近使用');
+    await cascader.locator('.dialect-shortcuts .base-button').filter({ hasText: '闽语 · 莆仙片 · 游洋' }).click();
     await expect(page.locator('.dialect-cell')).toContainText('游洋');
     await page.locator('.dialect-cell').click();
-    await expect(picker(page).locator('.t-picker-item__item--active')).toContainText('闽.莆仙.游洋');
-    await picker(page).getByText('闽.莆仙.城关', { exact: true }).click();
-    await picker(page).locator('.t-picker__confirm').click();
+    await cascader.locator('.dialect-shortcuts .base-button').filter({ hasText: '闽语 · 莆仙片 · 城关' }).click();
     await expect(page.locator('.dialect-cell')).toContainText('城关');
     await page.locator('.source-cell').click();
+    await expect(picker(page)).toContainText('选择资料来源类型');
+    await expect(picker(page)).toBeInViewport({ ratio: 1 });
+    await snapshot(page, testInfo, `nameplate-create-source-${theme}-390x844`);
     await picker(page).getByText('口述', { exact: true }).click();
     await picker(page).locator('.t-picker__cancel').click();
     await expect(page.locator('.source-cell')).toContainText('创作者自述');

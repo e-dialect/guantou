@@ -84,28 +84,39 @@
           <view class="form-sheet__title">
             方言与依据
           </view>
-          <t-cell
-            class="dialect-cell"
-            title="方言点"
-            :note="selectedDialect?.name || '请选择'"
-            arrow
-            hover
-            @click="openDialectPicker"
-          />
-          <view
-            v-if="!dialects.length"
-            class="form-sheet__hint"
+          <BaseField
+            name="dialect_id"
+            label="方言点"
           >
-            暂无可选方言点，可继续发表铭牌。
+            <t-cell
+              class="dialect-cell"
+              :class="{ 'dialect-cell--complete': selectedDialect }"
+              :title="selectedDialect ? dialectFullPath(selectedDialect.id) : '选择省、市、区县'"
+              :right-icon="dialectRightIcon"
+              :bordered="false"
+              hover
+              @click="openDialectPicker"
+            />
+            <view
+              v-if="!dialects.length"
+              class="form-sheet__hint"
+            >
+              暂无可选方言点，可继续发表铭牌。
+            </view>
+          </BaseField>
+          <view class="picker-field">
+            <view class="picker-label">
+              资料来源类型
+            </view>
+            <t-cell
+              class="source-cell"
+              :title="sourceLabels[sourceIndex]"
+              arrow
+              :bordered="false"
+              hover
+              @click="openSourcePicker"
+            />
           </view>
-          <t-cell
-            class="source-cell"
-            title="来源类型"
-            :note="sourceLabels[sourceIndex]"
-            arrow
-            hover
-            @click="openSourcePicker"
-          />
           <BaseField
             v-model="form.source.title"
             name="source.title"
@@ -155,19 +166,66 @@
         </BaseButton>
       </BaseForm>
 
-      <t-picker
+      <t-cascader
         :visible="dialectPickerVisible"
-        :value="selectedDialect ? [selectedDialect.id] : []"
+        :value="selectedDialect?.id || undefined"
         title="选择方言点"
+        placeholder="请选择"
+        theme="tab"
+        filterable
+        filter-placeholder="搜索名称或方言点编码"
+        :filter="filterDialectOption"
+        :keys="{ value: 'id', label: 'name', children: 'children' }"
+        :options="dialectCascadeOptions"
         @change="chooseDialect"
         @close="dialectPickerVisible = false"
       >
-        <t-picker-item :options="dialectOptions" />
-      </t-picker>
+        <template #middle-content>
+          <view
+            v-if="primaryDialect || recentDialects.length"
+            class="dialect-shortcuts"
+          >
+            <view
+              v-if="primaryDialect"
+              class="dialect-shortcut-group"
+            >
+              <text class="dialect-shortcut-group__label">
+                默认方言点
+              </text>
+              <BaseButton
+                size="small"
+                variant="ghost"
+                @click="chooseDialect({ value: primaryDialect.id })"
+              >
+                {{ dialectFullPath(primaryDialect.id) }}
+              </BaseButton>
+            </view>
+            <view
+              v-if="recentDialects.length"
+              class="dialect-shortcut-group"
+            >
+              <text class="dialect-shortcut-group__label">
+                最近使用
+              </text>
+              <view class="dialect-shortcut-list">
+                <BaseButton
+                  v-for="dialect in recentDialects"
+                  :key="dialect.id"
+                  size="small"
+                  variant="ghost"
+                  @click="chooseDialect({ value: dialect.id })"
+                >
+                  {{ dialectFullPath(dialect.id) }}
+                </BaseButton>
+              </view>
+            </view>
+          </view>
+        </template>
+      </t-cascader>
       <t-picker
         :visible="sourcePickerVisible"
         :value="[sourceOptions[sourceIndex].value]"
-        title="选择来源类型"
+        title="选择资料来源类型"
         @change="chooseSource"
         @close="sourcePickerVisible = false"
       >
@@ -178,6 +236,10 @@
 </template>
 
 <script>
+import TCascader from '@tdesign/uniapp/cascader/cascader.vue';
+import { buildDialectTree, findDialectPath } from '@/utils/dialectTree';
+import SOURCE_OPTIONS from '@/utils/sourceOptions';
+import { getCanDraftOwnerScope } from '@/services/canDrafts';
 import TCell from '@tdesign/uniapp/cell/cell.vue';
 import TPicker from '@tdesign/uniapp/picker/picker.vue';
 import TPickerItem from '@tdesign/uniapp/picker-item/picker-item.vue';
@@ -196,17 +258,6 @@ import { requireAuth } from '@/services/authGuard';
 import { notifySuccess } from '@/services/feedback';
 import { goHome, goNameplateDetail } from '@/services/navigation';
 
-const SOURCE_OPTIONS = [
-  { value: 'creator', label: '创作者自述' },
-  { value: 'oral', label: '口述' },
-  { value: 'fieldwork', label: '田野记录' },
-  { value: 'book', label: '书籍' },
-  { value: 'article', label: '论文 / 文章' },
-  { value: 'archive', label: '档案' },
-  { value: 'web', label: '网页' },
-  { value: 'other', label: '其他' },
-];
-
 export default {
   components: {
     PageShell,
@@ -216,6 +267,7 @@ export default {
     BaseLoading,
     EmptyState,
     TCell,
+    TCascader,
     TPicker,
     TPickerItem,
   },
@@ -229,6 +281,7 @@ export default {
       loadError: '',
       dialects: [],
       dialectIndex: 0,
+      recentDialectIds: [],
       dialectPickerVisible: false,
       sourceIndex: 0,
       sourceOptions: SOURCE_OPTIONS,
@@ -258,11 +311,35 @@ export default {
       };
       return { text_content: [rule], pronunciation_text: [rule] };
     },
-    dialectOptions() {
-      return this.dialects.map((item) => ({
-        value: item.id,
-        label: item.qualified_code || item.name,
-      }));
+    dialectTree() {
+      return buildDialectTree(this.dialects);
+    },
+    dialectCascadeOptions() {
+      const normalize = (nodes) => nodes.map((node) => {
+        const result = { ...node };
+        if (node.children.length) result.children = normalize(node.children);
+        else delete result.children;
+        return result;
+      });
+      return normalize(this.dialectTree);
+    },
+    dialectRightIcon() {
+      return {
+        name: this.selectedDialect ? 'check-circle-filled' : 'chevron-right',
+        size: '20px',
+        color: this.selectedDialect ? 'var(--success-color)' : 'var(--muted-color)',
+      };
+    },
+    primaryDialect() {
+      const app = typeof getApp === 'function' ? getApp() : null;
+      const primary = app?.globalData?.userInfo?.primary_dialect;
+      return this.dialects.find((item) => String(item.id) === String(primary?.id)) || null;
+    },
+    recentDialects() {
+      return this.recentDialectIds
+        .map((id) => this.dialects.find((item) => String(item.id) === String(id)))
+        .filter(Boolean)
+        .filter((item) => String(item.id) !== String(this.primaryDialect?.id));
     },
     selectedDialect() {
       return this.dialects[this.dialectIndex] || null;
@@ -281,6 +358,7 @@ export default {
       if (!this.canId) goHome(true);
       return;
     }
+    this.loadRecentDialectIds();
     await this.loadContext();
   },
   methods: {
@@ -318,12 +396,43 @@ export default {
       if (this.submitting || this.submitted) return;
       this.sourcePickerVisible = true;
     },
+    dialectFullPath(dialectId) {
+      return findDialectPath(this.dialectTree, dialectId).map((item) => item.name).join(' · ');
+    },
+    filterDialectOption(keyword, option, path = []) {
+      const normalizedKeyword = String(keyword || '').trim().toLowerCase();
+      const searchable = [
+        ...path.map((item) => item.name), option?.name, option?.qualified_code, option?.code,
+      ].filter(Boolean).join(' ').toLowerCase();
+      return searchable.includes(normalizedKeyword);
+    },
+    recentDialectsStorageKey() {
+      return `can_create_recent_dialects_v1:${getCanDraftOwnerScope()}`;
+    },
+    loadRecentDialectIds() {
+      try {
+        const value = JSON.parse(uni.getStorageSync(this.recentDialectsStorageKey()) || '[]');
+        this.recentDialectIds = Array.isArray(value) ? value.slice(0, 3) : [];
+      } catch (error) {
+        this.recentDialectIds = [];
+      }
+    },
     chooseDialect(event) {
-      this.dialectPickerVisible = false;
       if (this.submitting || this.submitted) return;
-      const value = (event?.detail?.value || event?.value || [])[0];
+      const value = event?.detail?.value ?? event?.value;
       const index = this.dialects.findIndex((item) => String(item.id) === String(value));
-      if (index >= 0) this.dialectIndex = index;
+      const path = findDialectPath(this.dialectTree, value);
+      if (index < 0 || path[path.length - 1]?.children.length) return;
+      this.dialectIndex = index;
+      this.dialectPickerVisible = false;
+      this.recentDialectIds = [
+        Number(value), ...this.recentDialectIds.filter((id) => String(id) !== String(value)),
+      ].slice(0, 3);
+      try {
+        uni.setStorageSync(this.recentDialectsStorageKey(), JSON.stringify(this.recentDialectIds));
+      } catch (error) {
+        // A full local cache must not prevent selecting a dialect.
+      }
     },
     chooseSource(event) {
       this.sourcePickerVisible = false;
@@ -427,6 +536,33 @@ export default {
   color: var(--muted-color);
   font-size: var(--font-size-xs);
 }
+/* Match the authoring controls on the can creation page. */
+.form-sheet :deep(.dialect-cell) { padding: 0; background: transparent; min-width: 0; }
+.dialect-cell :deep(.t-cell__title) {
+  overflow: hidden;
+  color: var(--text-color);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.picker-field { margin-bottom: var(--space-3); }
+.picker-label {
+  margin-bottom: var(--space-1);
+  color: var(--text-color);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+.dialect-shortcuts {
+  padding: 0 var(--space-4) var(--space-3);
+  border-bottom: 1px solid var(--border-color);
+}
+.dialect-shortcut-group + .dialect-shortcut-group { margin-top: var(--space-2); }
+.dialect-shortcut-group__label {
+  display: block;
+  margin-bottom: var(--space-2);
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
+}
+.dialect-shortcut-list { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .submit-error {
   margin-bottom: var(--space-3);
   color: var(--danger-color);
