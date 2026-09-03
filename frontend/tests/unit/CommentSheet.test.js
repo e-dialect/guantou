@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/services/navigation', () => ({
   goCanComments: vi.fn(),
@@ -39,6 +39,12 @@ describe('CommentSheet (Issue #219 后续)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     globalThis.uni = {};
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   describe('service fallback（未挂载 CommentSheet 时）', () => {
@@ -66,6 +72,89 @@ describe('CommentSheet (Issue #219 后续)', () => {
   });
 
   describe('hosted sheet（CommentSheet 挂载后）', () => {
+    it('locks the document until the exit animation finishes', async () => {
+      vi.useFakeTimers();
+      const wrapper = mountSheet();
+      expect(document.body.style.position).toBe('');
+      openCommentSheet({ targetType: 'can', targetId: 12 });
+      expect(document.body.style.position).toBe('fixed');
+      await wrapper.vm.$nextTick();
+
+      wrapper.vm.close();
+      vi.advanceTimersByTime(279);
+      expect(document.body.style.position).toBe('fixed');
+      vi.advanceTimersByTime(1);
+      expect(document.body.style.position).toBe('');
+      expect(window.scrollTo).toHaveBeenCalledTimes(1);
+      wrapper.unmount();
+    });
+
+    it('keeps the original lock across target switches and reopening during close', async () => {
+      vi.useFakeTimers();
+      const wrapper = mountSheet();
+      openCommentSheet({ targetType: 'can', targetId: 12 });
+      await wrapper.vm.$nextTick();
+      openCommentSheet({ targetType: 'nameplate', targetId: 7 });
+      await wrapper.vm.$nextTick();
+      wrapper.vm.close();
+      vi.advanceTimersByTime(100);
+      openCommentSheet({ targetType: 'can', targetId: 13 });
+      await wrapper.vm.$nextTick();
+      vi.advanceTimersByTime(300);
+      expect(wrapper.vm.targetId).toBe(13);
+      expect(wrapper.vm.active).toBe(true);
+      expect(document.body.style.position).toBe('fixed');
+      expect(window.scrollTo).not.toHaveBeenCalled();
+
+      wrapper.unmount();
+      expect(document.body.style.position).toBe('');
+      expect(window.scrollTo).toHaveBeenCalledTimes(1);
+    });
+
+    it('closing before the opening tick does not reactivate or leak the lock', async () => {
+      vi.useFakeTimers();
+      const wrapper = mountSheet();
+      openCommentSheet({ targetType: 'can', targetId: 12 });
+      wrapper.vm.close();
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.active).toBe(false);
+      vi.advanceTimersByTime(300);
+      expect(wrapper.vm.targetId).toBeNull();
+      expect(document.body.style.position).toBe('');
+      wrapper.unmount();
+    });
+
+    it('unmounting during close releases the lock once and cancels delayed work', async () => {
+      vi.useFakeTimers();
+      const wrapper = mountSheet();
+      openCommentSheet({ targetType: 'can', targetId: 12 });
+      await wrapper.vm.$nextTick();
+      wrapper.vm.close();
+      wrapper.unmount();
+      vi.advanceTimersByTime(300);
+      expect(document.body.style.position).toBe('');
+      expect(window.scrollTo).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops bubbling touches without preventing native scrolling in the list', async () => {
+      const wrapper = mountSheet();
+      openCommentSheet({ targetType: 'can', targetId: 12 });
+      await wrapper.vm.$nextTick();
+      const parentMove = vi.fn();
+      wrapper.element.addEventListener('touchmove', parentMove);
+
+      const listMove = new Event('touchmove', { bubbles: true, cancelable: true });
+      wrapper.find('.thread-stub').element.dispatchEvent(listMove);
+      expect(listMove.defaultPrevented).toBe(false);
+      expect(parentMove).not.toHaveBeenCalled();
+
+      const maskMove = new Event('touchmove', { bubbles: true, cancelable: true });
+      wrapper.find('.comment-sheet__mask').element.dispatchEvent(maskMove);
+      expect(maskMove.defaultPrevented).toBe(true);
+      expect(parentMove).not.toHaveBeenCalled();
+      wrapper.unmount();
+    });
+
     it('通过注册的 host 打开，并装载目标评论线程', async () => {
       const wrapper = mountSheet();
 
@@ -173,10 +262,17 @@ describe('CommentSheet (Issue #219 后续)', () => {
     });
 
     it('上拉进入全屏，全屏下拉退回半屏（问题1）', async () => {
+      vi.useFakeTimers();
       const wrapper = mountSheet();
       openCommentSheet({ targetType: 'can', targetId: 12 });
       await wrapper.vm.$nextTick();
       expect(wrapper.vm.mode).toBe('half');
+      const release = wrapper.vm.releasePageScroll;
+      wrapper.vm.onReply({ parentId: 1, replyToId: 2, nickname: '昵称2' });
+      wrapper.vm.draft = '缩放期间保留回复草稿';
+      await wrapper.vm.$nextTick();
+      const composer = wrapper.find('.comment-sheet__composer').element;
+      expect(wrapper.find('.scroll-view-stub .comment-sheet__composer').exists()).toBe(false);
 
       const grip = wrapper.find('.comment-sheet__grip');
       // 上拉 → 全屏
@@ -186,6 +282,10 @@ describe('CommentSheet (Issue #219 后续)', () => {
       await grip.trigger('touchend');
       expect(wrapper.vm.mode).toBe('full');
       expect(wrapper.find('.comment-sheet__panel').classes()).toContain('comment-sheet__panel--full');
+      expect(document.body.style.position).toBe('fixed');
+      expect(wrapper.vm.releasePageScroll).toBe(release);
+      expect(wrapper.find('.comment-sheet__composer').element).toBe(composer);
+      expect(wrapper.vm.draft).toBe('缩放期间保留回复草稿');
 
       // 全屏下拉 → 回半屏
       await grip.trigger('touchstart', { touches: [{ clientY: 100 }] });
@@ -193,8 +293,58 @@ describe('CommentSheet (Issue #219 后续)', () => {
       await grip.trigger('touchend');
       expect(wrapper.vm.mode).toBe('half');
       expect(wrapper.vm.active).toBe(true);
+      expect(wrapper.vm.releasePageScroll).toBe(release);
+      expect(wrapper.vm.replyTarget.replyToId).toBe(2);
+      expect(wrapper.vm.draft).toBe('缩放期间保留回复草稿');
+      expect(window.scrollTo).not.toHaveBeenCalled();
+
+      // 再次下拉才关闭，页面锁覆盖整个退出动画。
+      await grip.trigger('touchstart', { touches: [{ clientY: 100 }] });
+      await grip.trigger('touchmove', { touches: [{ clientY: 300 }] });
+      await grip.trigger('touchend');
+      expect(wrapper.vm.active).toBe(false);
+      expect(document.body.style.position).toBe('fixed');
+      vi.advanceTimersByTime(280);
+      expect(document.body.style.position).toBe('');
+      expect(window.scrollTo).toHaveBeenCalledTimes(1);
 
       wrapper.unmount();
+    });
+
+    it('全屏回复等待期间和完成后的连点都不重复提交，也不释放页面锁', async () => {
+      vi.useFakeTimers();
+      const wrapper = mountSheet();
+      openCommentSheet({ targetType: 'can', targetId: 12 });
+      await wrapper.vm.$nextTick();
+      wrapper.vm.mode = 'full';
+      wrapper.vm.onReply({ parentId: 1, replyToId: 2, nickname: '昵称2' });
+      wrapper.vm.draft = '全屏回复';
+      let finishReply;
+      submitReply.mockImplementationOnce(() => new Promise((resolve) => { finishReply = resolve; }));
+
+      const pending = wrapper.vm.submit();
+      vi.advanceTimersByTime(600);
+      await wrapper.vm.submit();
+      expect(submitReply).toHaveBeenCalledTimes(1);
+      expect(wrapper.vm.submitting).toBe(true);
+      expect(document.body.style.position).toBe('fixed');
+      finishReply({ id: 2, parent_id: 1 });
+      await pending;
+
+      wrapper.vm.onReply({ parentId: 1, replyToId: 3, nickname: '昵称3' });
+      wrapper.vm.draft = '下一条回复';
+      await wrapper.vm.submit();
+      await wrapper.vm.submit();
+      expect(submitReply).toHaveBeenCalledTimes(2);
+      expect(submitReply).toHaveBeenLastCalledWith({ parentId: 1, replyToId: 3, content: '下一条回复' });
+      expect(submitComment).not.toHaveBeenCalled();
+      expect(wrapper.vm.mode).toBe('full');
+      expect(wrapper.vm.replyTarget).toBeNull();
+      expect(wrapper.vm.draft).toBe('');
+      expect(document.body.style.position).toBe('fixed');
+      expect(window.scrollTo).not.toHaveBeenCalled();
+      wrapper.unmount();
+      expect(window.scrollTo).toHaveBeenCalledTimes(1);
     });
 
     it('底部评论框：提交成功清空草稿（问题2）', async () => {

@@ -41,6 +41,24 @@ Traefik 域名分流模式可以用下面的环境变量手测同一套 E2E：
 E2E_BASE_URL=http://guantou.localhost E2E_BACKEND_URL=http://api.guantou.localhost yarn test:e2e:h5
 ```
 
+### 评论面板滚动隔离（#293）
+
+启动 H5 后，可独立运行使用模拟接口的浏览器回归，不会写入后端数据：
+
+```bash
+cd frontend
+E2E_BASE_URL=http://localhost:8011 yarn test:e2e:h5 tests/e2e/comment-sheet-scroll.spec.js
+```
+
+该测试使用 Chromium 触摸输入和滚轮，覆盖 390×844 明暗主题、长列表顶部/底部、
+短列表/空态、遮罩、输入和拖拽关闭；同时检查页面位置、罐头流位置和关闭后的滚动恢复。
+与 #286 合并后的回归还覆盖半屏→全屏→半屏→关闭，固定输入框的位置和草稿保留、
+全屏列表顶部/底部的触摸及滚轮隔离，以及从非零页面位置打开后精确恢复原位置。
+评论组件单测同时验证缩放期间保留回复目标、异步提交期间及完成后的防重复提交、
+关闭动画结束/快速重开/切换目标/卸载时的页面锁生命周期。
+H5 的实际滚动层在 `uni-scroll-view` 内部，不能仅检查外壳 CSS 或以单元测试代替浏览器验收。
+微信端仍需在开发者工具/真机复查评论滚动和拖拽手势；H5 自动化不等同于 iOS 真机验收。
+
 ## Docker
 
 ```bash

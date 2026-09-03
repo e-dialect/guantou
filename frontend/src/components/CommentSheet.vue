@@ -6,11 +6,16 @@
       class="comment-sheet__layer"
       :class="`comment-sheet--${theme}`"
       :aria-hidden="active ? null : 'true'"
+      @touchstart.stop
+      @touchmove.stop
+      @touchend.stop
     >
       <view
         class="comment-sheet__mask"
         :class="{ 'comment-sheet__mask--active': active }"
         @tap="close"
+        @touchmove.stop.prevent
+        @wheel.stop.prevent
       />
       <view
         class="comment-sheet__panel"
@@ -23,7 +28,7 @@
         <view
           class="comment-sheet__grip"
           @touchstart="onDragStart"
-          @touchmove="onDragMove"
+          @touchmove.stop.prevent="onDragMove"
           @touchend="onDragEnd"
           @touchcancel="onDragCancel"
         >
@@ -85,6 +90,9 @@
 import CommentThread from '@/components/CommentThread.vue';
 import BaseField from '@/components/BaseField.vue';
 import BaseButton from '@/components/BaseButton.vue';
+// #ifdef H5
+import lockPageScroll from '@/utils/lockPageScroll';
+// #endif
 import {
   registerCommentSheetHost,
   unregisterCommentSheetHost,
@@ -145,6 +153,8 @@ export default {
   beforeUnmount() {
     unregisterCommentSheetHost(this);
     if (this.closeTimer) clearTimeout(this.closeTimer);
+    this.targetId = null;
+    this.unlockPage();
   },
   methods: {
     open({ targetType, targetId, theme = 'default' }) {
@@ -158,13 +168,18 @@ export default {
       this.mode = 'half';
       this.draft = '';
       this.replyTarget = null;
+      // #ifdef H5
+      // Keep the same lock when changing targets or reopening during the exit transition.
+      if (!this.releasePageScroll) this.releasePageScroll = lockPageScroll();
+      // #endif
       // 先挂载内容，再触发滑入过渡，保证内容在面板出现前已就绪。
       this.$nextTick(() => {
+        if (!this.targetId || this.closeTimer) return;
         this.active = true;
       });
     },
     close() {
-      if (!this.active) return;
+      if (!this.targetId || this.closeTimer) return;
       this.active = false;
       this.dragDelta = 0;
       this.dragging = false;
@@ -172,7 +187,15 @@ export default {
         this.targetId = null;
         this.targetType = null;
         this.mode = 'half';
+        this.closeTimer = null;
+        this.unlockPage();
       }, CLOSE_MS);
+    },
+    unlockPage() {
+      // #ifdef H5
+      if (this.releasePageScroll) this.releasePageScroll();
+      this.releasePageScroll = null;
+      // #endif
     },
     /* 返回键拦截（#255）：面板激活时由 pages/index.vue 的 onBackPress 调用 */
     isActive() {
@@ -264,7 +287,8 @@ export default {
   bottom: 0;
   left: 0;
   z-index: 1000;
-  pointer-events: none;
+  /* Intercept input throughout entry/exit; the layer is removed when idle. */
+  pointer-events: auto;
 }
 
 /*
@@ -292,7 +316,7 @@ export default {
   left: 0;
   background: var(--veil-color);
   opacity: 0;
-  pointer-events: none;
+  touch-action: none;
   /* 时长须与 JS CLOSE_MS（280ms）同步 */
   transition: opacity 0.28s ease;
 }
@@ -316,7 +340,6 @@ export default {
   /* 时长须与 JS CLOSE_MS（280ms）同步；height 用于半屏↔全屏吸附 */
   transition: transform 0.28s ease, height 0.28s ease;
   overflow: hidden;
-  pointer-events: none;
 }
 
 .comment-sheet__panel--active {
@@ -331,6 +354,7 @@ export default {
 
 /* 拖拽命中区：一整条扁平长条（比可见小横条大得多），便于一次命中上拉/下拉 */
 .comment-sheet__grip {
+  touch-action: none;
   flex: 0 0 auto;
   height: 56rpx;
   display: flex;
@@ -348,9 +372,7 @@ export default {
 .comment-sheet__scroll {
   flex: 1;
   min-height: 0;
-  /* 关键：uni-scroll-view 默认 height:100% 会撑满整个面板、挤掉底部输入框并破坏滚动，
-   * 这里归零高度交给 flex:1 计算剩余空间；overscroll-behavior 阻断滚动链，避免评论滚到底
-   * 又把底层罐头流/页面一起带起来 */
+  /* 归零 uni-scroll-view 默认的 height:100%，由 flex 分配列表与底部输入框的空间。 */
   height: 0;
   padding: 0 24rpx 24rpx;
   box-sizing: border-box;
@@ -401,6 +423,13 @@ export default {
   flex: 0 0 auto;
   margin: 0;
 }
+
+/* #ifdef H5 */
+/* The scrolling element is INSIDE uni-scroll-view. Overscroll is not inherited. */
+.comment-sheet__scroll :deep(.uni-scroll-view) {
+  overscroll-behavior-y: contain;
+}
+/* #endif */
 
 @media (prefers-reduced-motion: reduce) {
   .comment-sheet__mask,
