@@ -94,7 +94,8 @@ describe('dialect onboarding page', () => {
     expect(saveDialectProfile).not.toHaveBeenCalled();
   });
 
-  it('loads a real sample and resumes the interrupted action after saving', async () => {
+  it('loads a real sample and preserves interrupted navigation for new users', async () => {
+    resumeInterruptedPageAfterLogin.mockReturnValueOnce(true);
     const wrapper = mountPage();
     await wrapper.vm.$options.onLoad.call(wrapper.vm, { reason: 'new_user' });
     await flushPromises();
@@ -108,6 +109,42 @@ describe('dialect onboarding page', () => {
       primaryDialectId: 3,
     });
     expect(resumeInterruptedPageAfterLogin).toHaveBeenCalledWith(7);
+    expect(toFollowRecommendations).not.toHaveBeenCalled();
+  });
+
+  it('keeps the resume flow for existing users picking a missing dialect', async () => {
+    const wrapper = mountPage();
+    await wrapper.vm.$options.onLoad.call(wrapper.vm, { reason: 'missing_dialect' });
+    await flushPromises();
+    wrapper.vm.next();
+    await wrapper.vm.selectDialect(wrapper.vm.dialects[0]);
+    await wrapper.vm.finish();
+
+    expect(saveDialectProfile).toHaveBeenCalledWith(7, {
+      nickname: '采集者',
+      primaryDialectId: 3,
+    });
+    expect(resumeInterruptedPageAfterLogin).toHaveBeenCalledWith(7);
     expect(toFollowRecommendations).toHaveBeenCalledWith(true);
+  });
+
+  it('offers a retry when the dialect tree fails to load', async () => {
+    listAllDialects.mockRejectedValueOnce(new Error('network down'));
+    const wrapper = mountPage();
+    await wrapper.vm.$options.onLoad.call(wrapper.vm, {});
+    await flushPromises();
+
+    expect(wrapper.vm.dialectsError).toBe(true);
+
+    wrapper.vm.step = 2;
+    await flushPromises();
+    expect(wrapper.text()).toContain('方言树加载失败');
+    expect(wrapper.text()).not.toContain('西南官话.四川');
+
+    await wrapper.vm.loadDialects();
+    await flushPromises();
+
+    expect(wrapper.vm.dialectsError).toBe(false);
+    expect(wrapper.text()).toContain('西南官话.四川');
   });
 });

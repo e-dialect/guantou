@@ -28,7 +28,7 @@
 | `pages/shelves/index` | issue | [#231](https://github.com/e-dialect/guantou/issues/231)：创建表单与列表状态 |
 | `pages/shelves/details` | issue | [#235](https://github.com/e-dialect/guantou/issues/235)：编辑、双搜索和成员管理 |
 | `pages/search` / `components/SearchPanel` | issue | [#236](https://github.com/e-dialect/guantou/issues/236)：聚焦、键盘与搜索联想 |
-| `pages/users/onboarding` | issue | [#233](https://github.com/e-dialect/guantou/issues/233)：方言联动选择与登录门禁 |
+| `pages/users/onboarding` | done | [#233](https://github.com/e-dialect/guantou/issues/233) / [PR #310](https://github.com/e-dialect/guantou/pull/310)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：BaseField/BaseButton、方言树加载重试与真实乡音样本；保留登录中断恢复 |
 | `pages/cans/drafts` | done | [#195](https://github.com/e-dialect/guantou/issues/195) / [PR #216](https://github.com/e-dialect/guantou/pull/216)：加载、空态、错误、继续编辑与删除反馈 |
 | `pages/cans/index` / `library` | queued | 每页独立 PR |
 | `pages/cans/details` / `comments` | done | 普通控件已收敛；分享开放能力及低频 Cell/Textarea 直接使用 TDesign |
@@ -39,7 +39,8 @@
 | `pages/packages/index` / `details` | queued | 搜索、加载与详情操作 |
 | `pages/circles/index` / `details` | queued | 搜索、Picker 与详情操作 |
 | `pages/discovery/index` | queued | 操作按钮与加载状态 |
-| `pages/users/me` / `details` / `recommend-follow` | queued | 开放能力与关注交互分别迁移 |
+| `pages/users/me` / `details` | queued | 开放能力与关注交互分别迁移 |
+| `pages/users/recommend-follow` | done | [PR #310](https://github.com/e-dialect/guantou/pull/310)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：BaseButton、统一加载/空态/重试及关注结果反馈 |
 | `pages/mails/index` / `details` | queued | Cell、加载和通用操作 |
 
 ## 装罐页 #232 验收记录

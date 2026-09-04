@@ -88,7 +88,7 @@ test('new user selects a primary dialect and reaches home', async ({ page }) => 
   await page.goto('/pages/users/onboarding?reason=new_user');
   await expect(page.getByText('欢迎加入乡声集盒')).toBeVisible();
   await page.locator('.nickname-input input, input.nickname-input').fill('采集者');
-  await page.getByText('下一步 · 选主方言').click();
+  await page.locator('.base-button').filter({ hasText: '下一步 · 选主方言' }).click();
   await page.getByText('四川话', { exact: true }).click();
   await expect(page.getByText('巴适')).toBeVisible();
   if (process.env.E2E_SCREENSHOT_DIR) {
@@ -97,11 +97,11 @@ test('new user selects a primary dialect and reaches home', async ({ page }) => 
       fullPage: true,
     });
   }
-  await page.getByText('完成设置').click();
+  await page.locator('.base-button').filter({ hasText: '完成设置' }).click();
 
   await expect(page).toHaveURL(/\/pages\/users\/recommend-follow$/);
   await expect(page.getByText('暂时没有可推荐的同方言作者')).toBeVisible();
-  await page.getByText('暂时跳过').click();
+  await page.locator('.base-button').filter({ hasText: '暂时跳过' }).click();
 
   await expect(page).toHaveURL(/\/$/);
   /* 新首页品牌小标：「乡声集盒 · 把乡音装进罐头」 */

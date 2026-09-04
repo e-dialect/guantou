@@ -19,27 +19,22 @@
       v-if="step === 1"
       class="form-card"
     >
-      <view class="field-label">
-        怎么称呼你
-      </view>
-      <input
+      <BaseField
         v-model="nickname"
         class="nickname-input"
-        maxlength="100"
+        name="nickname"
+        label="怎么称呼你"
         placeholder="输入昵称"
-      >
-      <view
-        v-if="error"
-        class="error"
-      >
-        {{ error }}
-      </view>
-      <button
-        class="primary-button"
-        @tap="next"
+        :maxlength="100"
+        :error="error"
+        @input="error = ''"
+      />
+      <BaseButton
+        block
+        @click="next"
       >
         下一步 · 选主方言
-      </button>
+      </BaseButton>
     </view>
 
     <view v-else>
@@ -52,10 +47,17 @@
         </view>
         <view
           v-if="loadingDialects"
-          class="loading-copy"
+          class="loading-shell loading-shell--dialects"
         >
-          正在加载方言树…
+          <BaseLoading text="正在加载方言树…" />
         </view>
+        <EmptyState
+          v-else-if="dialectsError"
+          title="方言树加载失败"
+          description="检查网络后重试；也可以先退出账号回游客模式，稍后再完成设置。"
+          action-text="重新加载"
+          @action="loadDialects"
+        />
         <template v-else>
           <view
             v-for="dialect in dialects"
@@ -99,12 +101,13 @@
           <view class="sample-meta">
             {{ selectedDialectLabel }} · {{ sampleDuration }}
           </view>
-          <button
-            class="sample-button"
-            @tap="playSample"
+          <BaseButton
+            variant="ghost"
+            size="small"
+            @click="playSample"
           >
             ▶ 试听这段乡音
-          </button>
+          </BaseButton>
         </template>
         <view
           v-else
@@ -121,34 +124,37 @@
         {{ error }}
       </view>
       <view class="button-row">
-        <button
-          class="secondary-button"
+        <BaseButton
+          variant="ghost"
           :disabled="saving"
-          @tap="step = 1"
+          @click="step = 1"
         >
           上一步
-        </button>
-        <button
-          class="primary-button finish-button"
+        </BaseButton>
+        <BaseButton
           :disabled="saving"
-          @tap="finish"
+          @click="finish"
         >
           {{ saving ? '正在保存…' : '完成设置' }}
-        </button>
+        </BaseButton>
       </view>
     </view>
 
-    <button
+    <view
       class="logout-button"
       @tap="abandon"
     >
       退出账号，返回游客模式
-    </button>
+    </view>
   </PageShell>
 </template>
 
 <script>
 import PageShell from '@/components/PageShell.vue';
+import BaseButton from '@/components/BaseButton.vue';
+import BaseField from '@/components/BaseField.vue';
+import BaseLoading from '@/components/BaseLoading.vue';
+import EmptyState from '@/components/EmptyState.vue';
 import { goLogin, goSearch } from '@/services/navigation';
 import { toFollowRecommendations } from '@/routers/user';
 import {
@@ -163,11 +169,14 @@ import { clearUserInfo } from '@/services/user';
 import { playAudio } from '@/utils/audio';
 
 export default {
-  components: { PageShell },
+  components: {
+    PageShell, BaseButton, BaseField, BaseLoading, EmptyState,
+  },
   data() {
     const user = getApp().globalData.userInfo || {};
     return {
       dialects: [],
+      dialectsError: false,
       error: '',
       loadingDialects: true,
       loadingSample: false,
@@ -222,18 +231,25 @@ export default {
       goLogin({}, { reset: true });
       return;
     }
-    try {
-      this.dialects = await listAllDialects();
-      if (this.selectedDialectId) await this.loadSample(this.selectedDialectId);
-    } finally {
-      this.loadingDialects = false;
-    }
+    await this.loadDialects();
   },
   onBackPress() {
     uni.showToast({ title: '请先完成主方言设置，或退出账号', icon: 'none' });
     return true;
   },
   methods: {
+    async loadDialects() {
+      this.loadingDialects = true;
+      this.dialectsError = false;
+      try {
+        this.dialects = await listAllDialects();
+        if (this.selectedDialectId) await this.loadSample(this.selectedDialectId);
+      } catch (error) {
+        this.dialectsError = true;
+      } finally {
+        this.loadingDialects = false;
+      }
+    },
     dialectIndent(dialect) {
       return { paddingLeft: `${24 + Number(dialect.depth || 0) * 22}rpx` };
     },
@@ -301,7 +317,7 @@ export default {
 
 .step-mark,
 .sample-kicker {
-  color: #7b4f2f;
+  color: var(--accent-color);
   font-size: 22rpx;
   font-weight: 800;
   letter-spacing: 4rpx;
@@ -317,7 +333,7 @@ export default {
 .intro-copy,
 .field-hint {
   margin-top: 12rpx;
-  color: #627067;
+  color: var(--text-secondary-color);
   font-size: 26rpx;
   line-height: 1.6;
 }
@@ -325,53 +341,32 @@ export default {
 .form-card,
 .dialect-card,
 .sample-card {
-  border: 1px solid #dfe5da;
-  border-radius: 16rpx;
-  background: #ffffff;
+  border: 1rpx solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
   padding: 28rpx;
 }
 
 .field-label {
-  color: #1d2a24;
+  color: var(--text-color);
   font-size: 29rpx;
   font-weight: 800;
 }
 
-.nickname-input {
-  height: 86rpx;
-  margin-top: 20rpx;
-  padding: 0 22rpx;
-  border: 1px solid #ccd6ca;
-  border-radius: 12rpx;
-  background: #f8f9f6;
-  font-size: 30rpx;
+/* 方言树加载占位与列表高度对齐，避免加载完成后布局跳动 */
+.loading-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.primary-button,
-.secondary-button,
-.sample-button,
-.logout-button {
-  border-radius: 999rpx;
-  font-size: 27rpx;
+.loading-shell--dialects {
+  min-height: 320rpx;
 }
 
-.primary-button {
-  margin-top: 28rpx;
-  background: #1f5c43;
-  color: #ffffff;
-}
-
-.primary-button::after,
-.secondary-button::after,
-.sample-button::after,
-.logout-button::after {
-  border: 0;
-}
-
-.loading-copy,
 .sample-empty {
   padding: 28rpx 0 8rpx;
-  color: #748078;
+  color: var(--muted-color);
   font-size: 25rpx;
   line-height: 1.5;
 }
@@ -382,22 +377,28 @@ export default {
   padding-top: 14rpx;
   padding-right: 18rpx;
   padding-bottom: 14rpx;
-  border: 1px solid #e3e8df;
-  border-radius: 12rpx;
-  background: #fafbf8;
+  border: 1rpx solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface-color);
   display: flex;
   align-items: center;
   gap: 16rpx;
   box-sizing: border-box;
+  transition: border-color 0.2s ease, background-color 0.2s ease,
+    transform 0.15s ease;
+}
+
+.dialect-option:active {
+  transform: scale(0.99);
 }
 
 .dialect-option.selected {
-  border-color: #1f5c43;
-  background: #edf5eb;
+  border-color: var(--accent-color);
+  background: var(--accent-subtle-color);
 }
 
 .dialect-radio {
-  color: #1f5c43;
+  color: var(--accent-color);
   font-size: 28rpx;
 }
 
@@ -408,65 +409,61 @@ export default {
 
 .dialect-code {
   margin-top: 4rpx;
-  color: #748078;
+  color: var(--muted-color);
   font-size: 22rpx;
 }
 
 .sample-card {
   margin-top: 20rpx;
-  border-color: #eadbc9;
-  background: #fffaf2;
+  background: var(--accent-subtle-color);
 }
 
 .sample-title {
   margin-top: 14rpx;
-  color: #32261c;
+  color: var(--text-color);
   font-size: 34rpx;
   font-weight: 800;
 }
 
 .sample-meta {
   margin-top: 8rpx;
-  color: #786a5e;
+  color: var(--muted-color);
   font-size: 24rpx;
 }
 
-.sample-button {
-  margin: 22rpx 0 0;
-  border: 1px solid #d9bea0;
-  background: #ffffff;
-  color: #7b4f2f;
+.sample-card .base-button {
+  margin-top: 22rpx;
 }
 
 .error {
   margin-top: 18rpx;
-  color: #a13b2c;
+  color: var(--danger-color);
   font-size: 25rpx;
 }
 
 .button-row {
   display: grid;
   grid-template-columns: 1fr 2fr;
-  gap: 16rpx;
+  gap: var(--space-2);
   margin-top: 24rpx;
-}
-
-.secondary-button,
-.finish-button {
-  width: 100%;
-  margin: 0;
-}
-
-.secondary-button {
-  border: 1px solid #cbd6c9;
-  background: #ffffff;
-  color: #1f5c43;
 }
 
 .logout-button {
   margin: 36rpx auto 10rpx;
-  background: transparent;
-  color: #7b4f2f;
+  color: var(--muted-color);
   font-size: 24rpx;
+  text-align: center;
+  transition: color 0.2s ease;
+}
+
+.logout-button:active {
+  color: var(--danger-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialect-option,
+  .logout-button {
+    transition: none;
+  }
 }
 </style>

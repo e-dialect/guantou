@@ -86,7 +86,7 @@ describe('follow recommendations page', () => {
 
     expect(followDialect).toHaveBeenCalledWith(4);
     expect(followUser).toHaveBeenCalledWith(12);
-    expect(toIndexPage).toHaveBeenCalledWith(true);
+    expect(toIndexPage).toHaveBeenCalledWith(true, { tab: 'today' });
     expect(app.globalData.userInfo.followed_dialects.map((item) => item.id)).toEqual([3, 4]);
   });
 
@@ -97,6 +97,42 @@ describe('follow recommendations page', () => {
     expect(wrapper.vm.selectedDialectIds).toEqual([3]);
 
     wrapper.vm.skip();
-    expect(toIndexPage).toHaveBeenCalledWith(true);
+    expect(toIndexPage).toHaveBeenCalledWith(true, { tab: 'today' });
+  });
+
+  it('renders the loading shell before the recommendations arrive', () => {
+    const wrapper = mountPage();
+
+    expect(wrapper.find('.loading-shell').exists()).toBe(true);
+  });
+
+  it('shows a retry state when recommendations fail to load', async () => {
+    listAllDialects.mockRejectedValueOnce(new Error('network down'));
+    const wrapper = mountPage();
+    await wrapper.vm.$options.onLoad.call(wrapper.vm);
+    await flushPromises();
+
+    expect(wrapper.vm.loadError).toBe(true);
+    expect(wrapper.text()).toContain('推荐加载失败');
+    expect(wrapper.text()).not.toContain('还想听哪些地方的乡音');
+
+    await wrapper.vm.loadRecommendations();
+    await flushPromises();
+
+    expect(wrapper.vm.loadError).toBe(false);
+    expect(wrapper.text()).toContain('真实作者');
+  });
+
+  it('offers an actionable empty state when no authors can be recommended', async () => {
+    listFollowRecommendations.mockResolvedValue({ results: [] });
+    const wrapper = mountPage();
+    await wrapper.vm.$options.onLoad.call(wrapper.vm);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('暂时没有可推荐的同方言作者');
+    expect(wrapper.text()).not.toContain('真实作者');
+
+    wrapper.vm.skip();
+    expect(toIndexPage).toHaveBeenCalledWith(true, { tab: 'today' });
   });
 });

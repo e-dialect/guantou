@@ -21,114 +21,128 @@
       </view>
     </view>
 
-    <view class="section-card">
-      <view class="section-kicker">
-        关注方言
-      </view>
-      <view class="section-title">
-        还想听哪些地方的乡音？
-      </view>
-      <view
-        v-if="loading"
-        class="loading-copy"
-      >
-        正在读取真实方言树…
-      </view>
-      <scroll-view
-        v-else
-        scroll-y
-        class="dialect-list"
-      >
-        <view
-          v-for="dialect in dialects"
-          :key="dialect.id"
-          :class="['dialect-row', isDialectSelected(dialect.id) ? 'selected' : '']"
-          :style="dialectIndent(dialect)"
-          @tap="toggleDialect(dialect.id)"
+    <view
+      v-if="loading"
+      class="loading-shell"
+    >
+      <BaseLoading text="正在读取方言与作者…" />
+    </view>
+    <EmptyState
+      v-else-if="loadError"
+      title="推荐加载失败"
+      description="方言和作者推荐没有读出来。重试一次，或直接进入首页——主方言订阅已生效。"
+      action-text="重新加载"
+      @action="loadRecommendations"
+    />
+    <template v-else>
+      <view class="section-card">
+        <view class="section-kicker">
+          关注方言
+        </view>
+        <view class="section-title">
+          还想听哪些地方的乡音？
+        </view>
+        <scroll-view
+          scroll-y
+          class="dialect-list"
         >
-          <view class="choice-mark">
-            {{ isDialectSelected(dialect.id) ? '●' : '○' }}
-          </view>
-          <view class="dialect-copy">
-            <view class="dialect-name">
-              {{ dialect.name }}
-            </view>
-            <view class="dialect-code">
-              {{ dialect.qualified_code }}
-            </view>
-          </view>
           <view
-            v-if="dialect.id === primaryDialect?.id"
-            class="locked-mark"
+            v-for="dialect in dialects"
+            :key="dialect.id"
+            :class="['dialect-row', isDialectSelected(dialect.id) ? 'selected' : '']"
+            :style="dialectIndent(dialect)"
+            @tap="toggleDialect(dialect.id)"
           >
-            主方言
+            <view class="choice-mark">
+              {{ isDialectSelected(dialect.id) ? '●' : '○' }}
+            </view>
+            <view class="dialect-copy">
+              <view class="dialect-name">
+                {{ dialect.name }}
+              </view>
+              <view class="dialect-code">
+                {{ dialect.qualified_code }}
+              </view>
+            </view>
+            <view
+              v-if="dialect.id === primaryDialect?.id"
+              class="locked-mark"
+            >
+              主方言
+            </view>
           </view>
-        </view>
-      </scroll-view>
-    </view>
+        </scroll-view>
+      </view>
 
-    <view class="section-card creator-section">
-      <view class="section-kicker">
-        真实贡献者
-      </view>
-      <view class="section-title">
-        同方言作者
-      </view>
-      <view class="section-hint">
-        只推荐有公开罐头的真实用户，不足时不会用演示账号补位。
-      </view>
-      <view
-        v-if="!loading && !candidates.length"
-        class="empty-copy"
-      >
-        暂时没有可推荐的同方言作者。主方言订阅已经生效，可以直接进入首页。
-      </view>
-      <view
-        v-for="candidate in candidates"
-        :key="candidate.id"
-        :class="['creator-row', isAuthorSelected(candidate.id) ? 'selected' : '']"
-        @tap="toggleAuthor(candidate.id)"
-      >
-        <image
-          class="creator-avatar"
-          :src="candidate.avatar"
-          mode="aspectFill"
+      <view class="section-card creator-section">
+        <view class="section-kicker">
+          真实贡献者
+        </view>
+        <view class="section-title">
+          同方言作者
+        </view>
+        <view class="section-hint">
+          只推荐有公开罐头的真实用户，不足时不会用演示账号补位。
+        </view>
+        <EmptyState
+          v-if="!candidates.length"
+          title="暂时没有可推荐的同方言作者"
+          description="主方言订阅已经生效，可以直接进入首页认识更多乡音。"
+          action-text="进入首页"
+          @action="skip"
         />
-        <view class="creator-copy">
-          <view class="creator-name">
-            {{ candidate.nickname || candidate.username }}
+        <view
+          v-for="candidate in candidates"
+          :key="candidate.id"
+          :class="['creator-row', isAuthorSelected(candidate.id) ? 'selected' : '']"
+          @tap="toggleAuthor(candidate.id)"
+        >
+          <image
+            class="creator-avatar"
+            :src="candidate.avatar"
+            mode="aspectFill"
+          />
+          <view class="creator-copy">
+            <view class="creator-name">
+              {{ candidate.nickname || candidate.username }}
+            </view>
+            <view class="creator-meta">
+              {{ candidate.primary_dialect?.qualified_code }}
+              · {{ candidate.public_can_count }} 罐公开乡音
+            </view>
           </view>
-          <view class="creator-meta">
-            {{ candidate.primary_dialect?.qualified_code }} · {{ candidate.public_can_count }} 罐公开乡音
+          <view class="creator-check">
+            {{ isAuthorSelected(candidate.id) ? '已选' : '选择' }}
           </view>
-        </view>
-        <view class="creator-check">
-          {{ isAuthorSelected(candidate.id) ? '已选' : '选择' }}
         </view>
       </view>
-    </view>
+    </template>
 
     <view class="actions">
-      <button
-        class="secondary-button"
+      <BaseButton
+        block
+        variant="ghost"
         :disabled="saving"
-        @tap="skip"
+        @click="skip"
       >
         暂时跳过
-      </button>
-      <button
-        class="primary-button"
+      </BaseButton>
+      <BaseButton
+        block
         :disabled="saving"
-        @tap="save"
+        @click="save"
       >
         {{ saving ? '正在保存…' : actionText }}
-      </button>
+      </BaseButton>
     </view>
   </PageShell>
 </template>
 
 <script>
 import PageShell from '@/components/PageShell.vue';
+import BaseButton from '@/components/BaseButton.vue';
+import BaseLoading from '@/components/BaseLoading.vue';
+import EmptyState from '@/components/EmptyState.vue';
 import { goOnboarding } from '@/services/navigation';
 import { toIndexPage } from '@/routers';
 import {
@@ -140,7 +154,9 @@ import {
 import { listAllDialects } from '@/services/guantou';
 
 export default {
-  components: { PageShell },
+  components: {
+    PageShell, BaseButton, BaseLoading, EmptyState,
+  },
   data() {
     const user = getApp().globalData.userInfo || {};
     const followedIds = (user.followed_dialects || []).map((item) => item.id);
@@ -151,6 +167,7 @@ export default {
       candidates: [],
       dialects: [],
       initialDialectIds: [...followedIds],
+      loadError: false,
       loading: true,
       primaryDialect: user.primary_dialect || null,
       saving: false,
@@ -169,21 +186,26 @@ export default {
       goOnboarding({ reason: 'missing_dialect' }, { reset: true });
       return;
     }
-    try {
-      const [dialects, response] = await Promise.all([
-        listAllDialects(),
-        listFollowRecommendations(this.primaryDialect.id),
-      ]);
-      this.dialects = dialects;
-      this.candidates = response.results || [];
-      this.selectedAuthorIds = this.candidates.slice(0, 3).map((item) => item.id);
-    } catch (error) {
-      uni.showToast({ title: '推荐暂时加载失败，可以直接进入首页', icon: 'none' });
-    } finally {
-      this.loading = false;
-    }
+    await this.loadRecommendations();
   },
   methods: {
+    async loadRecommendations() {
+      this.loading = true;
+      this.loadError = false;
+      try {
+        const [dialects, response] = await Promise.all([
+          listAllDialects(),
+          listFollowRecommendations(this.primaryDialect.id),
+        ]);
+        this.dialects = dialects;
+        this.candidates = response.results || [];
+        this.selectedAuthorIds = this.candidates.slice(0, 3).map((item) => item.id);
+      } catch (error) {
+        this.loadError = true;
+      } finally {
+        this.loading = false;
+      }
+    },
     dialectIndent(dialect) {
       return { paddingLeft: `${20 + Number(dialect.depth || 0) * 20}rpx` };
     },
@@ -241,10 +263,10 @@ export default {
         title: failed ? `${jobs.length - failed} 项已保存，${failed} 项失败` : '关注已保存',
         icon: failed ? 'none' : 'success',
       });
-      toIndexPage(true);
+      toIndexPage(true, { tab: 'today' });
     },
     skip() {
-      toIndexPage(true);
+      toIndexPage(true, { tab: 'today' });
     },
   },
 };
@@ -253,9 +275,9 @@ export default {
 <style scoped>
 .intro-card,
 .section-card {
-  border: 1px solid #dce5d8;
-  border-radius: 18rpx;
-  background: #fff;
+  border: 1rpx solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--surface-color);
   padding: 28rpx;
 }
 
@@ -265,7 +287,7 @@ export default {
 
 .step-mark,
 .section-kicker {
-  color: #885331;
+  color: var(--accent-color);
   font-size: 22rpx;
   font-weight: 800;
   letter-spacing: 4rpx;
@@ -280,26 +302,32 @@ export default {
 .section-title {
   margin-top: 10rpx;
   font-size: 32rpx;
-  font-weight: 850;
+  font-weight: 800;
 }
 
 .intro-copy,
-.section-hint,
-.loading-copy,
-.empty-copy {
+.section-hint {
   margin-top: 12rpx;
-  color: #607067;
+  color: var(--text-secondary-color);
   font-size: 25rpx;
   line-height: 1.6;
+}
+
+/* 加载占位与方言列表高度对齐，避免加载完成后布局跳动 */
+.loading-shell {
+  min-height: 410rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .primary-badge {
   display: inline-flex;
   margin-top: 20rpx;
   padding: 9rpx 18rpx;
-  border-radius: 999rpx;
-  background: #e9f2e8;
-  color: #1f6549;
+  border-radius: var(--radius-pill);
+  background: var(--accent-subtle-color);
+  color: var(--accent-color);
   font-size: 24rpx;
   font-weight: 800;
 }
@@ -307,7 +335,7 @@ export default {
 .dialect-list {
   height: 410rpx;
   margin-top: 18rpx;
-  border-top: 1px solid #edf0e9;
+  border-top: 1rpx solid var(--border-color);
 }
 
 .dialect-row,
@@ -316,17 +344,36 @@ export default {
   align-items: center;
   gap: 16rpx;
   min-height: 86rpx;
-  border-bottom: 1px solid #edf0e9;
+  border-bottom: 1rpx solid var(--border-color);
   box-sizing: border-box;
+  transition: background-color 0.2s ease;
+}
+
+.dialect-row:active,
+.creator-row:active {
+  background: var(--surface-subtle-color);
 }
 
 .dialect-row.selected,
 .creator-row.selected {
-  background: #f0f6ed;
+  background: var(--accent-subtle-color);
+}
+
+/* 已选中的行按下时加深，保证按压反馈不被选中态覆盖 */
+.dialect-row.selected:active,
+.creator-row.selected:active {
+  background: var(--border-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialect-row,
+  .creator-row {
+    transition: none;
+  }
 }
 
 .choice-mark {
-  color: #1f6549;
+  color: var(--accent-color);
   font-size: 25rpx;
 }
 
@@ -345,7 +392,7 @@ export default {
 .dialect-code,
 .creator-meta {
   margin-top: 5rpx;
-  color: #7a867d;
+  color: var(--muted-color);
   font-size: 22rpx;
   overflow-wrap: anywhere;
 }
@@ -353,7 +400,7 @@ export default {
 .locked-mark,
 .creator-check {
   flex: 0 0 auto;
-  color: #1f6549;
+  color: var(--accent-color);
   font-size: 22rpx;
   font-weight: 800;
 }
@@ -366,7 +413,7 @@ export default {
   width: 74rpx;
   height: 74rpx;
   border-radius: 50%;
-  background: #e6ebe3;
+  background: var(--surface-subtle-color);
 }
 
 .actions {
@@ -374,29 +421,5 @@ export default {
   grid-template-columns: 0.8fr 1.4fr;
   gap: 14rpx;
   padding-bottom: 34rpx;
-}
-
-.primary-button,
-.secondary-button {
-  width: 100%;
-  margin: 0;
-  border-radius: 999rpx;
-  font-size: 26rpx;
-}
-
-.primary-button {
-  background: #1f6549;
-  color: #fff;
-}
-
-.secondary-button {
-  border: 1px solid #cfd9cc;
-  background: #fff;
-  color: #315b49;
-}
-
-.primary-button::after,
-.secondary-button::after {
-  border: 0;
 }
 </style>
