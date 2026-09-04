@@ -50,6 +50,16 @@ export function resolveAuthDestination(intent) {
     return { kind: AUTH_DESTINATION_KINDS.FALLBACK };
   }
 
+  if (intent.action === 'record_recording') {
+    return routeDestination(ROUTES.record, {
+      entry_id: context.entryId || undefined,
+    });
+  }
+
+  if (intent.action === 'attest_usage' && context.entryId) {
+    return routeDestination(ROUTES.entryDetail, { id: context.entryId });
+  }
+
   if (intent.action === 'nameplate_support') {
     if (!context.nameplateId) return { kind: AUTH_DESTINATION_KINDS.FALLBACK };
     return routeDestination(ROUTES.nameplateDetail, {

@@ -1,6 +1,6 @@
 <template>
   <AppShell
-    title="我的"
+    title="我的账户"
     active="me"
   >
     <view class="page">
@@ -74,7 +74,7 @@
                 {{ cansCount }}
               </view>
               <view class="label">
-                罐头
+                录音
               </view>
             </view>
             <view class="social-stat">
@@ -122,7 +122,7 @@
                 block
                 @click="toCreate"
               >
-                装一罐
+                录乡音
               </BaseButton>
             </view>
           </view>
@@ -140,7 +140,7 @@
                 :key="dialect.id"
                 class="dialect-badge"
               >
-                {{ dialect.qualified_code || dialect.name }}
+                {{ dialect.name }}
               </view>
             </view>
           </view>
@@ -152,14 +152,14 @@
                 :class="{ active: worksTab === 'cans' }"
                 @tap="worksTab = 'cans'"
               >
-                罐头 {{ cansCount }}
+                录音 {{ cansCount }}
               </view>
               <view
                 class="works-tab pressable"
                 :class="{ active: worksTab === 'nameplates' }"
                 @tap="worksTab = 'nameplates'"
               >
-                铭牌 {{ nameplatesCount }}
+                词条 {{ nameplatesCount }}
               </view>
               <view
                 class="works-tab pressable"
@@ -182,7 +182,7 @@
                 block
                 @click="toCreate"
               >
-                去装一罐
+                去录乡音
               </BaseButton>
               <BaseButton
                 v-else
@@ -191,7 +191,7 @@
                 block
                 @click="toCanLibrary"
               >
-                打开罐头库
+                查看既有贡献
               </BaseButton>
             </view>
           </view>
@@ -205,7 +205,7 @@
                 {{ cansCount }}
               </view>
               <view class="tool-label">
-                罐头库
+                既有录音
               </view>
             </view>
             <view
@@ -232,6 +232,46 @@
             </view>
           </view>
 
+          <view class="account-section">
+            <view class="section-kicker">
+              贡献履历
+            </view>
+            <view class="account-section__copy">
+              你已留下 {{ cansCount }} 段录音、参与 {{ nameplatesCount }} 个词条、
+              补充 {{ flavorsCount }} 个义项。后续补证和修订也会形成可追溯记录。
+            </view>
+          </view>
+
+          <view class="account-section">
+            <view class="section-kicker">
+              录音与授权
+            </view>
+            <view class="account-section__copy">
+              每段录音独立保存授权说明；设备位置不会随录音上传。你可以在录音时填写引用范围。
+            </view>
+            <BaseButton
+              class="account-section__action"
+              size="small"
+              variant="ghost"
+              text="录一段并设置授权"
+              @click="toCreate"
+            />
+          </view>
+
+          <view class="account-section">
+            <view class="section-kicker">
+              {{ curationSummary ? '管理与审核' : '申请成为整理员' }}
+            </view>
+            <view class="account-section__copy">
+              <template v-if="curationSummary">
+                当前有 {{ curatorPending }} 项待办。词条整理与地区整理按授权范围显示，不进入 Django 系统后台。
+              </template>
+              <template v-else>
+                熟悉本地方言写法、读音或资料来源？可申请词条整理或地区整理权限；授权范围和期限会公开记录。
+              </template>
+            </view>
+          </view>
+
           <view class="menu">
             <view class="section-kicker menu-kicker">
               主题
@@ -249,7 +289,16 @@
 
           <view class="menu">
             <view class="section-kicker menu-kicker">
-              账号与安全
+              个人资料、隐私与安全
+            </view>
+            <view
+              class="menu-item pressable"
+              @tap="toUserInfoPage"
+            >
+              <view>个人资料与隐私</view>
+              <view class="menu-value">
+                查看与修改
+              </view>
             </view>
             <view
               class="menu-item pressable"
@@ -296,7 +345,7 @@
             还没有登录
           </view>
           <view class="guest-copy">
-            登录后可以装罐、看草稿和自己的贡献。公开乡音不用登录，先听也可以。
+            登录后可以录乡音、看草稿和自己的贡献。公开乡音不用登录，先听也可以。
           </view>
           <BaseButton
             class="guest-action login-button"
@@ -311,7 +360,7 @@
             block
             @click="toHome"
           >
-            先去听罐头
+            先去听乡音
           </BaseButton>
           <BaseButton
             class="guest-action"
@@ -348,11 +397,12 @@ import confirmDialog from '@/components/ConfirmDialog';
 import { notify, notifySuccess } from '@/services/feedback';
 import { openLoginFromMine } from '@/services/authJourney';
 import { listCanDrafts } from '@/services/canDrafts';
+import { getCurationSummary } from '@/services/entryRecording';
 import {
   goCanLibrary,
-  goCreateCan,
   goHome,
   goMails,
+  goRecord,
   goSearch,
   goThemeCenter,
   goUserEmail,
@@ -395,16 +445,17 @@ export default {
       loadError: '',
       loggedIn: Boolean(uni.getStorageSync('token')),
       worksTab: 'cans',
+      curationSummary: null,
     };
   },
   computed: {
     locationText() {
-      return this.primaryDialect?.qualified_code || '未填写方言点';
+      return this.primaryDialect?.name || '未填写方言点';
     },
     bioText() {
       const dialect = this.locationText;
       if (this.titleLabel) return `${this.titleLabel} · ${dialect}`;
-      return `在「${dialect}」装罐`;
+      return `在「${dialect}」记录乡音`;
     },
     worksCount() {
       if (this.worksTab === 'nameplates') return this.nameplatesCount;
@@ -413,25 +464,25 @@ export default {
     },
     worksPanelTitle() {
       if (this.worksCount > 0) {
-        if (this.worksTab === 'nameplates') return `已有 ${this.worksCount} 张铭牌`;
-        if (this.worksTab === 'flavors') return `已有 ${this.worksCount} 个义项`;
-        return `已有 ${this.worksCount} 罐`;
+        if (this.worksTab === 'nameplates') return `参与 ${this.worksCount} 个词条`;
+        if (this.worksTab === 'flavors') return `补充 ${this.worksCount} 个义项`;
+        return `留下 ${this.worksCount} 段录音`;
       }
-      if (this.worksTab === 'nameplates') return '还没有贴铭牌';
-      if (this.worksTab === 'flavors') return '还没有提交义项';
-      return '还没有装罐';
+      if (this.worksTab === 'nameplates') return '还没有参与词条整理';
+      if (this.worksTab === 'flavors') return '还没有补充义项';
+      return '还没有录音贡献';
     },
     worksPanelCopy() {
       if (this.worksCount > 0) {
-        return '完整列表在罐头库，可按录制、收藏和草稿查看。';
+        return '既有贡献仍可查看；新录音会按词条和地区建立可追溯关联。';
       }
       if (this.worksTab === 'nameplates') {
-        return '铭牌是你对某条罐头的写法、释义和出处主张。先听一罐再去贴。';
+        return '不会写汉字也没关系，先录音和说明大意，之后再逐步完善词条。';
       }
       if (this.worksTab === 'flavors') {
-        return '义项用来收纳“同一个意思在各地怎么说”。去罐头库看看别人怎么装。';
+        return '义项记录同一个词条下相关的编号义、用法和例句。';
       }
-      return '罐头是一段乡音录音。装一罐后会出现在这里和罐头库。';
+      return '录下一个你会说的词或短语，只需标明地区并说明大意。';
     },
     emailLabel() {
       return this.email || '未绑定';
@@ -446,6 +497,10 @@ export default {
     },
     themeLabel() {
       return getActiveTheme().name;
+    },
+    curatorPending() {
+      const pending = this.curationSummary?.pending || {};
+      return Object.values(pending).reduce((total, value) => total + Number(value || 0), 0);
     },
   },
   beforeMount() {
@@ -480,7 +535,7 @@ export default {
       goHome();
     },
     toCreate() {
-      goCreateCan();
+      goRecord();
     },
     toDrafts() {
       goCanLibrary({ tab: 'drafts' });
@@ -528,10 +583,18 @@ export default {
           : 0;
         this.email = userInfo.user.email || '';
         this.wechatBound = Boolean(userInfo.user.wechat);
+        await this.loadCurationSummary();
       } catch (error) {
         this.loadError = error?.message || '档案加载失败，请检查网络后重试';
       } finally {
         this.loading = false;
+      }
+    },
+    async loadCurationSummary() {
+      try {
+        this.curationSummary = await getCurationSummary();
+      } catch (error) {
+        this.curationSummary = null;
       }
     },
     async exit() {
@@ -811,12 +874,27 @@ export default {
 
 .works,
 .tool-grid,
-.menu {
+.menu,
+.account-section {
   margin-top: var(--space-4);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background: var(--surface-color);
   overflow: hidden;
+}
+
+.account-section {
+  padding: var(--space-3);
+}
+
+.account-section__copy {
+  color: var(--text-secondary-color);
+  font-size: var(--font-size-sm);
+  line-height: 1.65;
+}
+
+.account-section__action {
+  margin-top: var(--space-3);
 }
 
 .works-tabs {

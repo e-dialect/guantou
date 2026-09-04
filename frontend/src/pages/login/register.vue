@@ -8,7 +8,7 @@
         创建账号
       </view>
       <view class="auth-card__lead">
-        注册后可以收藏乡音、支持铭牌、参与讨论。
+        注册后可以收藏乡音、确认地区用法、补充词条并参与讨论。
       </view>
 
       <view class="auth-form">

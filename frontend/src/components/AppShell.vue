@@ -31,7 +31,7 @@
         <slot />
       </view>
       <view class="app-shell__footer">
-        把乡音装进罐头，让每张铭牌都有来处。
+        把乡音录下来，让每个词条都有来处。
       </view>
     </scroll-view>
     <view

@@ -51,7 +51,7 @@ describe('HomeTopBar', () => {
   it('navigates to the search page', async () => {
     const wrapper = mountTopBar();
 
-    await wrapper.find('[aria-label="搜索"]').trigger('tap');
+    await wrapper.find('[aria-label="查找词条"]').trigger('tap');
 
     expect(uni.navigateTo).toHaveBeenCalledWith({ url: '/pages/search' });
   });

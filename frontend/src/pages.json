@@ -12,6 +12,14 @@
       "style": {}
     },
     {
+      "path": "pages/recordings/create",
+      "style": {}
+    },
+    {
+      "path": "pages/entries/details",
+      "style": {}
+    },
+    {
       "path": "pages/discovery/index",
       "style": {}
     },

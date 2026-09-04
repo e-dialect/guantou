@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test.use({ hasTouch: true, isMobile: true });
+test.skip(true, 'V2 首页不再挂载旧 Can 操作栏；浮层逻辑由 CommentSheet 单元测试覆盖，阶段 8 一并移除旧宿主');
 
 const scrollSelector = '.comment-sheet__scroll > .uni-scroll-view > .uni-scroll-view';
 

@@ -1,10 +1,10 @@
 import { getTodayCan as getTodayCanApi, listCans } from '@/services/guantou';
 
 export const HOME_FEED_TABS = [
-  { key: 'today', label: '今日罐' },
-  { key: 'dialect', label: '同方言' },
-  { key: 'following', label: '关注' },
-  { key: 'recommended', label: '推荐' },
+  { key: 'today', label: '新近' },
+  { key: 'dialect', label: '本地' },
+  { key: 'following', label: '短语' },
+  { key: 'recommended', label: '全部' },
 ];
 
 const FEED_PAGE_SIZE = 8;

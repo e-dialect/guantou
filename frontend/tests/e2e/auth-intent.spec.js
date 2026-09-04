@@ -23,6 +23,6 @@ test('guest can cancel an intercepted action and return to search', async ({ pag
   await page.getByText('暂不登录，先去查词').click();
 
   await expect(page).toHaveURL(/\/pages\/search$/);
-  await expect(page.getByRole('searchbox')).toBeVisible();
+  await expect(page.locator('.entry-search__bar input')).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('auth_intercept_intent'))).toBeNull();
 });

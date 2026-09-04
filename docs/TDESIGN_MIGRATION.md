@@ -27,7 +27,7 @@
 | `pages/pronunciations/create` | done | [#234](https://github.com/e-dialect/guantou/issues/234)：PageShell + BaseForm/BaseField/BaseButton、统一加载/重试/反馈；保留写法 Picker、方言级联、联合校验、字段错误定位与成功返回 |
 | `pages/shelves/index` | issue | [#231](https://github.com/e-dialect/guantou/issues/231)：创建表单与列表状态 |
 | `pages/shelves/details` | issue | [#235](https://github.com/e-dialect/guantou/issues/235)：编辑、双搜索和成员管理 |
-| `pages/search` / `components/SearchPanel` | partial | [#236](https://github.com/e-dialect/guantou/issues/236) / [PR #312](https://github.com/e-dialect/guantou/pull/312)（源自关闭的 [#224](https://github.com/e-dialect/guantou/pull/224)）：搜索输入已迁移到 BaseField/BaseButton，保留全部分类结果、聚焦、键盘 confirm 与搜索联想；页面状态与视觉细化继续由 issue 跟踪 |
+| `pages/search` | done | Entry-first 搜索使用 BaseField/BaseButton 与 TDesign 折叠、级联和选择器；同形异义词条独立展示，支持地区、录音、状态、写法、来源、IPA、罗马字与概念筛选 |
 | `pages/users/onboarding` | done | [#233](https://github.com/e-dialect/guantou/issues/233) / [PR #310](https://github.com/e-dialect/guantou/pull/310)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：BaseField/BaseButton、方言树加载重试与真实乡音样本；保留登录中断恢复 |
 | `pages/cans/drafts` | done | [#195](https://github.com/e-dialect/guantou/issues/195) / [PR #216](https://github.com/e-dialect/guantou/pull/216)：加载、空态、错误、继续编辑与删除反馈 |
 | `pages/cans/index` / `library` | queued | 每页独立 PR |
@@ -39,7 +39,7 @@
 | `pages/packages/index` / `details` | queued | 搜索、加载与详情操作 |
 | `pages/circles/index` / `details` | queued | 搜索、Picker 与详情操作 |
 | `pages/discovery/index` | queued | 操作按钮与加载状态 |
-| `pages/users/me` / `details` | queued | 开放能力与关注交互分别迁移 |
+| `pages/users/me` | done | “我”已成为完整账户中心：资料、隐私、关注收藏、贡献履历、录音授权及按权限显示的整理入口 |
 | `pages/users/recommend-follow` | done | [PR #310](https://github.com/e-dialect/guantou/pull/310)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：BaseButton、统一加载/空态/重试及关注结果反馈 |
 | `pages/users/theme-center` | done | 总览 THEME_CENTER.md。分期 ROADMAP：一期核心切换；二期搜索收藏预览权限；三期不在本页做投稿社区。跳转 NAV |
 | `pages/users/theme-dress` | done | 单组局部装扮：免费/会员/活动/创作者权限、待上线占位；不覆盖其它分组 |
@@ -93,3 +93,12 @@
 ## Completion
 
 所有 `issue` 和 `queued` 页面完成后：确认仓库不再使用原生交互控件、`uni-ui` 表单或 `cu-*`，再删除 `legacy-form-compat.scss`、ColorUI 全局引入、无用 easycom 映射与 `@dcloudio/uni-ui` 依赖。
+
+## Entry / Recording V2 核心路径（#320）
+
+- 一级导航收敛为“听 / 查 / 录 / 我”；单字只作视觉标签，交互控件使用完整无障碍名称。
+- “听”直接读取 Recording 资源并保留主要 Entry 关联，支持播放、进入词条、确认本地用法和发起地区对比接龙。
+- “查”以 Entry 为结果单位；相同写法不会自动合并，专业筛选在同页逐层展开。
+- “录”最低只要求音频、已知使用地区和用户自己的大意；写法、读音、已有词条、来源和授权说明均为可选补充。
+- “我”保留完整账户设置；普通用户看到整理员申请说明，有授权的用户才看到管理与审核待办，客户端不嵌入 Django 后台。
+- V2 浏览器主路径由 `tests/e2e/guest-flow.spec.js` 与 `tests/e2e/h5-smoke.spec.js` 覆盖。旧 Can 首页评论浮层失去宿主后不再执行浏览器用例，其组件级交互仍由 `tests/unit/CommentSheet.test.js` 覆盖，并在阶段 8 删除旧领域时一并清理。

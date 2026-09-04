@@ -314,29 +314,29 @@ describe('immersive home (Issue #192)', () => {
     expect(wrapper.vm.supportCount).toBe(3);
   });
 
-  it('tab bar shows the raised 装罐 key and reaches the create page', async () => {
+  it('tab bar shows the 录 entry and reaches the V2 recording page', async () => {
     setupUni('token-value');
 
-    const wrapper = mount(HomeTabBar, { props: { active: 'home' } });
+    const wrapper = mount(HomeTabBar, { props: { active: 'listen' } });
 
-    expect(wrapper.text()).toContain('装罐');
-    await wrapper.find('[aria-label="装罐"]').trigger('tap');
+    expect(wrapper.text()).toContain('录');
+    await wrapper.find('[aria-label="录制乡音"]').trigger('tap');
     expect(uni.navigateTo).toHaveBeenCalledWith(expect.objectContaining({
-      url: '/pages/cans/create',
+      url: '/pages/recordings/create',
     }));
   });
 
-  it('tab bar 装罐 key asks guests to login first', async () => {
+  it('tab bar recording entry asks guests to login first', async () => {
     setupUni();
 
-    const wrapper = mount(HomeTabBar, { props: { active: 'home' } });
-    await wrapper.find('[aria-label="装罐"]').trigger('tap');
+    const wrapper = mount(HomeTabBar, { props: { active: 'listen' } });
+    await wrapper.find('[aria-label="录制乡音"]').trigger('tap');
 
     expect(uni.navigateTo).toHaveBeenCalledWith(expect.objectContaining({
       url: '/pages/login/login',
     }));
     expect(uni.navigateTo).not.toHaveBeenCalledWith(expect.objectContaining({
-      url: '/pages/cans/create',
+      url: '/pages/recordings/create',
     }));
   });
 

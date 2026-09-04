@@ -65,7 +65,7 @@
       />
     </view>
 
-    <HomeTabBar active="home" />
+    <HomeTabBar active="listen" />
 
     <!-- 半屏评论区（见 #219）：全局浮层，包装 CommentThread，沉浸流内嵌深色主题 -->
     <CommentSheet @active-change="onSheetActiveChange" />
@@ -74,7 +74,7 @@
 
 <script>
 import CommentSheet from '@/components/CommentSheet.vue';
-import HomeFeed from '@/components/home/HomeFeed.vue';
+import HomeFeed from '@/components/home/RecordingFeed.vue';
 import HomeTabBar from '@/components/home/HomeTabBar.vue';
 import HomeTopBar from '@/components/home/HomeTopBar.vue';
 import { isLoggedIn } from '@/services/authGuard';

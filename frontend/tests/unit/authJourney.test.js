@@ -139,4 +139,23 @@ describe('auth journey', () => {
       url: '/pages/cans/create?dialect=8',
     });
   });
+
+  it('returns V2 recording and attestation intents to the Entry context', () => {
+    expect(resolveAuthDestination({
+      action: 'record_recording',
+      context: { page: 'entry_detail', entryId: 27 },
+    })).toEqual({
+      kind: 'url',
+      route: 'pages/recordings/create',
+      url: '/pages/recordings/create?entry_id=27',
+    });
+    expect(resolveAuthDestination({
+      action: 'attest_usage',
+      context: { page: 'listen', entryId: 27 },
+    })).toEqual({
+      kind: 'url',
+      route: 'pages/entries/details',
+      url: '/pages/entries/details?id=27',
+    });
+  });
 });

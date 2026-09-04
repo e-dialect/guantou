@@ -21,65 +21,67 @@ describe('HomeTabBar routing', () => {
     setupUni();
   });
 
-  it('renders five slots including the raised 装罐 key', () => {
-    const wrapper = mount(HomeTabBar, { props: { active: 'home' } });
+  it('renders four single-character visual labels with complete accessible names', () => {
+    const wrapper = mount(HomeTabBar, { props: { active: 'listen' } });
 
-    expect(wrapper.text()).toContain('罐头');
-    expect(wrapper.text()).toContain('图鉴');
-    expect(wrapper.text()).toContain('装罐');
-    expect(wrapper.text()).toContain('集盒');
-    expect(wrapper.text()).toContain('我的');
-    expect(wrapper.find('.home-tab-bar__create').exists()).toBe(true);
+    expect(wrapper.findAll('.home-tab-bar__item')).toHaveLength(4);
+    expect(wrapper.find('[aria-label="听乡音"]').exists()).toBe(true);
+    expect(wrapper.find('[aria-label="查找词条"]').exists()).toBe(true);
+    expect(wrapper.find('[aria-label="录制乡音"]').exists()).toBe(true);
+    expect(wrapper.find('[aria-label="我的账户"]').exists()).toBe(true);
   });
 
-  it('routes atlas / box / mine to their pages', async () => {
-    const wrapper = mount(HomeTabBar, { props: { active: 'home' } });
+  it('routes search and mine to their primary pages', async () => {
+    const wrapper = mount(HomeTabBar, { props: { active: 'listen' } });
 
-    await wrapper.find('[aria-label="图鉴"]').trigger('tap');
+    await wrapper.find('[aria-label="查找词条"]').trigger('tap');
     expect(uni.reLaunch).toHaveBeenCalledWith(expect.objectContaining({
-      url: '/pages/flavors/index',
+      url: '/pages/search',
     }));
 
-    await wrapper.find('[aria-label="集盒"]').trigger('tap');
-    expect(uni.reLaunch).toHaveBeenCalledWith(expect.objectContaining({
-      url: '/pages/shelves/index',
-    }));
-
-    await wrapper.find('[aria-label="我的"]').trigger('tap');
+    await wrapper.find('[aria-label="我的账户"]').trigger('tap');
     expect(uni.reLaunch).toHaveBeenCalledWith(expect.objectContaining({
       url: '/pages/users/me',
     }));
   });
 
   it('does not re-navigate when home is already active', async () => {
-    const wrapper = mount(HomeTabBar, { props: { active: 'home' } });
+    const wrapper = mount(HomeTabBar, { props: { active: 'listen' } });
 
-    await wrapper.find('[aria-label="罐头"]').trigger('tap');
+    await wrapper.find('[aria-label="听乡音"]').trigger('tap');
 
     expect(uni.reLaunch).not.toHaveBeenCalled();
   });
 
   it('navigates home when active elsewhere', async () => {
-    const wrapper = mount(HomeTabBar, { props: { active: 'atlas' } });
+    const wrapper = mount(HomeTabBar, { props: { active: 'search' } });
 
-    await wrapper.find('[aria-label="罐头"]').trigger('tap');
+    await wrapper.find('[aria-label="听乡音"]').trigger('tap');
 
     expect(uni.reLaunch).toHaveBeenCalledWith(expect.objectContaining({
       url: '/pages/index',
     }));
   });
 
-  it('requires record_can auth before opening the create page', async () => {
+  it('requires recording auth before opening the V2 create page', async () => {
     setupUni('');
-    const wrapper = mount(HomeTabBar, { props: { active: 'home' } });
+    const wrapper = mount(HomeTabBar, { props: { active: 'listen' } });
 
-    await wrapper.find('[aria-label="装罐"]').trigger('tap');
+    await wrapper.find('[aria-label="录制乡音"]').trigger('tap');
 
     expect(uni.navigateTo).toHaveBeenCalledWith(expect.objectContaining({
       url: '/pages/login/login',
     }));
     expect(uni.navigateTo).not.toHaveBeenCalledWith(expect.objectContaining({
-      url: '/pages/cans/create',
+      url: '/pages/recordings/create',
     }));
+  });
+
+  it('opens the V2 recording page for a signed-in contributor', async () => {
+    const wrapper = mount(HomeTabBar, { props: { active: 'listen' } });
+
+    await wrapper.find('[aria-label="录制乡音"]').trigger('tap');
+
+    expect(uni.navigateTo).toHaveBeenCalledWith({ url: '/pages/recordings/create' });
   });
 });

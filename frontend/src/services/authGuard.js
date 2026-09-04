@@ -2,6 +2,8 @@ import { toLoginPage } from '@/routers/login';
 import { notify } from '@/services/feedback';
 
 export const PROTECTED_ACTIONS = {
+  record_recording: '录制乡音',
+  attest_usage: '确认本地使用',
   record_can: '录一罐',
   publish_post: '发布',
   use_same: '用同款',

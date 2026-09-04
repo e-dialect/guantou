@@ -1,6 +1,8 @@
 export const ROUTES = Object.freeze({
   home: '/pages/index',
   search: '/pages/search',
+  record: '/pages/recordings/create',
+  entryDetail: '/pages/entries/details',
   atlas: '/pages/flavors/index',
   shelves: '/pages/shelves/index',
   mine: '/pages/users/me',
@@ -115,6 +117,12 @@ export function goBack(fallback = ROUTES.home) {
 
 export const goHome = (reset = false, params = {}) => openPage(ROUTES.home, params, { reset });
 export const goSearch = (options = {}) => openPage(ROUTES.search, {}, options);
+export const goRecord = (params = {}, options = {}) => openPage(ROUTES.record, params, options);
+export const goEntryDetail = (id, options = {}) => openPage(
+  ROUTES.entryDetail,
+  { id },
+  options,
+);
 export const goAtlas = (reset = false) => openPage(ROUTES.atlas, {}, { reset });
 export const goShelves = (reset = false) => openPage(ROUTES.shelves, {}, { reset });
 export const goMine = (reset = false) => openPage(ROUTES.mine, {}, { reset });
@@ -211,6 +219,7 @@ export default {
   goCreateCan,
   goCreateNameplate,
   goDiscovery,
+  goEntryDetail,
   goFlavorDetail,
   goHome,
   goLogin,
@@ -230,6 +239,7 @@ export default {
   goPostCompose,
   goPostDetail,
   goPronunciationCreate,
+  goRecord,
   goRecommendFollow,
   goSearch,
   goShelfDetail,

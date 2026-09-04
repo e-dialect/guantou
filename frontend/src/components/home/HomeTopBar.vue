@@ -55,7 +55,7 @@
       <view
         class="home-top-bar__search home-search-entry"
         role="button"
-        aria-label="搜索"
+        aria-label="查找词条"
         @tap="toSearch"
       >
         <view
@@ -67,7 +67,7 @@
 
     <!-- 品牌小标（保留 h5-smoke 断言文案） -->
     <view class="home-top-bar__brand">
-      {{ appName }} · 把乡音装进罐头
+      {{ appName }} · 听见乡音，找到词条
     </view>
   </view>
 </template>

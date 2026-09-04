@@ -188,7 +188,7 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
 test('account settings stay behind login and use PageShell titles', async ({ page }) => {
   await openMine(page);
   await tap(page.locator('.login-button'));
-  await expect(page.getByText('登录后可以支持铭牌')).toBeVisible();
+  await expect(page.getByText('登录后可以确认地区用法')).toBeVisible();
 
   await page.goto('/pages/users/settings/information');
   await expect(page).toHaveURL(/\/pages\/login\/login/);
@@ -268,7 +268,7 @@ test('H5 mine account menu hides WeChat bind and keeps email', async ({ page }) 
   await mockSignedInCollector(page);
   await page.goto('/pages/users/me');
 
-  await expect(page.getByText('账号与安全')).toBeVisible();
+  await expect(page.getByText('个人资料、隐私与安全')).toBeVisible();
   await expect(page.getByText('主题中心')).toBeVisible();
   await expect(page.getByText('邮箱')).toBeVisible();
   await expect(page.getByText('修改密码')).toBeVisible();

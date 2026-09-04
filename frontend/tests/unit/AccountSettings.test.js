@@ -72,6 +72,12 @@ vi.mock('@/services/guantou', () => ({
   listAllDialects: vi.fn(async () => []),
 }));
 
+vi.mock('@/services/entryRecording', () => ({
+  getCurationSummary: vi.fn(async () => {
+    throw Object.assign(new Error('forbidden'), { statusCode: 403 });
+  }),
+}));
+
 vi.mock('@/services/following', () => ({
   followUser: vi.fn(),
   unfollowUser: vi.fn(),
@@ -179,15 +185,16 @@ describe('account UI tokens', () => {
     });
   });
 
-  it('uses Douyin-like profile actions without renaming product terms', () => {
+  it('uses the V2 account and contribution terms', () => {
     const source = readFileSync(
       resolve(process.cwd(), 'src/pages/users/me.vue'),
       'utf8',
     );
     expect(source).toContain('编辑资料');
     expect(source).toContain('乡声号');
-    expect(source).toContain('装一罐');
-    expect(source).toContain('罐头');
+    expect(source).toContain('录乡音');
+    expect(source).toContain('录音与授权');
+    expect(source).toContain('贡献履历');
     expect(source).not.toContain('作品');
     expect(source).not.toContain('短视频');
   });
@@ -204,7 +211,9 @@ describe('account UI tokens', () => {
     expect(mine).toContain('收藏');
     expect(mine).toContain('草稿箱');
     expect(mine).toContain('关注的方言');
-    expect(mine).toContain('账号与安全');
+    expect(mine).toContain('个人资料、隐私与安全');
+    expect(mine).toContain('申请成为整理员');
+    expect(mine).toContain('管理与审核');
     expect(mine).toContain('主题中心');
     expect(mine).toContain('邮箱');
     expect(mine).not.toContain('网页演示绑定微信');
@@ -532,7 +541,7 @@ describe('mine page logout', () => {
     await flushPromises();
     wrapper.vm.cansCount = 3;
     wrapper.vm.worksTab = 'cans';
-    expect(wrapper.vm.worksPanelTitle).toBe('已有 3 罐');
+    expect(wrapper.vm.worksPanelTitle).toBe('留下 3 段录音');
   });
 
   it('loads the archive from a stored id before App hydrates globalData', async () => {

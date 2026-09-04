@@ -8,7 +8,8 @@ test('H5 app renders home page', async ({ page }) => {
 
   await page.goto('/');
   await expect(page.getByText('乡声集盒').first()).toBeVisible();
-  await expect(page.getByText('装罐').first()).toBeVisible();
+  await expect(page.getByText('听见真实使用').first()).toBeVisible();
+  await expect(page.getByText('录', { exact: true }).first()).toBeVisible();
 
   expect(consoleErrors).toEqual([]);
 });
@@ -31,15 +32,12 @@ test('protected backend APIs remain protected', async ({ request }) => {
 });
 
 test('main navigation pages are reachable', async ({ page }) => {
-  await page.goto('/pages/cans/index');
-  await expect(page.locator('body')).toContainText('罐头');
+  await page.goto('/pages/search');
+  await expect(page.locator('body')).toContainText('查找词条');
 
-  await page.goto('/pages/flavors/index');
-  await expect(page.locator('body')).toContainText('图鉴');
+  await page.goto('/pages/users/me');
+  await expect(page.locator('body')).toContainText('我的账户');
 
-  await page.goto('/pages/packages/index');
-  await expect(page.locator('body')).toContainText('写法图鉴');
-
-  await page.goto('/pages/shelves/index');
-  await expect(page.locator('body')).toContainText('主题集盒');
+  await page.goto('/pages/recordings/create');
+  await expect(page.locator('body')).toContainText('会说就能贡献');
 });

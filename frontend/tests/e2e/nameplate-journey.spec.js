@@ -126,9 +126,8 @@ test('nameplate stays the main journey through comments, login resume, and debat
     });
   });
 
-  await page.goto('/');
-  await page.getByText('刣', { exact: true }).click();
-  await expect(page).toHaveURL(/\/pages\/nameplates\/details\?id=21/);
+  // V2 首页已切换为 Recording 流；旧铭牌在阶段 8 删除前仍须可从直达链接完成闭环。
+  await page.goto('/pages/nameplates/details?id=21');
   await expect(page.getByText('tái → tâi')).toBeVisible();
 
   await page.locator('.comments-action').click();
