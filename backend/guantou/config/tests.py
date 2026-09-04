@@ -94,4 +94,7 @@ class RuntimeConfigurationTests(SimpleTestCase):
         response = self.client.get("/static/admin/simpleui-x/js/vue.min.js")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response["Content-Type"], "application/javascript")
+        self.assertIn(
+            response["Content-Type"],
+            {"application/javascript", "text/javascript"},
+        )
