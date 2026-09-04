@@ -1,4 +1,4 @@
-.PHONY: check setup backend-check frontend-check materials-check docker-check commit-messages-check frontend-e2e smoke
+.PHONY: check setup backend-check frontend-check materials-check api-contract-check docker-check commit-messages-check frontend-e2e smoke
 
 BACKEND_DIR := backend/guantou
 FRONTEND_DIR := frontend
@@ -25,6 +25,10 @@ frontend-check:
 materials-check:
 	$(PYTHON) -m unittest discover tools/materials/tests
 
+api-contract-check:
+	$(PYTHON) tools/api_contract/check_contract.py
+	npx --yes @redocly/cli@1.34.5 lint --config docs/api/redocly.yaml docs/api/v1/openapi.yaml
+
 docker-check:
 	docker compose config
 	docker compose build backend frontend
@@ -41,4 +45,4 @@ smoke:
 	cd $(FRONTEND_DIR) && yarn wait:e2e:h5
 	cd $(FRONTEND_DIR) && yarn test:e2e:h5
 
-check: backend-check frontend-check materials-check commit-messages-check docker-check
+check: backend-check frontend-check materials-check api-contract-check commit-messages-check docker-check

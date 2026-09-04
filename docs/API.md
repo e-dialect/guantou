@@ -25,8 +25,10 @@
 - 写接口使用 `Authorization: Bearer <token>`。
 - 客户端可传 `X-Visitor-ID`；服务端在缺失时生成并通过同名响应头返回。匿名访客只用于访问追踪和审计归因，不具备写权限。
 - 错误响应使用 `{ code, message, data, request_id }`，其中数字 `code` 与 HTTP 状态码一致。
-- `Package` 是规范化写法，`Flavor` 是标准化义项，`Pronunciation` 表示“某写法在某义项、某方言下的一种读音”，`Can` 保存实际录音证据。
-- `Nameplate` 是连接 Can 与 Package、Flavor、Dialect、Pronunciation 的可查询资料主张，并保存原样内容和来源。
+- V2 以 `Entry` 为搜索主结果；同形不同读音或核心意义是不同 Entry，写法相同不会触发自动合并。
+- `EntrySense` 保存相关的编号义，`Concept` 只连接 WALK、RUN 等跨词条概念，`PronunciationVariant` 保存地区读音。
+- `Recording` 与 `Entry` 通过 primary、mention、competing 多对多关联；录音最低只需音频、使用地区和大意，没有现成词条时创建可继续整理的初稿 Entry。
+- 过渡期保留 `Package`、`Flavor`、`Pronunciation`、`Can` 和 `Nameplate` 接口，直到前后端完成切换。
 - `Dialect` 是按需建立的方言关系树；限定码从根到叶书写，如 `闽.莆仙.仙游.游洋`，同级人工顺序使用 `sort_order`。
 - 列表统一使用 `{ count, next, previous, results }` 分页结构，时间统一使用 RFC 3339。
 - `/search/suggest/` 的已实现容错、可见性、去重和排序规则已经纳入 v1 契约，详见 OpenAPI 与中文说明。
@@ -41,4 +43,5 @@
 2. 中文说明是否仍与 OpenAPI 和 ADR 一致。
 3. 新的嵌套响应是否只使用 Ref/Card，避免递归嵌套 Detail。
 4. `npx --yes @redocly/cli@1.34.5 lint --config docs/api/redocly.yaml docs/api/v1/openapi.yaml` 是否通过。
-5. `git diff --check` 是否通过。
+5. `make api-contract-check` 是否证明旧核心接口与 V2 路由、方法和核心字段没有漂移。
+6. `git diff --check` 是否通过。

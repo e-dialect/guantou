@@ -51,6 +51,12 @@ tags:
     description: 录音证据与资料铭牌上的讨论评论（二级评论层级）。
   - name: Themes
     description: 公开主题目录，以及当前用户的装扮配置、收藏、搭配与权益。
+  - name: EntriesV2
+    description: 以同一词及读音身份为边界的词条、义项、写法、概念与地区读音。
+  - name: RecordingsV2
+    description: 可独立存在并通过多角色关系关联词条的录音证据。
+  - name: CurationV2
+    description: 整理员权限、旧库待审核候选与争议待办。
 
 paths:
   /login/:
@@ -1984,6 +1990,583 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
 
+  /entries/:
+    get:
+      tags: [EntriesV2]
+      operationId: listEntriesV2
+      summary: 以词条为主结果检索写法、意义、概念和读音
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - { name: writing, in: query, schema: { type: string }, description: 精确写法 }
+        - { name: writing_type, in: query, schema: { type: string } }
+        - { name: source_type, in: query, schema: { type: string } }
+        - { name: source, in: query, schema: { type: string }, description: 出处关键词 }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: ipa, in: query, schema: { type: string } }
+        - { name: romanization, in: query, schema: { type: string } }
+        - { name: concept, in: query, schema: { type: string }, description: 概念 ID 或代码 }
+        - { name: has_recording, in: query, schema: { type: boolean } }
+        - { name: dialect_id, in: query, schema: { type: integer } }
+        - { name: dialect_scope, in: query, schema: { type: string, enum: [exact, subtree], default: exact } }
+      responses:
+        "200":
+          description: 独立词条分页；同形不同音义不会被合并
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EntryV2Page" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+    post:
+      tags: [EntriesV2]
+      operationId: createEntryV2
+      summary: 提交初稿词条
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EntryV2Write" }
+      responses:
+        "201":
+          description: 初稿词条及不可覆写的原始证据
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EntryV2" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /entries/{entry_id}/:
+    parameters:
+      - { name: entry_id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [EntriesV2]
+      operationId: getEntryV2
+      summary: 获取词条、分义、写法、概念、地区读音与录音概况
+      security: []
+      responses:
+        "200":
+          description: 词条详情
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EntryV2" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [EntriesV2]
+      operationId: updateEntryV2
+      summary: 由贡献者或词条整理员修订词条
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EntryV2Write" }
+      responses:
+        "200":
+          description: 修订后的词条；新的原始材料追加为证据
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EntryV2" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /entry-senses/:
+    get:
+      tags: [EntriesV2]
+      operationId: listEntrySensesV2
+      summary: 查询词条编号义项
+      security: []
+      parameters:
+        - { name: entry_id, in: query, schema: { type: integer } }
+        - { name: concept, in: query, schema: { type: string } }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: 义项分页
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EntrySenseV2Page" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+    post:
+      tags: [EntriesV2]
+      operationId: createEntrySenseV2
+      summary: 为词条补充分义
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EntrySenseV2Write" }
+      responses:
+        "201":
+          description: 新义项
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EntrySenseV2" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /entry-senses/{sense_id}/:
+    parameters:
+      - { name: sense_id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [EntriesV2]
+      operationId: getEntrySenseV2
+      summary: 获取词条义项
+      security: []
+      responses:
+        "200":
+          description: 义项详情
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EntrySenseV2" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [EntriesV2]
+      operationId: updateEntrySenseV2
+      summary: 修订词条义项或追加概念关系
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EntrySenseV2Write" }
+      responses:
+        "200":
+          description: 修订后的义项
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EntrySenseV2" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /writing-forms/:
+    get:
+      tags: [EntriesV2]
+      operationId: listWritingFormsV2
+      summary: 查询可见词条的写法
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - { name: form_type, in: query, schema: { type: string } }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: 写法分页
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WritingFormV2Page" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /writing-forms/{writing_id}/:
+    parameters:
+      - { name: writing_id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [EntriesV2]
+      operationId: getWritingFormV2
+      summary: 获取写法
+      security: []
+      responses:
+        "200":
+          description: 写法详情
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WritingFormV2" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /concepts/:
+    get:
+      tags: [EntriesV2]
+      operationId: listConceptsV2
+      summary: 查询 WALK、RUN 等跨词条抽象概念
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: 概念分页；概念只关联词条，不触发合并
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConceptV2Page" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /concepts/{concept_id}/:
+    parameters:
+      - { name: concept_id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [EntriesV2]
+      operationId: getConceptV2
+      summary: 获取抽象概念
+      security: []
+      responses:
+        "200":
+          description: 概念详情
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConceptV2" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /pronunciation-variants/:
+    get:
+      tags: [EntriesV2]
+      operationId: listPronunciationVariantsV2
+      summary: 查询词条在不同地区的读音变化
+      security: []
+      parameters:
+        - { name: entry_id, in: query, schema: { type: integer } }
+        - { name: dialect_id, in: query, schema: { type: integer } }
+        - { name: dialect_scope, in: query, schema: { type: string, enum: [exact, subtree], default: exact } }
+        - { name: ipa, in: query, schema: { type: string } }
+        - { name: romanization, in: query, schema: { type: string } }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: 地区读音分页
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PronunciationVariantV2Page" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+    post:
+      tags: [EntriesV2]
+      operationId: createPronunciationVariantV2
+      summary: 补充词条地区读音
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PronunciationVariantV2Write" }
+      responses:
+        "201":
+          description: 地区读音
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PronunciationVariantV2" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /pronunciation-variants/{variant_id}/:
+    parameters:
+      - { name: variant_id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [EntriesV2]
+      operationId: getPronunciationVariantV2
+      summary: 获取地区读音
+      security: []
+      responses:
+        "200":
+          description: 地区读音详情
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PronunciationVariantV2" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [EntriesV2]
+      operationId: updatePronunciationVariantV2
+      summary: 修订地区读音
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PronunciationVariantV2Write" }
+      responses:
+        "200":
+          description: 修订后的地区读音
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PronunciationVariantV2" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /recordings/:
+    get:
+      tags: [RecordingsV2]
+      operationId: listRecordingsV2
+      summary: 查询录音及其词条关系
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - { name: entry_id, in: query, schema: { type: integer } }
+        - { name: role, in: query, schema: { type: string, enum: [primary, mention, competing] } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: has_entry, in: query, schema: { type: boolean } }
+        - { name: dialect_id, in: query, schema: { type: integer } }
+        - { name: dialect_scope, in: query, schema: { type: string, enum: [exact, subtree], default: exact } }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: 录音分页
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecordingV2Page" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+    post:
+      tags: [RecordingsV2]
+      operationId: createRecordingV2
+      summary: 按录音、使用地区和大意提交；没有现成词条时自动建立初稿词条
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecordingV2Write" }
+      responses:
+        "201":
+          description: 录音、初始主词条关系和不可覆写证据
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecordingV2" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /recordings/{recording_id}/:
+    parameters:
+      - { name: recording_id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [RecordingsV2]
+      operationId: getRecordingV2
+      summary: 获取录音及主要、句中和竞争词条关系
+      security: []
+      responses:
+        "200":
+          description: 录音详情
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecordingV2" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [RecordingsV2]
+      operationId: updateRecordingV2
+      summary: 由录制者或地区整理员修订录音资料
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecordingV2Write" }
+      responses:
+        "200":
+          description: 修订后的录音；原始材料作为新证据追加
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecordingV2" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /recording-entry-links/:
+    get:
+      tags: [RecordingsV2]
+      operationId: listRecordingEntryLinksV2
+      summary: 查询录音与词条的当前或历史关系
+      security: []
+      parameters:
+        - { name: recording_id, in: query, schema: { type: integer } }
+        - { name: entry_id, in: query, schema: { type: integer } }
+        - { name: role, in: query, schema: { type: string, enum: [primary, mention, competing] } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: is_current, in: query, schema: { type: boolean } }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: 关系分页
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecordingEntryLinkV2Page" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+    post:
+      tags: [RecordingsV2]
+      operationId: createRecordingEntryLinkV2
+      summary: 提出句中词或竞争解释；已有主词条不会被自动替换
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecordingEntryLinkV2Write" }
+      responses:
+        "201":
+          description: 新关系
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecordingEntryLinkV2" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /recording-entry-links/{link_id}/:
+    parameters:
+      - { name: link_id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [RecordingsV2]
+      operationId: getRecordingEntryLinkV2
+      summary: 获取录音词条关系
+      security: []
+      responses:
+        "200":
+          description: 关系详情
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecordingEntryLinkV2" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /usage-attestations/:
+    get:
+      tags: [RecordingsV2]
+      operationId: listUsageAttestationsV2
+      summary: 查询“我这里也这么说”的地区范围确认
+      security: []
+      parameters:
+        - { name: entry_id, in: query, schema: { type: integer } }
+        - { name: dialect_id, in: query, schema: { type: integer } }
+        - { name: active, in: query, schema: { type: boolean } }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: 使用确认分页；父节点确认不推断所有子节点
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UsageAttestationV2Page" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+    post:
+      tags: [RecordingsV2]
+      operationId: createUsageAttestationV2
+      summary: 在用户明确选择的地区范围确认词条使用
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UsageAttestationV2Write" }
+      responses:
+        "201":
+          description: 使用确认
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UsageAttestationV2" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /usage-attestations/{attestation_id}/:
+    parameters:
+      - { name: attestation_id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [RecordingsV2]
+      operationId: getUsageAttestationV2
+      summary: 获取使用确认
+      security: []
+      responses:
+        "200":
+          description: 使用确认详情
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UsageAttestationV2" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [RecordingsV2]
+      operationId: deactivateUsageAttestationV2
+      summary: 撤回本人的使用确认并保留历史记录
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204": { description: 已撤回 }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /evidence-records/:
+    get:
+      tags: [CurationV2]
+      operationId: listEvidenceRecordsV2
+      summary: 查询与可见词条或录音有关的不可覆写证据
+      security: []
+      parameters:
+        - { name: source_type, in: query, schema: { type: string } }
+        - { name: entry_id, in: query, schema: { type: integer } }
+        - { name: recording_id, in: query, schema: { type: integer } }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: 证据分页；敏感来源元数据仅向贡献者和整理员展开
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvidenceRecordV2Page" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /evidence-records/{evidence_id}/:
+    parameters:
+      - { name: evidence_id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [CurationV2]
+      operationId: getEvidenceRecordV2
+      summary: 获取不可覆写证据
+      security: []
+      responses:
+        "200":
+          description: 证据详情
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvidenceRecordV2" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /curation/:
+    get:
+      tags: [CurationV2]
+      operationId: getCurationSummaryV2
+      summary: 获取当前整理员授权范围和待办计数
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: 整理工作概况
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurationSummaryV2" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /curation/legacy-candidates/:
+    get:
+      tags: [CurationV2]
+      operationId: listLegacyReviewCandidatesV2
+      summary: 查询旧库分义、拆分、读音差异和可能重复候选
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: candidate_type, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string } }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: 只读审核候选分页；本阶段不自动执行裁决
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LegacyReviewCandidateV2Page" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /curation/legacy-candidates/{candidate_id}/:
+    parameters:
+      - { name: candidate_id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [CurationV2]
+      operationId: getLegacyReviewCandidateV2
+      summary: 获取旧库审核候选及原始材料
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: 审核候选详情
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LegacyReviewCandidateV2" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -3358,3 +3941,391 @@ components:
             results:
               type: array
               items: { $ref: "#/components/schemas/Notification" }
+
+    ConceptRefV2:
+      type: object
+      required: [id, code, label]
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        label: { type: string }
+
+    ConceptV2:
+      allOf:
+        - $ref: "#/components/schemas/ConceptRefV2"
+        - type: object
+          properties:
+            definition: { type: string }
+            external_refs: { type: object, additionalProperties: true }
+    ConceptV2Page:
+      allOf:
+        - $ref: "#/components/schemas/PageBase"
+        - type: object
+          properties:
+            results:
+              type: array
+              items: { $ref: "#/components/schemas/ConceptV2" }
+
+    WritingFormV2:
+      type: object
+      required: [id, text, normalized_text, form_type, language_tag]
+      properties:
+        id: { type: integer }
+        text: { type: string }
+        normalized_text: { type: string }
+        form_type:
+          type: string
+          enum: [orthographic, popular, loan, phonetic, romanization, uncertain]
+        language_tag: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    WritingFormV2Page:
+      allOf:
+        - $ref: "#/components/schemas/PageBase"
+        - type: object
+          properties:
+            results:
+              type: array
+              items: { $ref: "#/components/schemas/WritingFormV2" }
+
+    EntryRefV2:
+      type: object
+      required: [id, display_writing, summary, identity_note, status]
+      properties:
+        id: { type: integer }
+        display_writing: { type: string }
+        summary: { type: string }
+        identity_note: { type: string }
+        status: { type: string, enum: [draft, reviewed, disputed, redirected] }
+
+    EntryWritingV2:
+      type: object
+      required: [id, writing, relation_type, status, is_current]
+      properties:
+        id: { type: integer }
+        writing: { $ref: "#/components/schemas/WritingFormV2" }
+        relation_type: { type: string, enum: [primary, alternate, disputed] }
+        status: { type: string, enum: [draft, reviewed, disputed, rejected] }
+        is_current: { type: boolean }
+        note: { type: string }
+        created_at: { type: string, format: date-time }
+
+    EntrySenseV2:
+      type: object
+      required: [id, entry, sense_number, gloss, status, concepts]
+      properties:
+        id: { type: integer }
+        entry: { $ref: "#/components/schemas/EntryRefV2" }
+        sense_number: { type: integer, minimum: 1 }
+        gloss: { type: string }
+        usage_note: { type: string }
+        examples: { type: array, items: {} }
+        status: { type: string, enum: [draft, reviewed, disputed] }
+        concepts:
+          type: array
+          items:
+            allOf:
+              - $ref: "#/components/schemas/ConceptRefV2"
+              - type: object
+                properties:
+                  relation_type: { type: string, enum: [exact, broader, narrower, related] }
+                  note: { type: string }
+        created_by: { $ref: "#/components/schemas/UserRef" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    EntrySenseV2Write:
+      type: object
+      required: [entry_id, gloss]
+      properties:
+        entry_id: { type: integer }
+        sense_number: { type: integer, minimum: 1 }
+        gloss: { type: string, minLength: 1 }
+        usage_note: { type: string }
+        examples: { type: array, items: {} }
+        concept_ids: { type: array, uniqueItems: true, items: { type: integer } }
+    EntrySenseV2Page:
+      allOf:
+        - $ref: "#/components/schemas/PageBase"
+        - type: object
+          properties:
+            results:
+              type: array
+              items: { $ref: "#/components/schemas/EntrySenseV2" }
+
+    PronunciationVariantV2:
+      type: object
+      required: [id, entry, dialect, ipa, base_romanization, surface_romanization, status]
+      properties:
+        id: { type: integer }
+        entry: { $ref: "#/components/schemas/EntryRefV2" }
+        dialect: { $ref: "#/components/schemas/DialectRef" }
+        ipa: { type: string }
+        base_romanization: { type: string }
+        surface_romanization: { type: string }
+        reading_type: { type: string, enum: [general, literary, colloquial, other] }
+        usage_note: { type: string }
+        status: { type: string, enum: [draft, reviewed, disputed, rejected] }
+        created_by: { $ref: "#/components/schemas/UserRef" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    PronunciationVariantV2Write:
+      type: object
+      required: [entry_id, dialect_id]
+      anyOf:
+        - required: [ipa]
+        - required: [base_romanization]
+        - required: [surface_romanization]
+      properties:
+        entry_id: { type: integer }
+        dialect_id: { type: integer }
+        ipa: { type: string }
+        base_romanization: { type: string }
+        surface_romanization: { type: string }
+        reading_type: { type: string, enum: [general, literary, colloquial, other] }
+        usage_note: { type: string }
+    PronunciationVariantV2Page:
+      allOf:
+        - $ref: "#/components/schemas/PageBase"
+        - type: object
+          properties:
+            results:
+              type: array
+              items: { $ref: "#/components/schemas/PronunciationVariantV2" }
+
+    EntryV2:
+      allOf:
+        - $ref: "#/components/schemas/EntryRefV2"
+        - type: object
+          required: [recording_count, needs_audio, evidence_count, attestation_count]
+          properties:
+            usage_dialect:
+              oneOf:
+                - $ref: "#/components/schemas/DialectRef"
+                - type: "null"
+            pronunciation_variants:
+              type: array
+              items: { $ref: "#/components/schemas/PronunciationVariantV2" }
+            concepts:
+              type: array
+              items: { $ref: "#/components/schemas/ConceptRefV2" }
+            recording_count: { type: integer, minimum: 0 }
+            needs_audio: { type: boolean }
+            evidence_count: { type: integer, minimum: 0 }
+            attestation_count: { type: integer, minimum: 0 }
+            writings:
+              type: array
+              items: { $ref: "#/components/schemas/EntryWritingV2" }
+            senses:
+              type: array
+              items: { $ref: "#/components/schemas/EntrySenseV2" }
+            created_by: { $ref: "#/components/schemas/UserRef" }
+            visibility: { type: boolean }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+    EntryV2Write:
+      type: object
+      description: summary 与 initial_writing 至少提供一个；原始输入另存为不可覆写证据。
+      anyOf:
+        - required: [summary]
+        - required: [initial_writing]
+      properties:
+        summary: { type: string }
+        identity_note: { type: string }
+        usage_dialect_id: { type: [integer, "null"] }
+        initial_writing: { type: string }
+        writing_type:
+          type: string
+          enum: [orthographic, popular, loan, phonetic, romanization, uncertain]
+        evidence_text: { type: string }
+        citation: { type: string }
+        visibility: { type: boolean }
+    EntryV2Page:
+      allOf:
+        - $ref: "#/components/schemas/PageBase"
+        - type: object
+          properties:
+            results:
+              type: array
+              items: { $ref: "#/components/schemas/EntryV2" }
+
+    RecordingEntryLinkV2:
+      type: object
+      required: [id, entry, role, status, is_current]
+      properties:
+        id: { type: integer }
+        entry: { $ref: "#/components/schemas/EntryRefV2" }
+        sense_id: { type: [integer, "null"] }
+        role: { type: string, enum: [primary, mention, competing] }
+        status: { type: string, enum: [suggested, accepted, rejected, disputed] }
+        is_current: { type: boolean }
+        review_reason: { type: string }
+        created_at: { type: string, format: date-time }
+    RecordingEntryLinkV2Write:
+      type: object
+      required: [recording_id, entry_id, role]
+      properties:
+        recording_id: { type: integer }
+        entry_id: { type: integer }
+        sense_id: { type: [integer, "null"] }
+        role: { type: string, enum: [primary, mention, competing] }
+    RecordingEntryLinkV2Page:
+      allOf:
+        - $ref: "#/components/schemas/PageBase"
+        - type: object
+          properties:
+            results:
+              type: array
+              items: { $ref: "#/components/schemas/RecordingEntryLinkV2" }
+
+    RecordingV2:
+      type: object
+      required: [id, audio_url, usage_dialect, original_gloss, status, entry_links]
+      properties:
+        id: { type: integer }
+        audio_url: { type: string, format: uri }
+        usage_dialect: { $ref: "#/components/schemas/DialectRef" }
+        recorder: { $ref: "#/components/schemas/UserRef" }
+        recording_type: { type: string, enum: [word, phrase, example, other] }
+        original_gloss: { type: string }
+        duration_ms: { type: integer, minimum: 0 }
+        rights_statement: { type: string }
+        status: { type: string, enum: [draft, published, disputed, rejected] }
+        visibility: { type: boolean }
+        entry_links:
+          type: array
+          items: { $ref: "#/components/schemas/RecordingEntryLinkV2" }
+        evidence_count: { type: integer, minimum: 0 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    RecordingV2Write:
+      type: object
+      required: [audio_url, usage_dialect_id, original_gloss]
+      properties:
+        audio_url: { type: string, format: uri }
+        usage_dialect_id: { type: integer }
+        original_gloss: { type: string, minLength: 1 }
+        recording_type: { type: string, enum: [word, phrase, example, other] }
+        duration_ms: { type: integer, minimum: 0 }
+        rights_statement: { type: string }
+        visibility: { type: boolean }
+        primary_entry_id: { type: [integer, "null"] }
+        primary_sense_id: { type: [integer, "null"] }
+        original_writing: { type: string }
+        original_pronunciation: { type: string }
+        citation: { type: string }
+    RecordingV2Page:
+      allOf:
+        - $ref: "#/components/schemas/PageBase"
+        - type: object
+          properties:
+            results:
+              type: array
+              items: { $ref: "#/components/schemas/RecordingV2" }
+
+    UsageAttestationV2:
+      type: object
+      required: [id, entry, dialect, attester, active]
+      properties:
+        id: { type: integer }
+        entry: { $ref: "#/components/schemas/EntryRefV2" }
+        dialect: { $ref: "#/components/schemas/DialectRef" }
+        attester: { $ref: "#/components/schemas/UserRef" }
+        active: { type: boolean }
+        note: { type: string }
+        attested_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    UsageAttestationV2Write:
+      type: object
+      required: [entry_id, dialect_id]
+      properties:
+        entry_id: { type: integer }
+        dialect_id: { type: integer }
+        note: { type: string }
+    UsageAttestationV2Page:
+      allOf:
+        - $ref: "#/components/schemas/PageBase"
+        - type: object
+          properties:
+            results:
+              type: array
+              items: { $ref: "#/components/schemas/UsageAttestationV2" }
+
+    EvidenceRecordV2:
+      type: object
+      required: [id, source_type, original_text, original_writing, original_gloss, citation]
+      properties:
+        id: { type: integer }
+        source_type: { type: string }
+        original_text: { type: string }
+        original_writing: { type: string }
+        original_gloss: { type: string }
+        original_pronunciation: { type: string }
+        citation: { type: string }
+        source_metadata: { type: object, additionalProperties: true }
+        contributor: { oneOf: [{ $ref: "#/components/schemas/UserRef" }, { type: "null" }] }
+        created_at: { type: string, format: date-time }
+    EvidenceRecordV2Page:
+      allOf:
+        - $ref: "#/components/schemas/PageBase"
+        - type: object
+          properties:
+            results:
+              type: array
+              items: { $ref: "#/components/schemas/EvidenceRecordV2" }
+
+    CuratorGrantV2:
+      type: object
+      required: [id, user, role, valid_from, valid_until, reason, is_active]
+      properties:
+        id: { type: integer }
+        user: { $ref: "#/components/schemas/UserRef" }
+        role: { type: string, enum: [lexical_curator, regional_curator] }
+        dialect: { oneOf: [{ $ref: "#/components/schemas/DialectRef" }, { type: "null" }] }
+        valid_from: { type: string, format: date-time }
+        valid_until: { type: string, format: date-time }
+        granted_by: { oneOf: [{ $ref: "#/components/schemas/UserRef" }, { type: "null" }] }
+        reason: { type: string }
+        revoked_at: { type: [string, "null"], format: date-time }
+        revocation_reason: { type: string }
+        is_active: { type: boolean }
+    CurationSummaryV2:
+      type: object
+      required: [grants, pending]
+      properties:
+        grants:
+          type: array
+          items: { $ref: "#/components/schemas/CuratorGrantV2" }
+        pending:
+          type: object
+          required: [legacy_candidates, disputed_entries, disputed_recordings, disputed_recording_links]
+          properties:
+            legacy_candidates: { type: integer, minimum: 0 }
+            disputed_entries: { type: integer, minimum: 0 }
+            disputed_recordings: { type: integer, minimum: 0 }
+            disputed_recording_links: { type: integer, minimum: 0 }
+
+    LegacyReviewCandidateV2:
+      type: object
+      required: [id, source_system, candidate_key, candidate_type, entries, source_ids, payload, status]
+      properties:
+        id: { type: integer }
+        source_system: { type: string }
+        candidate_key: { type: string }
+        candidate_type:
+          type: string
+          enum: [sense_segmentation, numbering_anomaly, pronunciation_variation, entry_split, possible_duplicate]
+        primary_entry: { oneOf: [{ $ref: "#/components/schemas/EntryRefV2" }, { type: "null" }] }
+        entries: { type: array, items: { $ref: "#/components/schemas/EntryRefV2" } }
+        source_ids: { type: array, items: { type: integer } }
+        payload: { type: object, additionalProperties: true }
+        status: { type: string, enum: [pending, accepted, rejected] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    LegacyReviewCandidateV2Page:
+      allOf:
+        - $ref: "#/components/schemas/PageBase"
+        - type: object
+          properties:
+            results:
+              type: array
+              items: { $ref: "#/components/schemas/LegacyReviewCandidateV2" }

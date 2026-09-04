@@ -65,6 +65,14 @@ jobs:
         working-directory: .
         run: python -m unittest discover tools/materials/tests
 
+      - name: Check implementation against API contract
+        working-directory: .
+        run: python tools/api_contract/check_contract.py
+
+      - name: Lint OpenAPI contract
+        working-directory: .
+        run: npx --yes @redocly/cli@1.34.5 lint --config docs/api/redocly.yaml docs/api/v1/openapi.yaml
+
   frontend-unit:
     name: Frontend Unit
     runs-on: ubuntu-latest
