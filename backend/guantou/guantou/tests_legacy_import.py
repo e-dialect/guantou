@@ -12,13 +12,27 @@ from user.models import UserInfo
 from .legacy_import import (
     HinghwaImporter,
     account_priority,
+    build_review_candidates,
     import_demo_fixture,
     normalize_legacy_location,
     open_legacy_database,
     parse_legacy_datetime,
     resolve_dialect,
 )
-from .models import Can, Dialect, DialectCircle, Flavor, LegacyImportRecord, Package
+from .models import (
+    Can,
+    Dialect,
+    DialectCircle,
+    Entry,
+    EvidenceRecord,
+    Flavor,
+    LegacyImportRecord,
+    LegacyReviewCandidate,
+    Package,
+    PronunciationVariant,
+    Recording,
+    RecordingEntryLink,
+)
 
 SOURCE_SCHEMA = """
 CREATE TABLE auth_user (
@@ -263,6 +277,10 @@ class LegacyImportTests(TestCase):
         self.assertEqual(dry_report["source_counts"]["auth_user"], 3)
         self.assertEqual(dry_report["normalized"]["duplicate_email_accounts"], 2)
         self.assertEqual(dry_report["normalized"]["source_identity_wins"], 1)
+        self.assertEqual(
+            dry_report["v2_expected"],
+            {"entries": 2, "entries_without_recordings": 1, "recordings": 1},
+        )
         self.assertEqual(LegacyImportRecord.objects.count(), 0)
         self.assertEqual(User.objects.count(), 1)
 
@@ -301,11 +319,38 @@ class LegacyImportTests(TestCase):
         self.assertEqual(Flavor.objects.get(name="行").created_by, survivor)
         self.assertEqual(Can.objects.get().recorder, survivor)
         self.assertEqual(Package.objects.count(), 2)
+        self.assertEqual(Entry.objects.count(), 2)
+        self.assertEqual(Recording.objects.count(), 1)
+        self.assertEqual(RecordingEntryLink.objects.count(), 1)
+        silent_entry = Entry.objects.get(entry_writings__writing__text="食")
+        recorded_entry = Entry.objects.get(entry_writings__writing__text="行")
+        self.assertFalse(silent_entry.recording_links.exists())
+        self.assertEqual(
+            recorded_entry.recording_links.get().recording_id,
+            Recording.objects.get().id,
+        )
+        self.assertFalse(recorded_entry.visibility)
+        self.assertEqual(
+            recorded_entry.pronunciation_variants.get(
+                ipa="kiaŋ2", dialect=resolve_dialect("闽.莆仙.仙游.枫亭")
+            ).dialect.qualified_code,
+            "闽.莆仙.仙游.枫亭",
+        )
+        self.assertEqual(
+            silent_entry.pronunciation_variants.get(ipa="sieh4").dialect.qualified_code,
+            "闽.莆仙.莆田.城里",
+        )
+        self.assertEqual(EvidenceRecord.objects.count(), 3)
+        self.assertNotIn("legacy_location", Recording.objects.get().metadata)
 
         counts = {
             "users": User.objects.count(),
             "flavors": Flavor.objects.count(),
             "cans": Can.objects.count(),
+            "v2_entries": Entry.objects.count(),
+            "v2_recordings": Recording.objects.count(),
+            "v2_links": RecordingEntryLink.objects.count(),
+            "v2_evidence": EvidenceRecord.objects.count(),
             "ledger": LegacyImportRecord.objects.count(),
         }
 
@@ -338,6 +383,10 @@ class LegacyImportTests(TestCase):
                 "users": User.objects.count(),
                 "flavors": Flavor.objects.count(),
                 "cans": Can.objects.count(),
+                "v2_entries": Entry.objects.count(),
+                "v2_recordings": Recording.objects.count(),
+                "v2_links": RecordingEntryLink.objects.count(),
+                "v2_evidence": EvidenceRecord.objects.count(),
                 "ledger": LegacyImportRecord.objects.count(),
             },
         )
@@ -348,6 +397,187 @@ class LegacyImportTests(TestCase):
         self.assertTrue(self.target.is_superuser)
         target_info.refresh_from_db()
         self.assertEqual((target_info.points_now, target_info.points_sum), (7, 13))
+
+    def test_existing_v1_import_can_be_backfilled_into_v2(self):
+        with open_legacy_database(self.source_path) as connection:
+            importer = HinghwaImporter(connection, apply=True)
+            importer.analyze()
+            importer.import_users()
+            importer.import_words()
+            importer.import_recordings()
+
+        self.assertEqual(Flavor.objects.count(), 2)
+        self.assertEqual(Can.objects.count(), 1)
+        self.assertEqual(Entry.objects.count(), 0)
+        self.assertEqual(Recording.objects.count(), 0)
+
+        with open_legacy_database(self.source_path) as connection:
+            report = HinghwaImporter(connection, apply=True).run()
+
+        self.assertFalse(report["failed"])
+        self.assertEqual(report["skipped"]["words"], 2)
+        self.assertEqual(report["skipped"]["recordings"], 1)
+        self.assertEqual(report["created"]["v2_entries"], 2)
+        self.assertEqual(report["created"]["v2_recordings"], 1)
+        self.assertEqual(Entry.objects.count(), 2)
+        self.assertEqual(Recording.objects.count(), 1)
+
+    def test_v2_normalizes_search_fields_but_preserves_source_text_exactly(self):
+        connection = sqlite3.connect(self.source_path)
+        connection.execute(
+            "UPDATE word_word SET word = ?, definition = ?, standard_ipa = ?, "
+            "standard_pinyin = ? WHERE id = 11",
+            (" 行 ", " 原样释义 ", " kiaŋ2 ", " kiang2 "),
+        )
+        connection.execute(
+            "UPDATE word_pronunciation SET ipa = ?, pinyin = ? WHERE id = 20",
+            (" kiaŋ2 ", " kiang2 "),
+        )
+        connection.commit()
+        connection.close()
+
+        with open_legacy_database(self.source_path) as source:
+            HinghwaImporter(source, apply=True).run()
+
+        entry = Entry.objects.get(entry_writings__writing__text="行")
+        self.assertEqual(entry.summary, " 原样释义 ")
+        word_evidence = EvidenceRecord.objects.get(
+            citation="hinghwa-dict-backend:word_word:11"
+        )
+        self.assertEqual(word_evidence.original_writing, " 行 ")
+        self.assertEqual(word_evidence.original_gloss, " 原样释义 ")
+        self.assertEqual(word_evidence.original_pronunciation, " kiang2 ")
+        recording_evidence = EvidenceRecord.objects.exclude(
+            citation="hinghwa-dict-backend:word_word:11"
+        ).get(source_metadata__table="word_pronunciation")
+        self.assertEqual(recording_evidence.original_pronunciation, " kiang2 ")
+        self.assertEqual(recording_evidence.source_metadata["ipa"], " kiaŋ2 ")
+
+    def test_v2_rerun_reports_source_changes_without_overwriting_evidence(self):
+        with open_legacy_database(self.source_path) as source:
+            HinghwaImporter(source, apply=True).run()
+        entry = Entry.objects.get(entry_writings__writing__text="行")
+        evidence = EvidenceRecord.objects.get(
+            citation="hinghwa-dict-backend:word_word:11"
+        )
+
+        connection = sqlite3.connect(self.source_path)
+        connection.execute(
+            "UPDATE word_word SET definition = ? WHERE id = 11",
+            ("来源后来被改写",),
+        )
+        connection.commit()
+        connection.close()
+        with open_legacy_database(self.source_path) as source:
+            report = HinghwaImporter(source, apply=True).run()
+
+        self.assertIn(
+            {
+                "table": "word_word",
+                "source_id": 11,
+                "target_model": "guantou.Entry",
+                "reason": "source_changed_after_import",
+            },
+            report["conflicts"],
+        )
+        entry.refresh_from_db()
+        evidence.refresh_from_db()
+        self.assertEqual(entry.summary, "走")
+        self.assertEqual(evidence.original_gloss, "走")
+
+    def test_import_persists_review_candidates_without_applying_them(self):
+        connection = sqlite3.connect(self.source_path)
+        connection.execute(
+            "UPDATE word_word SET definition = ? WHERE id = 10",
+            ("①吃。②进食。",),
+        )
+        connection.execute(
+            "INSERT INTO word_word VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (12, "行", "行业", "", "['行业']", "", "", 1, 1, "[]"),
+        )
+        connection.execute(
+            "INSERT INTO word_pronunciation VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                21,
+                "https://example.test/second.mp3",
+                "tsau3",
+                "zau3",
+                "仙游县",
+                "枫亭镇",
+                1,
+                0,
+                2,
+                11,
+                None,
+                "2021-01-02 00:00:00",
+            ),
+        )
+        connection.commit()
+        connection.row_factory = sqlite3.Row
+        words = connection.execute("SELECT * FROM word_word ORDER BY id").fetchall()
+        recordings = connection.execute(
+            "SELECT * FROM word_pronunciation ORDER BY id"
+        ).fetchall()
+        connection.close()
+
+        pure_candidates = build_review_candidates(words, recordings)
+        self.assertEqual(
+            {item["candidate_type"] for item in pure_candidates},
+            {
+                "sense_segmentation",
+                "pronunciation_variation",
+                "entry_split",
+                "possible_duplicate",
+            },
+        )
+
+        with open_legacy_database(self.source_path) as source:
+            report = HinghwaImporter(source, apply=True).run()
+
+        self.assertFalse(report["failed"])
+        self.assertEqual(Entry.objects.count(), 3)
+        self.assertEqual(Recording.objects.count(), 2)
+        recorded_entry = Entry.objects.get(
+            entry_writings__writing__text="行", summary="走"
+        )
+        self.assertEqual(recorded_entry.recording_links.count(), 2)
+        self.assertEqual(LegacyReviewCandidate.objects.count(), 4)
+        duplicate = LegacyReviewCandidate.objects.get(
+            candidate_type=LegacyReviewCandidate.CandidateType.POSSIBLE_DUPLICATE
+        )
+        self.assertEqual(duplicate.entries.count(), 2)
+        self.assertEqual(
+            set(duplicate.entries.values_list("summary", flat=True)),
+            {"走", "行业"},
+        )
+        numbered_entry = Entry.objects.get(entry_writings__writing__text="食")
+        self.assertEqual(numbered_entry.senses.count(), 1)
+        self.assertEqual(numbered_entry.senses.get().gloss, "①吃。②进食。")
+        split_candidate = LegacyReviewCandidate.objects.get(
+            candidate_type=LegacyReviewCandidate.CandidateType.ENTRY_SPLIT
+        )
+        self.assertEqual(split_candidate.status, LegacyReviewCandidate.Status.PENDING)
+
+        stable_counts = {
+            "entries": Entry.objects.count(),
+            "recordings": Recording.objects.count(),
+            "candidates": LegacyReviewCandidate.objects.count(),
+            "ledger": LegacyImportRecord.objects.count(),
+        }
+        with open_legacy_database(self.source_path) as source:
+            rerun = HinghwaImporter(source, apply=True).run()
+        self.assertEqual(rerun["skipped"]["v2_entries"], 3)
+        self.assertEqual(rerun["skipped"]["v2_recordings"], 2)
+        self.assertEqual(rerun["skipped"]["v2_review_candidates"], 4)
+        self.assertEqual(
+            stable_counts,
+            {
+                "entries": Entry.objects.count(),
+                "recordings": Recording.objects.count(),
+                "candidates": LegacyReviewCandidate.objects.count(),
+                "ledger": LegacyImportRecord.objects.count(),
+            },
+        )
 
     def test_more_recent_target_login_wins_when_admin_status_is_equal(self):
         connection = sqlite3.connect(self.source_path)
@@ -432,7 +662,17 @@ class LegacyImportTests(TestCase):
         first = import_demo_fixture(payload, apply=True)
         second = import_demo_fixture(payload, apply=True)
         self.assertEqual(first["created"]["entries"], 1)
+        self.assertEqual(first["created"]["v2_entries"], 1)
+        self.assertEqual(first["created"]["v2_recordings"], 1)
         self.assertEqual(second["skipped"]["entries"], 1)
+        self.assertEqual(second["skipped"]["v2_entries"], 1)
+        self.assertEqual(
+            Entry.objects.filter(metadata__demo_fixture_key="entry_1").count(), 1
+        )
+        self.assertEqual(
+            Recording.objects.filter(metadata__demo_fixture_key="entry_1").count(),
+            1,
+        )
         demo_user = User.objects.get(username="hinghwa_demo_actor_1")
         self.assertFalse(demo_user.has_usable_password())
         self.assertEqual(demo_user.email, "")

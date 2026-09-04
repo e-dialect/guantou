@@ -1,8 +1,10 @@
 # 兴化语记
 
 管理命令 `import_hinghwa_legacy` 只读打开兴化语记旧库 SQLite，并用
-`source_system + source_table + source_id` 台账保证断点续跑和幂等重跑。命令不会复制
-COS 音频对象，只保留原 HTTPS URL。
+`source_system + source_table + source_id + target_model` 台账保证断点续跑和幂等重跑。
+过渡期会同时保留当前 V1 对象，并为每个旧词建立独立的 `Entry`、为每条旧录音建立唯一的
+`Recording` 及其主词条关系；因此已经完成 V1 导入的数据库也可以安全重跑以补建 V2。
+命令不会复制 COS 音频对象，只保留原 HTTPS URL。
 
 ## 正式导入前
 
@@ -35,6 +37,15 @@ python manage.py import_hinghwa_legacy \
 每个来源对象分别在事务中写入。命令中断后可原样重跑；已写入对象由台账跳过，报告的
 `ledger_actions` 和 `database_counts` 给出累计结果。报告、来源库、目标库备份和真实环境
 变量均被 `.gitignore` 排除。
+
+每个 `word_word.id` 无论是否有录音都会形成一条初稿 Entry。旧库标准转写只作为
+“闽语 › 莆仙方言 › 莆田 › 城里”的地区读音证据；录音自己的县镇范围另行映射，原县镇
+文本只进入不可覆写的 EvidenceRecord，不进入 Recording 的设备位置信息。隐藏词和隐藏
+录音继续保持隐藏。
+
+报告中的 `review_candidates` 及数据库中的旧库审核候选只表示待人工判断：①②编号生成
+“建议分义”，同一地区多读音生成“建议拆词条”，相同写法生成“可能重复”。导入器不会
+据此自动增加义项、拆分词条或合并同形词。
 
 ### 同手机号账号的登录主体
 

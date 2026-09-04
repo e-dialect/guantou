@@ -180,8 +180,8 @@ class LegacyImportRecord(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["source_system", "source_table", "source_id"],
-                name="unique_legacy_import_source",
+                fields=["source_system", "source_table", "source_id", "target_model"],
+                name="unique_legacy_import_target",
             )
         ]
         indexes = [
@@ -193,6 +193,75 @@ class LegacyImportRecord(models.Model):
         ordering = ["source_system", "source_table", "source_id"]
         verbose_name = "旧数据导入记录"
         verbose_name_plural = "旧数据导入记录"
+
+
+class LegacyReviewCandidate(models.Model):
+    """A non-binding legacy-import suggestion waiting for human curation."""
+
+    class CandidateType(models.TextChoices):
+        SENSE_SEGMENTATION = "sense_segmentation", "建议分义"
+        NUMBERING_ANOMALY = "numbering_anomaly", "编号异常"
+        PRONUNCIATION_VARIATION = "pronunciation_variation", "读音差异复核"
+        ENTRY_SPLIT = "entry_split", "建议拆词条"
+        POSSIBLE_DUPLICATE = "possible_duplicate", "可能重复"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "待审核"
+        ACCEPTED = "accepted", "已采纳"
+        REJECTED = "rejected", "不采纳"
+
+    source_system = models.CharField(max_length=80, verbose_name="来源系统")
+    candidate_key = models.CharField(max_length=200, verbose_name="候选稳定键")
+    candidate_type = models.CharField(
+        max_length=32,
+        choices=CandidateType.choices,
+        verbose_name="候选类型",
+    )
+    primary_entry = models.ForeignKey(
+        "Entry",
+        on_delete=models.CASCADE,
+        related_name="primary_legacy_review_candidates",
+        null=True,
+        blank=True,
+        verbose_name="主要词条",
+    )
+    entries = models.ManyToManyField(
+        "Entry",
+        related_name="legacy_review_candidates",
+        blank=True,
+        verbose_name="相关词条",
+    )
+    source_ids = models.JSONField(default=list, blank=True, verbose_name="来源记录编号")
+    payload = models.JSONField(default=dict, blank=True, verbose_name="候选原始材料")
+    fingerprint = models.CharField(max_length=64, verbose_name="候选指纹")
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        verbose_name="审核状态",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    def __str__(self):
+        return f"{self.get_candidate_type_display()}：{self.candidate_key}"
+
+    class Meta:
+        ordering = ["candidate_type", "candidate_key", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source_system", "candidate_type", "candidate_key"],
+                name="unique_legacy_review_candidate",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["candidate_type", "status"],
+                name="legacy_candidate_status_idx",
+            )
+        ]
+        verbose_name = "旧库审核候选"
+        verbose_name_plural = "旧库审核候选"
 
 
 class FlavorPackage(models.Model):

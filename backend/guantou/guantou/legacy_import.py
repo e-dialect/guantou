@@ -1,6 +1,7 @@
 import ast
 import hashlib
 import json
+import re
 import sqlite3
 from collections import defaultdict
 from contextlib import contextmanager
@@ -20,12 +21,22 @@ from user.verification import normalize_email, normalize_phone
 from .models import (
     Can,
     Dialect,
+    Entry,
+    EntrySense,
+    EntryWriting,
+    EvidenceLink,
+    EvidenceRecord,
     Flavor,
     FlavorPackage,
     LegacyImportRecord,
+    LegacyReviewCandidate,
     Nameplate,
     Package,
     Pronunciation,
+    PronunciationVariant,
+    Recording,
+    RecordingEntryLink,
+    WritingForm,
 )
 
 SOURCE_SYSTEM = "hinghwa-dict-backend"
@@ -98,6 +109,13 @@ PUTIAN_COUNTIES = {
     "莆田",
 }
 XIANYOU_COUNTIES = {"仙游县", "仙游"}
+CIRCLED_NUMBER_RE = re.compile(r"([①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳])")
+WHITESPACE_RE = re.compile(r"\s+")
+PRIMARY_TARGET_MODELS = {
+    "auth_user": "auth.User",
+    "word_word": "guantou.Flavor",
+    "word_pronunciation": "guantou.Can",
+}
 
 
 @contextmanager
@@ -124,6 +142,170 @@ def safe_legacy_list(value):
     except (ValueError, SyntaxError):
         return [text]
     return [str(item) for item in parsed] if isinstance(parsed, (list, tuple)) else []
+
+
+def clean_legacy_text(value):
+    return WHITESPACE_RE.sub(" ", str(value or "")).strip()
+
+
+def split_numbered_senses(definition):
+    """Parse circled-number segments as suggestions, never as final senses."""
+
+    parts = CIRCLED_NUMBER_RE.split(clean_legacy_text(definition))
+    return [
+        {
+            "marker": parts[index],
+            "text": parts[index + 1].strip() if index + 1 < len(parts) else "",
+        }
+        for index in range(1, len(parts), 2)
+    ]
+
+
+def payload_fingerprint(payload):
+    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def build_review_candidates(words, recordings):
+    """Build deterministic, non-binding candidates from read-only source rows."""
+
+    word_rows = [dict(row) for row in words]
+    recording_rows = [dict(row) for row in recordings]
+    words_by_id = {int(row["id"]): row for row in word_rows}
+    candidates = []
+
+    spellings = defaultdict(list)
+    for row in word_rows:
+        spellings[clean_legacy_text(row["word"])].append(row)
+        segments = split_numbered_senses(row["definition"])
+        markers = {segment["marker"] for segment in segments}
+        if {"①", "②"}.issubset(markers):
+            candidates.append(
+                {
+                    "candidate_type": "sense_segmentation",
+                    "candidate_key": f"word:{row['id']}",
+                    "source_word_ids": [int(row["id"])],
+                    "payload": {
+                        "writing": clean_legacy_text(row["word"]),
+                        "original_definition": str(row["definition"] or ""),
+                        "segments": segments,
+                        "decision": "suggest_sense_segmentation",
+                    },
+                }
+            )
+        elif len(segments) >= 2:
+            candidates.append(
+                {
+                    "candidate_type": "numbering_anomaly",
+                    "candidate_key": f"word:{row['id']}",
+                    "source_word_ids": [int(row["id"])],
+                    "payload": {
+                        "writing": clean_legacy_text(row["word"]),
+                        "original_definition": str(row["definition"] or ""),
+                        "segments": segments,
+                        "decision": "review_numbering_anomaly",
+                    },
+                }
+            )
+
+    for writing, rows in sorted(spellings.items()):
+        if not writing or len(rows) < 2:
+            continue
+        source_ids = [int(row["id"]) for row in rows]
+        candidates.append(
+            {
+                "candidate_type": "possible_duplicate",
+                "candidate_key": f"writing:{payload_fingerprint(writing)[:20]}",
+                "source_word_ids": source_ids,
+                "payload": {
+                    "writing": writing,
+                    "records": [
+                        {
+                            "source_word_id": int(row["id"]),
+                            "definition": str(row["definition"] or ""),
+                            "standard_ipa": clean_legacy_text(row["standard_ipa"]),
+                            "standard_pinyin": clean_legacy_text(
+                                row["standard_pinyin"]
+                            ),
+                        }
+                        for row in rows
+                    ],
+                    "decision": "possible_duplicate",
+                },
+            }
+        )
+
+    recordings_by_word = defaultdict(list)
+    for row in recording_rows:
+        word_id = int(row["word_id"])
+        if word_id in words_by_id:
+            recordings_by_word[word_id].append(row)
+    for word_id, rows in sorted(recordings_by_word.items()):
+        readings_by_area = defaultdict(set)
+        for row in rows:
+            reading = (
+                clean_legacy_text(row["ipa"]),
+                clean_legacy_text(row["pinyin"]),
+            )
+            if any(reading):
+                area = (
+                    clean_legacy_text(row["county"]),
+                    clean_legacy_text(row["town"]),
+                )
+                readings_by_area[area].add(reading)
+        all_readings = {
+            reading for readings in readings_by_area.values() for reading in readings
+        }
+        if len(all_readings) > 1:
+            candidates.append(
+                {
+                    "candidate_type": "pronunciation_variation",
+                    "candidate_key": f"word:{word_id}",
+                    "source_word_ids": [word_id],
+                    "payload": {
+                        "writing": clean_legacy_text(words_by_id[word_id]["word"]),
+                        "areas": [
+                            {
+                                "county": area[0],
+                                "town": area[1],
+                                "readings": [
+                                    {"ipa": reading[0], "romanization": reading[1]}
+                                    for reading in sorted(readings)
+                                ],
+                            }
+                            for area, readings in sorted(readings_by_area.items())
+                        ],
+                        "decision": "review_pronunciation_variation",
+                    },
+                }
+            )
+        for area, readings in sorted(readings_by_area.items()):
+            if len(readings) < 2:
+                continue
+            candidates.append(
+                {
+                    "candidate_type": "entry_split",
+                    "candidate_key": (
+                        f"word:{word_id}:area:" f"{payload_fingerprint(area)[:20]}"
+                    ),
+                    "source_word_ids": [word_id],
+                    "payload": {
+                        "writing": clean_legacy_text(words_by_id[word_id]["word"]),
+                        "county": area[0],
+                        "town": area[1],
+                        "readings": [
+                            {"ipa": reading[0], "romanization": reading[1]}
+                            for reading in sorted(readings)
+                        ],
+                        "decision": "suggest_entry_split_review",
+                    },
+                }
+            )
+
+    return sorted(
+        candidates,
+        key=lambda item: (item["candidate_type"], item["candidate_key"]),
+    )
 
 
 def normalize_legacy_location(county, town, *, for_user=False):
@@ -231,6 +413,8 @@ class HinghwaImporter:
         self.limit = limit
         self.user_map = {}
         self.word_map = {}
+        self.v2_entry_map = {}
+        self.review_candidates = []
         self.report = {
             "mode": "apply" if apply else "dry-run",
             "source": SOURCE_SYSTEM,
@@ -407,6 +591,26 @@ class HinghwaImporter:
                         "affected": row["count"],
                     }
                 )
+        words = self.connection.execute(
+            "SELECT * FROM word_word ORDER BY id"
+        ).fetchall()
+        recordings = self.connection.execute(
+            "SELECT * FROM word_pronunciation ORDER BY id"
+        ).fetchall()
+        recorded_word_ids = {int(row["word_id"]) for row in recordings}
+        self.review_candidates = build_review_candidates(words, recordings)
+        candidate_counts = defaultdict(int)
+        for candidate in self.review_candidates:
+            candidate_counts[candidate["candidate_type"]] += 1
+        self.report["v2_expected"] = {
+            "entries": len(words),
+            "entries_without_recordings": sum(
+                int(row["id"]) not in recorded_word_ids for row in words
+            ),
+            "recordings": len(recordings),
+        }
+        self.report["review_candidate_counts"] = dict(candidate_counts)
+        self.report["review_candidates"] = self.review_candidates
         return self.final_report()
 
     def _add_conflict(self, rows, reason):
@@ -414,12 +618,16 @@ class HinghwaImporter:
         if item not in self.report["conflicts"]:
             self.report["conflicts"].append(item)
 
-    def _ledger(self, table, source_id):
-        return LegacyImportRecord.objects.filter(
+    def _ledger(self, table, source_id, *, target_model=None):
+        queryset = LegacyImportRecord.objects.filter(
             source_system=SOURCE_SYSTEM,
             source_table=table,
             source_id=str(source_id),
-        ).first()
+        )
+        resolved_target = target_model or PRIMARY_TARGET_MODELS.get(table)
+        if resolved_target:
+            queryset = queryset.filter(target_model=resolved_target)
+        return queryset.first()
 
     def _record_ledger(
         self,
@@ -995,6 +1203,464 @@ class HinghwaImporter:
                 pronunciation_created
             )
 
+    def import_entries_v2(self):
+        """Create one traceable Entry for every legacy word, including silent ones."""
+
+        query = "SELECT * FROM word_word ORDER BY id"
+        params = []
+        if self.limit:
+            query += " LIMIT ?"
+            params.append(self.limit)
+        rows = self.connection.execute(query, params).fetchall()
+        broad_dialect = resolve_dialect("闽.莆仙")
+        city_dialect = resolve_dialect("闽.莆仙.莆田.城里")
+        if broad_dialect is None or city_dialect is None:
+            raise RuntimeError("缺少方言节点: 闽.莆仙 或 闽.莆仙.莆田.城里")
+
+        for row in rows:
+            ledger = self._ledger(
+                "word_word",
+                row["id"],
+                target_model=Entry._meta.label,
+            )
+            if ledger:
+                if ledger.fingerprint != row_fingerprint(row):
+                    self.report["conflicts"].append(
+                        {
+                            "table": "word_word",
+                            "source_id": row["id"],
+                            "target_model": Entry._meta.label,
+                            "reason": "source_changed_after_import",
+                        }
+                    )
+                    continue
+                entry = Entry.objects.filter(pk=ledger.target_id).first()
+                if entry is None:
+                    self.report["failed"].append(
+                        {
+                            "table": "word_word",
+                            "source_id": row["id"],
+                            "target_model": Entry._meta.label,
+                            "reason": "mapped_target_missing",
+                        }
+                    )
+                    continue
+                self.v2_entry_map[row["id"]] = entry.id
+                self.report["skipped"]["v2_entries"] += 1
+                continue
+
+            creator = self._user(row["contributor_id"])
+            original_writing = str(row["word"] or "")
+            writing_text = original_writing.strip()
+            definition = str(row["definition"] or "")
+            annotation = str(row["annotation"] or "")
+            original_standard_ipa = str(row["standard_ipa"] or "")
+            original_standard_romanization = str(row["standard_pinyin"] or "")
+            standard_ipa = original_standard_ipa.strip()
+            standard_romanization = original_standard_romanization.strip()
+            with transaction.atomic():
+                entry = Entry.objects.create(
+                    summary=definition,
+                    identity_note=annotation[:240],
+                    usage_dialect=broad_dialect,
+                    status=Entry.Status.DRAFT,
+                    created_by=creator,
+                    visibility=bool(row["visibility"]),
+                    metadata={
+                        "legacy": {
+                            "system": SOURCE_SYSTEM,
+                            "table": "word_word",
+                            "id": row["id"],
+                        }
+                    },
+                )
+                sense = EntrySense.objects.create(
+                    entry=entry,
+                    sense_number=1,
+                    gloss=definition,
+                    usage_note=annotation,
+                    status=EntrySense.Status.DRAFT,
+                    created_by=creator,
+                )
+                writing = None
+                entry_writing = None
+                if writing_text:
+                    writing = WritingForm.objects.create(
+                        text=writing_text,
+                        normalized_text=writing_text,
+                        form_type=WritingForm.FormType.UNCERTAIN,
+                        metadata={
+                            "legacy": {
+                                "system": SOURCE_SYSTEM,
+                                "table": "word_word",
+                                "id": row["id"],
+                            }
+                        },
+                    )
+                    entry_writing = EntryWriting.objects.create(
+                        entry=entry,
+                        writing=writing,
+                        relation_type=EntryWriting.RelationType.PRIMARY,
+                        status=EntryWriting.Status.DRAFT,
+                        created_by=creator,
+                        note="兴化语记旧库原样写法，待考据类型",
+                    )
+
+                standard_variant = None
+                if standard_ipa or standard_romanization:
+                    standard_variant = PronunciationVariant.objects.create(
+                        entry=entry,
+                        dialect=city_dialect,
+                        ipa=standard_ipa,
+                        surface_romanization=standard_romanization,
+                        reading_type=PronunciationVariant.ReadingType.GENERAL,
+                        usage_note=annotation,
+                        status=PronunciationVariant.Status.DRAFT,
+                        created_by=creator,
+                    )
+
+                evidence = EvidenceRecord.objects.create(
+                    source_type=EvidenceRecord.SourceType.LEGACY,
+                    original_text=definition,
+                    original_writing=original_writing,
+                    original_gloss=definition,
+                    original_pronunciation=(
+                        original_standard_romanization or original_standard_ipa
+                    ),
+                    citation=f"{SOURCE_SYSTEM}:word_word:{row['id']}",
+                    source_metadata={
+                        "annotation": annotation,
+                        "mandarin": safe_legacy_list(row["mandarin"]),
+                        "standard_ipa": original_standard_ipa,
+                        "standard_pinyin": original_standard_romanization,
+                        "tags": safe_legacy_list(row["tags"]),
+                        "visibility": bool(row["visibility"]),
+                        "contributor_id": row["contributor_id"],
+                    },
+                    contributor=creator,
+                )
+                evidence_links = [
+                    EvidenceLink.objects.create(
+                        evidence=evidence,
+                        entry=entry,
+                        relation_type=EvidenceLink.RelationType.SUBMITTED,
+                        created_by=creator,
+                    ),
+                    EvidenceLink.objects.create(
+                        evidence=evidence,
+                        sense=sense,
+                        relation_type=EvidenceLink.RelationType.SUBMITTED,
+                        created_by=creator,
+                    ),
+                ]
+                if standard_variant:
+                    evidence_links.append(
+                        EvidenceLink.objects.create(
+                            evidence=evidence,
+                            pronunciation_variant=standard_variant,
+                            relation_type=EvidenceLink.RelationType.SUBMITTED,
+                            created_by=creator,
+                        )
+                    )
+                self._record_ledger(
+                    "word_word",
+                    row,
+                    entry,
+                    metadata={
+                        "sense_id": sense.id,
+                        "writing_form_id": writing.id if writing else None,
+                        "entry_writing_id": (
+                            entry_writing.id if entry_writing else None
+                        ),
+                        "standard_pronunciation_variant_id": (
+                            standard_variant.id if standard_variant else None
+                        ),
+                        "evidence_record_id": evidence.id,
+                        "evidence_link_ids": [link.id for link in evidence_links],
+                    },
+                )
+                self.v2_entry_map[row["id"]] = entry.id
+            self.report["created"]["v2_entries"] += 1
+            self.report["created"]["v2_senses"] += 1
+            self.report["created"]["v2_writings"] += int(writing is not None)
+            self.report["created"]["v2_standard_variants"] += int(
+                standard_variant is not None
+            )
+            self.report["created"]["v2_evidence_records"] += 1
+
+    def import_recordings_v2(self):
+        """Create exactly one Recording per legacy pronunciation row."""
+
+        query = "SELECT * FROM word_pronunciation ORDER BY id"
+        params = []
+        if self.limit:
+            query += " LIMIT ?"
+            params.append(self.limit)
+        rows = self.connection.execute(query, params).fetchall()
+        word_rows = {
+            int(row["id"]): row
+            for row in self.connection.execute(
+                "SELECT * FROM word_word ORDER BY id"
+            ).fetchall()
+        }
+        broad_dialect = resolve_dialect("闽.莆仙")
+        if broad_dialect is None:
+            raise RuntimeError("缺少方言节点: 闽.莆仙")
+
+        for row in rows:
+            ledger = self._ledger(
+                "word_pronunciation",
+                row["id"],
+                target_model=Recording._meta.label,
+            )
+            if ledger:
+                if ledger.fingerprint != row_fingerprint(row):
+                    self.report["conflicts"].append(
+                        {
+                            "table": "word_pronunciation",
+                            "source_id": row["id"],
+                            "target_model": Recording._meta.label,
+                            "reason": "source_changed_after_import",
+                        }
+                    )
+                    continue
+                if not Recording.objects.filter(pk=ledger.target_id).exists():
+                    self.report["failed"].append(
+                        {
+                            "table": "word_pronunciation",
+                            "source_id": row["id"],
+                            "target_model": Recording._meta.label,
+                            "reason": "mapped_target_missing",
+                        }
+                    )
+                    continue
+                self.report["skipped"]["v2_recordings"] += 1
+                continue
+
+            entry_ledger = self._ledger(
+                "word_word",
+                row["word_id"],
+                target_model=Entry._meta.label,
+            )
+            entry = (
+                Entry.objects.filter(pk=entry_ledger.target_id).first()
+                if entry_ledger
+                else None
+            )
+            word_row = word_rows.get(int(row["word_id"]))
+            if entry is None or word_row is None:
+                self.report["failed"].append(
+                    {
+                        "table": "word_pronunciation",
+                        "source_id": row["id"],
+                        "reason": "v2_entry_unmapped",
+                    }
+                )
+                continue
+
+            location = normalize_legacy_location(row["county"], row["town"])
+            dialect = resolve_dialect(location["qualified_code"])
+            if dialect is None:
+                dialect = broad_dialect
+                self.report["normalized"]["v2_recording_dialect_fallback"] += 1
+            recorder = self._user(row["contributor_id"])
+            verifier = self._user(row["verifier_id"])
+            if recorder is None:
+                self.report["normalized"]["v2_anonymous_recorders"] += 1
+            original_ipa = str(row["ipa"] or "")
+            original_romanization = str(row["pinyin"] or "")
+            ipa = original_ipa.strip()
+            romanization = original_romanization.strip()
+            upload_time = parse_legacy_datetime(row["upload_time"])
+            with transaction.atomic():
+                recording = Recording.objects.create(
+                    audio_url=str(row["source"] or ""),
+                    usage_dialect=dialect,
+                    recorder=recorder,
+                    recording_type=Recording.RecordingType.WORD,
+                    original_gloss=str(word_row["definition"] or ""),
+                    status=(
+                        Recording.Status.PUBLISHED
+                        if row["visibility"]
+                        else Recording.Status.DRAFT
+                    ),
+                    visibility=bool(row["visibility"]),
+                    metadata={
+                        "legacy": {
+                            "system": SOURCE_SYSTEM,
+                            "table": "word_pronunciation",
+                            "id": row["id"],
+                            "word_id": row["word_id"],
+                        },
+                        "location_mapping": location["reason"],
+                        "views_at_import": max(0, int(row["views"] or 0)),
+                    },
+                )
+                variant = None
+                variant_created = False
+                if ipa or romanization:
+                    variant = PronunciationVariant.objects.filter(
+                        entry=entry,
+                        dialect=dialect,
+                        ipa=ipa,
+                        base_romanization="",
+                        surface_romanization=romanization,
+                        reading_type=PronunciationVariant.ReadingType.GENERAL,
+                    ).first()
+                    if variant is None:
+                        variant = PronunciationVariant.objects.create(
+                            entry=entry,
+                            dialect=dialect,
+                            ipa=ipa,
+                            surface_romanization=romanization,
+                            reading_type=PronunciationVariant.ReadingType.GENERAL,
+                            status=(
+                                PronunciationVariant.Status.REVIEWED
+                                if verifier
+                                else PronunciationVariant.Status.DRAFT
+                            ),
+                            created_by=recorder,
+                        )
+                        variant_created = True
+
+                link = RecordingEntryLink.objects.create(
+                    recording=recording,
+                    entry=entry,
+                    role=RecordingEntryLink.Role.PRIMARY,
+                    status=RecordingEntryLink.Status.ACCEPTED,
+                    created_by=recorder,
+                    reviewed_by=verifier,
+                    review_reason=(
+                        "旧库审核状态迁移" if verifier else "原贡献者初始主词条"
+                    ),
+                    reviewed_at=upload_time if verifier else None,
+                )
+                evidence = EvidenceRecord.objects.create(
+                    source_type=EvidenceRecord.SourceType.LEGACY,
+                    original_text=str(word_row["definition"] or ""),
+                    original_writing=str(word_row["word"] or ""),
+                    original_gloss=str(word_row["definition"] or ""),
+                    original_pronunciation=(original_romanization or original_ipa),
+                    citation=str(row["source"] or "")[:500],
+                    source_metadata={
+                        "system": SOURCE_SYSTEM,
+                        "table": "word_pronunciation",
+                        "id": row["id"],
+                        "word_id": row["word_id"],
+                        "ipa": original_ipa,
+                        "pinyin": original_romanization,
+                        "county": str(row["county"] or ""),
+                        "town": str(row["town"] or ""),
+                        "visibility": bool(row["visibility"]),
+                        "views": max(0, int(row["views"] or 0)),
+                        "verifier_id": row["verifier_id"],
+                        "upload_time": str(row["upload_time"] or ""),
+                    },
+                    contributor=recorder,
+                )
+                evidence_links = [
+                    EvidenceLink.objects.create(
+                        evidence=evidence,
+                        recording=recording,
+                        relation_type=EvidenceLink.RelationType.SUBMITTED,
+                        created_by=recorder,
+                    ),
+                    EvidenceLink.objects.create(
+                        evidence=evidence,
+                        recording_entry_link=link,
+                        relation_type=EvidenceLink.RelationType.SUBMITTED,
+                        created_by=recorder,
+                    ),
+                ]
+                if variant:
+                    evidence_links.append(
+                        EvidenceLink.objects.create(
+                            evidence=evidence,
+                            pronunciation_variant=variant,
+                            relation_type=EvidenceLink.RelationType.SUBMITTED,
+                            created_by=recorder,
+                        )
+                    )
+                if upload_time:
+                    Recording.objects.filter(pk=recording.pk).update(
+                        created_at=upload_time,
+                        updated_at=upload_time,
+                    )
+                    EvidenceRecord.objects.filter(pk=evidence.pk).update(
+                        created_at=upload_time
+                    )
+                self._record_ledger(
+                    "word_pronunciation",
+                    row,
+                    recording,
+                    metadata={
+                        "entry_id": entry.id,
+                        "recording_entry_link_id": link.id,
+                        "pronunciation_variant_id": variant.id if variant else None,
+                        "evidence_record_id": evidence.id,
+                        "evidence_link_ids": [item.id for item in evidence_links],
+                    },
+                )
+            self.report["created"]["v2_recordings"] += 1
+            self.report["created"]["v2_recording_entry_links"] += 1
+            self.report["created"]["v2_recorded_variants"] += int(variant_created)
+            self.report["created"]["v2_evidence_records"] += 1
+
+    def import_review_candidates_v2(self):
+        """Persist review suggestions only after their Entries exist."""
+
+        for item in self.review_candidates:
+            entry_pairs = []
+            for source_id in item["source_word_ids"]:
+                ledger = self._ledger(
+                    "word_word",
+                    source_id,
+                    target_model=Entry._meta.label,
+                )
+                entry = (
+                    Entry.objects.filter(pk=ledger.target_id).first()
+                    if ledger
+                    else None
+                )
+                if entry:
+                    entry_pairs.append((source_id, entry))
+            if len(entry_pairs) != len(item["source_word_ids"]):
+                self.report["skipped"]["v2_review_candidates_unmapped"] += 1
+                continue
+
+            fingerprint = payload_fingerprint(item)
+            existing = LegacyReviewCandidate.objects.filter(
+                source_system=SOURCE_SYSTEM,
+                candidate_type=item["candidate_type"],
+                candidate_key=item["candidate_key"],
+            ).first()
+            if existing:
+                if existing.fingerprint != fingerprint:
+                    self.report["conflicts"].append(
+                        {
+                            "candidate_type": item["candidate_type"],
+                            "candidate_key": item["candidate_key"],
+                            "reason": "candidate_source_changed_after_import",
+                        }
+                    )
+                else:
+                    self.report["skipped"]["v2_review_candidates"] += 1
+                continue
+
+            entries = [entry for _, entry in entry_pairs]
+            with transaction.atomic():
+                candidate = LegacyReviewCandidate.objects.create(
+                    source_system=SOURCE_SYSTEM,
+                    candidate_key=item["candidate_key"],
+                    candidate_type=item["candidate_type"],
+                    primary_entry=entries[0] if entries else None,
+                    source_ids=item["source_word_ids"],
+                    payload=item["payload"],
+                    fingerprint=fingerprint,
+                )
+                candidate.entries.set(entries)
+            self.report["created"]["v2_review_candidates"] += 1
+
     def run(self):
         self.analyze()
         if not self.apply:
@@ -1002,6 +1668,9 @@ class HinghwaImporter:
         self.import_users()
         self.import_words()
         self.import_recordings()
+        self.import_entries_v2()
+        self.import_recordings_v2()
+        self.import_review_candidates_v2()
         return self.final_report()
 
     def final_report(self):
@@ -1025,6 +1694,14 @@ class HinghwaImporter:
             "pronunciations": Pronunciation.objects.count(),
             "cans": Can.objects.count(),
             "nameplates": Nameplate.objects.count(),
+            "v2_entries": Entry.objects.count(),
+            "v2_senses": EntrySense.objects.count(),
+            "v2_writings": WritingForm.objects.count(),
+            "v2_pronunciation_variants": PronunciationVariant.objects.count(),
+            "v2_recordings": Recording.objects.count(),
+            "v2_recording_entry_links": RecordingEntryLink.objects.count(),
+            "v2_evidence_records": EvidenceRecord.objects.count(),
+            "v2_review_candidates": LegacyReviewCandidate.objects.count(),
             "legacy_import_records": LegacyImportRecord.objects.filter(
                 source_system=SOURCE_SYSTEM
             ).count(),
@@ -1290,6 +1967,127 @@ def import_demo_fixture(payload, *, apply=False):
             )
             report["created"]["entries"] += 1
             report["created"]["packages"] += int(package_created)
+
+        writing_type_map = {
+            Package.PackageType.ORTHODOX: WritingForm.FormType.ORTHOGRAPHIC,
+            Package.PackageType.LOAN: WritingForm.FormType.LOAN,
+            Package.PackageType.POPULAR: WritingForm.FormType.POPULAR,
+            Package.PackageType.PHONETIC: WritingForm.FormType.PHONETIC,
+            Package.PackageType.ROMANIZATION: WritingForm.FormType.ROMANIZATION,
+            Package.PackageType.UNCERTAIN: WritingForm.FormType.UNCERTAIN,
+        }
+        for fixture_entry in entries:
+            entry_key = fixture_entry["key"]
+            if Entry.objects.filter(metadata__demo_fixture_key=entry_key).exists():
+                report["skipped"]["v2_entries"] += 1
+                continue
+            dialect = resolve_dialect(fixture_entry["dialect"])
+            can_data = fixture_entry["can"]
+            flavor_data = fixture_entry["flavor"]
+            package_data = fixture_entry["package"]
+            pronunciation_data = fixture_entry["pronunciation"]
+            recorder = actor_map.get(can_data.get("recorder"))
+            verifier = actor_map.get(can_data.get("verifier"))
+            with transaction.atomic():
+                v2_entry = Entry.objects.create(
+                    summary=str(flavor_data.get("definition") or ""),
+                    usage_dialect=dialect,
+                    created_by=recorder,
+                    visibility=bool(flavor_data.get("visibility", True)),
+                    metadata={"demo_fixture_key": entry_key},
+                )
+                sense = EntrySense.objects.create(
+                    entry=v2_entry,
+                    gloss=str(flavor_data.get("definition") or ""),
+                    created_by=recorder,
+                )
+                writing = WritingForm.objects.create(
+                    text=str(package_data.get("text") or ""),
+                    normalized_text=str(package_data.get("text") or ""),
+                    form_type=writing_type_map.get(
+                        package_data.get("package_type"),
+                        WritingForm.FormType.UNCERTAIN,
+                    ),
+                    metadata={"demo_fixture_key": entry_key},
+                )
+                EntryWriting.objects.create(
+                    entry=v2_entry,
+                    writing=writing,
+                    relation_type=EntryWriting.RelationType.PRIMARY,
+                    created_by=recorder,
+                    note="脱敏 demo fixture",
+                )
+                ipa = str(pronunciation_data.get("ipa") or "")
+                romanization = str(pronunciation_data.get("surface_romanization") or "")
+                variant = None
+                if ipa or romanization:
+                    variant = PronunciationVariant.objects.create(
+                        entry=v2_entry,
+                        dialect=dialect,
+                        ipa=ipa,
+                        surface_romanization=romanization,
+                        reading_type=(
+                            pronunciation_data.get("reading_type")
+                            or PronunciationVariant.ReadingType.GENERAL
+                        ),
+                        status=(
+                            PronunciationVariant.Status.REVIEWED
+                            if pronunciation_data.get("status")
+                            == Pronunciation.Status.VERIFIED
+                            else PronunciationVariant.Status.DRAFT
+                        ),
+                        created_by=recorder,
+                    )
+                recording = Recording.objects.create(
+                    audio_url=can_data["audio_url"],
+                    usage_dialect=dialect,
+                    recorder=recorder,
+                    original_gloss=str(
+                        can_data.get("concept_text")
+                        or flavor_data.get("definition")
+                        or ""
+                    ),
+                    status=(
+                        Recording.Status.PUBLISHED
+                        if can_data.get("visibility", True)
+                        else Recording.Status.DRAFT
+                    ),
+                    visibility=bool(can_data.get("visibility", True)),
+                    metadata={"demo_fixture_key": entry_key},
+                )
+                recording_link = RecordingEntryLink.objects.create(
+                    recording=recording,
+                    entry=v2_entry,
+                    role=RecordingEntryLink.Role.PRIMARY,
+                    status=RecordingEntryLink.Status.ACCEPTED,
+                    created_by=recorder,
+                    reviewed_by=verifier,
+                    review_reason="脱敏 demo fixture",
+                    reviewed_at=timezone.now() if verifier else None,
+                )
+                evidence = EvidenceRecord.objects.create(
+                    source_type=EvidenceRecord.SourceType.OTHER,
+                    original_writing=writing.text,
+                    original_gloss=str(flavor_data.get("definition") or ""),
+                    original_pronunciation=romanization or ipa,
+                    citation=f"demo-fixture:{entry_key}",
+                    source_metadata={"demo_fixture_key": entry_key},
+                    contributor=recorder,
+                )
+                EvidenceLink.objects.create(evidence=evidence, entry=v2_entry)
+                EvidenceLink.objects.create(evidence=evidence, sense=sense)
+                EvidenceLink.objects.create(evidence=evidence, recording=recording)
+                EvidenceLink.objects.create(
+                    evidence=evidence,
+                    recording_entry_link=recording_link,
+                )
+                if variant:
+                    EvidenceLink.objects.create(
+                        evidence=evidence,
+                        pronunciation_variant=variant,
+                    )
+            report["created"]["v2_entries"] += 1
+            report["created"]["v2_recordings"] += 1
     report["created"] = dict(report["created"])
     report["skipped"] = dict(report["skipped"])
     return report

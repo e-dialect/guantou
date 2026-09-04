@@ -3,6 +3,58 @@ from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase
 
 
+class LegacyImportV2SupportMigrationTests(TransactionTestCase):
+    migrate_from = ("guantou", "0020_entry_recording_v2_domain")
+    migrate_to = ("guantou", "0021_v2_legacy_import_support")
+
+    def setUp(self):
+        super().setUp()
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        old_apps = executor.loader.project_state([self.migrate_from]).apps
+        LegacyImportRecord = old_apps.get_model("guantou", "LegacyImportRecord")
+        self.legacy_record_id = LegacyImportRecord.objects.create(
+            source_system="hinghwa-dict-backend",
+            source_table="word_word",
+            source_id="42",
+            target_model="guantou.Flavor",
+            target_id=9,
+            fingerprint="old",
+        ).id
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_to])
+        self.apps = executor.loader.project_state([self.migrate_to]).apps
+
+    def tearDown(self):
+        MigrationExecutor(connection).migrate(
+            MigrationExecutor(connection).loader.graph.leaf_nodes()
+        )
+        super().tearDown()
+
+    def test_existing_ledger_survives_and_source_can_track_v1_and_v2_targets(self):
+        LegacyImportRecord = self.apps.get_model("guantou", "LegacyImportRecord")
+        legacy = LegacyImportRecord.objects.get(pk=self.legacy_record_id)
+        self.assertEqual(legacy.target_model, "guantou.Flavor")
+
+        LegacyImportRecord.objects.create(
+            source_system="hinghwa-dict-backend",
+            source_table="word_word",
+            source_id="42",
+            target_model="guantou.Entry",
+            target_id=11,
+            fingerprint="new",
+        )
+        self.assertEqual(
+            LegacyImportRecord.objects.filter(
+                source_system="hinghwa-dict-backend",
+                source_table="word_word",
+                source_id="42",
+            ).count(),
+            2,
+        )
+
+
 class EntryRecordingV2SchemaMigrationTests(TransactionTestCase):
     migrate_from = ("guantou", "0019_cancomment_parent_cancomment_reply_to_and_more")
     migrate_to = ("guantou", "0020_entry_recording_v2_domain")

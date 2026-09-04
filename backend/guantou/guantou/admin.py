@@ -15,6 +15,7 @@ from .models import (
     EvidenceRecord,
     Flavor,
     FlavorPackage,
+    LegacyReviewCandidate,
     Nameplate,
     Package,
     Pronunciation,
@@ -396,3 +397,19 @@ class CuratorGrantAdmin(admin.ModelAdmin):
     list_filter = ("role",)
     search_fields = ("user__username", "reason", "revocation_reason")
     raw_id_fields = ("user", "dialect", "granted_by")
+
+
+@admin.register(LegacyReviewCandidate)
+class LegacyReviewCandidateAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "candidate_type",
+        "candidate_key",
+        "primary_entry",
+        "status",
+        "created_at",
+    )
+    list_filter = ("candidate_type", "status", "source_system")
+    search_fields = ("candidate_key",)
+    raw_id_fields = ("primary_entry",)
+    filter_horizontal = ("entries",)
