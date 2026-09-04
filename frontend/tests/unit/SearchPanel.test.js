@@ -82,7 +82,22 @@ describe('SearchPanel', () => {
     const wrapper = mountSearchPanel({
       hasSearched: true,
       results: {
-        flavors: [{ id: 1, name: '月亮', definition: '天体', variants: [], package_links: [] }],
+        flavors: [
+          {
+            id: 1,
+            name: '月亮',
+            definition: '天体',
+            pronunciations: [{ id: 11 }],
+            package_links: [],
+          },
+          {
+            id: 2,
+            name: '月亮',
+            definition: '天体',
+            pronunciations: [{ id: 22 }],
+            package_links: [],
+          },
+        ],
         packages: [],
         cans: [],
       },
@@ -93,6 +108,9 @@ describe('SearchPanel', () => {
     expect(wrapper.emitted('open')[0][0]).toMatchObject({
       id: 1,
       scope: 'flavors',
+      flavor_ids: [1, 2],
+      pronunciations: [{ id: 11 }, { id: 22 }],
     });
+    expect(wrapper.findAll('.entity-card')).toHaveLength(1);
   });
 });

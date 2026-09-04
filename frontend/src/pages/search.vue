@@ -189,8 +189,12 @@ export default {
         goNameplateDetail(item.id);
         return;
       }
+      if (item.scope === 'flavors') {
+        const ids = item.flavor_ids || [item.id];
+        openPage(`/pages/flavors/details?id=${ids[0]}&ids=${ids.join(',')}`);
+        return;
+      }
       const urls = {
-        flavors: `/pages/flavors/details?id=${item.id}`,
         packages: `/pages/packages/details?id=${item.id}`,
       };
       openPage(urls[item.scope]);

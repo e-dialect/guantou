@@ -110,11 +110,11 @@
         <template v-else>
           <ResultSection
             title="义项"
-            :items="results.flavors"
+            :items="groupedFlavors"
             empty-title="没有匹配义项"
           >
             <EntityCard
-              v-for="item in results.flavors"
+              v-for="item in groupedFlavors"
               :key="`flavor-${item.id}`"
               type="义项"
               :title="item.name"
@@ -195,6 +195,46 @@ import ResultSection from './ResultSection.vue';
 
 const SUGGEST_DEBOUNCE_MS = 300;
 
+function flavorGroupKey(item) {
+  return `${String(item.name || '').trim()}||${String(item.definition || '').trim()}`;
+}
+
+function uniqueById(items) {
+  const seen = new Set();
+  return (items || []).filter((item) => {
+    const key = String(item?.id ?? '');
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export function groupFlavorResults(items) {
+  const groups = new Map();
+  (items || []).forEach((flavor) => {
+    const key = flavorGroupKey(flavor);
+    if (!groups.has(key)) {
+      groups.set(key, {
+        ...flavor,
+        flavor_ids: [],
+        pronunciations: [],
+        package_links: [],
+      });
+    }
+    const group = groups.get(key);
+    if (!group.flavor_ids.some((id) => String(id) === String(flavor.id))) {
+      group.flavor_ids.push(flavor.id);
+    }
+    group.pronunciations = uniqueById(
+      group.pronunciations.concat(flavor.pronunciations || []),
+    );
+    group.package_links = uniqueById(
+      group.package_links.concat(flavor.package_links || []),
+    );
+  });
+  return [...groups.values()];
+}
+
 export default {
   name: 'SearchPanel',
   components: {
@@ -262,6 +302,9 @@ export default {
     };
   },
   computed: {
+    groupedFlavors() {
+      return groupFlavorResults(this.results.flavors);
+    },
     totalResults() {
       return (this.results.flavors || []).length
         + (this.results.packages || []).length
