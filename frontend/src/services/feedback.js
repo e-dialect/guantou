@@ -126,7 +126,8 @@ export function showLoading(title = '加载中') {
   if (loadingReferences === 0) {
     uni.showLoading({
       title,
-      mask: true,
+      // 页面与提交按钮自行管理 busy 状态；全局进度提示不应形成可能残留的透明点击层。
+      mask: false,
     });
   }
   loadingReferences += 1;

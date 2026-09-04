@@ -23,7 +23,7 @@ describe('feedback service', () => {
 
     expect(uni.showLoading).toHaveBeenCalledWith({
       title: '上传中……',
-      mask: true,
+      mask: false,
     });
     expect(uni.hideLoading).toHaveBeenCalled();
   });

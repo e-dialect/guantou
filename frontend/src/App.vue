@@ -123,6 +123,13 @@ html[data-theme='dark'] page {
   color-scheme: dark;
 }
 
+/* uni-app 的 H5 Loading 在淡出节点尚未销毁时仍可能保留透明 mask；
+ * 离场反馈不可继续阻断页面操作。 */
+uni-toast.uni-fade-leave-active,
+uni-toast.uni-fade-leave-active .uni-mask {
+  pointer-events: none;
+}
+
 /* 页面背景色跟随主题/页面切换时平滑过渡，避免深色↔浅色硬切闪变 */
 page {
   transition: background-color 0.25s ease;
