@@ -17,21 +17,28 @@
           :maxlength="maxlength"
           :disabled="disabled"
           :readonly="readonly"
+          :focus="focus"
+          :confirm-type="confirmType"
           :autosize="resolvedAutosize"
           :indicator="indicator"
           bordered
           @change="handleChange"
           @blur="$emit('blur', $event)"
           @focus="$emit('focus', $event)"
+          @enter="handleEnter"
         />
         <t-input
           v-else
           :value="modelValue"
+          :aria-role="ariaRole || undefined"
+          :aria-label="ariaLabel || undefined"
           :type="inputType"
           :placeholder="placeholder"
           :maxlength="maxlength"
           :disabled="disabled"
           :readonly="readonly"
+          :focus="focus"
+          :confirm-type="confirmType"
           :clearable="clearable"
           :status="error ? 'error' : status"
           :suffix-icon="suffixIcon"
@@ -39,6 +46,7 @@
           @change="handleChange"
           @blur="$emit('blur', $event)"
           @focus="$emit('focus', $event)"
+          @enter="handleEnter"
         />
       </slot>
     </view>
@@ -85,8 +93,16 @@ export default {
     autosize: { type: [Boolean, Object], default: false },
     indicator: { type: Boolean, default: false },
     clearable: { type: Boolean, default: false },
+    focus: { type: Boolean, default: false },
+    ariaLabel: { type: String, default: '' },
+    ariaRole: { type: String, default: '' },
+    confirmType: {
+      type: String,
+      default: 'done',
+      validator: (value) => ['return', 'send', 'search', 'next', 'go', 'done'].includes(value),
+    },
   },
-  emits: ['update:modelValue', 'change', 'input', 'blur', 'focus'],
+  emits: ['update:modelValue', 'change', 'input', 'blur', 'focus', 'enter', 'confirm'],
   computed: {
     inputType() {
       if (this.type === 'tel') return 'number';
@@ -103,6 +119,10 @@ export default {
       this.$emit('update:modelValue', value);
       this.$emit('change', value);
       this.$emit('input', value);
+    },
+    handleEnter(event) {
+      this.$emit('enter', event);
+      this.$emit('confirm', event);
     },
   },
 };

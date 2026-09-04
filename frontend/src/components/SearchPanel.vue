@@ -7,20 +7,24 @@
       >
         ‹
       </text>
-      <input
+      <BaseField
         v-model="localKeyword"
-        class="search-input"
+        class="search-field"
+        name="search"
         placeholder="搜索义项、写法、罐头"
-        :focus="true"
+        aria-role="searchbox"
+        aria-label="搜索"
         confirm-type="search"
-        @confirm="submitSearch"
-      >
-      <button
+        clearable
+        focus
+        @enter="submitSearch"
+      />
+      <BaseButton
         class="search-button"
-        @tap="submitSearch"
-      >
-        搜索
-      </button>
+        size="small"
+        text="搜索"
+        @click="submitSearch"
+      />
     </view>
 
     <scroll-view
@@ -183,6 +187,8 @@
 
 <script>
 import CanCard from './CanCard.vue';
+import BaseButton from './BaseButton.vue';
+import BaseField from './BaseField.vue';
 import EmptyState from './EmptyState.vue';
 import EntityCard from './EntityCard.vue';
 import ResultSection from './ResultSection.vue';
@@ -193,6 +199,8 @@ export default {
   name: 'SearchPanel',
   components: {
     CanCard,
+    BaseButton,
+    BaseField,
     EmptyState,
     EntityCard,
     ResultSection,
@@ -335,23 +343,23 @@ export default {
   width: 44rpx;
 }
 
-.search-input {
+.search-field {
+  min-width: 0;
+}
+
+.search-field :deep(.base-field) {
+  padding: 0;
+}
+
+.search-field :deep(.t-input) {
   background: #f6f7f3;
   border: 1px solid #d9dfd5;
   border-radius: 999rpx;
-  padding: 16rpx 22rpx;
   font-size: 28rpx;
 }
 
 .search-button {
   margin: 0;
-  height: 60rpx;
-  line-height: 60rpx;
-  padding: 0 24rpx;
-  border-radius: 999rpx;
-  background: #1f5c43;
-  color: #ffffff;
-  font-size: 26rpx;
 }
 
 .search-content {

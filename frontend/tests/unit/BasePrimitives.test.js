@@ -141,6 +141,29 @@ describe('BaseField', () => {
     expect(wrapper.emitted('update:modelValue')[0]).toEqual(['罐头释义']);
     expect(wrapper.emitted('input')[0]).toEqual(['罐头释义']);
   });
+
+  it('forwards TDesign enter events while keeping confirm compatibility', async () => {
+    const wrapper = mount(BaseField, {
+      props: {
+        name: 'search',
+        confirmType: 'search',
+        focus: true,
+        ariaRole: 'searchbox',
+        ariaLabel: '搜索',
+      },
+    });
+    const input = wrapper.findAllComponents({ name: 'TDesignStub' })[1];
+
+    expect(input.props('ariaLabel')).toBe('搜索');
+    expect(input.vm.$attrs.focus).toBe(true);
+    expect(input.vm.$attrs['confirm-type']).toBe('search');
+    expect(input.vm.$attrs['aria-role']).toBe('searchbox');
+    input.vm.$emit('enter', { value: '月亮' });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.emitted('enter')).toHaveLength(1);
+    expect(wrapper.emitted('confirm')).toHaveLength(1);
+  });
 });
 
 describe('TDesign infrastructure primitives', () => {

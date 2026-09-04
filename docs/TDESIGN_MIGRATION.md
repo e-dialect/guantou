@@ -27,7 +27,7 @@
 | `pages/pronunciations/create` | done | [#234](https://github.com/e-dialect/guantou/issues/234)：PageShell + BaseForm/BaseField/BaseButton、统一加载/重试/反馈；保留写法 Picker、方言级联、联合校验、字段错误定位与成功返回 |
 | `pages/shelves/index` | issue | [#231](https://github.com/e-dialect/guantou/issues/231)：创建表单与列表状态 |
 | `pages/shelves/details` | issue | [#235](https://github.com/e-dialect/guantou/issues/235)：编辑、双搜索和成员管理 |
-| `pages/search` / `components/SearchPanel` | issue | [#236](https://github.com/e-dialect/guantou/issues/236)：聚焦、键盘与搜索联想 |
+| `pages/search` / `components/SearchPanel` | partial | [#236](https://github.com/e-dialect/guantou/issues/236) / [PR #312](https://github.com/e-dialect/guantou/pull/312)（源自关闭的 [#224](https://github.com/e-dialect/guantou/pull/224)）：搜索输入已迁移到 BaseField/BaseButton，保留全部分类结果、聚焦、键盘 confirm 与搜索联想；页面状态与视觉细化继续由 issue 跟踪 |
 | `pages/users/onboarding` | done | [#233](https://github.com/e-dialect/guantou/issues/233) / [PR #310](https://github.com/e-dialect/guantou/pull/310)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：BaseField/BaseButton、方言树加载重试与真实乡音样本；保留登录中断恢复 |
 | `pages/cans/drafts` | done | [#195](https://github.com/e-dialect/guantou/issues/195) / [PR #216](https://github.com/e-dialect/guantou/pull/216)：加载、空态、错误、继续编辑与删除反馈 |
 | `pages/cans/index` / `library` | queued | 每页独立 PR |
