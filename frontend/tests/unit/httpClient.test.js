@@ -51,7 +51,7 @@ describe('httpClient compatibility wrappers', () => {
         'X-Visitor-ID': 'stored-visitor',
       }),
     }));
-    expect(uni.showLoading).toHaveBeenCalledWith({ title: '加载中', mask: true });
+    expect(uni.showLoading).toHaveBeenCalledWith({ title: '加载中', mask: false });
     expect(uni.hideLoading).toHaveBeenCalled();
   });
 
@@ -222,7 +222,7 @@ describe('httpClient compatibility wrappers', () => {
         'X-Visitor-ID': 'stored-visitor',
       },
     }));
-    expect(uni.showLoading).toHaveBeenCalledWith({ title: '上传中……', mask: true });
+    expect(uni.showLoading).toHaveBeenCalledWith({ title: '上传中……', mask: false });
   });
 
   it('upload falls back to raw data when response body is not JSON', async () => {
