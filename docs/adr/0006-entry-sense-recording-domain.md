@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed，供锁仓前评审；通过后在下一次领域模型大版本中实施。
+Accepted。锁仓前评审已通过；V2 领域模型从迁移 `0020_entry_recording_v2_domain` 开始分阶段实施，旧模型在客户端和导入器完成切换前继续并存。
 
 ## Context
 

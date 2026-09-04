@@ -3,6 +3,80 @@ from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase
 
 
+class EntryRecordingV2SchemaMigrationTests(TransactionTestCase):
+    migrate_from = ("guantou", "0019_cancomment_parent_cancomment_reply_to_and_more")
+    migrate_to = ("guantou", "0020_entry_recording_v2_domain")
+
+    def setUp(self):
+        super().setUp()
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        old_apps = executor.loader.project_state([self.migrate_from]).apps
+
+        User = old_apps.get_model("auth", "User")
+        Dialect = old_apps.get_model("guantou", "Dialect")
+        Can = old_apps.get_model("guantou", "Can")
+        user = User.objects.create(username="v2-migration")
+        dialect = Dialect.objects.create(name="莆仙方言", code="puxian-v2")
+        can = Can.objects.create(
+            audio_url="https://example.test/legacy-v2.mp3",
+            recorder=user,
+            submitted_dialect=dialect,
+            concept_text="旧库词条",
+            visibility=True,
+        )
+        self.ids = {"user": user.id, "dialect": dialect.id, "can": can.id}
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_to])
+        self.apps = executor.loader.project_state([self.migrate_to]).apps
+
+    def tearDown(self):
+        MigrationExecutor(connection).migrate(
+            MigrationExecutor(connection).loader.graph.leaf_nodes()
+        )
+        super().tearDown()
+
+    def test_forward_migration_preserves_legacy_rows_without_auto_importing(self):
+        Can = self.apps.get_model("guantou", "Can")
+        Entry = self.apps.get_model("guantou", "Entry")
+        Recording = self.apps.get_model("guantou", "Recording")
+
+        legacy_can = Can.objects.get(pk=self.ids["can"])
+        self.assertEqual(legacy_can.concept_text, "旧库词条")
+        self.assertTrue(legacy_can.visibility)
+        self.assertEqual(Entry.objects.count(), 0)
+        self.assertEqual(Recording.objects.count(), 0)
+
+    def test_new_schema_supports_entry_without_recording_and_many_to_many_link(self):
+        Entry = self.apps.get_model("guantou", "Entry")
+        EntrySense = self.apps.get_model("guantou", "EntrySense")
+        Recording = self.apps.get_model("guantou", "Recording")
+        RecordingEntryLink = self.apps.get_model("guantou", "RecordingEntryLink")
+
+        entry = Entry.objects.create(
+            summary="表示害怕的意思",
+            usage_dialect_id=self.ids["dialect"],
+            created_by_id=self.ids["user"],
+        )
+        EntrySense.objects.create(entry=entry, sense_number=1, gloss="害怕")
+        self.assertFalse(RecordingEntryLink.objects.filter(entry=entry).exists())
+
+        recording = Recording.objects.create(
+            audio_url="https://example.test/new-v2.mp3",
+            usage_dialect_id=self.ids["dialect"],
+            recorder_id=self.ids["user"],
+            original_gloss="害怕",
+        )
+        RecordingEntryLink.objects.create(
+            recording=recording,
+            entry=entry,
+            role="primary",
+            status="accepted",
+        )
+        self.assertEqual(recording.entry_links.get().entry_id, entry.id)
+
+
 class ApiV1DomainMigrationTests(TransactionTestCase):
     migrate_from = ("guantou", "0003_can_transition_log")
     migrate_to = ("guantou", "0004_api_v1_domain_model")

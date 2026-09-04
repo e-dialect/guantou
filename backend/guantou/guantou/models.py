@@ -1,7 +1,15 @@
+from datetime import timedelta
+
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+
+
+def curator_grant_default_expiry():
+    """Default curator grants to one year instead of granting indefinitely."""
+
+    return timezone.now() + timedelta(days=365)
 
 
 class Dialect(models.Model):
@@ -1072,3 +1080,948 @@ class SearchTermHit(models.Model):
                 name="unique_daily_search_term_hit",
             )
         ]
+
+
+class Entry(models.Model):
+    """A dialect lexeme with one coherent reading and core identity."""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "初稿"
+        REVIEWED = "reviewed", "已整理"
+        DISPUTED = "disputed", "有分歧"
+        REDIRECTED = "redirected", "已合并跳转"
+
+    summary = models.TextField(blank=True, verbose_name="词条大意")
+    identity_note = models.CharField(
+        max_length=240,
+        blank=True,
+        verbose_name="读音或核心意义辨识说明",
+    )
+    usage_dialect = models.ForeignKey(
+        Dialect,
+        on_delete=models.PROTECT,
+        related_name="entries",
+        null=True,
+        blank=True,
+        verbose_name="已知使用范围",
+    )
+    writings = models.ManyToManyField(
+        "WritingForm",
+        through="EntryWriting",
+        related_name="entries",
+        blank=True,
+        verbose_name="写法",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        verbose_name="状态",
+    )
+    canonical_entry = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        related_name="redirected_entries",
+        null=True,
+        blank=True,
+        verbose_name="合并后的规范词条",
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="created_entries",
+        null=True,
+        blank=True,
+        verbose_name="创建者",
+    )
+    visibility = models.BooleanField(default=True, verbose_name="是否可见")
+    metadata = models.JSONField(default=dict, blank=True, verbose_name="扩展信息")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    def __str__(self):
+        if not self.pk:
+            return self.summary or "未保存词条"
+        primary = (
+            self.entry_writings.filter(
+                relation_type=EntryWriting.RelationType.PRIMARY,
+                is_current=True,
+            )
+            .select_related("writing")
+            .first()
+        )
+        return primary.writing.text if primary else (self.summary or f"词条 {self.pk}")
+
+    def clean(self):
+        super().clean()
+        if self.canonical_entry_id and self.canonical_entry_id == self.pk:
+            raise ValidationError({"canonical_entry": "词条不能跳转到自身"})
+        if self.status == self.Status.REDIRECTED and not self.canonical_entry_id:
+            raise ValidationError({"canonical_entry": "已合并词条必须指定规范词条"})
+        if self.status != self.Status.REDIRECTED and self.canonical_entry_id:
+            raise ValidationError({"status": "只有已合并词条可以指定规范词条"})
+
+    class Meta:
+        ordering = ["-updated_at", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(status="redirected", canonical_entry__isnull=False)
+                    | (
+                        ~models.Q(status="redirected")
+                        & models.Q(canonical_entry__isnull=True)
+                    )
+                ),
+                name="entry_redirect_has_canonical",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["status", "visibility"], name="entry_status_visible_idx"
+            ),
+            models.Index(
+                fields=["usage_dialect", "status"], name="entry_dialect_status_idx"
+            ),
+        ]
+        verbose_name = "词条"
+        verbose_name_plural = "词条"
+
+
+class EntrySense(models.Model):
+    """A numbered, related sense inside one Entry."""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "初稿"
+        REVIEWED = "reviewed", "已整理"
+        DISPUTED = "disputed", "有分歧"
+
+    entry = models.ForeignKey(
+        Entry,
+        on_delete=models.CASCADE,
+        related_name="senses",
+        verbose_name="词条",
+    )
+    sense_number = models.PositiveSmallIntegerField(default=1, verbose_name="义项编号")
+    gloss = models.TextField(verbose_name="释义")
+    usage_note = models.TextField(blank=True, verbose_name="用法说明")
+    examples = models.JSONField(default=list, blank=True, verbose_name="例句")
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        verbose_name="状态",
+    )
+    concepts = models.ManyToManyField(
+        "Concept",
+        through="EntrySenseConcept",
+        related_name="senses",
+        blank=True,
+        verbose_name="抽象概念",
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="created_entry_senses",
+        null=True,
+        blank=True,
+        verbose_name="创建者",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    def __str__(self):
+        return f"{self.entry} {self.sense_number}. {self.gloss}"
+
+    class Meta:
+        ordering = ["entry_id", "sense_number", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["entry", "sense_number"], name="unique_entry_sense_number"
+            )
+        ]
+        verbose_name = "词条义项"
+        verbose_name_plural = "词条义项"
+
+
+class WritingForm(models.Model):
+    """A searchable written form; sharing it never merges Entries."""
+
+    class FormType(models.TextChoices):
+        ORTHOGRAPHIC = "orthographic", "汉字正字"
+        POPULAR = "popular", "俗写"
+        LOAN = "loan", "借字"
+        PHONETIC = "phonetic", "拟音"
+        ROMANIZATION = "romanization", "罗马字"
+        UNCERTAIN = "uncertain", "待考写法"
+
+    text = models.CharField(max_length=160, verbose_name="写法")
+    normalized_text = models.CharField(
+        max_length=160, blank=True, verbose_name="检索归一写法"
+    )
+    form_type = models.CharField(
+        max_length=20,
+        choices=FormType.choices,
+        default=FormType.UNCERTAIN,
+        verbose_name="写法类型",
+    )
+    language_tag = models.CharField(max_length=40, blank=True, verbose_name="语言标签")
+    metadata = models.JSONField(default=dict, blank=True, verbose_name="扩展信息")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    def __str__(self):
+        return self.text
+
+    class Meta:
+        ordering = ["text", "form_type", "id"]
+        indexes = [
+            models.Index(fields=["text", "form_type"], name="writing_text_type_idx"),
+            models.Index(fields=["normalized_text"], name="writing_normalized_idx"),
+        ]
+        verbose_name = "词条写法"
+        verbose_name_plural = "词条写法"
+
+
+class EntryWriting(models.Model):
+    class RelationType(models.TextChoices):
+        PRIMARY = "primary", "主写法"
+        ALTERNATE = "alternate", "其他写法"
+        DISPUTED = "disputed", "争议写法"
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "初稿"
+        REVIEWED = "reviewed", "已整理"
+        DISPUTED = "disputed", "有分歧"
+        REJECTED = "rejected", "不采用"
+
+    entry = models.ForeignKey(
+        Entry,
+        on_delete=models.CASCADE,
+        related_name="entry_writings",
+        verbose_name="词条",
+    )
+    writing = models.ForeignKey(
+        WritingForm,
+        on_delete=models.PROTECT,
+        related_name="entry_writings",
+        verbose_name="写法",
+    )
+    relation_type = models.CharField(
+        max_length=20,
+        choices=RelationType.choices,
+        default=RelationType.ALTERNATE,
+        verbose_name="关系",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        verbose_name="状态",
+    )
+    is_current = models.BooleanField(default=True, verbose_name="是否为当前关系")
+    note = models.CharField(max_length=300, blank=True, verbose_name="说明")
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="created_entry_writings",
+        null=True,
+        blank=True,
+        verbose_name="创建者",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    class Meta:
+        ordering = ["entry_id", "relation_type", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["entry", "writing", "relation_type"],
+                condition=models.Q(is_current=True),
+                name="unique_current_entry_writing",
+            ),
+            models.UniqueConstraint(
+                fields=["entry"],
+                condition=(
+                    models.Q(is_current=True, relation_type="primary")
+                    & ~models.Q(status="rejected")
+                ),
+                name="unique_current_primary_writing",
+            ),
+        ]
+        verbose_name = "词条写法关系"
+        verbose_name_plural = "词条写法关系"
+
+
+class Concept(models.Model):
+    """A cross-entry semantic node; it never acts as an Entry."""
+
+    code = models.CharField(max_length=80, unique=True, verbose_name="概念代码")
+    label = models.CharField(max_length=160, verbose_name="显示名称")
+    definition = models.TextField(blank=True, verbose_name="定义")
+    external_refs = models.JSONField(default=dict, blank=True, verbose_name="外部引用")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    def __str__(self):
+        return f"{self.code}: {self.label}"
+
+    class Meta:
+        ordering = ["code"]
+        verbose_name = "抽象概念"
+        verbose_name_plural = "抽象概念"
+
+
+class EntrySenseConcept(models.Model):
+    class RelationType(models.TextChoices):
+        EXACT = "exact", "对应"
+        BROADER = "broader", "较宽"
+        NARROWER = "narrower", "较窄"
+        RELATED = "related", "相关"
+
+    sense = models.ForeignKey(
+        EntrySense,
+        on_delete=models.CASCADE,
+        related_name="concept_links",
+        verbose_name="词条义项",
+    )
+    concept = models.ForeignKey(
+        Concept,
+        on_delete=models.PROTECT,
+        related_name="sense_links",
+        verbose_name="抽象概念",
+    )
+    relation_type = models.CharField(
+        max_length=20,
+        choices=RelationType.choices,
+        default=RelationType.EXACT,
+        verbose_name="关系",
+    )
+    note = models.CharField(max_length=300, blank=True, verbose_name="说明")
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="created_sense_concepts",
+        null=True,
+        blank=True,
+        verbose_name="创建者",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    class Meta:
+        ordering = ["sense_id", "concept_id", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["sense", "concept", "relation_type"],
+                name="unique_sense_concept_relation",
+            )
+        ]
+        verbose_name = "义项概念关系"
+        verbose_name_plural = "义项概念关系"
+
+
+class PronunciationVariant(models.Model):
+    """A regional pronunciation of an Entry, independent from audio evidence."""
+
+    class ReadingType(models.TextChoices):
+        GENERAL = "general", "通用"
+        LITERARY = "literary", "文读"
+        COLLOQUIAL = "colloquial", "白读"
+        OTHER = "other", "其他"
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "初稿"
+        REVIEWED = "reviewed", "已整理"
+        DISPUTED = "disputed", "有分歧"
+        REJECTED = "rejected", "不采用"
+
+    entry = models.ForeignKey(
+        Entry,
+        on_delete=models.CASCADE,
+        related_name="pronunciation_variants",
+        verbose_name="词条",
+    )
+    dialect = models.ForeignKey(
+        Dialect,
+        on_delete=models.PROTECT,
+        related_name="entry_pronunciations",
+        verbose_name="方言范围",
+    )
+    ipa = models.CharField(max_length=160, blank=True, verbose_name="IPA")
+    base_romanization = models.CharField(
+        max_length=160, blank=True, verbose_name="变调前罗马字"
+    )
+    surface_romanization = models.CharField(
+        max_length=160, blank=True, verbose_name="变调后罗马字"
+    )
+    reading_type = models.CharField(
+        max_length=20,
+        choices=ReadingType.choices,
+        default=ReadingType.GENERAL,
+        verbose_name="读音类型",
+    )
+    usage_note = models.TextField(blank=True, verbose_name="用法说明")
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        verbose_name="状态",
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="created_pronunciation_variants",
+        null=True,
+        blank=True,
+        verbose_name="创建者",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    def __str__(self):
+        value = self.surface_romanization or self.base_romanization or self.ipa
+        return f"{self.entry} / {self.dialect}: {value}"
+
+    def clean(self):
+        super().clean()
+        if not (self.ipa or self.base_romanization or self.surface_romanization):
+            raise ValidationError("地区读音至少需要 IPA 或一种罗马字")
+
+    class Meta:
+        ordering = ["entry_id", "dialect_id", "reading_type", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    ~models.Q(ipa="")
+                    | ~models.Q(base_romanization="")
+                    | ~models.Q(surface_romanization="")
+                ),
+                name="pronunciation_variant_has_form",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["dialect", "status"], name="pron_variant_dialect_idx"),
+            models.Index(fields=["ipa"], name="pron_variant_ipa_idx"),
+        ]
+        verbose_name = "地区读音"
+        verbose_name_plural = "地区读音"
+
+
+class Recording(models.Model):
+    """One audio object with a claimed usage range, never device location."""
+
+    class RecordingType(models.TextChoices):
+        WORD = "word", "词"
+        PHRASE = "phrase", "短语"
+        EXAMPLE = "example", "例句"
+        OTHER = "other", "其他"
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "初稿"
+        PUBLISHED = "published", "已公开"
+        DISPUTED = "disputed", "有分歧"
+        REJECTED = "rejected", "不采用"
+
+    audio_url = models.URLField(verbose_name="音频")
+    usage_dialect = models.ForeignKey(
+        Dialect,
+        on_delete=models.PROTECT,
+        related_name="recordings",
+        verbose_name="使用地区",
+    )
+    recorder = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="recordings",
+        null=True,
+        blank=True,
+        verbose_name="录制者",
+    )
+    recording_type = models.CharField(
+        max_length=20,
+        choices=RecordingType.choices,
+        default=RecordingType.WORD,
+        verbose_name="录音类型",
+    )
+    original_gloss = models.TextField(blank=True, verbose_name="贡献者原始大意")
+    duration_ms = models.PositiveIntegerField(default=0, verbose_name="时长毫秒")
+    rights_statement = models.CharField(
+        max_length=300, blank=True, verbose_name="录音授权说明"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        verbose_name="状态",
+    )
+    visibility = models.BooleanField(default=False, verbose_name="是否可见")
+    metadata = models.JSONField(default=dict, blank=True, verbose_name="非定位扩展信息")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    def __str__(self):
+        return self.original_gloss or f"录音 {self.pk}"
+
+    def clean(self):
+        super().clean()
+        if isinstance(self.metadata, dict):
+            prohibited = {
+                "location",
+                "latitude",
+                "longitude",
+                "gps",
+                "device_location",
+                "legacy_location",
+            }
+            found = prohibited.intersection(key.lower() for key in self.metadata)
+            if found:
+                raise ValidationError({"metadata": "录音不得保存设备位置或坐标"})
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(
+                fields=["usage_dialect", "status"], name="recording_dialect_status_idx"
+            ),
+            models.Index(
+                fields=["visibility", "status"], name="recording_visible_status_idx"
+            ),
+        ]
+        verbose_name = "录音"
+        verbose_name_plural = "录音"
+
+
+class RecordingEntryLink(models.Model):
+    """A reviewable, versioned relation between one Recording and an Entry."""
+
+    class Role(models.TextChoices):
+        PRIMARY = "primary", "主要词条"
+        MENTION = "mention", "句中词"
+        COMPETING = "competing", "竞争解释"
+
+    class Status(models.TextChoices):
+        SUGGESTED = "suggested", "待确认"
+        ACCEPTED = "accepted", "已接受"
+        REJECTED = "rejected", "已拒绝"
+        DISPUTED = "disputed", "有分歧"
+
+    recording = models.ForeignKey(
+        Recording,
+        on_delete=models.CASCADE,
+        related_name="entry_links",
+        verbose_name="录音",
+    )
+    entry = models.ForeignKey(
+        Entry,
+        on_delete=models.PROTECT,
+        related_name="recording_links",
+        verbose_name="词条",
+    )
+    sense = models.ForeignKey(
+        EntrySense,
+        on_delete=models.SET_NULL,
+        related_name="recording_links",
+        null=True,
+        blank=True,
+        verbose_name="对应义项",
+    )
+    role = models.CharField(
+        max_length=20,
+        choices=Role.choices,
+        default=Role.PRIMARY,
+        verbose_name="关系角色",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.SUGGESTED,
+        verbose_name="状态",
+    )
+    is_current = models.BooleanField(default=True, verbose_name="是否为当前关系")
+    supersedes = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        related_name="successors",
+        null=True,
+        blank=True,
+        verbose_name="修订自",
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="created_recording_entry_links",
+        null=True,
+        blank=True,
+        verbose_name="提议者",
+    )
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_recording_entry_links",
+        null=True,
+        blank=True,
+        verbose_name="确认者",
+    )
+    review_reason = models.CharField(
+        max_length=300, blank=True, verbose_name="确认理由"
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name="确认时间")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    def clean(self):
+        super().clean()
+        if self.sense_id and self.sense.entry_id != self.entry_id:
+            raise ValidationError({"sense": "义项必须属于所关联的词条"})
+        if self.supersedes_id and self.supersedes.recording_id != self.recording_id:
+            raise ValidationError({"supersedes": "修订关系必须属于同一录音"})
+
+    class Meta:
+        ordering = ["recording_id", "role", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["recording", "entry", "role"],
+                condition=models.Q(is_current=True),
+                name="unique_current_recording_entry_role",
+            ),
+            models.UniqueConstraint(
+                fields=["recording"],
+                condition=models.Q(
+                    is_current=True,
+                    role="primary",
+                    status="accepted",
+                ),
+                name="unique_accepted_primary_per_recording",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["entry", "role", "status"], name="recording_link_entry_idx"
+            )
+        ]
+        verbose_name = "录音词条关系"
+        verbose_name_plural = "录音词条关系"
+
+
+class EvidenceRecord(models.Model):
+    """Append-only snapshot of what a contributor or source actually said."""
+
+    class SourceType(models.TextChoices):
+        USER_STATEMENT = "user_statement", "用户原话"
+        ORAL = "oral", "口述"
+        FIELDWORK = "fieldwork", "田野记录"
+        BOOK = "book", "书籍"
+        ARTICLE = "article", "论文或文章"
+        ARCHIVE = "archive", "档案"
+        WEB = "web", "网页"
+        LEGACY = "legacy", "旧库原文"
+        OTHER = "other", "其他"
+
+    source_type = models.CharField(
+        max_length=24, choices=SourceType.choices, verbose_name="来源类型"
+    )
+    original_text = models.TextField(blank=True, verbose_name="来源原文")
+    original_writing = models.CharField(
+        max_length=160, blank=True, verbose_name="原样写法"
+    )
+    original_gloss = models.TextField(blank=True, verbose_name="原样释义")
+    original_pronunciation = models.CharField(
+        max_length=240, blank=True, verbose_name="原样读音"
+    )
+    citation = models.CharField(max_length=500, blank=True, verbose_name="出处")
+    source_metadata = models.JSONField(
+        default=dict, blank=True, verbose_name="来源快照"
+    )
+    contributor = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="evidence_records",
+        null=True,
+        blank=True,
+        verbose_name="贡献者",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="收录时间")
+
+    def __str__(self):
+        return (
+            self.original_writing
+            or self.original_gloss
+            or self.citation
+            or f"证据 {self.pk}"
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk and type(self).objects.filter(pk=self.pk).exists():
+            raise ValidationError("证据记录不可原地覆写；请新增证据或修订记录")
+        return super().save(*args, **kwargs)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        verbose_name = "证据记录"
+        verbose_name_plural = "证据记录"
+
+
+class EvidenceLink(models.Model):
+    """Attach one immutable evidence record to one or more domain claims."""
+
+    class RelationType(models.TextChoices):
+        SUBMITTED = "submitted", "原始提交"
+        SUPPORTS = "supports", "支持"
+        DISPUTES = "disputes", "质疑"
+
+    evidence = models.ForeignKey(
+        EvidenceRecord,
+        on_delete=models.PROTECT,
+        related_name="claim_links",
+        verbose_name="证据",
+    )
+    entry = models.ForeignKey(
+        Entry,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="evidence_links",
+    )
+    sense = models.ForeignKey(
+        EntrySense,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="evidence_links",
+    )
+    pronunciation_variant = models.ForeignKey(
+        PronunciationVariant,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="evidence_links",
+    )
+    recording = models.ForeignKey(
+        Recording,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="evidence_links",
+    )
+    recording_entry_link = models.ForeignKey(
+        RecordingEntryLink,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="evidence_links",
+    )
+    relation_type = models.CharField(
+        max_length=20,
+        choices=RelationType.choices,
+        default=RelationType.SUBMITTED,
+        verbose_name="证据关系",
+    )
+    note = models.CharField(max_length=300, blank=True, verbose_name="说明")
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="created_evidence_links",
+        null=True,
+        blank=True,
+        verbose_name="关联者",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="关联时间")
+
+    def clean(self):
+        super().clean()
+        targets = (
+            self.entry_id,
+            self.sense_id,
+            self.pronunciation_variant_id,
+            self.recording_id,
+            self.recording_entry_link_id,
+        )
+        if sum(target is not None for target in targets) != 1:
+            raise ValidationError("一条证据关联必须且只能指向一个领域对象")
+
+    class Meta:
+        ordering = ["evidence_id", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        entry__isnull=False,
+                        sense__isnull=True,
+                        pronunciation_variant__isnull=True,
+                        recording__isnull=True,
+                        recording_entry_link__isnull=True,
+                    )
+                    | models.Q(
+                        entry__isnull=True,
+                        sense__isnull=False,
+                        pronunciation_variant__isnull=True,
+                        recording__isnull=True,
+                        recording_entry_link__isnull=True,
+                    )
+                    | models.Q(
+                        entry__isnull=True,
+                        sense__isnull=True,
+                        pronunciation_variant__isnull=False,
+                        recording__isnull=True,
+                        recording_entry_link__isnull=True,
+                    )
+                    | models.Q(
+                        entry__isnull=True,
+                        sense__isnull=True,
+                        pronunciation_variant__isnull=True,
+                        recording__isnull=False,
+                        recording_entry_link__isnull=True,
+                    )
+                    | models.Q(
+                        entry__isnull=True,
+                        sense__isnull=True,
+                        pronunciation_variant__isnull=True,
+                        recording__isnull=True,
+                        recording_entry_link__isnull=False,
+                    )
+                ),
+                name="evidence_link_exactly_one_target",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["evidence", "relation_type"], name="evidence_relation_idx"
+            )
+        ]
+        verbose_name = "证据关联"
+        verbose_name_plural = "证据关联"
+
+
+class UsageAttestation(models.Model):
+    """A person's claim that an Entry is used within a selected Dialect scope."""
+
+    entry = models.ForeignKey(
+        Entry,
+        on_delete=models.CASCADE,
+        related_name="usage_attestations",
+        verbose_name="词条",
+    )
+    dialect = models.ForeignKey(
+        Dialect,
+        on_delete=models.PROTECT,
+        related_name="usage_attestations",
+        verbose_name="确认范围",
+    )
+    attester = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="usage_attestations",
+        null=True,
+        blank=True,
+        verbose_name="确认者",
+    )
+    active = models.BooleanField(default=True, verbose_name="是否有效")
+    note = models.CharField(max_length=300, blank=True, verbose_name="补充说明")
+    attested_at = models.DateTimeField(auto_now_add=True, verbose_name="确认时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        ordering = ["-attested_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["attester", "entry", "dialect"],
+                condition=models.Q(active=True, attester__isnull=False),
+                name="unique_active_usage_attestation",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["entry", "dialect", "active"], name="usage_entry_dialect_idx"
+            )
+        ]
+        verbose_name = "本地使用确认"
+        verbose_name_plural = "本地使用确认"
+
+
+class CuratorGrant(models.Model):
+    """Time-limited lexical or dialect-scoped curation authority."""
+
+    class Role(models.TextChoices):
+        LEXICAL = "lexical_curator", "词条整理员"
+        REGIONAL = "regional_curator", "地区整理员"
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="curator_grants",
+        verbose_name="整理员",
+    )
+    role = models.CharField(
+        max_length=24, choices=Role.choices, verbose_name="权限类型"
+    )
+    dialect = models.ForeignKey(
+        Dialect,
+        on_delete=models.PROTECT,
+        related_name="curator_grants",
+        null=True,
+        blank=True,
+        verbose_name="授权地区范围",
+    )
+    valid_from = models.DateTimeField(default=timezone.now, verbose_name="生效时间")
+    valid_until = models.DateTimeField(
+        default=curator_grant_default_expiry, verbose_name="到期时间"
+    )
+    granted_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="issued_curator_grants",
+        null=True,
+        blank=True,
+        verbose_name="授权人",
+    )
+    reason = models.TextField(verbose_name="授权理由")
+    revoked_at = models.DateTimeField(null=True, blank=True, verbose_name="撤销时间")
+    revocation_reason = models.TextField(blank=True, verbose_name="撤销理由")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="记录时间")
+
+    @property
+    def is_active(self):
+        now = timezone.now()
+        return self.revoked_at is None and self.valid_from <= now < self.valid_until
+
+    def clean(self):
+        super().clean()
+        if self.role == self.Role.REGIONAL and not self.dialect_id:
+            raise ValidationError({"dialect": "地区整理员必须指定授权地区范围"})
+        if self.role == self.Role.LEXICAL and self.dialect_id:
+            raise ValidationError({"dialect": "词条整理员不使用地区范围"})
+        if self.valid_until <= self.valid_from:
+            raise ValidationError({"valid_until": "到期时间必须晚于生效时间"})
+        if self.revoked_at and self.revoked_at < self.valid_from:
+            raise ValidationError({"revoked_at": "撤销时间不能早于生效时间"})
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(role="lexical_curator", dialect__isnull=True)
+                    | models.Q(role="regional_curator", dialect__isnull=False)
+                ),
+                name="curator_role_scope_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(valid_until__gt=models.F("valid_from")),
+                name="curator_dates_valid",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(revoked_at__isnull=True)
+                    | models.Q(revoked_at__gte=models.F("valid_from"))
+                ),
+                name="curator_revocation_valid",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["user", "role", "valid_until"], name="curator_user_role_idx"
+            ),
+            models.Index(
+                fields=["dialect", "role", "valid_until"],
+                name="curator_dialect_role_idx",
+            ),
+        ]
+        verbose_name = "整理员授权"
+        verbose_name_plural = "整理员授权"
