@@ -84,7 +84,7 @@
       <SectionBlock title="录音档案">
         <t-cell
           title="方言提示"
-          :note="can.submitted_dialect?.qualified_code || '未记录'"
+          :note="dialectCardLabel(can.submitted_dialect)"
         />
         <t-cell
           title="当前状态"
@@ -210,6 +210,7 @@ import {
 import { playAudio } from '@/utils/audio';
 import { toUserPage } from '@/routers/user';
 import { canSharePayload, shareCanOnWeb } from '@/utils/shareCan';
+import { dialectCardLabel } from '@/utils/dialectTree';
 
 const statusLabels = {
   unlabeled: '无标',
@@ -280,8 +281,9 @@ export default {
       return this.activeNameplates[0]?.display_text || '无标罐头';
     },
     dialectText() {
-      return this.activeNameplates[0]?.dialect?.qualified_code
-        || this.can?.submitted_dialect?.qualified_code || '未标方言点';
+      return dialectCardLabel(
+        this.activeNameplates[0]?.dialect || this.can?.submitted_dialect,
+      );
     },
     durationText() {
       const seconds = Math.round(Number(this.can?.duration_ms || 0) / 1000);
@@ -296,6 +298,7 @@ export default {
   onShow() { this.currentUser = currentSessionUser(); },
   onShareAppMessage() { return canSharePayload(this.can || { id: this.id }); },
   methods: {
+    dialectCardLabel,
     playAudio,
     statusText(status) { return statusLabels[status] || status; },
     formatTime(value) { return String(value || '').replace('T', ' ').slice(0, 16); },

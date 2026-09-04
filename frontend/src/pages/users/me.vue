@@ -140,7 +140,7 @@
                 :key="dialect.id"
                 class="dialect-badge"
               >
-                {{ dialect.name }}
+                {{ dialectCardLabel(dialect) }}
               </view>
             </view>
           </view>
@@ -412,6 +412,7 @@ import {
 import canUseWechatMiniProgramAuth from '@/services/platform';
 import { resolveSessionUserId } from '@/services/session';
 import { getActiveTheme } from '@/services/themeCenter';
+import { dialectCardLabel } from '@/utils/dialectTree';
 import {
   bindingWechat as bindingWechatService,
   cancelBindingWechat as cancelBindingWechatService,
@@ -450,7 +451,7 @@ export default {
   },
   computed: {
     locationText() {
-      return this.primaryDialect?.name || '未填写方言点';
+      return dialectCardLabel(this.primaryDialect);
     },
     bioText() {
       const dialect = this.locationText;
@@ -512,6 +513,7 @@ export default {
     if (this.loggedIn) this.getInfo();
   },
   methods: {
+    dialectCardLabel,
     toMailsPage() {
       goMails();
     },

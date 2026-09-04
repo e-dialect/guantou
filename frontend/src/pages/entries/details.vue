@@ -16,7 +16,10 @@
     >
       <view class="entry-hero">
         <view class="entry-hero__meta">
-          <text>{{ dialectLabel(entry.usage_dialect) }}</text>
+          <DialectLabel
+            :dialect="entry.usage_dialect"
+            mode="detail"
+          />
           <text>{{ statusLabel(entry.status) }}</text>
         </view>
         <view class="entry-hero__title">
@@ -110,7 +113,10 @@
           class="pronunciation-row"
         >
           <view class="pronunciation-row__dialect">
-            {{ dialectLabel(variant.dialect) }}
+            <DialectLabel
+              :dialect="variant.dialect"
+              mode="detail"
+            />
           </view>
           <view class="pronunciation-row__value">
             {{ variant.surface_romanization || variant.base_romanization || variant.ipa }}
@@ -168,12 +174,12 @@
 import BaseButton from '@/components/BaseButton.vue';
 import BaseLoading from '@/components/BaseLoading.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import DialectLabel from '@/components/DialectLabel.vue';
 import EntryRecordingCard from '@/components/EntryRecordingCard.vue';
 import PageShell from '@/components/PageShell.vue';
 import { requireAuth } from '@/services/authGuard';
 import {
   createUsageAttestation,
-  dialectLabel,
   entryTitle,
   getEntry,
   listRecordings,
@@ -186,6 +192,7 @@ export default {
   components: {
     BaseButton,
     BaseLoading,
+    DialectLabel,
     EmptyState,
     EntryRecordingCard,
     PageShell,
@@ -208,7 +215,6 @@ export default {
     if (this.id && this.entry) this.load();
   },
   methods: {
-    dialectLabel,
     entryTitle,
     statusLabel(status) {
       return {

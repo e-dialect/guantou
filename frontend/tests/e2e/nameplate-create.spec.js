@@ -17,7 +17,10 @@ const reference = {
 async function mockApi(page, options = {}) {
   const state = { posts: [], dialectLoads: 0, referenceLoads: 0 };
   if (!options.guest) {
-    await page.addInitScript(() => { localStorage.setItem('token', 'e2e-token'); });
+    await page.addInitScript(() => {
+      localStorage.setItem('token', 'e2e-token');
+      localStorage.setItem('id', '7');
+    });
   }
   await page.route('**/*', async (route) => {
     const request = route.request();
@@ -90,25 +93,24 @@ for (const theme of ['light', 'dark']) {
     await field(page, 'pronunciation_text').locator('input').fill(' tai ');
     await expect(field(page, 'text_content').locator('.t-form__item-extra')).toHaveCount(0);
     await page.locator('.dialect-cell').click();
-    const cascader = page.locator('.t-cascader:visible');
-    await expect(cascader).toContainText('莆仙片');
-    await expect(cascader).toBeInViewport({ ratio: 1 });
+    const selector = page.locator('.dialect-selector:visible');
+    await expect(selector).toContainText('莆仙方言');
+    await expect(selector).toBeInViewport({ ratio: 1 });
     await snapshot(page, testInfo, `nameplate-create-picker-${theme}-390x844`);
-    await cascader.locator('.t-tabs').getByText('闽语', { exact: true }).click();
-    await cascader.locator('.cascader-radio-group-0').getByText('闽语', { exact: true }).click();
+    await selector.getByText('全部方言', { exact: true }).click();
+    await selector.locator('.dialect-selector__node').filter({ hasText: '闽语' }).click();
+    await selector.locator('.dialect-selector__node').filter({ hasText: '莆仙方言' }).click();
+    await selector.locator('.dialect-selector__current .base-button').filter({ hasText: '就选这里' }).click();
+    await expect(page.locator('.dialect-cell')).toContainText('闽语 › 莆仙方言');
+    await page.locator('.dialect-cell').click();
+    await selector.locator('.dialect-selector__node').filter({ hasText: '城关' }).click();
+    await expect(page.locator('.dialect-cell')).toContainText('闽语 › 莆仙方言 › 城关');
+    await page.locator('.dialect-cell').click();
+    await expect(selector.locator('.dialect-selector__shortcuts')).toContainText('最近');
+    await selector.locator('.dialect-selector__shortcuts .base-button').filter({ hasText: '默认 · 莆仙方言 · 游洋' }).click();
     await expect(page.locator('.dialect-cell')).toContainText('游洋');
-    await cascader.locator('.t-cascader__close-btn').click();
-    await expect(page.locator('.dialect-cell')).toContainText('闽语 · 莆仙片 · 游洋');
     await page.locator('.dialect-cell').click();
-    await cascader.locator('input').fill('闽.莆仙.城关');
-    await cascader.locator('.t-cascader__filter-result-item').filter({ hasText: '城关' }).click();
-    await expect(page.locator('.dialect-cell')).toContainText('闽语 · 莆仙片 · 城关');
-    await page.locator('.dialect-cell').click();
-    await expect(cascader.locator('.dialect-shortcuts')).toContainText('最近使用');
-    await cascader.locator('.dialect-shortcuts .base-button').filter({ hasText: '闽语 · 莆仙片 · 游洋' }).click();
-    await expect(page.locator('.dialect-cell')).toContainText('游洋');
-    await page.locator('.dialect-cell').click();
-    await cascader.locator('.dialect-shortcuts .base-button').filter({ hasText: '闽语 · 莆仙片 · 城关' }).click();
+    await selector.locator('.dialect-selector__shortcuts .base-button').filter({ hasText: '最近 · 莆仙方言 · 城关' }).click();
     await expect(page.locator('.dialect-cell')).toContainText('城关');
     await page.locator('.source-cell').click();
     await expect(picker(page)).toContainText('选择资料来源类型');

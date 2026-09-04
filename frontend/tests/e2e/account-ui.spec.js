@@ -334,7 +334,8 @@ test('information settings replace native pickers and open the avatar sheet', as
   await expect(page.getByText('公开档案')).toBeVisible();
   await expect(page.getByText('仅自己可见')).toBeVisible();
   await expect(page.getByText('发音默认地点')).toBeVisible();
-  await expect(page.getByText('西南官话.四川')).toBeVisible();
+  await expect(page.getByText('四川话')).toBeVisible();
+  await expect(page.getByText('西南官话.四川')).toHaveCount(0);
   await expect(page.locator('picker')).toHaveCount(0);
 
   await tap(page.locator('.avatar-hit'));

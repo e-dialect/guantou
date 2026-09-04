@@ -1,4 +1,5 @@
 import request from '@/utils/request';
+import { dialectCardLabel } from '@/utils/dialectTree';
 
 export function pageResults(response) {
   if (Array.isArray(response)) return response;
@@ -49,7 +50,7 @@ export function entryTitle(entry = {}) {
 }
 
 export function dialectLabel(dialect = {}) {
-  return String(dialect.name || '地区待补充').trim();
+  return dialectCardLabel(dialect);
 }
 
 export function buildEntrySearchParams(filters = {}) {

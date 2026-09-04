@@ -53,7 +53,7 @@
           :key="pronunciation.id"
           class="variant"
         >
-          <text>{{ pronunciation.dialect ? pronunciation.dialect.qualified_code : '未标方言点' }}</text>
+          <text>{{ dialectCardLabel(pronunciation.dialect) }}</text>
           <text>{{ pronunciationLabel(pronunciation) }}</text>
         </view>
       </SectionBlock>
@@ -80,6 +80,7 @@ import PageShell from '@/components/PageShell.vue';
 import SectionBlock from '@/components/SectionBlock.vue';
 import { requireAuth } from '@/services/authGuard';
 import { getFlavor, listCans } from '@/services/guantou';
+import { dialectCardLabel } from '@/utils/dialectTree';
 import {
   goCanDetail,
   goCreateCan,
@@ -143,6 +144,7 @@ export default {
     if (this.id) await this.refresh();
   },
   methods: {
+    dialectCardLabel,
     pronunciationLabel: formatPronunciationLabel,
     async refresh() {
       const primary = await getFlavor(this.id);

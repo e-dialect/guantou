@@ -231,6 +231,7 @@ import {
 } from '@/services/navigation';
 import { defaultMessage } from '@/services/shareMessages';
 import { getUserInfo } from '@/services/user';
+import { dialectCardLabel } from '@/utils/dialectTree';
 
 export default {
   components: { BaseButton, PageShell },
@@ -263,7 +264,7 @@ export default {
   },
   computed: {
     locationText() {
-      return this.userInfo.user.primary_dialect?.qualified_code || '未填写方言点';
+      return dialectCardLabel(this.userInfo.user.primary_dialect);
     },
     pageTitle() {
       return this.userInfo.user.nickname

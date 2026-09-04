@@ -124,7 +124,7 @@
                 {{ candidate.concept_text || `罐头 #${candidate.id}` }}
               </text>
               <text class="candidate-description">
-                {{ candidate.submitted_dialect?.qualified_code || '未标方言点' }}
+                {{ dialectCardLabel(candidate.submitted_dialect) }}
               </text>
             </view>
             <button
@@ -205,6 +205,7 @@ import PageShell from '@/components/PageShell.vue';
 import SectionBlock from '@/components/SectionBlock.vue';
 import { requireAuth } from '@/services/authGuard';
 import { goCanDetail, goFlavorDetail } from '@/services/navigation';
+import { dialectCardLabel } from '@/utils/dialectTree';
 import {
   getShelf,
   listCans,
@@ -267,6 +268,7 @@ export default {
     this.currentUser = currentUser();
   },
   methods: {
+    dialectCardLabel,
     async refresh() {
       this.loading = !this.shelf;
       this.loadError = '';

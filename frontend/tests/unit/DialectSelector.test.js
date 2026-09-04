@@ -1,0 +1,92 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { mount } from '@vue/test-utils';
+import DialectLabel from '@/components/DialectLabel.vue';
+import DialectSelector from '@/components/DialectSelector.vue';
+import {
+  dialectBreadcrumb,
+  dialectCardLabel,
+  registerDialectCatalog,
+} from '@/utils/dialectTree';
+
+const dialects = [
+  { id: 1, name: '闽语', code: '闽', qualified_code: '闽', sort_order: 1 },
+  {
+    id: 2,
+    name: '莆仙片（兴化方言）',
+    code: '莆仙',
+    qualified_code: '闽.莆仙',
+    sort_order: 1,
+  },
+  { id: 3, name: '莆田', code: '莆田', qualified_code: '闽.莆仙.莆田', sort_order: 1 },
+  {
+    id: 4,
+    name: '城里',
+    code: '城里',
+    qualified_code: '闽.莆仙.莆田.城里',
+    sort_order: 1,
+  },
+];
+
+describe('hierarchical dialect selection and labels', () => {
+  beforeEach(() => {
+    registerDialectCatalog(dialects);
+    globalThis.uni = {
+      getStorageSync: vi.fn(() => ''),
+      setStorageSync: vi.fn(),
+    };
+    globalThis.getApp = vi.fn(() => ({ globalData: { userInfo: null } }));
+  });
+
+  it('uses natural card and detail labels without exposing qualified codes', () => {
+    expect(dialectCardLabel(dialects[1], dialects)).toBe('莆仙方言');
+    expect(dialectCardLabel(dialects[3], dialects)).toBe('莆仙方言 · 城里');
+    expect(dialectBreadcrumb(dialects[3], dialects)).toBe('闽语 › 莆仙方言 › 莆田 › 城里');
+
+    const card = mount(DialectLabel, { props: { dialect: dialects[3], dialects } });
+    expect(card.text()).toBe('莆仙方言 · 城里');
+    expect(card.text()).not.toContain('闽.莆仙');
+  });
+
+  it('lets a contributor stop at a parent node or continue to a locality', async () => {
+    const wrapper = mount(DialectSelector, {
+      props: { visible: true, dialects, ownerScope: 7 },
+    });
+
+    wrapper.vm.openNode(wrapper.vm.tree[0]);
+    await wrapper.vm.$nextTick();
+    wrapper.vm.openNode(wrapper.vm.childNodes[0]);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.text()).toContain('当前已知范围');
+    expect(wrapper.text()).toContain('莆仙方言');
+
+    wrapper.vm.selectNode(wrapper.vm.currentNode);
+    expect(wrapper.emitted('change')[0][0]).toMatchObject({ value: 2 });
+
+    await wrapper.setProps({ visible: true, value: 4 });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.vm.currentNode.id).toBe(4);
+    expect(wrapper.text()).toContain('闽语 › 莆仙方言 › 莆田 › 城里');
+  });
+
+  it('searches internal aliases but only renders human-facing paths', async () => {
+    const wrapper = mount(DialectSelector, { props: { visible: true, dialects } });
+    wrapper.vm.query = '闽.莆仙.莆田.城里';
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.searchResults.map((item) => item.id)).toContain(4);
+    expect(wrapper.text()).toContain('闽语 › 莆仙方言 › 莆田 › 城里');
+  });
+
+  it('refreshes the profile default when the sheet opens after app startup', async () => {
+    const app = { globalData: { userInfo: null } };
+    globalThis.getApp = vi.fn(() => app);
+    const wrapper = mount(DialectSelector, {
+      props: { visible: false, dialects, ownerScope: 7 },
+    });
+
+    app.globalData.userInfo = { primary_dialect: dialects[3] };
+    await wrapper.setProps({ visible: true });
+
+    expect(wrapper.text()).toContain('默认 · 莆仙方言 · 城里');
+  });
+});

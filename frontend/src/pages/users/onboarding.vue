@@ -58,28 +58,44 @@
           action-text="重新加载"
           @action="loadDialects"
         />
-        <template v-else>
+        <template v-else-if="selectedDialect">
           <view
-            v-for="dialect in dialects"
-            :key="dialect.id"
-            :class="['dialect-option', selectedDialectId === dialect.id ? 'selected' : '']"
-            :style="dialectIndent(dialect)"
-            @tap="selectDialect(dialect)"
+            class="dialect-selection"
+            role="button"
+            aria-label="更换主方言"
+            @tap="dialectPickerOpen = true"
           >
-            <view class="dialect-radio">
-              {{ selectedDialectId === dialect.id ? '●' : '○' }}
-            </view>
             <view>
-              <view class="dialect-name">
-                {{ dialect.name }}
+              <view class="dialect-selection__name">
+                {{ selectedDialectCardLabel }}
               </view>
-              <view class="dialect-code">
-                {{ dialect.qualified_code }}
+              <view class="dialect-selection__path">
+                {{ selectedDialectLabel }}
               </view>
             </view>
+            <text class="dialect-selection__action">
+              更换 ›
+            </text>
           </view>
         </template>
+        <BaseButton
+          v-else
+          block
+          variant="ghost"
+          text="逐级选择主方言"
+          @click="dialectPickerOpen = true"
+        />
       </view>
+
+      <DialectSelector
+        v-model:visible="dialectPickerOpen"
+        :value="selectedDialectId"
+        :dialects="dialects"
+        :default-dialect="currentUserDialect"
+        :owner-scope="userId"
+        title="选择主方言"
+        @change="onDialectChange"
+      />
 
       <view
         v-if="selectedDialectId"
@@ -155,6 +171,7 @@ import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
 import BaseLoading from '@/components/BaseLoading.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import DialectSelector from '@/components/DialectSelector.vue';
 import { goLogin, goSearch } from '@/services/navigation';
 import { toFollowRecommendations } from '@/routers/user';
 import {
@@ -167,16 +184,18 @@ import { listAllDialects } from '@/services/guantou';
 import { resumeInterruptedPageAfterLogin } from '@/services/login';
 import { clearUserInfo } from '@/services/user';
 import { playAudio } from '@/utils/audio';
+import { dialectBreadcrumb, dialectCardLabel } from '@/utils/dialectTree';
 
 export default {
   components: {
-    PageShell, BaseButton, BaseField, BaseLoading, EmptyState,
+    PageShell, BaseButton, BaseField, BaseLoading, DialectSelector, EmptyState,
   },
   data() {
     const user = getApp().globalData.userInfo || {};
     return {
       dialects: [],
       dialectsError: false,
+      dialectPickerOpen: false,
       error: '',
       loadingDialects: true,
       loadingSample: false,
@@ -212,8 +231,18 @@ export default {
     selectedDialect() {
       return this.dialects.find((dialect) => dialect.id === this.selectedDialectId) || null;
     },
+    currentUserDialect() {
+      return getApp().globalData.userInfo?.primary_dialect || null;
+    },
     selectedDialectLabel() {
-      return this.selectedDialect?.qualified_code || this.selectedDialect?.name || '';
+      return this.selectedDialect
+        ? dialectBreadcrumb(this.selectedDialect, this.dialects)
+        : '';
+    },
+    selectedDialectCardLabel() {
+      return this.selectedDialect
+        ? dialectCardLabel(this.selectedDialect, this.dialects)
+        : '';
     },
     sampleTitle() {
       return this.sample?.primary_nameplate?.display_text
@@ -250,9 +279,6 @@ export default {
         this.loadingDialects = false;
       }
     },
-    dialectIndent(dialect) {
-      return { paddingLeft: `${24 + Number(dialect.depth || 0) * 22}rpx` };
-    },
     next() {
       const nickname = String(this.nickname || '').trim();
       if (!nickname) {
@@ -267,6 +293,9 @@ export default {
       this.selectedDialectId = dialect.id;
       this.error = '';
       await this.loadSample(dialect.id);
+    },
+    async onDialectChange({ dialect }) {
+      await this.selectDialect(dialect);
     },
     async loadSample(dialectId) {
       const requestId = this.sampleRequestId + 1;
@@ -371,46 +400,35 @@ export default {
   line-height: 1.5;
 }
 
-.dialect-option {
-  min-height: 86rpx;
-  margin-top: 12rpx;
-  padding-top: 14rpx;
-  padding-right: 18rpx;
-  padding-bottom: 14rpx;
+.dialect-selection {
+  min-height: 104rpx;
+  margin-top: 18rpx;
+  padding: 18rpx 20rpx;
   border: 1rpx solid var(--border-color);
   border-radius: var(--radius-sm);
-  background: var(--surface-color);
+  background: var(--accent-subtle-color);
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16rpx;
   box-sizing: border-box;
-  transition: border-color 0.2s ease, background-color 0.2s ease,
-    transform 0.15s ease;
 }
 
-.dialect-option:active {
-  transform: scale(0.99);
-}
-
-.dialect-option.selected {
-  border-color: var(--accent-color);
-  background: var(--accent-subtle-color);
-}
-
-.dialect-radio {
-  color: var(--accent-color);
-  font-size: 28rpx;
-}
-
-.dialect-name {
+.dialect-selection__name {
   font-size: 28rpx;
   font-weight: 700;
 }
 
-.dialect-code {
-  margin-top: 4rpx;
+.dialect-selection__path {
+  margin-top: 6rpx;
   color: var(--muted-color);
   font-size: 22rpx;
+}
+
+.dialect-selection__action {
+  flex: 0 0 auto;
+  color: var(--accent-color);
+  font-size: 24rpx;
 }
 
 .sample-card {
@@ -461,7 +479,7 @@ export default {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dialect-option,
+  .dialect-selection,
   .logout-button {
     transition: none;
   }

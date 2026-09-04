@@ -120,7 +120,7 @@ describe('can creation draft recovery', () => {
 
     wrapper.vm.onDialectChange({ detail: { value: [0, 1, 0] } });
     expect(wrapper.vm.form.submitted_dialect_id).toBe(5);
-    expect(wrapper.vm.dialectLabel).toBe('闽.闽南.厦门');
+    expect(wrapper.vm.dialectLabel).toBe('闽语 › 闽南方言 › 厦门话');
 
     wrapper.vm.onDialectColumnChange({ detail: { column: 0, value: 1 } });
     expect(wrapper.vm.form.submitted_dialect_id).toBeNull();
@@ -143,12 +143,9 @@ describe('can creation draft recovery', () => {
     const [branch] = root.children;
     const [leaf] = branch.children;
 
-    wrapper.vm.onDialectCascadeChange({
-      value: leaf.id,
-      selectedOptions: [root, branch, leaf],
-    });
+    wrapper.vm.onUnifiedDialectChange({ value: leaf.id, dialect: leaf });
 
-    expect(wrapper.vm.dialectDisplayLabel).toBe('闽语 · 闽南片 · 厦门话');
+    expect(wrapper.vm.dialectDisplayLabel).toBe('闽语 › 闽南方言 › 厦门话');
     expect(wrapper.vm.filterDialectOption('厦门', leaf, [root, branch])).toBe(true);
     expect(wrapper.vm.filterDialectOption('闽.闽南.厦门', leaf, [root, branch])).toBe(true);
     expect(uni.setStorageSync).toHaveBeenCalledWith(
@@ -184,7 +181,7 @@ describe('can creation draft recovery', () => {
       (options, index) => options[wrapper.vm.dialectIndexes[index]].name,
     )).toEqual(['闽语', '闽南片', '厦门话']);
     expect(wrapper.vm.form.submitted_dialect_id).toBe(5);
-    expect(wrapper.vm.dialectLabel).toBe('闽.闽南.厦门');
+    expect(wrapper.vm.dialectLabel).toBe('闽语 › 闽南方言 › 厦门话');
   });
 
   it('restores form and audio while keeping required-field validation', async () => {
@@ -224,7 +221,7 @@ describe('can creation draft recovery', () => {
       expect.objectContaining({ concept_text: '膝盖', submitted_dialect_id: 1 }),
       expect.any(Object),
       expect.objectContaining({
-        dialectName: '闽.莆仙.游洋',
+        dialectName: '游洋话',
         audio: expect.objectContaining({ path: '/tmp/knee.mp3' }),
         reason: 'network failed',
       }),

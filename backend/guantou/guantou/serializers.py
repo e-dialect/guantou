@@ -52,10 +52,28 @@ class UserLiteSerializer(serializers.Serializer):
 
 class DialectRefSerializer(serializers.ModelSerializer):
     qualified_code = serializers.CharField(read_only=True)
+    path_names = serializers.SerializerMethodField()
 
     class Meta:
         model = Dialect
-        fields = ["id", "name", "code", "qualified_code", "sort_order"]
+        fields = [
+            "id",
+            "name",
+            "code",
+            "qualified_code",
+            "path_names",
+            "sort_order",
+        ]
+
+    def get_path_names(self, obj):
+        names = []
+        node = obj
+        visited = set()
+        while node is not None and node.pk not in visited:
+            visited.add(node.pk)
+            names.append(node.name)
+            node = node.parent
+        return list(reversed(names))
 
 
 class DialectSerializer(DialectRefSerializer):

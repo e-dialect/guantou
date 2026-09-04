@@ -89,7 +89,8 @@ test('new user selects a primary dialect and reaches home', async ({ page }) => 
   await expect(page.getByText('欢迎加入乡声集盒')).toBeVisible();
   await page.locator('.nickname-input input, input.nickname-input').fill('采集者');
   await page.locator('.base-button').filter({ hasText: '下一步 · 选主方言' }).click();
-  await page.getByText('四川话', { exact: true }).click();
+  await page.locator('.base-button').filter({ hasText: '逐级选择主方言' }).click();
+  await page.locator('.dialect-selector__node').filter({ hasText: '四川话' }).click();
   await expect(page.getByText('巴适')).toBeVisible();
   if (process.env.E2E_SCREENSHOT_DIR) {
     await page.screenshot({

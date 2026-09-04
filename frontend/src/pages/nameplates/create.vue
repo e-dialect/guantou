@@ -91,7 +91,7 @@
             <t-cell
               class="dialect-cell"
               :class="{ 'dialect-cell--complete': selectedDialect }"
-              :title="selectedDialect ? dialectFullPath(selectedDialect.id) : '选择省、市、区县'"
+              :title="selectedDialect ? dialectFullPath(selectedDialect.id) : '逐级选择地区'"
               :right-icon="dialectRightIcon"
               :bordered="false"
               hover
@@ -166,68 +166,21 @@
         </BaseButton>
       </BaseForm>
 
-      <t-cascader
-        :visible="dialectPickerVisible"
-        :value="selectedDialect?.id || undefined"
+      <DialectSelector
+        v-model:visible="dialectPickerVisible"
+        :value="selectedDialect?.id || ''"
+        :dialects="dialects"
+        :default-dialect="primaryDialect"
+        :owner-scope="dialectOwnerScope"
         title="选择方言点"
-        placeholder="请选择"
-        theme="tab"
-        filterable
-        filter-placeholder="搜索名称或方言点编码"
-        :filter="filterDialectOption"
-        :keys="{ value: 'id', label: 'name', children: 'children' }"
-        :options="dialectCascadeOptions"
         @change="chooseDialect"
-        @close="dialectPickerVisible = false"
-      >
-        <template #middle-content>
-          <view
-            v-if="primaryDialect || recentDialects.length"
-            class="dialect-shortcuts"
-          >
-            <view
-              v-if="primaryDialect"
-              class="dialect-shortcut-group"
-            >
-              <text class="dialect-shortcut-group__label">
-                默认方言点
-              </text>
-              <BaseButton
-                size="small"
-                variant="ghost"
-                @click="chooseDialect({ value: primaryDialect.id })"
-              >
-                {{ dialectFullPath(primaryDialect.id) }}
-              </BaseButton>
-            </view>
-            <view
-              v-if="recentDialects.length"
-              class="dialect-shortcut-group"
-            >
-              <text class="dialect-shortcut-group__label">
-                最近使用
-              </text>
-              <view class="dialect-shortcut-list">
-                <BaseButton
-                  v-for="dialect in recentDialects"
-                  :key="dialect.id"
-                  size="small"
-                  variant="ghost"
-                  @click="chooseDialect({ value: dialect.id })"
-                >
-                  {{ dialectFullPath(dialect.id) }}
-                </BaseButton>
-              </view>
-            </view>
-          </view>
-        </template>
-      </t-cascader>
+      />
       <t-picker
         :visible="sourcePickerVisible"
         :value="[sourceOptions[sourceIndex].value]"
         title="选择资料来源类型"
         @change="chooseSource"
-        @close="sourcePickerVisible = false"
+        @close="closeSourcePicker"
       >
         <t-picker-item :options="sourceOptions" />
       </t-picker>
@@ -236,8 +189,7 @@
 </template>
 
 <script>
-import TCascader from '@tdesign/uniapp/cascader/cascader.vue';
-import { buildDialectTree, findDialectPath } from '@/utils/dialectTree';
+import { buildDialectTree, dialectBreadcrumb } from '@/utils/dialectTree';
 import SOURCE_OPTIONS from '@/utils/sourceOptions';
 import { getCanDraftOwnerScope } from '@/services/canDrafts';
 import TCell from '@tdesign/uniapp/cell/cell.vue';
@@ -248,6 +200,7 @@ import BaseField from '@/components/BaseField.vue';
 import BaseForm from '@/components/BaseForm.vue';
 import BaseLoading from '@/components/BaseLoading.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import DialectSelector from '@/components/DialectSelector.vue';
 import PageShell from '@/components/PageShell.vue';
 import {
   createNameplate,
@@ -266,8 +219,8 @@ export default {
     BaseForm,
     BaseLoading,
     EmptyState,
+    DialectSelector,
     TCell,
-    TCascader,
     TPicker,
     TPickerItem,
   },
@@ -300,6 +253,9 @@ export default {
     };
   },
   computed: {
+    dialectOwnerScope() {
+      return getCanDraftOwnerScope();
+    },
     rules() {
       const rule = {
         validator: () => (
@@ -396,8 +352,12 @@ export default {
       if (this.submitting || this.submitted) return;
       this.sourcePickerVisible = true;
     },
+    closeSourcePicker() {
+      this.sourcePickerVisible = false;
+    },
     dialectFullPath(dialectId) {
-      return findDialectPath(this.dialectTree, dialectId).map((item) => item.name).join(' · ');
+      const dialect = this.dialects.find((item) => String(item.id) === String(dialectId));
+      return dialect ? dialectBreadcrumb(dialect, this.dialects) : '';
     },
     filterDialectOption(keyword, option, path = []) {
       const normalizedKeyword = String(keyword || '').trim().toLowerCase();
@@ -421,8 +381,7 @@ export default {
       if (this.submitting || this.submitted) return;
       const value = event?.detail?.value ?? event?.value;
       const index = this.dialects.findIndex((item) => String(item.id) === String(value));
-      const path = findDialectPath(this.dialectTree, value);
-      if (index < 0 || path[path.length - 1]?.children.length) return;
+      if (index < 0) return;
       this.dialectIndex = index;
       this.dialectPickerVisible = false;
       this.recentDialectIds = [

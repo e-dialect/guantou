@@ -127,6 +127,7 @@ import {
   onExternalStop, playManaged, stopAudio,
 } from '@/utils/audio';
 import { toUserPage } from '@/routers/user';
+import { dialectCardLabel } from '@/utils/dialectTree';
 
 const STATUS_LABELS = {
   unlabeled: '无铭牌',
@@ -171,7 +172,7 @@ export default {
       return this.can.recorder ? this.can.recorder.avatar : '';
     },
     dialectBadge() {
-      return this.can.submitted_dialect?.qualified_code || '';
+      return this.can.submitted_dialect ? dialectCardLabel(this.can.submitted_dialect) : '';
     },
     statusText() {
       return STATUS_LABELS[this.can.status] || this.can.status || '未知';

@@ -27,7 +27,7 @@
     </picker>
     <picker
       :range="dialectOptions"
-      range-key="qualified_code"
+      range-key="display_label"
       @change="onDialectChange"
     >
       <view class="select">
@@ -92,6 +92,8 @@
 </template>
 
 <script>
+import { dialectCardLabel } from '@/utils/dialectTree';
+
 export const NAMEPLATE_SOURCE_TYPES = [
   { label: '创作者自述', value: 'creator' },
   { label: '口述', value: 'oral' },
@@ -179,7 +181,13 @@ export default {
       return [{ id: null, name: '暂不选择义项' }, ...this.flavors];
     },
     dialectOptions() {
-      return [{ id: null, qualified_code: '暂不选择方言点' }, ...this.dialects];
+      return [
+        { id: null, display_label: '暂不选择方言点' },
+        ...this.dialects.map((dialect) => ({
+          ...dialect,
+          display_label: dialectCardLabel(dialect, this.dialects),
+        })),
+      ];
     },
     packageLabel() {
       return this.packageOptions.find((item) => item.id === this.draft.package_id)?.text
@@ -190,8 +198,8 @@ export default {
         || this.flavorOptions[0].name;
     },
     dialectLabel() {
-      return this.dialectOptions.find((item) => item.id === this.draft.dialect_id)?.qualified_code
-        || this.dialectOptions[0].qualified_code;
+      return this.dialectOptions.find((item) => item.id === this.draft.dialect_id)?.display_label
+        || this.dialectOptions[0].display_label;
     },
     sourceTypeLabel() {
       return this.sourceTypes.find((item) => item.value === this.draft.source.type)?.label || '其他';

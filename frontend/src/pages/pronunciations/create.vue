@@ -132,62 +132,15 @@
           <t-picker-item :options="packageOptions" />
         </t-picker>
 
-        <t-cascader
-          :visible="dialectPickerVisible"
-          :value="draft.dialect_id || undefined"
+        <DialectSelector
+          v-model:visible="dialectPickerVisible"
+          :value="draft.dialect_id"
+          :dialects="dialects"
+          :default-dialect="primaryDialect"
+          :owner-scope="dialectOwnerScope"
           title="选择方言点"
-          placeholder="请选择"
-          theme="tab"
-          filterable
-          filter-placeholder="搜索名称或方言点编码"
-          :filter="filterDialectOption"
-          :keys="dialectCascadeKeys"
-          :options="dialectCascadeOptions"
-          @change="onDialectCascadeChange"
-          @close="dialectPickerVisible = false"
-        >
-          <template #middle-content>
-            <view
-              v-if="primaryDialect || recentDialects.length"
-              class="dialect-shortcuts"
-            >
-              <view
-                v-if="primaryDialect"
-                class="dialect-shortcut-group"
-              >
-                <text class="dialect-shortcut-group__label">
-                  默认方言点
-                </text>
-                <BaseButton
-                  size="small"
-                  variant="ghost"
-                  @click="selectDialectShortcut(primaryDialect)"
-                >
-                  {{ dialectFullPath(primaryDialect.id) }}
-                </BaseButton>
-              </view>
-              <view
-                v-if="recentDialects.length"
-                class="dialect-shortcut-group"
-              >
-                <text class="dialect-shortcut-group__label">
-                  最近使用
-                </text>
-                <view class="dialect-shortcut-list">
-                  <BaseButton
-                    v-for="dialect in recentDialects"
-                    :key="dialect.id"
-                    size="small"
-                    variant="ghost"
-                    @click="selectDialectShortcut(dialect)"
-                  >
-                    {{ dialectFullPath(dialect.id) }}
-                  </BaseButton>
-                </view>
-              </view>
-            </view>
-          </template>
-        </t-cascader>
+          @change="onDialectChange"
+        />
 
         <t-collapse
           v-model:value="optionalSections"
@@ -284,7 +237,7 @@ import BaseField from '@/components/BaseField.vue';
 import BaseForm from '@/components/BaseForm.vue';
 import BaseLoading from '@/components/BaseLoading.vue';
 import EmptyState from '@/components/EmptyState.vue';
-import TCascader from '@tdesign/uniapp/cascader/cascader.vue';
+import DialectSelector from '@/components/DialectSelector.vue';
 import TCell from '@tdesign/uniapp/cell/cell.vue';
 import TCollapse from '@tdesign/uniapp/collapse/collapse.vue';
 import TCollapsePanel from '@tdesign/uniapp/collapse-panel/collapse-panel.vue';
@@ -299,6 +252,7 @@ import {
 import { getCanDraftOwnerScope } from '@/services/canDrafts';
 import { notify, notifySuccess } from '@/services/feedback';
 import { goBack, pageUrl, ROUTES } from '@/services/navigation';
+import { dialectBreadcrumb } from '@/utils/dialectTree';
 
 const READING_TYPES = [
   { value: 'general', label: '通用' },
@@ -437,7 +391,7 @@ export default {
     BaseForm,
     BaseLoading,
     EmptyState,
-    TCascader,
+    DialectSelector,
     TCell,
     TCollapse,
     TCollapsePanel,
@@ -541,7 +495,10 @@ export default {
     },
     selectedDialectLabel() {
       if (this.selectedDialectPath.length) {
-        return this.selectedDialectPath.map((item) => item.name).join(' · ');
+        return dialectBreadcrumb(
+          this.selectedDialectPath[this.selectedDialectPath.length - 1],
+          this.dialects,
+        );
       }
       return '请选择方言点';
     },
@@ -595,9 +552,9 @@ export default {
     },
     dialectFullPath(dialectId) {
       const path = findDialectPath(this.dialectTree, dialectId);
-      return path.length
-        ? path.map((item) => item.name).join(' · ')
-        : this.dialects.find((item) => String(item.id) === String(dialectId))?.qualified_code || '';
+      const dialect = path[path.length - 1]
+        || this.dialects.find((item) => String(item.id) === String(dialectId));
+      return dialect ? dialectBreadcrumb(dialect, this.dialects) : '';
     },
     filterDialectOption(keyword, option, path = []) {
       const normalizedKeyword = String(keyword || '').trim().toLowerCase();
@@ -688,17 +645,9 @@ export default {
       this.dialectPickerVisible = false;
       this.clearFieldError('dialect_id');
     },
-    onDialectCascadeChange(event = {}) {
-      const detail = event.detail || event;
-      const selectedOptions = detail.selectedOptions || [];
-      const dialectId = detail.value;
-      const selected = selectedOptions[selectedOptions.length - 1]
-        || this.dialects.find((item) => String(item.id) === String(dialectId));
-      if (!selected || selected.children?.length) return;
-
-      this.draft.dialect_id = Number(dialectId || selected.id);
+    onDialectChange({ value }) {
+      this.draft.dialect_id = Number(value);
       this.rememberDialect(this.draft.dialect_id);
-      this.dialectPickerVisible = false;
       this.clearFieldError('dialect_id');
     },
     selectReadingType(value) {

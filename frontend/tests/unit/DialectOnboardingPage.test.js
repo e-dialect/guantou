@@ -145,6 +145,7 @@ describe('dialect onboarding page', () => {
     await flushPromises();
 
     expect(wrapper.vm.dialectsError).toBe(false);
-    expect(wrapper.text()).toContain('西南官话.四川');
+    expect(wrapper.text()).toContain('逐级选择主方言');
+    expect(wrapper.text()).not.toContain('西南官话.四川');
   });
 });

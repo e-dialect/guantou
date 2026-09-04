@@ -17,7 +17,7 @@
         v-if="primaryDialect"
         class="primary-badge"
       >
-        主方言 · {{ primaryDialect.qualified_code || primaryDialect.name }}
+        主方言 · {{ dialectCardLabel(primaryDialect, dialects) }}
       </view>
     </view>
 
@@ -42,26 +42,22 @@
         <view class="section-title">
           还想听哪些地方的乡音？
         </view>
-        <scroll-view
-          scroll-y
-          class="dialect-list"
-        >
+        <view class="followed-dialects">
           <view
-            v-for="dialect in dialects"
+            v-for="dialect in selectedDialects"
             :key="dialect.id"
-            :class="['dialect-row', isDialectSelected(dialect.id) ? 'selected' : '']"
-            :style="dialectIndent(dialect)"
+            class="dialect-row selected"
             @tap="toggleDialect(dialect.id)"
           >
             <view class="choice-mark">
-              {{ isDialectSelected(dialect.id) ? '●' : '○' }}
+              ●
             </view>
             <view class="dialect-copy">
               <view class="dialect-name">
-                {{ dialect.name }}
+                {{ dialectCardLabel(dialect, dialects) }}
               </view>
-              <view class="dialect-code">
-                {{ dialect.qualified_code }}
+              <view class="dialect-path">
+                {{ dialectBreadcrumb(dialect, dialects) }}
               </view>
             </view>
             <view
@@ -70,9 +66,30 @@
             >
               主方言
             </view>
+            <view
+              v-else
+              class="locked-mark"
+            >
+              移除
+            </view>
           </view>
-        </scroll-view>
+          <BaseButton
+            block
+            variant="ghost"
+            text="逐级添加关注地区"
+            @click="dialectPickerOpen = true"
+          />
+        </view>
       </view>
+
+      <DialectSelector
+        v-model:visible="dialectPickerOpen"
+        :dialects="dialects"
+        :default-dialect="primaryDialect"
+        :owner-scope="ownerScope"
+        title="添加关注地区"
+        @change="addDialect"
+      />
 
       <view class="section-card creator-section">
         <view class="section-kicker">
@@ -107,7 +124,7 @@
               {{ candidate.nickname || candidate.username }}
             </view>
             <view class="creator-meta">
-              {{ candidate.primary_dialect?.qualified_code }}
+              {{ dialectCardLabel(candidate.primary_dialect, dialects) }}
               · {{ candidate.public_can_count }} 罐公开乡音
             </view>
           </view>
@@ -143,6 +160,7 @@ import PageShell from '@/components/PageShell.vue';
 import BaseButton from '@/components/BaseButton.vue';
 import BaseLoading from '@/components/BaseLoading.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import DialectSelector from '@/components/DialectSelector.vue';
 import { goOnboarding } from '@/services/navigation';
 import { toIndexPage } from '@/routers';
 import {
@@ -152,10 +170,11 @@ import {
   unfollowDialect,
 } from '@/services/following';
 import { listAllDialects } from '@/services/guantou';
+import { dialectBreadcrumb, dialectCardLabel } from '@/utils/dialectTree';
 
 export default {
   components: {
-    PageShell, BaseButton, BaseLoading, EmptyState,
+    PageShell, BaseButton, BaseLoading, DialectSelector, EmptyState,
   },
   data() {
     const user = getApp().globalData.userInfo || {};
@@ -166,6 +185,7 @@ export default {
     return {
       candidates: [],
       dialects: [],
+      dialectPickerOpen: false,
       initialDialectIds: [...followedIds],
       loadError: false,
       loading: true,
@@ -176,6 +196,14 @@ export default {
     };
   },
   computed: {
+    ownerScope() {
+      return getApp().globalData.userInfo?.id || 'guest';
+    },
+    selectedDialects() {
+      return this.selectedDialectIds
+        .map((id) => this.dialects.find((item) => item.id === id))
+        .filter(Boolean);
+    },
     actionText() {
       const total = this.selectedAuthorIds.length;
       return total ? `关注已选作者（${total}）` : '进入首页';
@@ -189,6 +217,8 @@ export default {
     await this.loadRecommendations();
   },
   methods: {
+    dialectBreadcrumb,
+    dialectCardLabel,
     async loadRecommendations() {
       this.loading = true;
       this.loadError = false;
@@ -206,8 +236,10 @@ export default {
         this.loading = false;
       }
     },
-    dialectIndent(dialect) {
-      return { paddingLeft: `${20 + Number(dialect.depth || 0) * 20}rpx` };
+    addDialect({ value }) {
+      const id = Number(value);
+      if (!id || this.isDialectSelected(id)) return;
+      this.selectedDialectIds = [...this.selectedDialectIds, id];
     },
     isDialectSelected(id) {
       return this.selectedDialectIds.includes(id);

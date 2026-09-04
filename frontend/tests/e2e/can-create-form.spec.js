@@ -54,11 +54,11 @@ async function mockApi(page, { signedIn = false, failFirstSubmission = false } =
 
 async function selectDialect(page) {
   await field(page, '方言点').locator('.t-cell').click();
-  const picker = page.locator('.t-cascader');
+  const picker = page.locator('.dialect-selector');
   await picker.getByText('闽语', { exact: true }).click();
-  await picker.getByText('莆仙片', { exact: true }).click();
+  await picker.getByText('莆仙方言', { exact: true }).click();
   await picker.getByText('游洋话', { exact: true }).click();
-  await expect(field(page, '方言点')).toContainText('闽语 · 莆仙片 · 游洋话');
+  await expect(field(page, '方言点')).toContainText('闽语 › 莆仙方言 › 游洋话');
 }
 
 async function recordAudio(page) {

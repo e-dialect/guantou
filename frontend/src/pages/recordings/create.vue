@@ -195,24 +195,20 @@
         </view>
       </BaseForm>
 
-      <t-cascader
-        :visible="dialectPickerVisible"
-        :value="form.usage_dialect_id || undefined"
+      <DialectSelector
+        v-model:visible="dialectPickerVisible"
+        :value="form.usage_dialect_id"
+        :dialects="dialects"
+        :default-dialect="primaryDialect"
+        :owner-scope="dialectOwnerScope"
         title="选择使用地区"
-        placeholder="可停在任意一级"
-        theme="tab"
-        filterable
-        :keys="dialectKeys"
-        :options="dialectOptions"
         @change="onDialectChange"
-        @close="dialectPickerVisible = false"
       />
     </view>
   </AppShell>
 </template>
 
 <script>
-import TCascader from '@tdesign/uniapp/cascader/cascader.vue';
 import TCell from '@tdesign/uniapp/cell/cell.vue';
 import TCollapse from '@tdesign/uniapp/collapse/collapse.vue';
 import TCollapsePanel from '@tdesign/uniapp/collapse-panel/collapse-panel.vue';
@@ -221,6 +217,7 @@ import AudioCapture from '@/components/AudioCapture.vue';
 import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
 import BaseForm from '@/components/BaseForm.vue';
+import DialectSelector from '@/components/DialectSelector.vue';
 import {
   createRecording,
   dialectLabel,
@@ -234,7 +231,7 @@ import { uploadFile } from '@/services/file';
 import { notify, notifySuccess } from '@/services/feedback';
 import { listAllDialects } from '@/services/guantou';
 import { goEntryDetail, goHome } from '@/services/navigation';
-import { buildDialectTree, findDialectPath } from '@/utils/dialectTree';
+import { dialectBreadcrumb } from '@/utils/dialectTree';
 
 function emptyAudio() {
   return {
@@ -249,7 +246,7 @@ export default {
     BaseButton,
     BaseField,
     BaseForm,
-    TCascader,
+    DialectSelector,
     TCell,
     TCollapse,
     TCollapsePanel,
@@ -272,7 +269,6 @@ export default {
       optionalSections: [],
       dialects: [],
       dialectPickerVisible: false,
-      dialectKeys: { value: 'id', label: 'name', children: 'children' },
       entryKeyword: '',
       entryCandidates: [],
       entrySearching: false,
@@ -281,12 +277,17 @@ export default {
     };
   },
   computed: {
-    dialectOptions() {
-      return buildDialectTree(this.dialects);
+    primaryDialect() {
+      return getApp()?.globalData?.userInfo?.primary_dialect || null;
+    },
+    dialectOwnerScope() {
+      return getApp()?.globalData?.userInfo?.id || 'guest';
     },
     selectedDialectLabel() {
-      const path = findDialectPath(this.dialectOptions, this.form.usage_dialect_id);
-      return path.length ? path.map((item) => item.name).join(' › ') : '请选择已知范围';
+      const dialect = this.dialects.find(
+        (item) => String(item.id) === String(this.form.usage_dialect_id),
+      );
+      return dialect ? dialectBreadcrumb(dialect, this.dialects) : '请选择已知范围';
     },
   },
   async onLoad(options = {}) {
@@ -299,8 +300,7 @@ export default {
     async loadDialects() {
       try {
         this.dialects = await listAllDialects();
-        const primary = getApp()?.globalData?.userInfo?.primary_dialect;
-        if (primary?.id) this.form.usage_dialect_id = primary.id;
+        if (this.primaryDialect?.id) this.form.usage_dialect_id = this.primaryDialect.id;
       } catch (error) {
         this.dialects = [];
       }
@@ -325,7 +325,6 @@ export default {
     },
     onDialectChange(context = {}) {
       this.form.usage_dialect_id = context.value || '';
-      this.dialectPickerVisible = false;
       this.clearFieldError('usage_dialect_id');
     },
     clearFieldError(field) {

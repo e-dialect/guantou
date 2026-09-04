@@ -144,17 +144,14 @@
         </t-collapse-panel>
       </t-collapse>
 
-      <t-cascader
-        :visible="dialectPickerVisible"
-        :value="filters.dialectId || undefined"
+      <DialectSelector
+        v-model:visible="dialectPickerVisible"
+        :value="filters.dialectId"
+        :dialects="dialects"
+        :default-dialect="primaryDialect"
+        :owner-scope="dialectOwnerScope"
         title="选择地区范围"
-        placeholder="可停在任意一级"
-        theme="tab"
-        filterable
-        :keys="dialectKeys"
-        :options="dialectOptions"
         @change="onDialectChange"
-        @close="dialectPickerVisible = false"
       />
 
       <t-picker
@@ -244,7 +241,6 @@
 </template>
 
 <script>
-import TCascader from '@tdesign/uniapp/cascader/cascader.vue';
 import TCell from '@tdesign/uniapp/cell/cell.vue';
 import TCollapse from '@tdesign/uniapp/collapse/collapse.vue';
 import TCollapsePanel from '@tdesign/uniapp/collapse-panel/collapse-panel.vue';
@@ -255,6 +251,7 @@ import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
 import BaseLoading from '@/components/BaseLoading.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import DialectSelector from '@/components/DialectSelector.vue';
 import {
   buildEntrySearchParams,
   dialectLabel,
@@ -264,7 +261,7 @@ import {
 } from '@/services/entryRecording';
 import { listAllDialects } from '@/services/guantou';
 import { goEntryDetail, goRecord } from '@/services/navigation';
-import { buildDialectTree, findDialectPath } from '@/utils/dialectTree';
+import { dialectBreadcrumb } from '@/utils/dialectTree';
 
 const WRITING_TYPES = [
   { label: '不限', value: '' },
@@ -312,7 +309,7 @@ export default {
     BaseField,
     BaseLoading,
     EmptyState,
-    TCascader,
+    DialectSelector,
     TCell,
     TCollapse,
     TCollapsePanel,
@@ -349,16 +346,20 @@ export default {
         { label: '已整理', value: 'reviewed' },
         { label: '有分歧', value: 'disputed' },
       ],
-      dialectKeys: { value: 'id', label: 'name', children: 'children' },
     };
   },
   computed: {
-    dialectOptions() {
-      return buildDialectTree(this.dialects);
+    primaryDialect() {
+      return getApp()?.globalData?.userInfo?.primary_dialect || null;
+    },
+    dialectOwnerScope() {
+      return getApp()?.globalData?.userInfo?.id || 'guest';
     },
     selectedDialectLabel() {
-      const path = findDialectPath(this.dialectOptions, this.filters.dialectId);
-      return path.length ? path.map((item) => item.name).join(' › ') : '不限地区';
+      const dialect = this.dialects.find(
+        (item) => String(item.id) === String(this.filters.dialectId),
+      );
+      return dialect ? dialectBreadcrumb(dialect, this.dialects) : '不限地区';
     },
     writingTypeLabel() {
       return WRITING_TYPES.find((item) => item.value === this.filters.writingType)?.label || '不限';
@@ -432,7 +433,6 @@ export default {
     },
     onDialectChange(context = {}) {
       this.filters.dialectId = context.value || '';
-      this.dialectPickerVisible = false;
     },
     clearDialect() {
       this.filters.dialectId = '';

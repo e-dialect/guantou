@@ -99,6 +99,7 @@ import { requireAuth } from '@/services/authGuard';
 import { likeCan, unlikeCan } from '@/services/canSocial';
 import { startUseSame } from '@/services/canPostJourney';
 import { shareCanOnWeb } from '@/utils/shareCan';
+import { dialectCardLabel } from '@/utils/dialectTree';
 
 const statusLabels = {
   unlabeled: '无铭牌',
@@ -140,7 +141,7 @@ export default {
         : '等待铭牌';
     },
     locationText() {
-      return this.can.submitted_dialect?.qualified_code || '未标方言点';
+      return dialectCardLabel(this.can.submitted_dialect);
     },
     nameplateCount() {
       return this.can.nameplate_count || 0;

@@ -129,6 +129,13 @@ class DialectApiTests(DomainFixture):
     def test_qualified_code_is_root_to_leaf(self):
         self.assertEqual(self.dialect.qualified_code, "闽.莆仙.游洋")
 
+    def test_public_reference_includes_natural_path_names(self):
+        response = self.client.get("/dialects/", {"flat": "true"})
+        item = next(
+            row for row in response.data["results"] if row["id"] == self.dialect.id
+        )
+        self.assertEqual(item["path_names"], ["闽语", "莆仙语", "游洋话"])
+
     def test_list_defaults_to_roots_and_children_use_explicit_order(self):
         earlier = Dialect.objects.create(
             name="莆田片",

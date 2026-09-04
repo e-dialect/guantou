@@ -55,11 +55,11 @@ async function chooseCoreOptions(page) {
   await page.locator('.t-picker__confirm').click();
   await expect(field(page, 'package_id')).toContainText('行 · primary');
   await field(page, 'dialect_id').locator('.t-cell').click();
-  const cascader = page.locator('.t-cascader');
-  await cascader.getByText('闽语', { exact: true }).click();
-  await cascader.getByText('莆仙片', { exact: true }).click();
-  await cascader.getByText('城关', { exact: true }).click();
-  await expect(field(page, 'dialect_id')).toContainText('闽语 · 莆仙片 · 城关');
+  const selector = page.locator('.dialect-selector');
+  await selector.getByText('闽语', { exact: true }).click();
+  await selector.getByText('莆仙方言', { exact: true }).click();
+  await selector.getByText('城关', { exact: true }).click();
+  await expect(field(page, 'dialect_id')).toContainText('闽语 › 莆仙方言 › 城关');
 }
 
 async function snapshot(page, testInfo, name) {

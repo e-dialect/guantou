@@ -51,8 +51,8 @@ import { listAllDialects } from '@/services/guantou';
 import request from '@/utils/request';
 
 const dialects = [
-  { id: 3, name: '四川话', qualified_code: '西南官话.四川' },
-  { id: 5, name: '闽南语', qualified_code: '闽南.厦门' },
+  { id: 3, name: '四川话', qualified_code: '西南官话.四川', path_names: ['西南官话', '四川话'] },
+  { id: 5, name: '闽南语', qualified_code: '闽南.厦门', path_names: ['闽语', '闽南语'] },
 ];
 
 const profile = {
@@ -64,7 +64,12 @@ const profile = {
     telephone: '13900000001',
     avatar: 'https://example.com/a.png',
     birthday: '1991-02-03',
-    primary_dialect: { id: 3, qualified_code: '西南官话.四川' },
+    primary_dialect: {
+      id: 3,
+      name: '四川话',
+      qualified_code: '西南官话.四川',
+      path_names: ['西南官话', '四川话'],
+    },
   },
 };
 
@@ -126,7 +131,7 @@ describe('information settings page', () => {
     expect(source).toContain('PageShell');
     expect(source).toContain('BaseButton');
     expect(source).toContain('TDateTimePicker');
-    expect(source).toContain('TPicker');
+    expect(source).toContain('DialectSelector');
     expect(source).toContain('open-type="chooseAvatar"');
     expect(source).toContain('从相册选择');
     expect(source).toContain('chooseMessageFile');
@@ -149,7 +154,7 @@ describe('information settings page', () => {
     expect(request.get).toHaveBeenCalledWith('/users/7', null, true);
     expect(wrapper.vm.date).toBe('1991-02-03');
     expect(wrapper.vm.dialectIndex).toBe(0);
-    expect(wrapper.vm.selectedDialectLabel).toBe('西南官话.四川');
+    expect(wrapper.vm.selectedDialectLabel).toBe('西南官话 › 四川话');
     expect(wrapper.vm.canUseWechatAuth).toBe(false);
     expect(wrapper.vm.avatarHint).toBe('点击头像更换，可用相册或相机选取。');
   });
@@ -166,7 +171,7 @@ describe('information settings page', () => {
     expect(notifySuccess).toHaveBeenCalledWith('修改成功');
 
     request.put.mockClear();
-    await wrapper.vm.onDialectConfirm({ value: ['5'] });
+    await wrapper.vm.onDialectChange({ value: 5 });
     await flushPromises();
     expect(request.put).toHaveBeenCalledWith(
       '/users/7',
@@ -195,7 +200,7 @@ describe('information settings page', () => {
       message: '请求参数校验失败',
       data: { primary_dialect: { code: 'invalid', message: '方言无效' } },
     });
-    await wrapper.vm.onDialectConfirm({ detail: { value: ['5'] } });
+    await wrapper.vm.onDialectChange({ value: 5 });
     await flushPromises();
     expect(wrapper.vm.saveError).toBe('方言无效');
     expect(notify).toHaveBeenCalledWith({ title: '方言无效' });

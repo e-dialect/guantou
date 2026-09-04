@@ -1,4 +1,5 @@
 import request from '@/utils/request';
+import { registerDialectCatalog } from '@/utils/dialectTree';
 
 export function listDialects(params = {}) {
   return request.get('/dialects/', params);
@@ -20,7 +21,7 @@ async function collectPages(fetcher, params = {}, page = 1, collected = []) {
 
 export async function listAllDialects() {
   const items = await collectPages(listDialects, { flat: true });
-  return orderedDialects(items);
+  return registerDialectCatalog(orderedDialects(items));
 }
 
 export function resolveDialect(qualifiedCode) {

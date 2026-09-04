@@ -274,24 +274,20 @@ describe('pronunciation authoring flow', () => {
     page.onPackagePickerChange({ value: ['2'] });
     expect(page.draft.package_id).toBe(2);
     expect(page.packagePickerValue).toEqual([2]);
-    page.onDialectCascadeChange({ detail: { value: '3', selectedOptions: [{ id: '3' }] } });
+    page.onDialectChange({ value: '3' });
     expect(page.draft.dialect_id).toBe(3);
     expect(page.recentDialectIds).toEqual([3]);
     expect(page.fieldErrors).toEqual({});
     expect(page.$refs.form.clearValidate).toHaveBeenCalledWith(['package_id']);
     expect(page.$refs.form.clearValidate).toHaveBeenCalledWith(['dialect_id']);
-    page.onDialectCascadeChange({ value: 1, selectedOptions: [{ id: 1, children: [{ id: 3 }] }] });
-    expect(page.draft.dialect_id).toBe(3);
+    page.onDialectChange({ value: 1 });
+    expect(page.draft.dialect_id).toBe(1);
   });
 
-  it('keeps dialect search and default/recent shortcuts', () => {
+  it('keeps recent dialect state compatible with the unified selector', () => {
     const page = createPage();
-    expect(page.filterDialectOption('仙游', { name: '城关', qualified_code: '闽.莆仙.仙游.城关' })).toBe(true);
-    expect(page.filterDialectOption('闽语', { name: '城关' }, [{ name: '闽语' }])).toBe(true);
-    expect(page.filterDialectOption('不存在', { name: '城关' })).toBe(false);
-    page.selectDialectShortcut({ id: '4' });
+    page.onDialectChange({ value: '4' });
     expect(page.draft.dialect_id).toBe(4);
-    expect(page.dialectPickerVisible).toBe(false);
     expect(uni.setStorageSync).toHaveBeenCalledWith(expect.any(String), '[4]');
   });
 

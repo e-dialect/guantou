@@ -3135,7 +3135,7 @@ components:
 
     DialectRef:
       type: object
-      required: [id, name, code, qualified_code, sort_order]
+      required: [id, name, code, qualified_code, path_names, sort_order]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -3148,6 +3148,11 @@ components:
           type: string
           example: 闽.莆仙.仙游.游洋
           description: 从根到叶拼接的规范限定码；用于解析和前缀聚合，不作为外键。
+        path_names:
+          type: array
+          items: { type: string }
+          example: [闽语, 莆仙片（兴化方言）, 莆田, 城里]
+          description: 从根到当前节点的自然名称；客户端用它生成卡片标签和详情面包屑，避免向普通用户显示规范限定码。
         sort_order:
           type: integer
           default: 0

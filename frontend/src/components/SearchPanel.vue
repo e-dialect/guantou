@@ -153,7 +153,7 @@
               type="铭牌"
               :title="item.display_text"
               :description="item.definition || '暂无释义'"
-              :meta="item.dialect?.qualified_code || item.dialect?.name || '方言点待补'"
+              :meta="dialectCardLabel(item.dialect)"
               :item="{ ...item, scope: 'nameplates' }"
               @open="$emit('open', $event)"
             />
@@ -186,6 +186,7 @@
 </template>
 
 <script>
+import { dialectCardLabel } from '@/utils/dialectTree';
 import CanCard from './CanCard.vue';
 import BaseButton from './BaseButton.vue';
 import BaseField from './BaseField.vue';
@@ -325,6 +326,7 @@ export default {
     this.clearSuggestTimer();
   },
   methods: {
+    dialectCardLabel,
     clearSuggestTimer() {
       if (!this.suggestTimer) return;
       clearTimeout(this.suggestTimer);

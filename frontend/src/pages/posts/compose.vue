@@ -29,7 +29,7 @@
         </view>
         <view class="source-meta">
           {{ can.recorder?.nickname || can.recorder?.username || '匿名录音者' }} ·
-          {{ can.submitted_dialect?.qualified_code || '未标方言点' }}
+          {{ dialectCardLabel(can.submitted_dialect) }}
         </view>
         <view class="listen-action">
           <BaseButton
@@ -108,6 +108,7 @@ import { requireAuth } from '@/services/authGuard';
 import { goPostDetail } from '@/services/navigation';
 import { getCan } from '@/services/guantou';
 import { playAudio } from '@/utils/audio';
+import { dialectCardLabel } from '@/utils/dialectTree';
 
 const POST_FIELDS = new Set(['can_id', 'text', 'visibility']);
 
@@ -161,6 +162,7 @@ export default {
     await this.loadCan();
   },
   methods: {
+    dialectCardLabel,
     playAudio,
     clearFieldError(field) {
       if (this.fieldErrors[field]) delete this.fieldErrors[field];

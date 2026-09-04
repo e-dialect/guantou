@@ -203,28 +203,23 @@
         @cancel="closeBirthdayPicker"
         @close="closeBirthdayPicker"
       />
-      <t-picker
-        v-if="dialectPickerOpen"
-        :visible="dialectPickerOpen"
+      <DialectSelector
+        v-model:visible="dialectPickerOpen"
+        :value="selectedDialect?.id || ''"
+        :dialects="dialectOptions"
+        :default-dialect="user.primary_dialect"
+        :owner-scope="user.id || 'guest'"
         title="发音默认地点"
-        cancel-btn="取消"
-        confirm-btn="确定"
-        :value="dialectPickerValue"
-        @confirm="onDialectConfirm"
-        @cancel="closeDialectPicker"
-        @close="closeDialectPicker"
-      >
-        <t-picker-item :options="dialectPickerOptions" />
-      </t-picker>
+        @change="onDialectChange"
+      />
     </view>
   </PageShell>
 </template>
 
 <script>
 import TDateTimePicker from '@tdesign/uniapp/date-time-picker/date-time-picker.vue';
-import TPicker from '@tdesign/uniapp/picker/picker.vue';
-import TPickerItem from '@tdesign/uniapp/picker-item/picker-item.vue';
 import BaseButton from '@/components/BaseButton.vue';
+import DialectSelector from '@/components/DialectSelector.vue';
 import PageShell from '@/components/PageShell.vue';
 import SectionBlock from '@/components/SectionBlock.vue';
 import { notify, notifySuccess } from '@/services/feedback';
@@ -241,6 +236,7 @@ import {
 import { resolveSessionUserId } from '@/services/session';
 import canUseWechatMiniProgramAuth from '@/services/platform';
 import { changeUserInfo, getUserInfo } from '@/services/user';
+import { dialectBreadcrumb } from '@/utils/dialectTree';
 
 const app = getApp();
 // 微信头像只能写在原生 button[open-type=chooseAvatar] 上，因此保留小程序条件编译。
@@ -272,11 +268,10 @@ export default {
   name: 'EditProfile',
   components: {
     BaseButton,
+    DialectSelector,
     PageShell,
     SectionBlock,
     TDateTimePicker,
-    TPicker,
-    TPickerItem,
   },
   data() {
     return {
@@ -299,21 +294,13 @@ export default {
     };
   },
   computed: {
-    dialectLabels() {
-      return this.dialectOptions.map((dialect) => dialect.qualified_code || dialect.name);
+    selectedDialect() {
+      return this.dialectOptions[this.dialectIndex] || null;
     },
     selectedDialectLabel() {
-      return this.dialectLabels[this.dialectIndex] || '未填写方言点';
-    },
-    dialectPickerOptions() {
-      return this.dialectOptions.map((dialect) => ({
-        label: dialect.qualified_code || dialect.name,
-        value: String(dialect.id),
-      }));
-    },
-    dialectPickerValue() {
-      const dialect = this.dialectOptions[this.dialectIndex];
-      return dialect ? [String(dialect.id)] : [];
+      return this.selectedDialect
+        ? dialectBreadcrumb(this.selectedDialect, this.dialectOptions)
+        : '未填写方言点';
     },
     birthdayPickerValue() {
       return isDateValue(this.date) ? this.date : BIRTHDAY_FALLBACK;
@@ -520,11 +507,8 @@ export default {
       this.date = value;
       await this.persistUser({ ...this.user, birthday: value });
     },
-    async onDialectConfirm(event) {
-      const raw = pickerEventValue(event);
-      const selected = Array.isArray(raw) ? raw[0] : raw;
-      this.closeDialectPicker();
-      const dialectId = Number(selected);
+    async onDialectChange({ value }) {
+      const dialectId = Number(value);
       const nextIndex = this.dialectOptions.findIndex((dialect) => dialect.id === dialectId);
       if (nextIndex < 0) return;
       if (nextIndex === this.dialectIndex) return;

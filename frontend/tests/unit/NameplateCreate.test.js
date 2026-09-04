@@ -224,7 +224,7 @@ describe('nameplate authoring', () => {
     expect(createNameplate).not.toHaveBeenCalled();
   });
 
-  it('uses the can page hierarchy, full path, search, and account-scoped recent shortcuts', async () => {
+  it('uses natural paths, supports parent scopes, and keeps account-scoped recent choices', async () => {
     const page = createPage({ dialects: [
       { id: 1, name: '闽语', qualified_code: '闽' },
       { id: 2, name: '莆仙片', qualified_code: '闽.莆仙' },
@@ -235,22 +235,17 @@ describe('nameplate authoring', () => {
     expect(uni.getStorageSync).toHaveBeenCalledWith('can_create_recent_dialects_v1:user:7');
     expect(page.primaryDialect.id).toBe(8);
     expect(page.recentDialects.map((item) => item.id)).toEqual([3]);
-    expect(page.dialectFullPath(3)).toBe('闽语 · 莆仙片 · 城关');
-    const branch = page.dialectCascadeOptions[0].children[0];
-    expect(branch.children.map((item) => item.id)).toEqual([3, 8]);
-    expect(branch.children[0]).not.toHaveProperty('children');
-    expect(page.filterDialectOption('莆仙', dialects[0], [branch])).toBe(true);
-    expect(page.filterDialectOption('  闽.莆仙.城关  ', dialects[0])).toBe(true);
-    expect(page.filterDialectOption('粤', dialects[0])).toBe(false);
+    expect(page.dialectFullPath(3)).toBe('闽语 › 莆仙方言 › 城关');
     page.openDialectPicker();
     page.chooseDialect({ value: 2 });
-    expect(page.dialectPickerVisible).toBe(true);
-    expect(page.dialectIndex).toBe(0);
+    expect(page.dialectPickerVisible).toBe(false);
+    expect(page.selectedDialect.id).toBe(2);
+    page.openDialectPicker();
     page.chooseDialect({ detail: { value: 8 } });
     expect(page.selectedDialect.id).toBe(8);
     expect(page.dialectPickerVisible).toBe(false);
-    expect(page.recentDialectIds).toEqual([8, 3, 999]);
-    expect(uni.setStorageSync).toHaveBeenCalledWith('can_create_recent_dialects_v1:user:7', '[8,3,999]');
+    expect(page.recentDialectIds).toEqual([8, 2, 3]);
+    expect(uni.setStorageSync).toHaveBeenCalledWith('can_create_recent_dialects_v1:user:7', '[8,2,3]');
   });
 
   it('keeps dialect selection working when recent history is invalid or storage is full', () => {
@@ -270,24 +265,23 @@ describe('nameplate authoring', () => {
     });
     expect(wrapper.findComponent(BaseForm).props('data')).toBe(wrapper.vm.form);
     expect(wrapper.findAllComponents(BaseField)).toHaveLength(8);
-    const pickers = wrapper.findAllComponents(NameplateCreate.components.TPicker);
-    // TDesign imports share a stub; select the cascader and picker by their titles.
-    const dialect = pickers.find((item) => item.vm.$attrs.title === '选择方言点');
-    const source = pickers.find((item) => item.vm.$attrs.title === '选择资料来源类型');
+    const dialect = wrapper.findComponent(NameplateCreate.components.DialectSelector);
     wrapper.vm.openDialectPicker();
-    dialect.vm.$emit('close');
+    dialect.vm.$emit('update:visible', false);
+    await wrapper.vm.$nextTick();
     wrapper.vm.openSourcePicker();
-    source.vm.$emit('close');
+    wrapper.vm.closeSourcePicker();
+    await wrapper.vm.$nextTick();
     expect(wrapper.vm.dialectIndex).toBe(0);
     expect(wrapper.vm.sourceIndex).toBe(0);
     expect(wrapper.vm.dialectPickerVisible).toBe(false);
     expect(wrapper.vm.sourcePickerVisible).toBe(false);
-    dialect.vm.$emit('change', { value: 8 });
-    source.vm.$emit('change', { value: ['book'] });
+    dialect.vm.$emit('change', { value: 8, dialect: dialects[1] });
+    wrapper.vm.chooseSource({ value: ['book'] });
     expect(wrapper.vm.selectedDialect.id).toBe(8);
     expect(wrapper.vm.sourceIndex).toBe(3);
-    dialect.vm.$emit('change', { value: 999 });
-    source.vm.$emit('change', { value: ['invalid'] });
+    dialect.vm.$emit('change', { value: 999, dialect: null });
+    wrapper.vm.chooseSource({ value: ['invalid'] });
     expect(wrapper.vm.selectedDialect.id).toBe(8);
     expect(wrapper.vm.sourceIndex).toBe(3);
     wrapper.unmount();
