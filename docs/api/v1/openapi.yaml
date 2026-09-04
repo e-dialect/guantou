@@ -89,6 +89,76 @@ paths:
                 $ref: "#/components/schemas/AuthToken"
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /login/forget/:
+    get:
+      tags: [Auth]
+      operationId: lookupPasswordResetAccount
+      summary: 按用户名查询找回密码用的脱敏邮箱
+      security: []
+      parameters:
+        - in: query
+          name: username
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: 账号已绑定邮箱
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email_masked: { type: string }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Auth]
+      operationId: sendPasswordResetCode
+      summary: 向账号绑定邮箱发送重置验证码
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username]
+              properties:
+                username: { type: string }
+      responses:
+        "200":
+          description: 请求已受理。未配置 SMTP 的演示环境会额外返回 demo_code。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email_masked: { type: string }
+                  retry_after: { type: integer, minimum: 0 }
+                  delivery: { type: string, enum: [demo] }
+                  demo_code: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+    put:
+      tags: [Auth]
+      operationId: resetPassword
+      summary: 用邮箱验证码重置密码
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password, code]
+              properties:
+                username: { type: string }
+                password: { type: string }
+                code: { type: string }
+      responses:
+        "200":
+          description: 重置成功
+        "400": { $ref: "#/components/responses/BadRequest" }
+
   /users/email-code/:
     post:
       tags: [Users]
@@ -106,10 +176,21 @@ paths:
                 email: { type: string, format: email }
                 purpose:
                   type: string
-                  enum: [register, change_email, reset_password]
+                  enum: [register, bind, reset_password]
+                  description: register 注册；bind 绑定或更换邮箱；reset_password 找回密码
       responses:
-        "204": { description: 请求已受理；无论账号是否存在都返回相同结果 }
+        "200":
+          description: 请求已受理。绑定用途下，邮箱已被占用时返回 409。未配置 SMTP 的演示环境会额外返回 demo_code。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  retry_after: { type: integer, minimum: 0 }
+                  delivery: { type: string, enum: [demo] }
+                  demo_code: { type: string, description: 仅演示环境返回，生产环境不会出现 }
         "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
 
   /users/:
@@ -180,13 +261,14 @@ paths:
               $ref: "#/components/schemas/UserUpdate"
       responses:
         "200":
-          description: 修改后的资料
+          description: 修改后的资料；若修改了 username，响应会带新 token
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UserPrivateProfile"
+                $ref: "#/components/schemas/UserUpdateResult"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /users/{user_id}/:
     parameters:
@@ -194,16 +276,114 @@ paths:
     get:
       tags: [Users]
       operationId: getUser
-      summary: 获取公开用户资料
+      summary: 获取用户资料与贡献计数
       security: []
       responses:
         "200":
-          description: 公开资料
+          description: |
+            `{ user, contribution }`。访客只收到公开计数；
+            登录且路径 id 为本人时，`user` 含私有字段，`contribution` 额外含 `*_uploaded`，
+            并可能返回 `notification`。
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UserPublicProfile"
+                $ref: "#/components/schemas/UserProfileResponse"
         "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Users]
+      operationId: updateUser
+      summary: 修改本人资料
+      description: |
+        路径 id 必须是当前登录用户。请求体为 `{ user: UserUpdate }`。
+        修改 username 后旧 token 失效，响应返回新 token。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdateRequest"
+      responses:
+        "200":
+          description: 修改后的资料与新 token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserUpdateResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: 用户名或手机号已被占用
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /users/{user_id}/password/:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    put:
+      tags: [Users]
+      operationId: updateUserPassword
+      summary: 修改本人密码
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [oldpassword, newpassword]
+              properties:
+                oldpassword: { type: string, minLength: 1, maxLength: 32 }
+                newpassword: { type: string, minLength: 6, maxLength: 32 }
+      responses:
+        "200":
+          description: 修改成功，返回新 token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserUpdateResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /users/{user_id}/email/:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    put:
+      tags: [Users]
+      operationId: updateUserEmail
+      summary: 绑定或更换邮箱
+      description: 需先用 purpose=bind 领取验证码。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code]
+              properties:
+                email: { type: string, format: email }
+                code: { type: string, minLength: 6, maxLength: 6 }
+      responses:
+        "200":
+          description: 绑定成功
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user: { $ref: "#/components/schemas/UserPrivateProfile" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /dialects/:
     get:
@@ -1621,14 +1801,46 @@ components:
       allOf:
         - $ref: "#/components/schemas/UserRef"
         - type: object
-          required: [title, level, contribution]
+          required: [title, level]
           properties:
             title: { type: string }
             level: { type: integer, minimum: 1 }
             primary_dialect: { oneOf: [{ $ref: "#/components/schemas/DialectRef" }, { type: "null" }] }
-            contribution:
+    UserContribution:
+      type: object
+      required: [cans, flavors, nameplates, views]
+      properties:
+        cans: { type: integer, minimum: 0, description: 公开罐头数 }
+        flavors: { type: integer, minimum: 0, description: 公开义项数 }
+        nameplates: { type: integer, minimum: 0, description: 公开铭牌数 }
+        views:
+          type: integer
+          minimum: 0
+          description: 罐头浏览累计；访客按公开罐头，本人按全部上传罐头
+        cans_uploaded: { type: integer, minimum: 0, description: 仅本人返回，含未公开罐头 }
+        flavors_uploaded: { type: integer, minimum: 0, description: 仅本人返回，含未公开义项 }
+        nameplates_uploaded: { type: integer, minimum: 0, description: 仅本人返回，含未公开铭牌 }
+    UserProfileResponse:
+      type: object
+      required: [user, contribution]
+      properties:
+        user:
+          oneOf:
+            - $ref: "#/components/schemas/UserPublicProfile"
+            - $ref: "#/components/schemas/UserPrivateProfile"
+        contribution:
+          $ref: "#/components/schemas/UserContribution"
+        notification:
+          type: object
+          description: 仅本人返回
+          properties:
+            statistics:
               type: object
-              additionalProperties: { type: integer, minimum: 0 }
+              properties:
+                total: { type: integer, minimum: 0 }
+                sent: { type: integer, minimum: 0 }
+                received: { type: integer, minimum: 0 }
+                unread: { type: integer, minimum: 0 }
     UserPrivateProfile:
       allOf:
         - $ref: "#/components/schemas/UserPublicProfile"
@@ -1645,11 +1857,27 @@ components:
       type: object
       minProperties: 1
       properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 20
+          description: 登录用户名；修改后旧 token 失效，响应会带新 token
         nickname: { type: string, maxLength: 100 }
         avatar: { type: string, format: uri-reference }
         telephone: { type: string, maxLength: 50 }
         birthday: { type: [string, "null"], format: date }
         primary_dialect_id: { type: [integer, "null"] }
+    UserUpdateRequest:
+      type: object
+      required: [user]
+      properties:
+        user: { $ref: "#/components/schemas/UserUpdate" }
+    UserUpdateResult:
+      type: object
+      required: [user, token]
+      properties:
+        user: { $ref: "#/components/schemas/UserPrivateProfile" }
+        token: { type: string }
     UserPage:
       allOf:
         - $ref: "#/components/schemas/PageBase"

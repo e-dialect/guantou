@@ -1,111 +1,328 @@
 <template>
-  <view>
-    <cu-custom title="修改邮箱" />
-    <view class="cu-form-group">
-      <view class="text-df text-bold-less margin-right-sm">
-        原邮箱
-      </view>
-      <input
-        :value="old_email"
-        :disabled="true"
-      >
-    </view>
-    <view class="cu-form-group">
-      <view class="text-df text-bold-less margin-right-sm">
-        新邮箱
-      </view>
-      <input
-        placeholder="请输入新邮箱"
-        @input="getNewEmail"
-      >
-    </view>
-    <view class="cu-form-group">
-      <view class="text-df text-bold-less margin-right-sm">
-        验证码
-      </view>
-      <input
-        placeholder="请输入验证码"
-        @input="getCode"
-      >
-      <button
-        class="cu-btn bg-gradual-blue shadow"
-        style="width: 32vw; border-radius: 5000rpx"
-        @tap="sendCode"
-      >
-        获取验证码
-      </button>
-    </view>
-    <button
-      class="cu-btn round bg-gradual-blue shadow text-df margin-top-sm"
-      style="display: flex; justify-content: center"
-      @tap="setNewEmail"
+  <PageShell
+    title="修改邮箱"
+    :back-fallback="ROUTES.userInformation"
+  >
+    <view
+      v-if="loading"
+      class="state-card"
     >
-      保存
-    </button>
-  </view>
+      正在读取邮箱…
+    </view>
+    <view
+      v-else-if="loadError"
+      class="state-card"
+    >
+      <view>{{ loadError }}</view>
+      <BaseButton
+        class="state-action"
+        block
+        @click="getUserEmail"
+      >
+        重试
+      </BaseButton>
+    </view>
+    <view
+      v-else
+      class="email-form"
+    >
+      <view class="hint">
+        验证码会发到新邮箱。若该地址已经绑定其他账号，需要换一个。
+      </view>
+      <BaseForm
+        ref="form"
+        :data="formData"
+        :rules="rules"
+      >
+        <BaseField
+          :model-value="oldEmailDisplay"
+          name="oldEmail"
+          label="原邮箱"
+          disabled
+        />
+        <BaseField
+          v-model="newEmail"
+          name="email"
+          label="新邮箱"
+          required
+          placeholder="请输入新邮箱"
+          :error="emailError"
+          :disabled="saving"
+        />
+        <view class="code-row">
+          <view class="code-field">
+            <BaseField
+              v-model="code"
+              name="code"
+              label="验证码"
+              required
+              placeholder="请输入验证码"
+              :maxlength="6"
+              :error="codeError"
+              :disabled="saving"
+            />
+          </view>
+          <BaseButton
+            class="code-button"
+            size="small"
+            variant="ghost"
+            :disabled="sending || saving || countdown > 0"
+            :loading="sending"
+            @click="sendCode"
+          >
+            {{ sendCodeLabel }}
+          </BaseButton>
+        </view>
+        <view
+          v-if="demoCode"
+          class="demo-code"
+        >
+          Demo 验证码：<text>{{ demoCode }}</text>
+        </view>
+        <BaseButton
+          block
+          :disabled="saving || sending"
+          :loading="saving"
+          @click="setNewEmail"
+        >
+          保存
+        </BaseButton>
+      </BaseForm>
+    </view>
+  </PageShell>
 </template>
 
 <script>
+import BaseButton from '@/components/BaseButton.vue';
+import BaseField from '@/components/BaseField.vue';
+import BaseForm from '@/components/BaseForm.vue';
+import PageShell from '@/components/PageShell.vue';
+import { notify, notifySuccess } from '@/services/feedback';
+import { goBack, goLogin, ROUTES } from '@/services/navigation';
+import { resolveSessionUserId } from '@/services/session';
 import { changeUserEmail, getUserInfo } from '@/services/user';
 import { sendEmailCode } from '@/services/verification';
 
 const app = getApp();
+const CODE_THROTTLE_SECONDS = 60;
+
+function fieldErrorMessage(error, field) {
+  const item = error?.data?.[field] || error?.data?.user?.[field];
+  if (typeof item === 'string') return item;
+  if (item?.message) return item.message;
+  return '';
+}
+
+function applyEmailErrors(error) {
+  const emailError = fieldErrorMessage(error, 'email');
+  const codeError = fieldErrorMessage(error, 'code');
+  if (emailError || codeError) {
+    return { emailError, codeError };
+  }
+  const message = error?.message || '保存失败，请检查网络后重试';
+  if (error?.statusCode === 409) {
+    return { emailError: message, codeError: '' };
+  }
+  return { emailError: '', codeError: message };
+}
+
 export default {
+  name: 'ChangeEmail',
+  components: {
+    BaseButton, BaseField, BaseForm, PageShell,
+  },
   data() {
     return {
-      old_email: '',
+      ROUTES,
+      oldEmail: '',
+      newEmail: '',
       code: '',
-      new_email: '',
+      emailError: '',
+      codeError: '',
+      sending: false,
+      saving: false,
+      loading: true,
+      loadError: '',
+      ready: false,
+      countdown: 0,
+      countdownTimer: null,
+      demoCode: '',
+      rules: {
+        email: [{ required: true, message: '请输入新邮箱' }],
+        code: [{ required: true, message: '请输入验证码' }],
+      },
     };
   },
-  onLoad() {
-    this.getUserEmail();
+  computed: {
+    oldEmailDisplay() {
+      return this.oldEmail || '尚未绑定邮箱';
+    },
+    sendCodeLabel() {
+      if (this.countdown > 0) return `${this.countdown}s 后重发`;
+      return '获取验证码';
+    },
+    formData() {
+      return { email: this.newEmail, code: this.code };
+    },
+  },
+  onShow() {
+    if (!resolveSessionUserId()) {
+      goLogin({}, { reset: true });
+      return;
+    }
+    if (!this.ready) this.getUserEmail();
+  },
+  onUnload() {
+    this.clearCountdown();
   },
   methods: {
-    /**
-     * 获取用户未更改前的邮箱信息
-     * @returns {Promise<void>}
-     */
+    clearCountdown() {
+      if (this.countdownTimer) clearInterval(this.countdownTimer);
+      this.countdownTimer = null;
+      this.countdown = 0;
+    },
+    startCountdown(seconds) {
+      this.clearCountdown();
+      this.countdown = Number(seconds) || CODE_THROTTLE_SECONDS;
+      this.countdownTimer = setInterval(() => {
+        this.countdown -= 1;
+        if (this.countdown <= 0) this.clearCountdown();
+      }, 1000);
+    },
     async getUserEmail() {
-      const userInfo = await getUserInfo(app.globalData.id);
-      this.old_email = userInfo.user.email;
+      this.loading = true;
+      this.loadError = '';
+      try {
+        const userInfo = await getUserInfo(app.globalData.id, true);
+        this.oldEmail = userInfo.user.email || '';
+      } catch (error) {
+        this.loadError = error?.message || '邮箱读取失败，请检查网络后重试';
+      } finally {
+        this.loading = false;
+        this.ready = true;
+      }
     },
-
-    getCode(e) {
-      this.code = e.detail.value;
+    async sendCode() {
+      if (this.sending || this.saving || this.countdown > 0) return;
+      const email = String(this.newEmail || '').trim();
+      if (!email) {
+        this.emailError = '请输入新邮箱';
+        return;
+      }
+      if (this.oldEmail && email.toLowerCase() === this.oldEmail.toLowerCase()) {
+        this.emailError = '请填写与当前邮箱不同的地址';
+        return;
+      }
+      this.emailError = '';
+      this.sending = true;
+      try {
+        const response = await sendEmailCode(email, 'bind', true);
+        this.demoCode = response?.demo_code || '';
+        notify({ title: this.demoCode ? '验证码已生成' : '验证码已发送' });
+        this.startCountdown(response?.retry_after);
+      } catch (error) {
+        this.emailError = fieldErrorMessage(error, 'email')
+          || error?.message
+          || '验证码发送失败';
+        notify({ title: this.emailError });
+        if (error?.statusCode === 429) {
+          this.startCountdown(error?.data?.retry_after || CODE_THROTTLE_SECONDS);
+        }
+      } finally {
+        this.sending = false;
+      }
     },
-
-    getNewEmail(e) {
-      this.new_email = e.detail.value;
-    },
-
-    /**
-     * 发送邮箱验证码
-     */
-    sendCode() {
-      const email = this.new_email;
-      sendEmailCode(email, 'bind');
-    },
-
-    /**
-     * 发送新邮箱
-     */
-    setNewEmail() {
-      const { code } = this;
-      const email = this.new_email;
-      changeUserEmail(app.globalData.id, email, code).then(async () => {
-        setTimeout(() => {
-          uni.showToast({
-            title: '修改成功',
-          });
-        }, 100);
-        uni.navigateBack({
-          delta: 1,
-        }); // 返回上一个页面
-      });
+    async setNewEmail() {
+      if (this.saving || this.sending) return;
+      const email = String(this.newEmail || '').trim();
+      const code = String(this.code || '').trim();
+      this.emailError = email ? '' : '请输入新邮箱';
+      this.codeError = code ? '' : '请输入验证码';
+      if (!email || !code) return;
+      if (this.oldEmail && email.toLowerCase() === this.oldEmail.toLowerCase()) {
+        this.emailError = '请填写与当前邮箱不同的地址';
+        return;
+      }
+      const valid = await this.$refs.form.validate();
+      if (valid !== true) return;
+      this.saving = true;
+      try {
+        await changeUserEmail(app.globalData.id, email, code);
+        notifySuccess('修改成功');
+        goBack(ROUTES.userInformation);
+      } catch (error) {
+        const next = applyEmailErrors(error);
+        this.emailError = next.emailError;
+        this.codeError = next.codeError;
+        notify({ title: this.emailError || this.codeError || '保存失败，请检查网络后重试' });
+      } finally {
+        this.saving = false;
+      }
     },
   },
 };
 </script>
-<style>
+
+<style scoped>
+.state-card {
+  padding: var(--space-4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
+  color: var(--text-secondary-color);
+}
+
+.state-action {
+  margin-top: var(--space-3);
+}
+
+.email-form {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.hint {
+  margin-bottom: var(--space-3);
+  color: var(--muted-color);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+}
+
+.code-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.code-field {
+  min-width: 0;
+  flex: 1;
+}
+
+.code-button {
+  margin-bottom: var(--space-3);
+  flex-shrink: 0;
+}
+
+.demo-code {
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-subtle-color);
+  color: var(--warning-color);
+  font-size: var(--font-size-sm);
+}
+
+.demo-code text {
+  font-weight: 700;
+  letter-spacing: 0.2em;
+}
+
+:deep(.base-field-control),
+:deep(.uni-input-wrapper),
+:deep(.uni-input-input) {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
 </style>

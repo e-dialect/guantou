@@ -69,6 +69,11 @@ export function resolveAuthDestination(intent) {
     return routeDestination(ROUTES.nameplateComments, { id: context.nameplateId });
   }
 
+  if (intent.action === 'dm') {
+    if (!context.userId) return { kind: AUTH_DESTINATION_KINDS.FALLBACK };
+    return routeDestination(ROUTES.mailSend, { id: context.userId });
+  }
+
   if (intent.action === 'follow') {
     if (!context.userId && context.canId) {
       return routeDestination(ROUTES.canDetail, { id: context.canId });

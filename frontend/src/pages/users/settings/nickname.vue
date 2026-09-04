@@ -1,7 +1,16 @@
 <template>
-  <PageShell title="修改昵称">
+  <PageShell
+    title="修改昵称"
+    :back-fallback="ROUTES.userInformation"
+  >
     <view class="setting-hint">
-      昵称用于站内交流和公开展示。
+      昵称会展示给其他乡友。
+      <text
+        v-if="canUseWechatAuth"
+        class="setting-hint-extra"
+      >
+        也可以点下方授权，填入微信昵称后再保存。
+      </text>
     </view>
     <BaseForm
       ref="form"
@@ -12,15 +21,30 @@
         v-model="form.nickname"
         name="nickname"
         label="昵称"
-        placeholder="请输入不超过 20 位的昵称"
-        :maxlength="20"
         required
         clearable
+        placeholder="请输入不超过 20 位的昵称"
+        :maxlength="20"
+        :error="error"
+        :disabled="saving"
       />
+      <!-- 微信昵称只能写在原生 input[type=nickname] 上，H5 编译时会去掉。 -->
+      <!--  #ifdef  MP-WEIXIN -->
+      <input
+        v-if="canUseWechatAuth"
+        class="wechat-nickname"
+        type="nickname"
+        :value="form.nickname"
+        placeholder="点这里填入微信昵称"
+        :disabled="saving"
+        @blur="onWechatNickname"
+      >
+      <!--  #endif -->
       <BaseButton
         block
         text="保存"
-        :disabled="form.nickname === currentNickname"
+        :disabled="saving || form.nickname === currentNickname"
+        :loading="saving"
         @click="saveNickname"
       />
     </BaseForm>
@@ -32,10 +56,21 @@ import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
 import BaseForm from '@/components/BaseForm.vue';
 import PageShell from '@/components/PageShell.vue';
+import { notify, notifySuccess } from '@/services/feedback';
+import { goBack, goLogin, ROUTES } from '@/services/navigation';
+import canUseWechatMiniProgramAuth from '@/services/platform';
+import { resolveSessionUserId } from '@/services/session';
 import { changeUserInfo } from '@/services/user';
-import { toLoginPage } from '@/routers/login';
 
 const app = getApp();
+
+function fieldErrorMessage(error, field) {
+  const item = error?.data?.[field] || error?.data?.user?.[field];
+  if (typeof item === 'string') return item;
+  if (item?.message) return item.message;
+  return '';
+}
+
 export default {
   name: 'ChangeNickname',
   components: {
@@ -43,6 +78,7 @@ export default {
   },
   data() {
     return {
+      ROUTES,
       form: { nickname: '' },
       rules: {
         nickname: [
@@ -50,25 +86,54 @@ export default {
           { whitespace: true, message: '请输入正确的昵称' },
         ],
       },
+      error: '',
+      saving: false,
+      canUseWechatAuth: canUseWechatMiniProgramAuth(),
     };
   },
   computed: {
     currentNickname() {
-      return app.globalData.userInfo.nickname;
+      return app.globalData.userInfo?.nickname || '';
     },
   },
   onShow() {
-    if (!this.currentNickname) toLoginPage();
-    this.form.nickname = this.currentNickname || '';
+    if (!resolveSessionUserId()) {
+      goLogin({}, { reset: true });
+      return;
+    }
+    this.form.nickname = this.currentNickname;
+    this.error = '';
   },
   methods: {
+    onWechatNickname(event) {
+      const nickname = String(event?.detail?.value || '').trim().slice(0, 20);
+      if (!nickname) return;
+      this.form.nickname = nickname;
+      this.error = '';
+      notifySuccess('已填入微信昵称，确认后点保存');
+    },
     async saveNickname() {
       const valid = await this.$refs.form.validate();
       if (valid !== true) return;
-      const userInfo = { ...app.globalData.userInfo, nickname: this.form.nickname };
-      await changeUserInfo(app.globalData.id, userInfo);
-      app.globalData.userInfo = userInfo;
-      setTimeout(() => uni.navigateBack(), 1500);
+      const nickname = String(this.form.nickname || '').trim();
+      if (!nickname) {
+        this.error = '请输入昵称';
+        return;
+      }
+      this.error = '';
+      this.saving = true;
+      try {
+        const userInfo = { ...app.globalData.userInfo, nickname };
+        await changeUserInfo(app.globalData.id, userInfo);
+        app.globalData.userInfo = userInfo;
+        notifySuccess('修改成功');
+        goBack(ROUTES.userInformation);
+      } catch (error) {
+        this.error = fieldErrorMessage(error, 'nickname') || error?.message || '保存失败，请检查网络后重试';
+        notify({ title: this.error });
+      } finally {
+        this.saving = false;
+      }
     },
   },
 };
@@ -83,5 +148,24 @@ export default {
   color: var(--text-secondary-color);
   font-size: var(--font-size-sm);
   line-height: 1.6;
+}
+
+.setting-hint-extra {
+  display: block;
+  margin-top: var(--space-1);
+}
+
+.wechat-nickname {
+  width: 100%;
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-color);
+  color: var(--text-color);
+  font-size: var(--font-size-base);
+  line-height: 1.6;
+  text-align: center;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-sizing: border-box;
 }
 </style>

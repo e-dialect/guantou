@@ -51,4 +51,4 @@ class NotBoundEmail(NotFoundException):
     def __init__(self, username=""):
         super().__init__()
         self.status = 404
-        self.msg = "账户 {}邮箱未绑定, 请通过微信进行操作".format(username)
+        self.msg = "该账号尚未绑定邮箱，请先绑定邮箱后再找回密码"

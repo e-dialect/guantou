@@ -15,6 +15,13 @@ export default {
   },
   async onLaunch() {
     applyTheme();
+    if (!this.globalData.id) {
+      const token = uni.getStorageSync('token');
+      const storedId = uni.getStorageSync('id');
+      if (token && storedId !== undefined && storedId !== null && storedId !== '') {
+        this.globalData.id = storedId;
+      }
+    }
     if (uni.getSystemInfoSync().uniPlatform === 'web') {
       const pages = pagesJson.pages.map((page) => `/${page.path}`);
       const currentPath = window.location.pathname;

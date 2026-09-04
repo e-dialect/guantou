@@ -7,7 +7,7 @@ from django.db import IntegrityError, transaction
 from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
-from guantou.models import Dialect
+from guantou.models import Can, Dialect, Flavor, Nameplate
 from user.models import EmailVerification, UserInfo
 from user.view.wechat import OpenId
 from utils.exceptions.types.not_found import NotFoundException
@@ -172,6 +172,40 @@ class EmailVerificationTests(TestCase):
         self.assertEqual(first.status_code, 200)
         self.assertEqual(second.status_code, 429)
 
+    @override_settings(EMAIL_CODE_DEMO_MODE=True)
+    @patch("user.verification.generate_email_code", return_value="123456")
+    @patch("user.verification.send_mail")
+    def test_demo_mode_returns_code_without_smtp(self, send_mail, _generate):
+        response = self.client.post(
+            "/users/email-code",
+            data={"email": "demo@example.com", "purpose": "bind"},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["demo_code"], "123456")
+        self.assertEqual(payload["delivery"], "demo")
+        send_mail.assert_not_called()
+        self.assertTrue(
+            check_email_code(
+                "demo@example.com",
+                "123456",
+                EmailVerification.Purpose.BIND,
+            )
+        )
+
+    @override_settings(EMAIL_CODE_DEMO_MODE=False)
+    @patch("user.verification.generate_email_code", return_value="123456")
+    def test_real_delivery_omits_demo_code(self, _generate):
+        response = self.client.post(
+            "/users/email-code",
+            data={"email": "live@example.com", "purpose": "bind"},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("demo_code", response.json())
+        self.assertEqual(response.json()["retry_after"], 60)
+
     @patch("user.verification.generate_email_code", return_value="123456")
     def test_password_reset_uses_username_scope_without_old_token(self, _generate):
         user = User.objects.create_user(
@@ -198,6 +232,30 @@ class EmailVerificationTests(TestCase):
         self.assertEqual(reset.status_code, 200)
         user.refresh_from_db()
         self.assertTrue(user.check_password("new-pass-123"))
+
+    def test_forget_lookup_requires_a_bound_email(self):
+        user = User.objects.create_user(username="phoneless", password="pw")
+        UserInfo.objects.create(user=user, nickname="Phone")
+        response = self.client.get("/login/forget", {"username": "phoneless"})
+        self.assertEqual(response.status_code, 404)
+        self.assertIn("邮箱", response.json()["message"])
+
+    @override_settings(EMAIL_CODE_DEMO_MODE=True)
+    @patch("user.verification.generate_email_code", return_value="123456")
+    @patch("user.verification.send_mail")
+    def test_forget_post_returns_demo_code_without_smtp(self, send_mail, _generate):
+        user = User.objects.create_user(
+            username="demo-reset", email="reset@example.com", password="old-pass"
+        )
+        UserInfo.objects.create(user=user, nickname="Reset")
+        response = self.client.post(
+            "/login/forget",
+            data='{"username": "demo-reset"}',
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["demo_code"], "123456")
+        send_mail.assert_not_called()
 
 
 @override_settings(
@@ -352,6 +410,34 @@ class WechatPasswordlessRegistrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["id"], exact.id)
 
+    @override_settings(WECHAT_BIND_DEMO_MODE=True)
+    def test_demo_bind_writes_a_local_openid(self):
+        user = User.objects.create_user(username="binder")
+        UserInfo.objects.create(user=user, nickname="Binder")
+        response = self.client.put(
+            f"/users/{user.id}/wechat",
+            data='{"demo": true, "overwrite": false}',
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {generate_token(user)}",
+        )
+        self.assertEqual(response.status_code, 200)
+        user.user_info.refresh_from_db()
+        self.assertEqual(user.user_info.wechat, f"demo-wechat-{user.id}")
+
+    @override_settings(WECHAT_BIND_DEMO_MODE=False)
+    def test_demo_bind_is_rejected_when_wechat_is_configured(self):
+        user = User.objects.create_user(username="live-bind")
+        UserInfo.objects.create(user=user, nickname="Live")
+        response = self.client.put(
+            f"/users/{user.id}/wechat",
+            data='{"demo": true, "overwrite": false}',
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {generate_token(user)}",
+        )
+        self.assertEqual(response.status_code, 400)
+        user.user_info.refresh_from_db()
+        self.assertEqual(user.user_info.wechat, "")
+
 
 @override_settings(APP_ID="mini-app-id", APP_SECRET="canonical-mini-secret")
 class WechatOpenIdTests(TestCase):
@@ -498,3 +584,154 @@ class UserPrimaryDialectTests(TestCase):
             "游洋",
         )
         self.assertEqual(response.json()["user"]["telephone"], "13800000000")
+
+
+class UserManageProfileTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(username="collector", password="pw")
+        UserInfo.objects.create(user=self.user, nickname="采集者")
+        self.auth = {"HTTP_AUTHORIZATION": f"Bearer {generate_token(self.user)}"}
+        self.public_can = Can.objects.create(
+            recorder=self.user,
+            audio_url="https://example.com/public.mp3",
+            visibility=True,
+        )
+        self.hidden_can = Can.objects.create(
+            recorder=self.user,
+            audio_url="https://example.com/hidden.mp3",
+            visibility=False,
+        )
+        Flavor.objects.create(
+            name="公开义项",
+            definition="公开",
+            created_by=self.user,
+            visibility=True,
+        )
+        Flavor.objects.create(
+            name="隐藏义项",
+            definition="隐藏",
+            created_by=self.user,
+            visibility=False,
+        )
+        Nameplate.objects.create(
+            can=self.public_can,
+            creator=self.user,
+            text_content="公开铭牌",
+            definition="公开",
+            source={"type": "creator"},
+        )
+        Nameplate.objects.create(
+            can=self.hidden_can,
+            creator=self.user,
+            text_content="隐藏铭牌",
+            definition="隐藏",
+            source={"type": "creator"},
+        )
+
+    def test_owner_can_update_username_and_receives_a_new_token(self):
+        old_token = generate_token(self.user)
+        response = self.client.put(
+            f"/users/{self.user.id}",
+            data='{"user": {"username": "new-handle"}}',
+            content_type="application/json",
+            **self.auth,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, "new-handle")
+        self.assertEqual(response.json()["user"]["username"], "new-handle")
+        new_token = response.json()["token"]
+        self.assertEqual(token_user(new_token).id, self.user.id)
+        with self.assertRaises(InvalidTokenException):
+            token_user(old_token)
+
+    def test_username_change_rejects_a_taken_name_without_saving(self):
+        User.objects.create_user(username="taken", password="pw")
+        response = self.client.put(
+            f"/users/{self.user.id}",
+            data='{"user": {"username": "Taken"}}',
+            content_type="application/json",
+            **self.auth,
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["message"], "用户名已被占用")
+        self.assertEqual(
+            response.json()["data"]["username"]["message"], "用户名已被占用"
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, "collector")
+
+    def test_anonymous_profile_omits_uploaded_counts(self):
+        response = self.client.get(f"/users/{self.user.id}")
+
+        self.assertEqual(response.status_code, 200)
+        contribution = response.json()["contribution"]
+        self.assertEqual(contribution["cans"], 1)
+        self.assertEqual(contribution["flavors"], 1)
+        self.assertEqual(contribution["nameplates"], 1)
+        self.assertNotIn("cans_uploaded", contribution)
+        self.assertNotIn("flavors_uploaded", contribution)
+        self.assertNotIn("nameplates_uploaded", contribution)
+
+    def test_owner_profile_includes_uploaded_counts(self):
+        response = self.client.get(f"/users/{self.user.id}", **self.auth)
+
+        self.assertEqual(response.status_code, 200)
+        contribution = response.json()["contribution"]
+        self.assertEqual(contribution["cans"], 1)
+        self.assertEqual(contribution["cans_uploaded"], 2)
+        self.assertEqual(contribution["flavors"], 1)
+        self.assertEqual(contribution["flavors_uploaded"], 2)
+        self.assertEqual(contribution["nameplates"], 1)
+        self.assertEqual(contribution["nameplates_uploaded"], 2)
+
+    def test_owner_profile_includes_password_flag(self):
+        response = self.client.get(f"/users/{self.user.id}", **self.auth)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["user"]["has_password"])
+
+    def test_passwordless_owner_can_set_a_password_without_the_old_one(self):
+        self.user.set_unusable_password()
+        self.user.save(update_fields=["password"])
+        response = self.client.put(
+            f"/users/{self.user.id}/password",
+            data='{"oldpassword": "", "newpassword": "new-pass"}',
+            content_type="application/json",
+            **self.auth,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("new-pass"))
+
+    def test_password_change_still_requires_the_old_password(self):
+        response = self.client.put(
+            f"/users/{self.user.id}/password",
+            data='{"oldpassword": "wrong", "newpassword": "new-pass"}',
+            content_type="application/json",
+            **self.auth,
+        )
+        self.assertEqual(response.status_code, 401)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("pw"))
+
+
+class AvatarUrlTests(TestCase):
+    def test_keeps_local_dev_avatar_urls(self):
+        from user.avatar import upload_avatar
+
+        local = "http://localhost:8000/files/image/8/2026/08/27/abc.png"
+        loopback = "http://127.0.0.1:8000/files/image/8/2026/08/27/abc.png"
+        trusted = "https://cos.edialect.top/files/image/8/x.png"
+        self.assertEqual(upload_avatar(8, local), local)
+        self.assertEqual(upload_avatar(8, loopback), loopback)
+        self.assertEqual(upload_avatar(8, trusted), trusted)
+
+    def test_rejects_untrusted_avatar_when_download_fails(self):
+        from user.avatar import upload_avatar
+
+        with patch("user.avatar.download_file", return_value=None):
+            with self.assertRaises(NotFoundException):
+                upload_avatar(8, "https://evil.example/a.png")

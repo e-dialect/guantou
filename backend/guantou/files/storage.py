@@ -1,5 +1,6 @@
 import os
 import random
+import re
 
 import requests
 from django.conf import settings
@@ -15,7 +16,29 @@ def random_str(length=6, digit_only=False):
     return "".join(random.choice(chars) for _ in range(length))
 
 
+def _is_placeholder(value):
+    return not str(value or "").strip() or str(value).startswith("DEFAULT_")
+
+
+def cos_is_configured():
+    region = str(getattr(settings, "COS_REGION", "") or "")
+    secret_id = str(getattr(settings, "COS_SECRET_ID", "") or "")
+    bucket = str(getattr(settings, "COS_BUCKET", "") or "")
+    if _is_placeholder(region) or not re.fullmatch(r"[0-9A-Za-z-]+", region):
+        return False
+    if _is_placeholder(secret_id) or _is_placeholder(bucket):
+        return False
+    return True
+
+
+def public_file_url(key):
+    base = str(getattr(settings, "PUBLIC_BACKEND_URL", "") or "http://localhost:8000")
+    return f"{base.rstrip('/')}/{str(key).lstrip('/')}"
+
+
 def upload_file(path, key):
+    if not cos_is_configured():
+        return public_file_url(key)
     client = cos_client()
     client.upload_file(Bucket=settings.COS_BUCKET, LocalFilePath=path, Key=key)
     if settings.COS_BUCKET.find("test") != -1:
@@ -24,6 +47,8 @@ def upload_file(path, key):
 
 
 def delete_file(key):
+    if not cos_is_configured():
+        return
     cos_client().delete_object(Bucket=settings.COS_BUCKET, Key=key)
 
 

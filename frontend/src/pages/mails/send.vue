@@ -123,7 +123,14 @@ export default {
       submitting: false,
     };
   },
+  onLoad(options = {}) {
+    this.applyRecipient(options.id);
+  },
   methods: {
+    applyRecipient(id) {
+      if (id === undefined || id === null || id === '') return;
+      this.Notification.recipients = [String(id)];
+    },
     clearFieldError(field) {
       if (this.fieldErrors[field]) delete this.fieldErrors[field];
     },

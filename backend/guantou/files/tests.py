@@ -159,3 +159,48 @@ class FileApiTests(TestCase):
         response = self.client.post("/files", {"file": file}, **self._auth_headers())
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["duration_ms"], 2500)
+
+
+class LocalFileStorageTests(TestCase):
+    def setUp(self):
+        self.media_root = tempfile.mkdtemp()
+        self.override = override_settings(
+            MEDIA_ROOT=self.media_root,
+            COS_REGION="DEFAULT_COS_REGION",
+            COS_SECRET_ID="DEFAULT_COS_SECRET_ID",
+            COS_SECRET_KEY="DEFAULT_COS_SECRET_KEY",
+            COS_BUCKET="DEFAULT_COS_BUCKET",
+            PUBLIC_BACKEND_URL="http://localhost:8000",
+        )
+        self.override.enable()
+        self.user = User.objects.create_user(username="collector", password="pw")
+        self.client = Client()
+
+    def tearDown(self):
+        self.override.disable()
+        shutil.rmtree(self.media_root, ignore_errors=True)
+
+    def _auth_headers(self):
+        return {"HTTP_AUTHORIZATION": bearer(self.user)}
+
+    def test_upload_falls_back_to_local_url_without_cos(self):
+        file = SimpleUploadedFile("photo.png", b"image-data", content_type="image/png")
+        with patch("files.storage.cos_client") as cos_client:
+            response = self.client.post(
+                "/files",
+                {"file": file},
+                **self._auth_headers(),
+            )
+        self.assertEqual(response.status_code, 200)
+        url = response.json()["url"]
+        self.assertTrue(url.startswith("http://localhost:8000/files/image/"))
+        cos_client.assert_not_called()
+
+        rel = url.split("http://localhost:8000/", 1)[-1]
+        parts = rel.split("/")
+        self.assertEqual(parts[0], "files")
+        served = self.client.get("/" + rel)
+        self.assertEqual(served.status_code, 200)
+        self.assertEqual(served.content, b"image-data")
+        self.assertEqual(served["Content-Type"], "image/png")
+        self.assertNotIn("Content-Disposition", served)

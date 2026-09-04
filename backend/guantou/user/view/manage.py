@@ -1,5 +1,7 @@
 import demjson3
 from django.contrib.auth.models import User
+from django.contrib.auth.validators import UnicodeUsernameValidator
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse
 from django.views import View
@@ -11,6 +13,7 @@ from user.forms import UserInfoForm
 from user.utils import get_user_by_id
 from user.passwords import validate_password_policy
 from user.avatar import upload_avatar
+from utils.exceptions.payload import api_error_payload, field_error, request_id
 from utils.exceptions.types.bad_request import BadRequestException
 from utils.exceptions.types.forbidden import ForbiddenException
 from utils.exceptions.types.unauthorized import WrongPassword
@@ -19,6 +22,66 @@ from user.models import EmailVerification
 from user.verification import check_email_code, normalize_email
 from user.verification import is_valid_phone, normalize_phone
 from user.models import UserFollow, UserInfo
+
+USERNAME_MAX_LENGTH = 20
+USERNAME_VALIDATOR = UnicodeUsernameValidator()
+
+
+def username_error(request, message, status):
+    return JsonResponse(
+        api_error_payload(
+            message,
+            status,
+            data={"username": field_error(message)},
+            rid=request_id(request),
+        ),
+        status=status,
+    )
+
+
+def apply_username_change(request, user, username):
+    next_name = str(username or "").strip()
+    if not next_name:
+        return username_error(request, "请输入用户名", 400)
+    if len(next_name) > USERNAME_MAX_LENGTH:
+        return username_error(request, "用户名不要超过 20 个字", 400)
+    try:
+        USERNAME_VALIDATOR(next_name)
+    except ValidationError:
+        return username_error(request, "用户名只能包含字母、数字和 @/./+/-/_", 400)
+    if (
+        next_name != user.username
+        and User.objects.exclude(pk=user.pk).filter(username__iexact=next_name).exists()
+    ):
+        return username_error(request, "用户名已被占用", 409)
+    user.username = next_name
+    return None
+
+
+def contribution_payload(user, is_owner):
+    public_cans = Can.objects.filter(recorder=user, visibility=True)
+    payload = {
+        "cans": public_cans.count(),
+        "flavors": Flavor.objects.filter(created_by=user, visibility=True).count(),
+        "nameplates": Nameplate.objects.filter(
+            creator=user,
+            status=Nameplate.Status.ACTIVE,
+            can__visibility=True,
+        ).count(),
+        "views": sum(public_cans.values_list("views", flat=True)),
+    }
+    if not is_owner:
+        return payload
+    all_cans = Can.objects.filter(recorder=user)
+    payload.update(
+        {
+            "cans_uploaded": all_cans.count(),
+            "flavors_uploaded": Flavor.objects.filter(created_by=user).count(),
+            "nameplates_uploaded": Nameplate.objects.filter(creator=user).count(),
+            "views": sum(all_cans.values_list("views", flat=True)),
+        }
+    )
+    return payload
 
 
 class Manage(View):
@@ -49,18 +112,7 @@ class Manage(View):
         )
         response = {
             "user": profile,
-            "contribution": {
-                "cans": Can.objects.filter(recorder=user, visibility=True).count(),
-                "cans_uploaded": Can.objects.filter(recorder=user).count(),
-                "flavors": Flavor.objects.filter(
-                    created_by=user, visibility=True
-                ).count(),
-                "flavors_uploaded": Flavor.objects.filter(created_by=user).count(),
-                "nameplates": Nameplate.objects.filter(creator=user).count(),
-                "views": sum(
-                    Can.objects.filter(recorder=user).values_list("views", flat=True)
-                ),
-            },
+            "contribution": contribution_payload(user, is_owner),
         }
 
         # 如果是本人额外返回邮件
@@ -92,6 +144,9 @@ class Manage(View):
         body = demjson3.decode(request.body)
         info = body["user"]
         mutable_info = dict(info)
+        next_username = (
+            mutable_info.pop("username") if "username" in mutable_info else None
+        )
         if "primary_dialect_id" in mutable_info:
             mutable_info["primary_dialect"] = mutable_info.pop("primary_dialect_id")
         elif isinstance(mutable_info.get("primary_dialect"), dict):
@@ -108,6 +163,10 @@ class Manage(View):
             ):
                 return JsonResponse({"message": "手机号已被其他账号使用"}, status=409)
             mutable_info["telephone"] = telephone
+        if next_username is not None:
+            username_response = apply_username_change(request, user, next_username)
+            if username_response:
+                return username_response
         form_data = {
             field: (
                 user.user_info.primary_dialect_id
@@ -127,7 +186,13 @@ class Manage(View):
         if "avatar" in info:
             user.user_info.avatar = upload_avatar(user.id, info["avatar"])
         user.user_info.save()
-        user.save()
+        try:
+            user.save()
+        except IntegrityError:
+            if next_username is None:
+                raise
+            transaction.set_rollback(True)
+            return username_error(request, "用户名已被占用", 409)
 
         return JsonResponse(
             {
@@ -145,9 +210,10 @@ class ManagePassword(View):
         if user.id != id:
             raise ForbiddenException
         body = demjson3.decode(request.body)
-        if not user.check_password(body["oldpassword"]):
-            raise WrongPassword()
         validate_password_policy(body["newpassword"])
+        if user.has_usable_password():
+            if not user.check_password(body.get("oldpassword") or ""):
+                raise WrongPassword()
         user.set_password(body["newpassword"])
         user.save()
         return JsonResponse(

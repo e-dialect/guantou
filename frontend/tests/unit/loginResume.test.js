@@ -136,6 +136,23 @@ describe('login draft resume', () => {
     });
   });
 
+  it('resumes a dm intent to the mail send page with the recipient', () => {
+    getCurrentPages.mockReturnValue([
+      { route: 'pages/users/details' },
+      { route: 'pages/login/login' },
+    ]);
+    peekInterceptIntent.mockReturnValue({
+      action: 'dm',
+      context: { page: 'user_detail', userId: 9 },
+    });
+
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(true);
+    expect(clearInterceptIntent).toHaveBeenCalledTimes(1);
+    expect(uni.redirectTo).toHaveBeenCalledWith({
+      url: '/pages/mails/send?id=9',
+    });
+  });
+
   it('uses the normal post-login destination without an interrupted action', () => {
     peekInterceptIntent.mockReturnValue(null);
 

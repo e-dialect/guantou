@@ -126,13 +126,26 @@ def files(request):
     return JsonResponse({}, status=405)
 
 
+FILE_CONTENT_TYPES = {
+    "png": "image/png",
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "gif": "image/gif",
+    "webp": "image/webp",
+    "mp3": "audio/mpeg",
+}
+
+
 @csrf_exempt
 def open_file_url(request, type, id, Y, M, D, X):
     filename = f"{Y}_{M}_{D}_{X}"
     path = os.path.join(settings.MEDIA_ROOT, type, id, filename)
     if not os.path.exists(path):
         return JsonResponse({}, status=404)
+    ext = X.rsplit(".", 1)[-1].lower() if "." in X else ""
+    content_type = FILE_CONTENT_TYPES.get(ext, "application/octet-stream")
     with open(path.encode("utf-8"), "rb") as f:
-        response = HttpResponse(f.read(), content_type="application/octet-stream")
-        response["Content-Disposition"] = f"attachment; filename={X}"
+        response = HttpResponse(f.read(), content_type=content_type)
+        if not content_type.startswith("image/"):
+            response["Content-Disposition"] = f"attachment; filename={X}"
         return response

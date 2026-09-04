@@ -147,11 +147,15 @@ export const goRecommendFollow = (reset = false) => openPage(
 );
 export const goLoginRegister = () => openPage(ROUTES.loginRegister);
 export const goLoginWechatRegister = () => openPage(ROUTES.loginWechatRegister);
-export const goLoginForget = () => openPage(ROUTES.loginForget);
+export const goLoginForget = (params = {}) => openPage(ROUTES.loginForget, params);
 export const goNotFound = () => openPage(ROUTES.notFound);
 export const goMails = () => openPage(ROUTES.mails);
 export const goMailDetail = (id) => openPage(ROUTES.mailDetail, { id });
-export const goMailSend = () => openPage(ROUTES.mailSend);
+export const goMailSend = (recipientId, options = {}) => openPage(
+  ROUTES.mailSend,
+  recipientId ? { id: recipientId } : {},
+  options,
+);
 export const goUserInformation = () => openPage(ROUTES.userInformation);
 export const goUserNickname = () => openPage(ROUTES.userNickname);
 export const goUserUsername = () => openPage(ROUTES.userUsername);

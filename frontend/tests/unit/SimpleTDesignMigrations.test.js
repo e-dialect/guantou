@@ -108,7 +108,7 @@ describe('simple TDesign page migrations', () => {
 
     await wrapper.vm.savePhone();
 
-    expect(mocks.getUserInfo).toHaveBeenCalledWith(7);
+    expect(mocks.getUserInfo).toHaveBeenCalledWith(7, true);
     expect(mocks.changeUserInfo).toHaveBeenCalledWith(7, expect.objectContaining({
       telephone: '13900000000',
     }));

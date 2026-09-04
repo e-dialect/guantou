@@ -48,6 +48,24 @@ describe('auth journey', () => {
     })).toEqual({ kind: 'fallback' });
   });
 
+  it('returns a dm intent to the mail send page with the recipient', () => {
+    expect(resolveAuthDestination({
+      action: 'dm',
+      context: { page: 'user_detail', userId: 9 },
+    })).toEqual({
+      kind: 'url',
+      route: 'pages/mails/send',
+      url: '/pages/mails/send?id=9',
+    });
+  });
+
+  it('rejects a dm intent without a recipient', () => {
+    expect(resolveAuthDestination({
+      action: 'dm',
+      context: { page: 'user_detail' },
+    })).toEqual({ kind: 'fallback' });
+  });
+
   it('returns a follow intent to the user without performing the follow', () => {
     expect(resolveAuthDestination({
       action: 'follow',

@@ -11,6 +11,17 @@ TRUSTED_AVATAR_DOMAINS = {
     "cos.test.edialect.top",
     "dummyimage.com",
 }
+LOCAL_AVATAR_HOSTS = {
+    "localhost",
+    "127.0.0.1",
+}
+
+
+def is_trusted_avatar_url(avatar):
+    parsed = urlparse(avatar)
+    if parsed.netloc in TRUSTED_AVATAR_DOMAINS:
+        return True
+    return parsed.hostname in LOCAL_AVATAR_HOSTS
 
 
 def upload_avatar(user_id, avatar, suffix="png"):
@@ -18,7 +29,7 @@ def upload_avatar(user_id, avatar, suffix="png"):
         return ""
     if avatar == DEFAULT_AVATAR:
         return avatar
-    if urlparse(avatar).netloc in TRUSTED_AVATAR_DOMAINS:
+    if is_trusted_avatar_url(avatar):
         return avatar
 
     filename = f"{timezone.now().strftime('%Y_%m_%d')}_{random_str(15)}.{suffix}"

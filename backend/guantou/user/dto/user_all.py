@@ -67,6 +67,7 @@ def user_all(user: User, *, private=False) -> dict:
                 "is_admin": user.is_superuser,
                 "is_staff": user.is_staff,
                 "wechat": bool(info.wechat),
+                "has_password": user.has_usable_password(),
                 "points_now": info.points_now,
                 "followed_dialects": [
                     dialect_ref(dialect) for dialect in info.followed_dialects.all()

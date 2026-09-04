@@ -155,6 +155,9 @@ DEFAULT_AVATAR_URL = env.str(
 # 媒体图片下载到media/下
 MEDIA_URL = "/media/"
 MEDIA_ROOT = env.str("MEDIA_ROOT", os.path.join(BASE_DIR, "media"))
+# Public origin used to build local file URLs when COS is not configured.
+PUBLIC_BACKEND_URL = env.str("PUBLIC_BACKEND_URL", "http://localhost:8000")
+
 
 # 跨域访问设置
 CORS_ALLOW_ALL_ORIGINS = True
@@ -233,6 +236,18 @@ JWT_KEY = env.str("JWT_KEY", "DEFAULT_JWT_KEY")
 
 def _is_placeholder(value):
     return not str(value).strip() or str(value).startswith("DEFAULT_")
+
+
+# Keep the code visible until a real SMTP host is configured, matching
+# PHONE_CODE_DEMO_MODE. Production already rejects placeholder EMAIL_HOST.
+EMAIL_CODE_DEMO_MODE = env.bool(
+    "EMAIL_CODE_DEMO_MODE",
+    _is_placeholder(EMAIL_HOST),
+)
+WECHAT_BIND_DEMO_MODE = env.bool(
+    "WECHAT_BIND_DEMO_MODE",
+    _is_placeholder(APP_ID),
+)
 
 
 if EMAIL_USE_SSL and EMAIL_USE_TLS:

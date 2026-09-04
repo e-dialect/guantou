@@ -298,6 +298,6 @@ SiteSettings 中的公告 ID 列表同样保留提交顺序。写入时所有 ID
 
 ## 8. 用户隐私
 
-`GET /users/{id}/` 只返回公开档案。邮箱、电话、生日、微信绑定状态和登录时间只从 `GET /users/me/` 返回；修改本人资料也统一使用 `/users/me/`。不提供公开的邮箱筛选或通过用户名返回完整邮箱的接口。
+`GET /users/{id}/` 返回 `{ user, contribution }`。访客只看到公开计数 `cans` / `flavors` / `nameplates` / `views`；本人额外看到 `cans_uploaded` / `flavors_uploaded` / `nameplates_uploaded`，且 `views` 按全部上传罐头累计。邮箱、电话、生日、微信绑定状态和登录时间只在本人视图返回。修改本人资料使用 `PUT /users/{id}/`，请求体为 `{ user: { ... } }`，可改用户名（最长 20）；用户名或手机号冲突返回 409，成功响应带新 `token`。改密码走 `PUT /users/{id}/password/`，成功同样返回新 `token`。不记得原密码时，用 `GET/POST/PUT /login/forget/` 按用户名走邮箱验证码重置。绑定或更换邮箱时，先 `POST /users/email-code/`（`purpose` 为 `bind`），再 `PUT /users/{id}/email/`。未配置 SMTP 时邮箱验证码和找回密码接口进入演示模式，响应带 `demo_code`，与手机验证码演示一致。本人资料含 `has_password`；没有登录密码的账号可直接 `PUT /users/{id}/password/` 设置新密码。未配置小程序时，网页可用 `PUT /users/{id}/wechat/` 且 `{ demo: true }` 写入演示绑定。不提供公开的邮箱筛选或通过用户名返回完整邮箱的接口。
 
 账号删除时，公告、罐头、铭牌和已发送通知作为站点资料或历史记录保留，作者字段置空并展示为匿名/已注销用户。匿名化后的罐头和铭牌只有 staff 可以修改；接收者账号删除时，其私有通知仍按原规则级联清理。完整决策见 [ADR-0004](../../adr/0004-core-content-retention.md)。

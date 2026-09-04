@@ -154,29 +154,30 @@ def issue_email_code(email, purpose, subject=""):
                 **values,
             )
 
-    try:
-        sent = send_mail(
-            "[乡声集盒]验证码",
-            f"你的验证码为 {code}，{settings.EMAIL_CODE_TTL_SECONDS // 60} 分钟内有效。",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[normalized],
-            html_message=(
-                "<!DOCTYPE html><html lang='zh-Hans'><body>"
-                f"<p><strong>你的验证码为：{code}</strong></p>"
-                f"<p>{settings.EMAIL_CODE_TTL_SECONDS // 60} 分钟内有效，请勿转发。</p>"
-                "<p>乡声集盒团队</p></body></html>"
-            ),
-        )
-        if sent != 1:
-            raise RuntimeError("SMTP provider did not accept the message")
-    except Exception:
-        EmailVerification.objects.filter(pk=record.pk, code_digest=digest).delete()
-        raise
+    if not getattr(settings, "EMAIL_CODE_DEMO_MODE", False):
+        try:
+            sent = send_mail(
+                "[乡声集盒]验证码",
+                f"你的验证码为 {code}，{settings.EMAIL_CODE_TTL_SECONDS // 60} 分钟内有效。",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[normalized],
+                html_message=(
+                    "<!DOCTYPE html><html lang='zh-Hans'><body>"
+                    f"<p><strong>你的验证码为：{code}</strong></p>"
+                    f"<p>{settings.EMAIL_CODE_TTL_SECONDS // 60} 分钟内有效，请勿转发。</p>"
+                    "<p>乡声集盒团队</p></body></html>"
+                ),
+            )
+            if sent != 1:
+                raise RuntimeError("SMTP provider did not accept the message")
+        except Exception:
+            EmailVerification.objects.filter(pk=record.pk, code_digest=digest).delete()
+            raise
 
     EmailVerification.objects.filter(pk=record.pk, code_digest=digest).update(
         delivered_at=timezone.now()
     )
-    return True
+    return code
 
 
 def check_email_code(email, code, purpose, subject=""):
@@ -228,13 +229,17 @@ def email_code(request):
     if User.objects.filter(email__iexact=email_address).exists():
         return JsonResponse({"msg": "该邮箱已被绑定"}, status=409)
     try:
-        issue_email_code(email_address, purpose)
+        code = issue_email_code(email_address, purpose)
     except EmailCodeThrottled:
         return JsonResponse({"msg": "验证码发送过于频繁"}, status=429)
     except Exception:
         logger.exception("Failed to send email verification code")
         return JsonResponse({"msg": "验证码发送失败，请稍后重试"}, status=502)
-    return JsonResponse({}, status=200)
+    payload = {"retry_after": settings.EMAIL_CODE_THROTTLE_SECONDS}
+    if getattr(settings, "EMAIL_CODE_DEMO_MODE", False):
+        payload["delivery"] = "demo"
+        payload["demo_code"] = code
+    return JsonResponse(payload, status=200)
 
 
 @csrf_exempt
