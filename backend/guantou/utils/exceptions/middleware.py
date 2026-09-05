@@ -34,7 +34,10 @@ class ExceptionMiddleware(MiddlewareMixin):
                 payload.get("code") == response.status_code
                 and set(("message", "data", "request_id")).issubset(payload)
             )
-            if response.status_code >= 500:
+            safe_public_error = bool(
+                already_normalized and getattr(response, "safe_public_error", False)
+            )
+            if response.status_code >= 500 and not safe_public_error:
                 if payload.get("message") != "服务器内部错误":
                     logger.error(
                         "Non-DRF server error response path=%s status=%s request_id=%s",

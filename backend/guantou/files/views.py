@@ -5,12 +5,17 @@ from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from pydub import AudioSegment as audio
-from pydub.exceptions import CouldntDecodeError
 
 from user.tokens import get_authorization_token, token_check
 from utils.exceptions.types.bad_request import BadRequestException
+from utils.exceptions.types.service_unavailable import ServiceUnavailableException
 
+from .audio_processing import (
+    AudioCapabilityUnavailable,
+    AudioDecodeError,
+    AudioProcessingError,
+    normalize_audio_to_mp3,
+)
 from .storage import delete_file, random_str, upload_file
 
 ALLOWED_AUDIO_CONTENT_TYPES = frozenset(
@@ -55,10 +60,6 @@ def validate_audio_format(uploaded_file):
         raise BadRequestException("音频文件大小不能超过 5 MB")
 
 
-def extract_duration_ms(audio_segment):
-    return int(audio_segment.duration_seconds * 1000)
-
-
 def is_audio_upload(uploaded_file, file_type):
     ext = file_extension(uploaded_file, file_type).lower()
     return file_type == "audio" or ext in ALLOWED_AUDIO_EXTENSIONS
@@ -94,12 +95,13 @@ def files(request):
                     f.write(chunk)
         else:
             try:
-                music = audio.from_file(uploaded_file)
-            except CouldntDecodeError as exc:
+                duration_ms = normalize_audio_to_mp3(uploaded_file, path)
+            except AudioDecodeError as exc:
                 raise BadRequestException("无法解析音频文件") from exc
-            duration_ms = extract_duration_ms(music)
-            music = music.set_frame_rate(44100)
-            music.export(path, format="mp3")
+            except AudioCapabilityUnavailable as exc:
+                raise ServiceUnavailableException(str(exc)) from exc
+            except AudioProcessingError as exc:
+                raise ServiceUnavailableException("音频处理服务暂不可用") from exc
         key = (
             f"files/{file_type}/{user.id}/"
             + timezone.now().strftime("%Y/%m/%d/")

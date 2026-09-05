@@ -11,6 +11,9 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+RUN ffmpeg -version >/dev/null
+RUN ffprobe -version >/dev/null
+
 # Copy and install Python dependencies
 COPY requirements.txt .
 RUN python -m pip install --no-cache-dir --upgrade pip && \
