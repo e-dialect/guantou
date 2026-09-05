@@ -46,6 +46,7 @@
 | `pages/discovery/index` | queued | 操作按钮与加载状态 |
 | `pages/users/me` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：完整账户中心与游客身份入口 |
 | `pages/users/details` | done | [#355](https://github.com/e-dialect/guantou/issues/355)：他人主页使用统一档案面、无头像回退、主次关注/私信操作和具备 tab 语义的公开贡献状态 |
+| `pages/curation/index` / `apply` | done | [#360](https://github.com/e-dialect/guantou/issues/360)：整理权限申请、授权公开记录与审核待办统一为范围 → 资料 → 判断 → 依据的可信工作流 |
 | `pages/users/recommend-follow` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：延续身份旅程，并保留统一加载、空态、重试及关注结果反馈 |
 | `pages/users/theme-center` | done | 总览 THEME_CENTER.md。分期 ROADMAP：一期核心切换；二期搜索收藏预览权限；三期不在本页做投稿社区。跳转 NAV |
 | `pages/users/theme-dress` | done | 单组局部装扮：免费/会员/活动/创作者权限、待上线占位；不覆盖其它分组 |
@@ -112,6 +113,14 @@
 390×844 H5 截图：[浅色](assets/tdesign-migration/pronunciation-create-light-390x844.png)、[暗色](assets/tdesign-migration/pronunciation-create-dark-390x844.png)、[变调校验](assets/tdesign-migration/pronunciation-create-sandhi-error-390x844.png)。
 
 在已启动的 H5 服务上运行 `yarn test:e2e:h5 tests/e2e/pronunciation-create.spec.js`；非默认端口通过 `E2E_BASE_URL` 指定。需要刷新文档截图时设置 `UPDATE_MIGRATION_SCREENSHOTS=1`，普通测试只生成测试附件。微信小程序需通过 `yarn build:mp-weixin`；构建不替代开发者工具/真机交互验收。
+
+## 整理申请与审核工作台（#360）
+
+- 申请页先解释“权限有范围、授权有期限、判断留依据”，再把表单拆为选择范围与说明核对能力两步；待审、历史和公开授权记录分别呈现，不再混成相同卡片。
+- 首次加载失败会显示可重试错误态，不再把未知数据误呈现为空记录和可提交表单。待审申请说明后续流程，撤回前通过共享确认层明确告知会进入历史且重新参与需要再次申请。
+- 工作台在首屏列出当前授权范围；每项待办先展示资料类型、地区和摘要，再由整理员主动选择处理结果。通过、保留争议、退回默认均不预选，选中后才展开影响说明、判断依据与唯一确认操作。
+- 页面只使用项目主题 Token、BaseButton/BaseField/BaseForm/BaseLoading/EmptyState 与 DialectSelector/DialectLabel；不改变权限、API、审核动作、payload 或数据可见性语义。
+- 回归覆盖申请 payload、失败态、历史理由、撤回确认、审核结果中立初态、判断 payload 与失败态；H5 以 390×844 浅色/暗色检查申请、待审、工作台、展开判断、空态与错误态，并检查浏览器控制台。H5 与微信小程序构建作为合入门禁。
 
 ## Completion
 

@@ -13,7 +13,11 @@ vi.mock('@/services/entryRecording', () => ({
   withdrawCuratorApplication: vi.fn(),
 }));
 vi.mock('@/services/guantou', () => ({ listAllDialects: vi.fn() }));
-vi.mock('@/services/feedback', () => ({ notify: vi.fn(), notifySuccess: vi.fn() }));
+vi.mock('@/services/feedback', () => ({
+  confirm: vi.fn(),
+  notify: vi.fn(),
+  notifySuccess: vi.fn(),
+}));
 vi.mock('@/services/capabilities', () => ({
   CAPABILITIES: { CURATION_WORKBENCH: 'curation_workbench' },
   ensureCapability: vi.fn(() => true),
@@ -28,6 +32,7 @@ vi.mock('@/services/navigation', async (importOriginal) => ({
 }));
 
 const governance = await import('@/services/entryRecording');
+const { confirm: confirmAction } = await import('@/services/feedback');
 const { listAllDialects } = await import('@/services/guantou');
 const { trackProductEvent } = await import('@/services/productAnalytics');
 const { default: ApplyPage } = await import('@/pages/curation/apply.vue');
@@ -56,6 +61,7 @@ describe('V2 governance journeys', () => {
     governance.listCuratorGrants.mockResolvedValue({ results: [] });
     governance.listCurationTasks.mockResolvedValue({ results: [] });
     governance.getCurationSummary.mockResolvedValue({ grants: [], pending: {} });
+    confirmAction.mockResolvedValue(true);
     governance.getMyContributionHistory.mockResolvedValue({
       summary: { recordings: 2, evidence: 1, revisions: 3, dialects: 1 },
       dialect_footprint: [],
@@ -104,6 +110,47 @@ describe('V2 governance journeys', () => {
     expect(wrapper.text()).toContain('请先补充可核对的资料来源');
   });
 
+  it('keeps the application form hidden when bootstrap data cannot be trusted', async () => {
+    governance.listCuratorApplications.mockRejectedValueOnce(new Error('连接超时'));
+    const wrapper = mountPage(ApplyPage);
+
+    await wrapper.vm.load();
+
+    expect(wrapper.vm.error).toBe('连接超时');
+    expect(wrapper.find('.application-form').exists()).toBe(false);
+    expect(wrapper.vm.applications).toEqual([]);
+    expect(wrapper.vm.grants).toEqual([]);
+  });
+
+  it('explains the consequence and confirms before withdrawing a pending application', async () => {
+    governance.listCuratorApplications.mockResolvedValue({
+      results: [{
+        id: 9,
+        role: 'regional_curator',
+        status: 'pending',
+        statement: '我长期记录本地乡音，希望参与地区读音与使用范围的核对。',
+      }],
+    });
+    governance.withdrawCuratorApplication.mockResolvedValue({ status: 'withdrawn' });
+    const wrapper = mountPage(ApplyPage);
+    await wrapper.vm.load();
+    confirmAction.mockResolvedValueOnce(false);
+
+    await wrapper.vm.withdraw();
+
+    expect(governance.withdrawCuratorApplication).not.toHaveBeenCalled();
+    confirmAction.mockResolvedValueOnce(true);
+
+    await wrapper.vm.withdraw();
+
+    expect(confirmAction).toHaveBeenLastCalledWith(expect.objectContaining({
+      title: '撤回这份申请？',
+      confirmText: '确认撤回',
+      danger: true,
+    }));
+    expect(governance.withdrawCuratorApplication).toHaveBeenCalledWith(9);
+  });
+
   it('turns a scoped workbench decision into an auditable action', async () => {
     const task = {
       kind: 'recording', id: 6, target_type: 'recording', title: '表示害怕',
@@ -130,6 +177,33 @@ describe('V2 governance journeys', () => {
       result: 'success',
       metadata: { task_kind: 'recording' },
     });
+  });
+
+  it('does not visually preselect an approval outcome before the curator decides', async () => {
+    const task = {
+      kind: 'recording', id: 6, target_type: 'recording', title: '表示害怕',
+      summary: '核对地区范围', actions: ['published', 'disputed', 'rejected'],
+    };
+    const wrapper = mountPage(WorkbenchPage);
+
+    expect(wrapper.vm.actionVariant(task, 'published')).toBe('ghost');
+    expect(wrapper.vm.actionVariant(task, 'disputed')).toBe('ghost');
+    expect(wrapper.vm.actionVariant(task, 'rejected')).toBe('danger-ghost');
+
+    wrapper.vm.choose(task, 'disputed');
+
+    expect(wrapper.vm.actionVariant(task, 'disputed')).toBe('primary');
+    expect(wrapper.vm.actionDescription('disputed')).toContain('等待更多证据');
+  });
+
+  it('shows a workbench error instead of an empty queue when loading fails', async () => {
+    governance.getCurationSummary.mockRejectedValueOnce(new Error('没有整理权限'));
+    const wrapper = mountPage(WorkbenchPage);
+
+    await wrapper.vm.load();
+
+    expect(wrapper.vm.error).toBe('没有整理权限');
+    expect(wrapper.vm.tasks).toEqual([]);
   });
 
   it('shows contribution categories without scores or authority ranks', async () => {
