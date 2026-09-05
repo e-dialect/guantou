@@ -1,9 +1,16 @@
 import { mount } from '@vue/test-utils';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   beforeEach, describe, expect, it, vi,
 } from 'vitest';
 
 import HomeTabBar from '@/components/home/HomeTabBar.vue';
+
+const source = readFileSync(
+  resolve(process.cwd(), 'src/components/home/HomeTabBar.vue'),
+  'utf8',
+);
 
 function setupUni(token = 'token-value') {
   globalThis.uni = {
@@ -52,6 +59,18 @@ describe('HomeTabBar routing', () => {
     expect(record.attributes('data-nav-state')).toBe('action');
     expect(record.attributes('aria-current')).toBeUndefined();
     expect(record.classes()).not.toContain('home-tab-bar__item--active');
+  });
+
+  it('consumes the complete tab-bar foreground contract with immersive fallbacks', () => {
+    [
+      '--dress-tab-bar-background',
+      '--dress-tab-bar-color',
+      '--dress-tab-bar-accent',
+      '--dress-tab-bar-on-accent',
+      '--dress-tab-bar-emphasis',
+      '--dress-tab-bar-border-color',
+    ].forEach((token) => expect(source).toContain(token));
+    expect(source).not.toContain('border-top: 1rpx solid var(--immersive-border-color)');
   });
 
   it('routes search and mine to their primary pages', async () => {

@@ -91,7 +91,7 @@ export default {
     var(--immersive-bg-soft-color),
     var(--immersive-bg-color)
   );
-  border-top: 1rpx solid var(--immersive-border-color);
+  border-top: 1rpx solid var(--dress-tab-bar-border-color, var(--immersive-border-color));
   backdrop-filter: blur(18rpx);
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -118,7 +118,7 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 4rpx;
-  color: var(--on-immersive-muted-color);
+  color: var(--dress-tab-bar-color, var(--on-immersive-muted-color));
 }
 
 .home-tab-bar__glyph {
@@ -139,13 +139,13 @@ export default {
 }
 
 .home-tab-bar__item--active {
-  color: var(--immersive-accent-color);
+  color: var(--dress-tab-bar-accent, var(--immersive-accent-color));
 }
 
 .home-tab-bar__item--active .home-tab-bar__glyph,
 .home-tab-bar__item--record.home-tab-bar__item--active .home-tab-bar__glyph {
-  background: var(--immersive-accent-color);
-  color: var(--immersive-bg-strong-color);
+  background: var(--dress-tab-bar-accent, var(--immersive-accent-color));
+  color: var(--dress-tab-bar-on-accent, var(--immersive-bg-strong-color));
 }
 
 .home-tab-bar__item--record .home-tab-bar__glyph {
@@ -155,10 +155,14 @@ export default {
   transform: translateY(-3rpx);
 }
 
+.home-tab-bar__item--record:not(.home-tab-bar__item--active) .home-tab-bar__hint {
+  color: var(--dress-tab-bar-emphasis, var(--on-immersive-color));
+}
+
 .home-tab-bar__item--record:not(.home-tab-bar__item--active) .home-tab-bar__glyph {
-  border: 2rpx solid var(--immersive-accent-color);
-  background: var(--immersive-surface-color);
-  color: var(--immersive-accent-color);
+  border: 2rpx solid var(--dress-tab-bar-accent, var(--immersive-accent-color));
+  background: var(--dress-tab-bar-background, var(--immersive-surface-color));
+  color: var(--dress-tab-bar-accent, var(--immersive-accent-color));
 }
 
 /* #ifdef H5 */

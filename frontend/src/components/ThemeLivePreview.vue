@@ -351,6 +351,15 @@ export default {
 
 .mock-tab {
   background: var(--dress-tab-bar-background, var(--accent-color));
+  color: var(--dress-tab-bar-color, var(--on-accent-color));
+  border-color: var(--dress-tab-bar-border-color, transparent);
+}
+
+.mock-tab > view:first-child {
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--dress-tab-bar-accent, var(--accent-color));
+  color: var(--dress-tab-bar-on-accent, var(--on-accent-color));
 }
 
 .mock-nav.locked,

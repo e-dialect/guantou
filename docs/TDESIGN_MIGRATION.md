@@ -190,3 +190,10 @@ V2 全站聚合验收由 [#346](https://github.com/e-dialect/guantou/issues/346)
 - 圈子详情只保留一个情境主动作：有录音时在列表标题补录，没有录音时由空态邀请录第一段。圈内录音独立维护加载和错误状态，局部请求失败仍保留圈子说明与成员关系。
 - 他人主页以档案面聚合头像、方言和公开计数；空头像显示姓名首字，不再产生破图。公开贡献切换补齐 tab/selected/键盘语义，加载与失败统一使用 BaseLoading/EmptyState。
 - `tests/e2e/circles-profile-states.spec.js` 在 390×844 覆盖圈子列表、详情和公开档案的加载、空、失败与正常路径；浅色/暗色 H5 已人工复核，业务与共享组件契约保持不变。
+
+## 主题底栏可读性（#366）
+
+- `HomeTabBar` 不再把沉浸式前景色写死在可能为浅色的装扮背景上。主题与底栏装扮现在共同提供背景、普通文字、激活色、激活色上的文字、强调文字和边界六项语义变量；缺少新变量的旧远端主题继续使用原沉浸式回退值。
+- 赛博与节日主题的浅色底栏使用页面自适应色组；`tabbar-plain` 使用表面自适应色组。颜色均来自现有主题 token，浅暗模式会同步切换，不新增局部色值。
+- 前端内置目录和 Django 主题目录保持同一契约；数据迁移 `themes.0010_seed_tab_bar_contrast` 会重新发布目录并提升版本，避免已部署数据库继续返回旧的单背景配置。
+- 390×844 H5 已验证 `tabbar-plain` 浅色/暗色和浅底赛博主题；同时检查实际计算后的背景、普通文字、激活文字、激活字形和边界颜色。回归入口为 `themeSchema.test.js`、`ThemeCatalogDomain.test.js`、`HomeTabBar.test.js` 与 `ThemeApiTests.test_live_packs_ship_surface_recipes`。

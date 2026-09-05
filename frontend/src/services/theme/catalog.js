@@ -1698,6 +1698,11 @@ function packSurface(overrides = {}) {
   if (overrides.navColor != null) out.navColor = overrides.navColor;
   if (overrides.navBorder != null) out.navBorder = overrides.navBorder;
   if (overrides.tabBg != null) out.tabBackground = overrides.tabBg;
+  if (overrides.tabColor != null) out.tabColor = overrides.tabColor;
+  if (overrides.tabAccent != null) out.tabAccent = overrides.tabAccent;
+  if (overrides.tabOnAccent != null) out.tabOnAccent = overrides.tabOnAccent;
+  if (overrides.tabEmphasis != null) out.tabEmphasis = overrides.tabEmphasis;
+  if (overrides.tabBorder != null) out.tabBorder = overrides.tabBorder;
   if (overrides.grain != null) out.grainOpacity = overrides.grain;
   if (overrides.grainImage != null) out.grainImage = overrides.grainImage;
   if (overrides.grainSize != null) out.grainSize = overrides.grainSize;
@@ -1734,6 +1739,11 @@ function styleFamily(overrides = {}) {
     navColor: 'var(--text-color)',
     navBorder: 'var(--accent-color)',
     tabBackground: 'var(--immersive-veil-color)',
+    tabColor: 'var(--on-immersive-muted-color)',
+    tabAccent: 'var(--immersive-accent-color)',
+    tabOnAccent: 'var(--immersive-bg-strong-color)',
+    tabEmphasis: 'var(--on-immersive-color)',
+    tabBorder: 'var(--immersive-border-color)',
     grainOpacity: '0.14',
     grainImage: 'var(--grain-dot)',
     grainSize: '46rpx 46rpx',
@@ -1815,6 +1825,11 @@ const STYLE_FAMILIES = {
     commentBorder: 'var(--accent-color)',
     navBg: 'var(--page-color)',
     tabBg: 'var(--page-color)',
+    tabColor: 'var(--muted-color)',
+    tabAccent: 'var(--accent-color)',
+    tabOnAccent: 'var(--on-accent-color)',
+    tabEmphasis: 'var(--text-color)',
+    tabBorder: 'var(--border-color)',
     inputRadius: '0px',
     inputBorder: 'var(--accent-color)',
     topicRadius: '0px',
@@ -1865,6 +1880,11 @@ const STYLE_FAMILIES = {
     commentWidth: '1px',
     commentBorder: 'var(--gilt-color)',
     tabBg: 'var(--accent-subtle-color)',
+    tabColor: 'var(--muted-color)',
+    tabAccent: 'var(--accent-color)',
+    tabOnAccent: 'var(--on-accent-color)',
+    tabEmphasis: 'var(--text-color)',
+    tabBorder: 'var(--border-color)',
     topicBorder: 'var(--gilt-color)',
     cardPad: '26rpx',
   }),
@@ -3223,7 +3243,14 @@ const BUILTIN_DRESS_STYLES = {
   'avatar-plain': { borderWidth: '0px' },
   'comment-bubble-plain': { borderRadius: '12px' },
   'navbar-plain': { color: 'var(--text-color)' },
-  'tabbar-plain': { background: 'var(--surface-color)' },
+  'tabbar-plain': {
+    tabBackground: 'var(--surface-color)',
+    tabColor: 'var(--muted-color)',
+    tabAccent: 'var(--accent-color)',
+    tabOnAccent: 'var(--on-accent-color)',
+    tabEmphasis: 'var(--text-color)',
+    tabBorder: 'var(--border-color)',
+  },
   'cards-member': { borderColor: 'var(--accent-color)' },
   'avatar-creator': { borderWidth: '4px' },
   'cards-paper': {

@@ -3779,6 +3779,7 @@ export default {
 
 .shot-tab {
   background: var(--dress-tab-bar-background, var(--accent-color));
+  border: 1px solid var(--dress-tab-bar-border-color, transparent);
 }
 
 .shot-feed {

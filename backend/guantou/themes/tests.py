@@ -786,6 +786,42 @@ class ThemeApiTests(TestCase):
         self.assertEqual(detail.status_code, 200)
         self.assertEqual(detail.json()["style_json"]["cardBorderRadius"], "4px")
 
+        tab_keys = {
+            "tabBackground",
+            "tabColor",
+            "tabAccent",
+            "tabOnAccent",
+            "tabEmphasis",
+            "tabBorder",
+        }
+        for item in ThemeItem.objects.exclude(style_json={}):
+            self.assertTrue(tab_keys.issubset(item.style_json), item.theme_id)
+
+        for theme_id, background in {
+            "nightferry": "var(--page-color)",
+            "midautumn": "var(--accent-subtle-color)",
+        }.items():
+            style = ThemeItem.objects.get(theme_id=theme_id).style_json
+            self.assertEqual(style["tabBackground"], background)
+            self.assertEqual(style["tabColor"], "var(--muted-color)")
+            self.assertEqual(style["tabAccent"], "var(--accent-color)")
+            self.assertEqual(style["tabOnAccent"], "var(--on-accent-color)")
+            self.assertEqual(style["tabEmphasis"], "var(--text-color)")
+            self.assertEqual(style["tabBorder"], "var(--border-color)")
+
+        tabbar = DecorationItem.objects.get(decoration_id="tabbar-plain")
+        self.assertEqual(
+            tabbar.style_json,
+            {
+                "tabBackground": "var(--surface-color)",
+                "tabColor": "var(--muted-color)",
+                "tabAccent": "var(--accent-color)",
+                "tabOnAccent": "var(--on-accent-color)",
+                "tabEmphasis": "var(--text-color)",
+                "tabBorder": "var(--border-color)",
+            },
+        )
+
         style_tags = [
             "简约",
             "地域方言风",
