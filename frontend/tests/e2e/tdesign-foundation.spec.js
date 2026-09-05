@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { stableScreenshot } from './helpers/stableScreenshot';
+import {
+  installVisualFixture,
+  openVisualRoute,
+} from './helpers/visualReviewFixture';
 
 const rect = (locator) => locator.evaluate((element) => {
   const { width, height } = element.getBoundingClientRect();
@@ -119,17 +123,16 @@ test('component-level theme-dark recomputes TDesign tokens', async ({ page }) =>
 });
 
 test('recording creation uses a BaseField with a non-zero text area', async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem('token', 'e2e-layout-token');
-    localStorage.setItem('id', '1');
-  });
-  await page.goto('/pages/recordings/create');
+  await installVisualFixture(page, { persona: 'member' });
+  await openVisualRoute(page, '/pages/recordings/create', { persona: 'member' });
 
-  const conceptInput = page.locator('.base-field input').first();
-  await expect(conceptInput).toBeVisible();
-  const conceptInputBox = await rect(conceptInput);
+  const glossField = page.locator('.base-field .t-textarea').first();
+  const glossTextarea = glossField.locator('textarea');
+  await expect(glossField).toBeVisible();
+  await expect(glossTextarea).toBeVisible();
 
-  expect(conceptInputBox.height).toBeGreaterThan(20);
+  expect((await rect(glossField)).height).toBeGreaterThan(80);
+  expect((await rect(glossTextarea)).height).toBeGreaterThan(20);
 });
 
 test('PageShell and AppShell mount the shared feedback host', async ({ page }) => {

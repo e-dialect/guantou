@@ -21,6 +21,25 @@ async function openMine(page) {
   await expect(page.getByText('还没有登录')).toBeVisible();
 }
 
+async function themeCenterLayout(page) {
+  return page.evaluate(() => {
+    const recentElement = document.querySelector('.recent-block');
+    const currentElement = document.querySelector('.current-card');
+    const recent = recentElement?.getBoundingClientRect();
+    const current = currentElement?.getBoundingClientRect();
+    const scrollContainer = currentElement?.closest('.shell-scroll, .app-shell__scroll');
+    const scrollRect = scrollContainer?.getBoundingClientRect();
+    const currentTop = current && scrollRect
+      ? current.top - scrollRect.top + scrollContainer.scrollTop
+      : (current?.top || 0) + window.scrollY;
+    return {
+      recentHeight: recent?.height || 0,
+      currentTop,
+      overflow: document.documentElement.scrollWidth - window.innerWidth,
+    };
+  });
+}
+
 async function themeTokens(page) {
   return page.evaluate(() => {
     const styles = getComputedStyle(document.documentElement);
@@ -40,16 +59,7 @@ test('mine page keeps contrast in light and dark themes', async ({ page }) => {
   await expect(page.locator('.recent-block .theme-status-pane--compact')).toBeVisible();
   await expect(page.locator('.recent-block .empty-state')).toHaveCount(0);
 
-  const lightLayout = await page.evaluate(() => {
-    const recent = document.querySelector('.recent-block')?.getBoundingClientRect();
-    const current = document.querySelector('.current-card')?.getBoundingClientRect();
-    return {
-      recentHeight: recent?.height || 0,
-      currentTop: (current?.top || 0) + window.scrollY
-        + (document.querySelector('.app-shell__scroll')?.scrollTop || 0),
-      overflow: document.documentElement.scrollWidth - window.innerWidth,
-    };
-  });
+  const lightLayout = await themeCenterLayout(page);
   expect(lightLayout.recentHeight).toBeLessThanOrEqual(120);
   expect(lightLayout.currentTop).toBeLessThanOrEqual(539);
   expect(lightLayout.overflow).toBeLessThanOrEqual(0);
@@ -73,16 +83,7 @@ test('mine page keeps contrast in light and dark themes', async ({ page }) => {
   expect(dark.text).toBe('#edf4ef');
   expect(dark.surface).toBe('#1d2822');
   expect(dark.page).not.toBe(light.page);
-  const darkLayout = await page.evaluate(() => {
-    const recent = document.querySelector('.recent-block')?.getBoundingClientRect();
-    const current = document.querySelector('.current-card')?.getBoundingClientRect();
-    return {
-      recentHeight: recent?.height || 0,
-      currentTop: (current?.top || 0) + window.scrollY
-        + (document.querySelector('.app-shell__scroll')?.scrollTop || 0),
-      overflow: document.documentElement.scrollWidth - window.innerWidth,
-    };
-  });
+  const darkLayout = await themeCenterLayout(page);
   expect(darkLayout).toEqual(lightLayout);
   await stableScreenshot(page, {
     path: 'test-results/account-me-dark.png',
