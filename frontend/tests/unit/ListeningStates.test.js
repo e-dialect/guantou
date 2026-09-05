@@ -75,7 +75,12 @@ const scrollViewStub = {
 function mountFeed(tab = 'recommended') {
   return shallowMount(RecordingFeed, {
     props: { tab },
-    global: { stubs: { 'scroll-view': scrollViewStub } },
+    global: {
+      stubs: {
+        PlatformScroll: scrollViewStub,
+        'scroll-view': scrollViewStub,
+      },
+    },
   });
 }
 

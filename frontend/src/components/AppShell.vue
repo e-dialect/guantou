@@ -21,10 +21,9 @@
         @click="$emit('action')"
       />
     </view>
-    <scroll-view
+    <PlatformScroll
       v-if="scroll"
-      scroll-y
-      class="app-shell__scroll"
+      variant="app-shell"
       @scrolltolower="$emit('scrolltolower')"
     >
       <view class="app-shell__content">
@@ -33,7 +32,7 @@
       <view class="app-shell__footer">
         把乡音录下来，让每个词条都有来处。
       </view>
-    </scroll-view>
+    </PlatformScroll>
     <view
       v-else
       class="app-shell__content app-shell__content--fixed"
@@ -49,6 +48,7 @@
 import BaseButton from '@/components/BaseButton.vue';
 import FeedbackHost from '@/components/FeedbackHost.vue';
 import HomeTabBar from '@/components/home/HomeTabBar.vue';
+import PlatformScroll from '@/components/PlatformScroll.vue';
 import { getAccentPreference } from '@/services/theme';
 import { hydrateOutfitStyle } from '@/services/themeCenter';
 import { getAppliedOutfitVars } from '@/services/themeSchema';
@@ -56,7 +56,7 @@ import { getAppliedOutfitVars } from '@/services/themeSchema';
 export default {
   name: 'AppShell',
   components: {
-    BaseButton, FeedbackHost, HomeTabBar,
+    BaseButton, FeedbackHost, HomeTabBar, PlatformScroll,
   },
   props: {
     title: { type: String, required: true },

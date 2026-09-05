@@ -45,28 +45,15 @@
       />
     </view>
     <slot name="before" />
-    <!-- #ifdef H5 -->
-    <view
+    <PlatformScroll
       v-if="scroll"
-      class="shell-content shell-scroll shell-scroll--h5"
-      :class="contentClass"
-      @scroll="onH5Scroll"
-    >
-      <slot />
-    </view>
-    <!-- #endif -->
-    <!-- #ifndef H5 -->
-    <scroll-view
-      v-if="scroll"
-      scroll-y
-      class="shell-content shell-scroll"
-      :class="contentClass"
+      variant="page-shell"
+      :container-class="contentClass"
       @scroll="onScroll"
       @scrolltolower="$emit('scrolltolower')"
     >
       <slot />
-    </scroll-view>
-    <!-- #endif -->
+    </PlatformScroll>
     <view
       v-else
       class="shell-content"
@@ -85,10 +72,11 @@ import { getAppliedOutfitVars } from '@/services/themeSchema';
 import { goBack, ROUTES } from '@/services/navigation';
 import BaseButton from '@/components/BaseButton.vue';
 import FeedbackHost from '@/components/FeedbackHost.vue';
+import PlatformScroll from '@/components/PlatformScroll.vue';
 
 export default {
   name: 'PageShell',
-  components: { BaseButton, FeedbackHost },
+  components: { BaseButton, FeedbackHost, PlatformScroll },
   props: {
     title: {
       type: String,
@@ -151,13 +139,6 @@ export default {
         ?? event?.target?.scrollTop
         ?? 0;
       this.$emit('scroll', { scrollTop: Number(top) || 0 });
-    },
-    onH5Scroll(event) {
-      this.onScroll(event);
-      const target = event?.currentTarget ?? event?.target;
-      if (!target) return;
-      const remaining = target.scrollHeight - target.clientHeight - target.scrollTop;
-      if (remaining <= 1) this.$emit('scrolltolower');
     },
     handleBack() {
       this.$emit('back');
@@ -266,12 +247,6 @@ export default {
 
 .shell-scroll {
   height: calc(100dvh - 104rpx - env(safe-area-inset-top));
-}
-
-.shell-scroll--h5 {
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-  -webkit-overflow-scrolling: touch;
 }
 
 @media screen and (min-width: 960px) {

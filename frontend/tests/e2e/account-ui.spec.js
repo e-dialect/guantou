@@ -45,7 +45,8 @@ test('mine page keeps contrast in light and dark themes', async ({ page }) => {
     const current = document.querySelector('.current-card')?.getBoundingClientRect();
     return {
       recentHeight: recent?.height || 0,
-      currentTop: (current?.top || 0) + window.scrollY,
+      currentTop: (current?.top || 0) + window.scrollY
+        + (document.querySelector('.app-shell__scroll')?.scrollTop || 0),
       overflow: document.documentElement.scrollWidth - window.innerWidth,
     };
   });
@@ -77,7 +78,8 @@ test('mine page keeps contrast in light and dark themes', async ({ page }) => {
     const current = document.querySelector('.current-card')?.getBoundingClientRect();
     return {
       recentHeight: recent?.height || 0,
-      currentTop: (current?.top || 0) + window.scrollY,
+      currentTop: (current?.top || 0) + window.scrollY
+        + (document.querySelector('.app-shell__scroll')?.scrollTop || 0),
       overflow: document.documentElement.scrollWidth - window.innerWidth,
     };
   });

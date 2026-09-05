@@ -1,7 +1,6 @@
 <template>
-  <scroll-view
-    scroll-y
-    class="recording-feed"
+  <PlatformScroll
+    variant="recording-feed"
     @scrolltolower="loadMore"
   >
     <view class="recording-feed__intro">
@@ -118,13 +117,14 @@
         已经听到这一页的末尾
       </view>
     </view>
-  </scroll-view>
+  </PlatformScroll>
 </template>
 
 <script>
 import BaseButton from '@/components/BaseButton.vue';
 import BaseLoading from '@/components/BaseLoading.vue';
 import EntryRecordingCard from '@/components/EntryRecordingCard.vue';
+import PlatformScroll from '@/components/PlatformScroll.vue';
 import { requireAuth } from '@/services/authGuard';
 import {
   createUsageAttestation,
@@ -140,7 +140,9 @@ import {
 
 export default {
   name: 'RecordingFeed',
-  components: { BaseButton, BaseLoading, EntryRecordingCard },
+  components: {
+    BaseButton, BaseLoading, EntryRecordingCard, PlatformScroll,
+  },
   props: {
     tab: { type: String, default: 'recommended' },
   },
