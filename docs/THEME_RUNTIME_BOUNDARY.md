@@ -55,3 +55,7 @@ themeAnalytics / themeStatus ──→ themeAnalyticsLabels
 - 390×844 的 H5 Chrome E2E 26/26 通过；首页 smoke 用例显式断言无 error 级浏览器控制台消息。
 - `scroll-view` 测试桩告警继续由 #354 跟踪；本边界不全局吞掉未知组件 warning。
 - E2E 后端日志仍能复现 #351 已登记的 SQLite 匿名访客写入锁；该问题已有独立负责人，本改造不混入后端并发修复。
+
+## #368 后续收敛
+
+#367 建立的运行时接口在 #368 中继续保留，但能力所有权已从单个 5,396 行文件下沉到 catalog、store、render 与 sync 领域模块；旧 `themeCenter.js` 只剩兼容导出与运行时装配。新的单向依赖、独立测试与产物/时延基线见 [`THEME_DOMAIN_ARCHITECTURE.md`](THEME_DOMAIN_ARCHITECTURE.md)。
