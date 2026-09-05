@@ -42,7 +42,7 @@ describe('PageShell', () => {
     wrapper.unmount();
   });
 
-  it('gives the back affordance an accessible name', () => {
+  it('uses a named design-system circle for the back affordance', () => {
     const wrapper = mount(PageShell, {
       props: { title: '词条详情' },
       global: {
@@ -50,8 +50,14 @@ describe('PageShell', () => {
       },
     });
 
-    expect(wrapper.get('.shell-back').attributes('role')).toBe('button');
-    expect(wrapper.get('.shell-back').attributes('aria-label')).toBe('返回');
+    const back = wrapper.findAllComponents(BaseButton)
+      .find((button) => button.props('ariaLabel') === '返回');
+    expect(back?.props()).toMatchObject({
+      size: 'small',
+      variant: 'ghost',
+      shape: 'circle',
+    });
+    expect(back?.text()).toBe('‹');
     wrapper.unmount();
   });
 
@@ -62,7 +68,8 @@ describe('PageShell', () => {
         stubs: { 'scroll-view': { template: '<div><slot /></div>' } },
       },
     });
-    const action = wrapper.getComponent(BaseButton);
+    const action = wrapper.findAllComponents(BaseButton)
+      .find((button) => button.props('text') === '保存');
     expect(action.props('text')).toBe('保存');
     action.vm.$emit('click');
     expect(wrapper.emitted('action')).toHaveLength(1);
@@ -112,7 +119,10 @@ describe('PageShell', () => {
         stubs: { 'scroll-view': { template: '<div><slot /></div>' } },
       },
     });
-    await wrapper.find('.shell-back').trigger('tap');
+    const back = wrapper.findAllComponents(BaseButton)
+      .find((button) => button.props('ariaLabel') === '返回');
+    back.vm.$emit('click');
+    await wrapper.vm.$nextTick();
     expect(wrapper.emitted('back')).toHaveLength(1);
     expect(uni.navigateBack).not.toHaveBeenCalled();
     expect(uni.reLaunch).not.toHaveBeenCalled();

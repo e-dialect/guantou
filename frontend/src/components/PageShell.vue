@@ -9,15 +9,22 @@
       aria-hidden="true"
     />
     <view class="shell-topbar">
-      <text
+      <BaseButton
         v-if="showBack"
         class="shell-back"
-        role="button"
+        size="small"
+        variant="ghost"
+        shape="circle"
         aria-label="返回"
-        @tap="handleBack"
+        @click="handleBack"
       >
-        ‹
-      </text>
+        <text
+          class="shell-back-glyph"
+          aria-hidden="true"
+        >
+          ‹
+        </text>
+      </BaseButton>
       <view
         v-else
         class="shell-back-placeholder"
@@ -178,20 +185,17 @@ export default {
   box-sizing: border-box;
 }
 
-.shell-back,
 .shell-back-placeholder {
   width: 56rpx;
 }
 
 .shell-back {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 64rpx;
-  border-radius: var(--radius-pill);
-  background: var(--surface-subtle-color);
-  color: var(--accent-color);
-  font-size: 48rpx;
+  justify-self: start;
+  margin: 0;
+}
+
+.shell-back-glyph {
+  font-size: 40rpx;
   line-height: 1;
 }
 
@@ -263,14 +267,8 @@ export default {
     gap: 12px;
   }
 
-  .shell-back,
   .shell-back-placeholder {
     width: 40px;
-  }
-
-  .shell-back {
-    height: 40px;
-    font-size: 32px;
   }
 
   .shell-title {
