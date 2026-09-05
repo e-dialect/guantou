@@ -47,6 +47,7 @@
 | `pages/users/me` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：完整账户中心与游客身份入口 |
 | `pages/users/details` | done | [#355](https://github.com/e-dialect/guantou/issues/355)：他人主页使用统一档案面、无头像回退、主次关注/私信操作和具备 tab 语义的公开贡献状态 |
 | `pages/curation/index` / `apply` | done | [#360](https://github.com/e-dialect/guantou/issues/360)：整理权限申请、授权公开记录与审核待办统一为范围 → 资料 → 判断 → 依据的可信工作流 |
+| `pages/users/contributions` / `bookmarks` | done | [#361](https://github.com/e-dialect/guantou/issues/361)：贡献概览、地区足迹、最近参与与私人词条书签统一为可浏览的个人资料档案 |
 | `pages/users/recommend-follow` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：延续身份旅程，并保留统一加载、空态、重试及关注结果反馈 |
 | `pages/users/theme-center` | done | 总览 THEME_CENTER.md。分期 ROADMAP：一期核心切换；二期搜索收藏预览权限；三期不在本页做投稿社区。跳转 NAV |
 | `pages/users/theme-dress` | done | 单组局部装扮：免费/会员/活动/创作者权限、待上线占位；不覆盖其它分组 |
@@ -121,6 +122,13 @@
 - 工作台在首屏列出当前授权范围；每项待办先展示资料类型、地区和摘要，再由整理员主动选择处理结果。通过、保留争议、退回默认均不预选，选中后才展开影响说明、判断依据与唯一确认操作。
 - 页面只使用项目主题 Token、BaseButton/BaseField/BaseForm/BaseLoading/EmptyState 与 DialectSelector/DialectLabel；不改变权限、API、审核动作、payload 或数据可见性语义。
 - 回归覆盖申请 payload、失败态、历史理由、撤回确认、审核结果中立初态、判断 payload 与失败态；H5 以 390×844 浅色/暗色检查申请、待审、工作台、展开判断、空态与错误态，并检查浏览器控制台。H5 与微信小程序构建作为合入门禁。
+
+## 贡献履历与词条收藏（#361）
+
+- 贡献履历先说明可追溯、不排名的用途，再以一条紧凑概览辅助找回录音、补证、修订和地区足迹；地区与最近活动改用不同的扫读结构，长标题不截断，空档案给出录音入口。
+- 词条收藏补齐私人书签说明和收藏数量；每张卡按状态、标题、大意、地区/录音/依据、动作排列，长词条不再被右侧按钮挤成窄列。“查看词条”是卡片主动作，“移出收藏”为次要操作。
+- 两页均使用 BaseLoading 与 EmptyState 区分加载、失败和真实空白。移出收藏增加逐项 busy 状态；请求失败时保留词条并给出反馈，不再产生未处理拒绝。
+- 页面只使用项目 Token 和既有项目原语，不增加积分、排名、权威等级、收藏类型、接口或后端统计。回归覆盖正常/失败/空白、长标题、详情导航、移出成功与失败；H5 以 390×844 检查浅色/暗色和浏览器控制台，H5/微信小程序构建作为合入门禁。
 
 ## Completion
 
