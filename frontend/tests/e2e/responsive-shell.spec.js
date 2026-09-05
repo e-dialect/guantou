@@ -9,6 +9,8 @@ const enabledCapabilities = {
   wechat_auth: true,
 };
 
+const strictConsole = process.env.RESPONSIVE_CONSOLE_STRICT === '1';
+
 const viewports = [
   { name: 'mobile portrait', width: 390, height: 844 },
   { name: 'mobile landscape', width: 844, height: 390 },
@@ -72,6 +74,15 @@ function expectResponsiveWidth(geometry, viewport) {
 
 viewports.forEach((viewport) => {
   test(`${viewport.name} keeps the three page shells usable`, async ({ page }, testInfo) => {
+    const consoleNoise = [];
+    const pageErrors = [];
+    page.on('console', (message) => {
+      if (['warning', 'error'].includes(message.type())) {
+        consoleNoise.push(`${message.type()}: ${message.text()}`);
+      }
+    });
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+
     await page.setViewportSize(viewport);
     if (viewport.theme) {
       await page.addInitScript((theme) => {
@@ -130,5 +141,9 @@ viewports.forEach((viewport) => {
     await expect(page.locator('.page-shell')).toBeVisible();
     if (viewport.theme) await expect(page.locator('.page-shell')).toHaveClass(/theme-dark/);
     expectResponsiveWidth(await shellGeometry(page, '.page-shell'), viewport);
+
+    if (strictConsole) {
+      expect({ consoleNoise, pageErrors }).toEqual({ consoleNoise: [], pageErrors: [] });
+    }
   });
 });
