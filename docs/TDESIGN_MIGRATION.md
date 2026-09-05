@@ -42,9 +42,10 @@
 | `pages/posts/details` | queued | 独立 PR |
 | `pages/flavors/index` / `details` | queued | 搜索、列表与详情操作 |
 | `pages/packages/index` / `details` | queued | 搜索、加载与详情操作 |
-| `pages/circles/index` / `details` | queued | 搜索、Picker 与详情操作 |
+| `pages/circles/index` / `details` | done | [#355](https://github.com/e-dialect/guantou/issues/355)：地区社群说明、单列搜索、低干扰加入/查看动作及圈内录音加载、空、局部失败和正常态；录音失败不再抹掉已加载的圈子资料 |
 | `pages/discovery/index` | queued | 操作按钮与加载状态 |
 | `pages/users/me` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：完整账户中心与游客身份入口 |
+| `pages/users/details` | done | [#355](https://github.com/e-dialect/guantou/issues/355)：他人主页使用统一档案面、无头像回退、主次关注/私信操作和具备 tab 语义的公开贡献状态 |
 | `pages/users/recommend-follow` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：延续身份旅程，并保留统一加载、空态、重试及关注结果反馈 |
 | `pages/users/theme-center` | done | 总览 THEME_CENTER.md。分期 ROADMAP：一期核心切换；二期搜索收藏预览权限；三期不在本页做投稿社区。跳转 NAV |
 | `pages/users/theme-dress` | done | 单组局部装扮：免费/会员/活动/创作者权限、待上线占位；不覆盖其它分组 |
@@ -123,3 +124,10 @@
 - 查询后先说明独立词条数量与“同字异义分别保留”，再提供高级筛选和结果卡；卡片明确区分状态、地区、录音与待补音，并补齐键盘进入语义。
 - 词条详情把释义、写法和地区读音置于录音之前，把辨识说明、整理状态及证据计数置于录音之后；录音与收藏集中在末尾共建区，不再让状态与指标抢占首屏。
 - `tests/e2e/search-entry-hierarchy.spec.js` 在 390×844 视口覆盖初始/结果/失败/空结果/能力维护态及详情五段顺序；`tests/unit/EntryDetailHierarchy.test.js` 与 `tests/unit/SearchPage.test.js` 固化页面层级和筛选契约。浅色、暗色 H5 已人工复核；微信小程序以构建验证为本轮自动化边界。
+
+### 方言圈与他人主页（#355）
+
+- 方言圈广场先解释地区社群用途，再提供移动端单列搜索和目录；卡片用弱化的查看/加入双动作替代重复实心按钮，并把方言、成员与公开录音拆成可扫描信息。
+- 圈子详情只保留一个情境主动作：有录音时在列表标题补录，没有录音时由空态邀请录第一段。圈内录音独立维护加载和错误状态，局部请求失败仍保留圈子说明与成员关系。
+- 他人主页以档案面聚合头像、方言和公开计数；空头像显示姓名首字，不再产生破图。公开贡献切换补齐 tab/selected/键盘语义，加载与失败统一使用 BaseLoading/EmptyState。
+- `tests/e2e/circles-profile-states.spec.js` 在 390×844 覆盖圈子列表、详情和公开档案的加载、空、失败与正常路径；浅色/暗色 H5 已人工复核，业务与共享组件契约保持不变。

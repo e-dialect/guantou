@@ -405,7 +405,17 @@ describe('user details page', () => {
 
   it('renders inside PageShell', () => {
     const wrapper = mountForm(UserDetailsPage);
-    expect(wrapper.html()).toContain('正在读取用户档案');
+    expect(wrapper.findComponent({ name: 'BaseLoading' }).props('text'))
+      .toBe('正在读取用户档案…');
+  });
+
+  it('uses a readable avatar fallback and keyboard-selectable contribution tabs', () => {
+    const wrapper = mountForm(UserDetailsPage);
+    wrapper.vm.userInfo.user.nickname = '采集者';
+
+    expect(wrapper.vm.profileInitial).toBe('采');
+    wrapper.vm.selectWorksTab('entries');
+    expect(wrapper.vm.worksTab).toBe('entries');
   });
 
   it('switches works tabs and treats a non-zero public count as a filled panel', () => {
