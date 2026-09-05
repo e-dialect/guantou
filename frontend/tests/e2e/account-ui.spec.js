@@ -128,7 +128,7 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
   await expect(page.getByText('你还没有收藏任何主题装扮，快去挑选喜欢的吧')).toBeVisible();
   await page.locator('.tab', { hasText: '全局主题' }).click();
 
-  await page.locator('.filter-toolbar .base-button').click({ force: true });
+  await page.getByRole('button', { name: /^筛选与排序/ }).click();
   await expect(page.getByText('权限筛选')).toBeVisible();
   await expect(page.getByText('地域方言标签')).toBeVisible();
   await expect(page.getByText('可多选家乡风格')).toBeVisible();

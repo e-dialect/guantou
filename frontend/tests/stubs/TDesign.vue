@@ -1,6 +1,8 @@
 <template>
   <div>
     <slot />
+    <slot name="title" />
+    <slot name="note" />
     <slot name="description" />
     <slot name="action" />
   </div>

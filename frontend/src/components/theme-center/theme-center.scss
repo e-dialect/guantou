@@ -26,10 +26,21 @@
 }
 
 .filter-toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
+  margin-top: var(--space-1);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
+  --td-cell-vertical-padding: var(--space-2);
+  --td-cell-horizontal-padding: var(--space-3);
+  --td-cell-height: 88rpx;
+  --td-cell-bg-color: var(--surface-color);
+  --td-cell-hover-color: var(--surface-subtle-color);
+  --td-cell-title-color: var(--accent-color);
+  --td-cell-title-font: 700 var(--font-size-sm) / 1.45 var(--td-font-family);
+  --td-cell-note-color: var(--muted-color);
+  --td-cell-note-font-size: var(--font-size-xs);
+  --td-cell-right-icon-color: var(--accent-color);
 }
 
 .filter-row.wrap {
@@ -289,7 +300,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
   padding: var(--space-3);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);

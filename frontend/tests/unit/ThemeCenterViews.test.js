@@ -236,8 +236,20 @@ describe('theme center independent views', () => {
     await wrapper.setProps({ catalogLoading: false, searching: true, searchRows: [] });
     expect(wrapper.find('[data-scene="search"]').exists()).toBe(true);
 
-    await wrapper.setProps({ searching: false, hotKeywords: ['家乡'], tab: 'global' });
+    await wrapper.setProps({
+      filterSummary: '最新上架',
+      hotKeywords: ['家乡'],
+      searching: false,
+      showFilterBar: true,
+      tab: 'global',
+    });
     expect(wrapper.text()).toContain('家乡');
+    expect(wrapper.text()).toContain('筛选与排序');
+    expect(wrapper.text()).toContain('最新上架');
+    const filterCell = wrapper.getComponent({ name: 'TDesignStub' });
+    expect(filterCell.props('ariaLabel')).toBe('筛选与排序，当前最新上架');
+    filterCell.vm.$emit('click');
+    expect(wrapper.emitted('open-filter')).toHaveLength(1);
     await wrapper.find('input').setValue('纸页');
     expect(wrapper.emitted('update-keyword')?.[0]).toEqual(['纸页']);
   });

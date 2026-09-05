@@ -75,21 +75,26 @@
       </view>
     </scroll-view>
 
-    <view
+    <t-cell
       v-if="!catalogFail && showFilterBar"
       class="filter-toolbar"
+      arrow
+      hover
+      :bordered="false"
+      :note-style="filterNoteStyle"
+      :aria-label="`筛选与排序，当前${filterSummary}`"
+      role="button"
+      tabindex="0"
+      @click="$emit('open-filter')"
+      @keydown.enter.space.prevent="$emit('open-filter')"
     >
-      <BaseButton
-        size="small"
-        variant="ghost"
-        @click="$emit('open-filter')"
-      >
-        筛选
-      </BaseButton>
-      <view class="muted">
+      <template #title>
+        筛选与排序
+      </template>
+      <template #note>
         {{ filterSummary }}
-      </view>
-    </view>
+      </template>
+    </t-cell>
 
     <view
       v-if="!catalogFail && searching"
@@ -224,11 +229,21 @@
 
 <script>
 /* eslint-disable vue/require-prop-types -- internal route contract */
+import TCell from '@tdesign/uniapp/cell/cell.vue';
 import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
 import BaseForm from '@/components/BaseForm.vue';
 import BaseLoading from '@/components/BaseLoading.vue';
 import ThemeStatusPane from '@/components/ThemeStatusPane.vue';
+
+const FILTER_NOTE_STYLE = [
+  'max-width: 56%',
+  'min-width: 0',
+  'overflow: hidden',
+  'text-align: right',
+  'text-overflow: ellipsis',
+  'white-space: nowrap',
+].join('; ');
 
 export default {
   name: 'ThemeCenterDiscoveryView',
@@ -237,6 +252,7 @@ export default {
     BaseField,
     BaseForm,
     BaseLoading,
+    TCell,
     ThemeStatusPane,
   },
   props: [
@@ -260,6 +276,7 @@ export default {
   ],
   data() {
     return {
+      filterNoteStyle: FILTER_NOTE_STYLE,
       tabs: [
         { value: 'global', label: '全局主题' },
         { value: 'local', label: '局部装扮' },
