@@ -29,9 +29,9 @@ const BaseLoading = {
   template: '<div class="base-loading">{{ text }}</div>',
 };
 const ThemeStatusPane = {
-  props: ['scene'],
+  props: ['compact', 'scene'],
   emits: ['action'],
-  template: '<button class="status-pane" :data-scene="scene" @click="$emit(\'action\')">{{ scene }}</button>',
+  template: '<button class="status-pane" :data-compact="compact" :data-scene="scene" @click="$emit(\'action\')">{{ scene }}</button>',
 };
 const TSwitch = {
   props: ['value'],
@@ -246,7 +246,9 @@ describe('theme center independent views', () => {
 
   it('keeps recent empty and disabled rows independently testable', async () => {
     const wrapper = mountView(ThemeCenterRecentView, { visible: true, rows: [] });
-    expect(wrapper.find('[data-scene="recent"]').exists()).toBe(true);
+    const status = wrapper.find('[data-scene="recent"]');
+    expect(status.exists()).toBe(true);
+    expect(status.attributes()).toHaveProperty('data-compact');
 
     await wrapper.setProps({
       rows: [{

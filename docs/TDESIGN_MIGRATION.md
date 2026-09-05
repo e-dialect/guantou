@@ -51,7 +51,7 @@ V2 全站聚合验收由 [#346](https://github.com/e-dialect/guantou/issues/346)
 | `pages/curation/index` / `apply` | done | [#360](https://github.com/e-dialect/guantou/issues/360)：整理权限申请、授权公开记录与审核待办统一为范围 → 资料 → 判断 → 依据的可信工作流 |
 | `pages/users/contributions` / `bookmarks` | done | [#361](https://github.com/e-dialect/guantou/issues/361)：贡献概览、地区足迹、最近参与与私人词条书签统一为可浏览的个人资料档案 |
 | `pages/users/recommend-follow` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：延续身份旅程，并保留统一加载、空态、重试及关注结果反馈 |
-| `pages/users/theme-center` | done | 总览 THEME_CENTER.md；[#369](https://github.com/e-dialect/guantou/issues/369) 将路由入口拆为可独立验证的搜索、目录、最近、收藏、搭配与弹层视图，边界见 [THEME_CENTER_VIEW_ARCHITECTURE.md](THEME_CENTER_VIEW_ARCHITECTURE.md)。三期不在本页做投稿社区。跳转 NAV |
+| `pages/users/theme-center` | done | 总览 THEME_CENTER.md；[#369](https://github.com/e-dialect/guantou/issues/369) 将路由入口拆为可独立验证的搜索、目录、最近、收藏、搭配与弹层视图，边界见 [THEME_CENTER_VIEW_ARCHITECTURE.md](THEME_CENTER_VIEW_ARCHITECTURE.md)；[#375](https://github.com/e-dialect/guantou/issues/375) 将次要的“最近使用”无记录提示收为 opt-in 紧凑状态，保留共享完整空态与曝光语义。三期不在本页做投稿社区。跳转 NAV |
 | `pages/users/theme-dress` | done | 单组局部装扮：免费/会员/活动/创作者权限、待上线占位；不覆盖其它分组 |
 | `pages/users/theme-acquire` | done | 装扮获取聚合：会员、活动、创作任务与方言主题福利 |
 | `pages/users/theme-member` | done | 开通会员，权益 H5/小程序同步 |

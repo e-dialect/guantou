@@ -8,6 +8,7 @@
     </view>
     <ThemeStatusPane
       v-if="!rows.length"
+      compact
       scene="recent"
     />
     <scroll-view
