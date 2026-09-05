@@ -195,8 +195,10 @@ describe('account UI tokens', () => {
     expect(source).toContain('录乡音');
     expect(source).toContain('录音与授权');
     expect(source).toContain('贡献履历');
+    expect(source).toContain('地区足迹');
     expect(source).not.toContain('作品');
     expect(source).not.toContain('短视频');
+    expect(source).not.toContain('titleLabel');
   });
 
   it('maps Weibo profile extras onto dialect archive terms', () => {

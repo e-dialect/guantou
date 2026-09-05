@@ -2531,6 +2531,200 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /curator-grants/:
+    get:
+      tags: [CurationV2]
+      operationId: listCuratorGrantsV2
+      summary: 公开查询整理员授权账号、范围、理由与期限
+      security: []
+      parameters:
+        - { name: role, in: query, schema: { type: string, enum: [lexical_curator, regional_curator] } }
+        - { name: user_id, in: query, schema: { type: integer } }
+        - { name: active, in: query, schema: { type: boolean } }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: 整理员授权分页
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CuratorGrantV2Page" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /curator-grants/{grant_id}/:
+    parameters:
+      - { name: grant_id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [CurationV2]
+      operationId: getCuratorGrantV2
+      summary: 公开查询一条整理员授权记录
+      security: []
+      responses:
+        "200":
+          description: 授权记录
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CuratorGrantV2" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /curator-applications/:
+    get:
+      tags: [CurationV2]
+      operationId: listOwnCuratorApplicationsV2
+      summary: 查询本人整理员申请；管理员可查询全部申请
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: 申请分页
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CuratorApplicationV2Page" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [CurationV2]
+      operationId: createCuratorApplicationV2
+      summary: 申请一年期词条或地区整理权限
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CuratorApplicationV2Write" }
+      responses:
+        "201":
+          description: 待审核申请
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CuratorApplicationV2" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /curator-applications/{application_id}/:
+    parameters:
+      - { name: application_id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [CurationV2]
+      operationId: getCuratorApplicationV2
+      summary: 查询本人申请详情；管理员可查询任意申请
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: 申请详情
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CuratorApplicationV2" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [CurationV2]
+      operationId: withdrawCuratorApplicationV2
+      summary: 撤回本人的待审核申请并保留申请记录
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204": { description: 已撤回 }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /curator-applications/{application_id}/review/:
+    parameters:
+      - { name: application_id, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [CurationV2]
+      operationId: reviewCuratorApplicationV2
+      summary: 管理员审核申请并在通过时签发有期限的授权
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CuratorApplicationReviewV2" }
+      responses:
+        "200":
+          description: 审核后的申请及可选授权
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CuratorApplicationV2" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /curation/tasks/:
+    get:
+      tags: [CurationV2]
+      operationId: listCurationTasksV2
+      summary: 按当前整理员授权范围查询统一待办
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: kind, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 40 } }
+      responses:
+        "200":
+          description: 范围内待办
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurationTaskListV2" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /curation/actions/:
+    get:
+      tags: [CurationV2]
+      operationId: listCurationActionsV2
+      summary: 查询本人不可覆写的整理操作；管理员可查询全部
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: 整理操作分页
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurationActionV2Page" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [CurationV2]
+      operationId: createCurationActionV2
+      summary: 在授权范围内执行审核、拆合、缩小范围或保留竞争解释
+      description: 拆分、合并、缩小地区范围和保留竞争解释必须关联不可覆写证据。
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CurationActionV2Write" }
+      responses:
+        "201":
+          description: 含操作前后快照的追加式审计记录
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurationActionV2" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /curation/actions/{action_id}/:
+    parameters:
+      - { name: action_id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [CurationV2]
+      operationId: getCurationActionV2
+      summary: 查询一条不可覆写的整理操作记录
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: 整理操作详情
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurationActionV2" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /contributions/me/:
+    get:
+      tags: [CurationV2]
+      operationId: getOwnContributionHistoryV2
+      summary: 查询本人录音、补证、修订与地区足迹
+      description: 返回可追溯活动数量，不生成权威积分或等级。
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: 本人贡献履历
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContributionHistoryV2" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
   /curation/legacy-candidates/:
     get:
       tags: [CurationV2]
@@ -4293,6 +4487,152 @@ components:
         revoked_at: { type: [string, "null"], format: date-time }
         revocation_reason: { type: string }
         is_active: { type: boolean }
+    CuratorGrantV2Page:
+      allOf:
+        - $ref: "#/components/schemas/PageBase"
+        - type: object
+          properties:
+            results:
+              type: array
+              items: { $ref: "#/components/schemas/CuratorGrantV2" }
+    CuratorApplicationV2Write:
+      type: object
+      required: [role, statement]
+      properties:
+        role: { type: string, enum: [lexical_curator, regional_curator] }
+        dialect_id:
+          type: [integer, "null"]
+          description: 地区整理员必填；词条整理员不得填写
+        statement: { type: string, minLength: 20, maxLength: 500 }
+        experience: { type: string, maxLength: 500 }
+    CuratorApplicationV2:
+      allOf:
+        - $ref: "#/components/schemas/CuratorApplicationV2Write"
+        - type: object
+          required: [id, applicant, status, created_at, updated_at]
+          properties:
+            id: { type: integer }
+            applicant: { $ref: "#/components/schemas/UserRef" }
+            dialect:
+              oneOf:
+                - $ref: "#/components/schemas/DialectRef"
+                - { type: "null" }
+            status: { type: string, enum: [pending, approved, rejected, withdrawn] }
+            reviewed_by:
+              oneOf:
+                - $ref: "#/components/schemas/UserRef"
+                - { type: "null" }
+            review_reason: { type: string }
+            reviewed_at: { type: [string, "null"], format: date-time }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+            grant:
+              oneOf:
+                - $ref: "#/components/schemas/CuratorGrantV2"
+                - { type: "null" }
+    CuratorApplicationV2Page:
+      allOf:
+        - $ref: "#/components/schemas/PageBase"
+        - type: object
+          properties:
+            results:
+              type: array
+              items: { $ref: "#/components/schemas/CuratorApplicationV2" }
+    CuratorApplicationReviewV2:
+      type: object
+      required: [decision, reason]
+      properties:
+        decision: { type: string, enum: [approved, rejected] }
+        reason: { type: string, minLength: 4, maxLength: 1000 }
+        valid_days: { type: integer, minimum: 1, maximum: 730, default: 365 }
+    CurationTaskV2:
+      type: object
+      required: [kind, id, title, summary, target_type, actions]
+      properties:
+        kind: { type: string }
+        id: { type: integer }
+        title: { type: string }
+        summary: { type: string }
+        target_type: { type: string }
+        dialect:
+          oneOf:
+            - $ref: "#/components/schemas/DialectRef"
+            - { type: "null" }
+        actions: { type: array, items: { type: string } }
+    CurationTaskListV2:
+      type: object
+      required: [count, results]
+      properties:
+        count: { type: integer, minimum: 0 }
+        results: { type: array, items: { $ref: "#/components/schemas/CurationTaskV2" } }
+    CurationActionV2Write:
+      type: object
+      required: [action_type, target_type, target_id, reason]
+      properties:
+        action_type:
+          type: string
+          enum: [review, split_entry, merge_entries, narrow_scope, link_concept, preserve_competing, resolve_legacy]
+        target_type:
+          type: string
+          enum: [entry, sense, writing, pronunciation, recording, recording_link, legacy_candidate]
+        target_id: { type: integer, minimum: 1 }
+        reason: { type: string, minLength: 4, maxLength: 2000 }
+        evidence_ids: { type: array, items: { type: integer, minimum: 1 } }
+        changes: { type: object, additionalProperties: true }
+    CurationActionV2:
+      allOf:
+        - $ref: "#/components/schemas/CurationActionV2Write"
+        - type: object
+          required: [id, actor, before_snapshot, after_snapshot, created_at]
+          properties:
+            id: { type: integer }
+            actor: { $ref: "#/components/schemas/UserRef" }
+            grant:
+              oneOf:
+                - $ref: "#/components/schemas/CuratorGrantV2"
+                - { type: "null" }
+            target_label: { type: string }
+            before_snapshot: { type: object, additionalProperties: true }
+            after_snapshot: { type: object, additionalProperties: true }
+            created_at: { type: string, format: date-time }
+    CurationActionV2Page:
+      allOf:
+        - $ref: "#/components/schemas/PageBase"
+        - type: object
+          properties:
+            results:
+              type: array
+              items: { $ref: "#/components/schemas/CurationActionV2" }
+    ContributionHistoryV2:
+      type: object
+      required: [summary, dialect_footprint, recent_activity]
+      properties:
+        summary:
+          type: object
+          required: [recordings, evidence, revisions, dialects]
+          properties:
+            recordings: { type: integer, minimum: 0 }
+            evidence: { type: integer, minimum: 0 }
+            revisions: { type: integer, minimum: 0 }
+            dialects: { type: integer, minimum: 0 }
+        dialect_footprint:
+          type: array
+          items:
+            type: object
+            required: [dialect, contribution_count]
+            properties:
+              dialect: { $ref: "#/components/schemas/DialectRef" }
+              contribution_count: { type: integer, minimum: 0 }
+        recent_activity:
+          type: array
+          items:
+            type: object
+            required: [kind, label, created_at, target_id]
+            properties:
+              kind: { type: string, enum: [recording, evidence, revision, attestation] }
+              label: { type: string }
+              created_at: { type: string, format: date-time }
+              target_id: { type: integer }
     CurationSummaryV2:
       type: object
       required: [grants, pending]
@@ -4302,12 +4642,26 @@ components:
           items: { $ref: "#/components/schemas/CuratorGrantV2" }
         pending:
           type: object
-          required: [legacy_candidates, disputed_entries, disputed_recordings, disputed_recording_links]
+          required: [legacy_candidates, entries, senses, recordings, pronunciations, recording_links]
           properties:
             legacy_candidates: { type: integer, minimum: 0 }
-            disputed_entries: { type: integer, minimum: 0 }
-            disputed_recordings: { type: integer, minimum: 0 }
-            disputed_recording_links: { type: integer, minimum: 0 }
+            entries: { type: integer, minimum: 0 }
+            senses: { type: integer, minimum: 0 }
+            recordings: { type: integer, minimum: 0 }
+            pronunciations: { type: integer, minimum: 0 }
+            recording_links: { type: integer, minimum: 0 }
+            disputed_entries:
+              type: integer
+              minimum: 0
+              deprecated: true
+            disputed_recordings:
+              type: integer
+              minimum: 0
+              deprecated: true
+            disputed_recording_links:
+              type: integer
+              minimum: 0
+              deprecated: true
 
     LegacyReviewCandidateV2:
       type: object

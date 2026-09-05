@@ -122,6 +122,18 @@
       "style": {}
     },
     {
+      "path": "pages/users/contributions",
+      "style": {}
+    },
+    {
+      "path": "pages/curation/index",
+      "style": {}
+    },
+    {
+      "path": "pages/curation/apply",
+      "style": {}
+    },
+    {
       "path": "pages/users/settings/information",
       "style": {}
     },

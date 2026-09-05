@@ -4,6 +4,8 @@ from .models import (
     Can,
     CanPost,
     Concept,
+    CurationAction,
+    CuratorApplication,
     CuratorGrant,
     Dialect,
     DialectCircle,
@@ -397,6 +399,53 @@ class CuratorGrantAdmin(admin.ModelAdmin):
     list_filter = ("role",)
     search_fields = ("user__username", "reason", "revocation_reason")
     raw_id_fields = ("user", "dialect", "granted_by")
+
+
+@admin.register(CuratorApplication)
+class CuratorApplicationAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "applicant",
+        "role",
+        "dialect",
+        "status",
+        "created_at",
+        "reviewed_at",
+    )
+    list_filter = ("role", "status")
+    search_fields = ("applicant__username", "statement", "experience", "review_reason")
+    raw_id_fields = ("applicant", "dialect", "reviewed_by")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return obj is None
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(CurationAction)
+class CurationActionAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "actor",
+        "action_type",
+        "target_type",
+        "target_id",
+        "created_at",
+    )
+    list_filter = ("action_type", "target_type")
+    search_fields = ("actor__username", "target_label", "reason")
+    raw_id_fields = ("actor", "grant")
+    filter_horizontal = ("evidence",)
+
+    def has_change_permission(self, request, obj=None):
+        return obj is None
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(LegacyReviewCandidate)

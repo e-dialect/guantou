@@ -55,12 +55,6 @@
                 >
                   未填写方言点
                 </view>
-                <view
-                  v-if="titleLabel"
-                  class="title-badge"
-                >
-                  {{ titleLabel }}
-                </view>
               </view>
             </view>
           </view>
@@ -238,8 +232,15 @@
             </view>
             <view class="account-section__copy">
               你已留下 {{ cansCount }} 段录音、参与 {{ nameplatesCount }} 个词条、
-              补充 {{ flavorsCount }} 个义项。后续补证和修订也会形成可追溯记录。
+              补充 {{ flavorsCount }} 个义项。后续补证、修订和地区足迹也会形成可追溯记录。
             </view>
+            <BaseButton
+              class="account-section__action"
+              size="small"
+              variant="ghost"
+              text="查看完整贡献履历"
+              @click="toContributionHistory"
+            />
           </view>
 
           <view class="account-section">
@@ -270,6 +271,12 @@
                 熟悉本地方言写法、读音或资料来源？可申请词条整理或地区整理权限；授权范围和期限会公开记录。
               </template>
             </view>
+            <BaseButton
+              class="account-section__action"
+              size="small"
+              :text="curationActionText"
+              @click="toCuration"
+            />
           </view>
 
           <view class="menu">
@@ -400,6 +407,9 @@ import { listCanDrafts } from '@/services/canDrafts';
 import { getCurationSummary } from '@/services/entryRecording';
 import {
   goCanLibrary,
+  goContributionHistory,
+  goCurationWorkbench,
+  goCuratorApplication,
   goHome,
   goMails,
   goRecord,
@@ -428,7 +438,6 @@ export default {
       avatar: '',
       nickname: '',
       username: '',
-      titleLabel: '',
       primaryDialect: null,
       cansCount: 0,
       flavorsCount: 0,
@@ -455,7 +464,6 @@ export default {
     },
     bioText() {
       const dialect = this.locationText;
-      if (this.titleLabel) return `${this.titleLabel} · ${dialect}`;
       return `在「${dialect}」记录乡音`;
     },
     worksCount() {
@@ -501,7 +509,21 @@ export default {
     },
     curatorPending() {
       const pending = this.curationSummary?.pending || {};
-      return Object.values(pending).reduce((total, value) => total + Number(value || 0), 0);
+      const currentKeys = [
+        'legacy_candidates', 'entries', 'senses', 'recordings',
+        'pronunciations', 'recording_links',
+      ];
+      if (currentKeys.some((key) => Object.prototype.hasOwnProperty.call(pending, key))) {
+        return currentKeys.reduce((total, key) => total + Number(pending[key] || 0), 0);
+      }
+      return Object.values(pending).reduce(
+        (total, value) => total + Number(value || 0),
+        0,
+      );
+    },
+    curationActionText() {
+      if (!this.curationSummary) return '提交整理员申请';
+      return `进入工作台${this.curatorPending ? `（${this.curatorPending}）` : ''}`;
     },
   },
   beforeMount() {
@@ -551,6 +573,13 @@ export default {
     toCanLibrary() {
       goCanLibrary();
     },
+    toContributionHistory() {
+      goContributionHistory();
+    },
+    toCuration() {
+      if (this.curationSummary) goCurationWorkbench();
+      else goCuratorApplication();
+    },
     async getInfo() {
       const id = resolveSessionUserId();
       if (!id) {
@@ -566,7 +595,6 @@ export default {
         this.avatar = userInfo.user.avatar;
         this.username = userInfo.user.username || '';
         this.nickname = userInfo.user.nickname || userInfo.user.username;
-        this.titleLabel = userInfo.user.title?.title || '';
         this.primaryDialect = userInfo.user.primary_dialect;
         this.cansCount = userInfo.contribution.cans_uploaded
           ?? userInfo.contribution.cans
@@ -808,8 +836,7 @@ export default {
   margin-top: var(--space-2);
 }
 
-.dialect-badge,
-.title-badge {
+.dialect-badge {
   display: inline-flex;
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-pill);
@@ -819,11 +846,6 @@ export default {
 .dialect-badge {
   background: var(--accent-subtle-color);
   color: var(--accent-color);
-}
-
-.title-badge {
-  background: var(--surface-subtle-color);
-  color: var(--text-secondary-color);
 }
 
 .social-stats {

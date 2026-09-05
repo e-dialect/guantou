@@ -2094,3 +2094,156 @@ class CuratorGrant(models.Model):
         ]
         verbose_name = "整理员授权"
         verbose_name_plural = "整理员授权"
+
+
+class CuratorApplication(models.Model):
+    """A contributor's reviewable request for a time-limited curator grant."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "待审核"
+        APPROVED = "approved", "已通过"
+        REJECTED = "rejected", "未通过"
+        WITHDRAWN = "withdrawn", "已撤回"
+
+    applicant = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="curator_applications",
+        verbose_name="申请人",
+    )
+    role = models.CharField(
+        max_length=24, choices=CuratorGrant.Role.choices, verbose_name="申请类型"
+    )
+    dialect = models.ForeignKey(
+        Dialect,
+        on_delete=models.PROTECT,
+        related_name="curator_applications",
+        null=True,
+        blank=True,
+        verbose_name="申请地区范围",
+    )
+    statement = models.TextField(verbose_name="申请说明")
+    experience = models.TextField(blank=True, verbose_name="相关经历")
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        verbose_name="状态",
+    )
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_curator_applications",
+        null=True,
+        blank=True,
+        verbose_name="审核人",
+    )
+    review_reason = models.TextField(blank=True, verbose_name="审核理由")
+    reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name="审核时间")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="申请时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    def clean(self):
+        super().clean()
+        if self.role == CuratorGrant.Role.REGIONAL and not self.dialect_id:
+            raise ValidationError({"dialect": "申请地区整理员必须选择授权范围"})
+        if self.role == CuratorGrant.Role.LEXICAL and self.dialect_id:
+            raise ValidationError({"dialect": "词条整理员申请不选择地区范围"})
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(role="lexical_curator", dialect__isnull=True)
+                    | models.Q(role="regional_curator", dialect__isnull=False)
+                ),
+                name="curator_application_scope_valid",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["applicant", "status", "created_at"],
+                name="curator_applicant_status_idx",
+            ),
+            models.Index(
+                fields=["role", "status", "created_at"],
+                name="curator_role_status_idx",
+            ),
+        ]
+        verbose_name = "整理员申请"
+        verbose_name_plural = "整理员申请"
+
+
+class CurationAction(models.Model):
+    """Append-only audit record for every curator decision that changes meaning."""
+
+    class ActionType(models.TextChoices):
+        REVIEW = "review", "审核状态"
+        SPLIT_ENTRY = "split_entry", "拆分词条"
+        MERGE_ENTRIES = "merge_entries", "合并词条"
+        NARROW_SCOPE = "narrow_scope", "缩小地区范围"
+        LINK_CONCEPT = "link_concept", "关联概念"
+        PRESERVE_COMPETING = "preserve_competing", "保留竞争解释"
+        RESOLVE_LEGACY = "resolve_legacy", "处理旧库候选"
+
+    class TargetType(models.TextChoices):
+        ENTRY = "entry", "词条"
+        SENSE = "sense", "义项"
+        WRITING = "writing", "写法关系"
+        PRONUNCIATION = "pronunciation", "地区读音"
+        RECORDING = "recording", "录音"
+        RECORDING_LINK = "recording_link", "录音词条关系"
+        LEGACY_CANDIDATE = "legacy_candidate", "旧库候选"
+
+    actor = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="curation_actions",
+        verbose_name="整理人",
+    )
+    grant = models.ForeignKey(
+        CuratorGrant,
+        on_delete=models.SET_NULL,
+        related_name="actions",
+        null=True,
+        blank=True,
+        verbose_name="使用的授权",
+    )
+    action_type = models.CharField(
+        max_length=24, choices=ActionType.choices, verbose_name="操作类型"
+    )
+    target_type = models.CharField(
+        max_length=24, choices=TargetType.choices, verbose_name="对象类型"
+    )
+    target_id = models.PositiveBigIntegerField(verbose_name="对象编号")
+    target_label = models.CharField(max_length=240, blank=True, verbose_name="对象摘要")
+    before_snapshot = models.JSONField(default=dict, verbose_name="操作前快照")
+    after_snapshot = models.JSONField(default=dict, verbose_name="操作后快照")
+    reason = models.TextField(verbose_name="整理理由")
+    evidence = models.ManyToManyField(
+        EvidenceRecord,
+        related_name="curation_actions",
+        blank=True,
+        verbose_name="依据",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="操作时间")
+
+    def save(self, *args, **kwargs):
+        if self.pk and type(self).objects.filter(pk=self.pk).exists():
+            raise ValidationError("整理记录不可覆写；需要更正时请新增一条记录")
+        return super().save(*args, **kwargs)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(
+                fields=["target_type", "target_id", "created_at"],
+                name="curation_target_time_idx",
+            ),
+            models.Index(
+                fields=["actor", "created_at"], name="curation_actor_time_idx"
+            ),
+        ]
+        verbose_name = "整理操作记录"
+        verbose_name_plural = "整理操作记录"

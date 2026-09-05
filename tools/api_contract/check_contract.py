@@ -110,12 +110,77 @@ RESOURCE_CONTRACTS = (
             "citation",
         },
     },
+    {
+        "prefix": "curator-grants",
+        "list_path": "/curator-grants/",
+        "detail_path": "/curator-grants/{grant_id}/",
+        "list_methods": {"get"},
+        "detail_methods": {"get"},
+        "serializer": "CuratorGrantSerializer",
+        "schema": "CuratorGrantV2",
+        "fields": {
+            "id",
+            "user",
+            "role",
+            "dialect",
+            "valid_from",
+            "valid_until",
+            "reason",
+            "is_active",
+        },
+    },
+    {
+        "prefix": "curator-applications",
+        "list_path": "/curator-applications/",
+        "detail_path": "/curator-applications/{application_id}/",
+        "list_methods": {"get", "post"},
+        "detail_methods": {"get", "delete"},
+        "serializer": "CuratorApplicationSerializer",
+        "schema": "CuratorApplicationV2",
+        "fields": {
+            "id",
+            "applicant",
+            "role",
+            "dialect",
+            "statement",
+            "experience",
+            "status",
+            "review_reason",
+        },
+    },
+    {
+        "prefix": "curation/actions",
+        "list_path": "/curation/actions/",
+        "detail_path": "/curation/actions/{action_id}/",
+        "list_methods": {"get", "post"},
+        "detail_methods": {"get"},
+        "serializer": "CurationActionSerializer",
+        "schema": "CurationActionV2",
+        "fields": {
+            "id",
+            "actor",
+            "action_type",
+            "target_type",
+            "target_id",
+            "before_snapshot",
+            "after_snapshot",
+            "reason",
+            "evidence_ids",
+        },
+    },
 )
 
 OLD_CORE_PATHS = {
     "/flavors/": {"get", "post"},
     "/cans/": {"get", "post"},
     "/nameplates/": {"get", "post"},
+}
+
+AUXILIARY_V2_PATHS = {
+    "/curation/": {"get"},
+    "/curation/tasks/": {"get"},
+    "/curator-applications/{application_id}/review/": {"post"},
+    "/contributions/me/": {"get"},
 }
 
 
@@ -251,8 +316,10 @@ def contract_errors():
                 f"OpenAPI schema {spec['schema']} 缺少核心字段: "
                 f"{sorted(missing_contract_fields)}"
             )
-    if "/curation/" not in paths or "get" not in paths["/curation/"]:
-        errors.append("OpenAPI 缺少 GET /curation/")
+    for path, methods in AUXILIARY_V2_PATHS.items():
+        missing = methods - paths.get(path, set())
+        if missing:
+            errors.append(f"OpenAPI V2 辅助路径 {path} 缺少方法: {sorted(missing)}")
     return errors
 
 
@@ -265,7 +332,7 @@ def main():
         return 1
     print(
         "API contract check passed: old core routes and Entry/Recording v2 "
-        "routes, methods, and core serializer fields are aligned."
+        "and governance routes, methods, and core serializer fields are aligned."
     )
     return 0
 

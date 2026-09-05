@@ -19,11 +19,16 @@ from .views import (
 )
 from .v2_views import (
     ConceptViewSet,
+    CurationActionViewSet,
+    CurationTaskView,
     CurationView,
+    CuratorApplicationViewSet,
+    CuratorGrantViewSet,
     EntrySenseViewSet,
     EntryViewSet,
     EvidenceRecordViewSet,
     LegacyReviewCandidateViewSet,
+    MyContributionHistoryView,
     PronunciationVariantViewSet,
     RecordingEntryLinkViewSet,
     RecordingViewSet,
@@ -63,6 +68,17 @@ router.register(
     basename="usage-attestation",
 )
 router.register("evidence-records", EvidenceRecordViewSet, basename="evidence-record")
+router.register("curator-grants", CuratorGrantViewSet, basename="curator-grant")
+router.register(
+    "curator-applications",
+    CuratorApplicationViewSet,
+    basename="curator-application",
+)
+router.register(
+    "curation/actions",
+    CurationActionViewSet,
+    basename="curation-action",
+)
 router.register(
     "curation/legacy-candidates",
     LegacyReviewCandidateViewSet,
@@ -75,5 +91,11 @@ urlpatterns = [
     path("search/hot/", HotSearchView.as_view(), name="search-hot"),
     path("search/suggest/", SuggestSearchView.as_view(), name="search-suggest"),
     path("curation/", CurationView.as_view(), name="curation"),
+    path("curation/tasks/", CurationTaskView.as_view(), name="curation-tasks"),
+    path(
+        "contributions/me/",
+        MyContributionHistoryView.as_view(),
+        name="my-contribution-history",
+    ),
     path("", include(router.urls)),
 ]

@@ -1,5 +1,10 @@
+from datetime import timedelta
+
+from django.db import transaction
 from django.db.models import Count, Exists, OuterRef, Prefetch, Q
+from django.utils import timezone
 from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -7,6 +12,8 @@ from utils.exceptions.types.bad_request import BadRequestException
 
 from .models import (
     Concept,
+    CurationAction,
+    CuratorApplication,
     CuratorGrant,
     Dialect,
     Entry,
@@ -21,6 +28,7 @@ from .models import (
     UsageAttestation,
     WritingForm,
 )
+from .serializers import DialectRefSerializer
 from .v2_permissions import (
     IsActiveCurator,
     IsLexicalCurator,
@@ -34,6 +42,10 @@ from .v2_permissions import (
 )
 from .v2_serializers import (
     ConceptSerializer,
+    CurationActionRequestSerializer,
+    CurationActionSerializer,
+    CuratorApplicationReviewSerializer,
+    CuratorApplicationSerializer,
     CuratorGrantSerializer,
     EntryCardSerializer,
     EntrySenseSerializer,
@@ -46,6 +58,7 @@ from .v2_serializers import (
     UsageAttestationSerializer,
     WritingFormSerializer,
 )
+from .v2_governance import perform_curation_action
 
 
 def parse_boolean(value, name):
@@ -639,9 +652,31 @@ class CurationView(APIView):
         candidates = LegacyReviewCandidate.objects.filter(
             status=LegacyReviewCandidate.Status.PENDING
         )
+        pending_links = RecordingEntryLink.objects.filter(
+            status__in=[
+                RecordingEntryLink.Status.SUGGESTED,
+                RecordingEntryLink.Status.DISPUTED,
+            ],
+            is_current=True,
+        )
+        pending_senses = EntrySense.objects.filter(
+            status__in=[EntrySense.Status.DRAFT, EntrySense.Status.DISPUTED]
+        )
+        pending_variants = PronunciationVariant.objects.filter(
+            status__in=[
+                PronunciationVariant.Status.DRAFT,
+                PronunciationVariant.Status.DISPUTED,
+            ]
+        )
+        pending_entries = Entry.objects.filter(
+            status__in=[Entry.Status.DRAFT, Entry.Status.DISPUTED]
+        )
+        pending_recordings = Recording.objects.filter(
+            status__in=[Recording.Status.DRAFT, Recording.Status.DISPUTED]
+        )
         disputed_entries = Entry.objects.filter(status=Entry.Status.DISPUTED)
         disputed_recordings = Recording.objects.filter(status=Recording.Status.DISPUTED)
-        disputed_links = RecordingEntryLink.objects.filter(
+        disputed_recording_links = RecordingEntryLink.objects.filter(
             status=RecordingEntryLink.Status.DISPUTED,
             is_current=True,
         )
@@ -649,17 +684,27 @@ class CurationView(APIView):
             request.user.is_staff
             or grants.filter(role=CuratorGrant.Role.LEXICAL).exists()
         )
+        regional_ids = regional_curator_scope_ids(request.user)
         if not is_lexical:
-            regional_ids = regional_curator_scope_ids(request.user)
             candidates = candidates.none()
+            pending_entries = pending_entries.none()
+            pending_senses = pending_senses.none()
             disputed_entries = disputed_entries.filter(
                 Q(usage_dialect_id__in=regional_ids)
                 | Q(recording_links__recording__usage_dialect_id__in=regional_ids)
             ).distinct()
+        if not request.user.is_staff:
+            pending_recordings = pending_recordings.filter(
+                usage_dialect_id__in=regional_ids
+            )
+            pending_variants = pending_variants.filter(dialect_id__in=regional_ids)
+            pending_links = pending_links.filter(
+                recording__usage_dialect_id__in=regional_ids
+            )
             disputed_recordings = disputed_recordings.filter(
                 usage_dialect_id__in=regional_ids
             )
-            disputed_links = disputed_links.filter(
+            disputed_recording_links = disputed_recording_links.filter(
                 recording__usage_dialect_id__in=regional_ids
             )
         return Response(
@@ -667,9 +712,367 @@ class CurationView(APIView):
                 "grants": CuratorGrantSerializer(grants, many=True).data,
                 "pending": {
                     "legacy_candidates": candidates.count(),
+                    "entries": pending_entries.count(),
+                    "senses": pending_senses.count(),
+                    "recordings": pending_recordings.count(),
+                    "pronunciations": pending_variants.count(),
+                    "recording_links": pending_links.count(),
+                    # Compatibility aliases for clients on the first V2 API.
                     "disputed_entries": disputed_entries.count(),
                     "disputed_recordings": disputed_recordings.count(),
-                    "disputed_recording_links": disputed_links.count(),
+                    "disputed_recording_links": disputed_recording_links.count(),
                 },
+            }
+        )
+
+
+class CuratorGrantViewSet(viewsets.ReadOnlyModelViewSet):
+    """Public, time-bounded grant directory; Django admin remains separate."""
+
+    serializer_class = CuratorGrantSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        queryset = CuratorGrant.objects.select_related(
+            "user", "user__user_info", "dialect", "granted_by", "granted_by__user_info"
+        )
+        role = self.request.query_params.get("role")
+        if role:
+            queryset = queryset.filter(role=role)
+        user_id = self.request.query_params.get("user_id")
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+        active = parse_boolean(self.request.query_params.get("active"), "active")
+        if active is True:
+            now = timezone.now()
+            queryset = queryset.filter(
+                revoked_at__isnull=True,
+                valid_from__lte=now,
+                valid_until__gt=now,
+            )
+        elif active is False:
+            now = timezone.now()
+            queryset = queryset.filter(
+                Q(revoked_at__isnull=False)
+                | Q(valid_from__gt=now)
+                | Q(valid_until__lte=now)
+            )
+        return queryset
+
+
+class CuratorApplicationViewSet(viewsets.ModelViewSet):
+    http_method_names = ["get", "post", "delete", "head", "options"]
+    serializer_class = CuratorApplicationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = CuratorApplication.objects.select_related(
+            "applicant",
+            "applicant__user_info",
+            "dialect",
+            "reviewed_by",
+            "reviewed_by__user_info",
+        )
+        if not self.request.user.is_staff:
+            queryset = queryset.filter(applicant=self.request.user)
+        status_value = self.request.query_params.get("status")
+        return queryset.filter(status=status_value) if status_value else queryset
+
+    def destroy(self, request, *args, **kwargs):
+        application = self.get_object()
+        if application.applicant_id != request.user.id:
+            raise PermissionDenied("只能撤回自己的申请")
+        if application.status != CuratorApplication.Status.PENDING:
+            raise BadRequestException("只能撤回待审申请")
+        application.status = CuratorApplication.Status.WITHDRAWN
+        application.save(update_fields=["status", "updated_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"])
+    def review(self, request, pk=None):
+        if not request.user.is_staff:
+            raise PermissionDenied("只有已授权管理员可审核整理员申请")
+        review = CuratorApplicationReviewSerializer(data=request.data)
+        review.is_valid(raise_exception=True)
+        with transaction.atomic():
+            application = CuratorApplication.objects.select_for_update().get(pk=pk)
+            if application.status != CuratorApplication.Status.PENDING:
+                raise BadRequestException("该申请已处理")
+            now = timezone.now()
+            application.status = review.validated_data["decision"]
+            application.reviewed_by = request.user
+            application.review_reason = review.validated_data["reason"].strip()
+            application.reviewed_at = now
+            application.save(
+                update_fields=[
+                    "status",
+                    "reviewed_by",
+                    "review_reason",
+                    "reviewed_at",
+                    "updated_at",
+                ]
+            )
+            grant = None
+            if application.status == CuratorApplication.Status.APPROVED:
+                grant = CuratorGrant.objects.create(
+                    user=application.applicant,
+                    role=application.role,
+                    dialect=application.dialect,
+                    valid_from=now,
+                    valid_until=now
+                    + timedelta(days=review.validated_data["valid_days"]),
+                    granted_by=request.user,
+                    reason=application.review_reason,
+                )
+        payload = self.get_serializer(application).data
+        payload["grant"] = CuratorGrantSerializer(grant).data if grant else None
+        return Response(payload)
+
+
+class CurationActionViewSet(viewsets.ModelViewSet):
+    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [IsActiveCurator]
+
+    def get_serializer_class(self):
+        return (
+            CurationActionRequestSerializer
+            if self.action == "create"
+            else CurationActionSerializer
+        )
+
+    def get_queryset(self):
+        queryset = CurationAction.objects.select_related(
+            "actor", "actor__user_info", "grant", "grant__dialect"
+        ).prefetch_related("evidence")
+        if not self.request.user.is_staff:
+            queryset = queryset.filter(actor=self.request.user)
+        for parameter in ("action_type", "target_type", "target_id"):
+            value = self.request.query_params.get(parameter)
+            if value:
+                queryset = queryset.filter(**{parameter: value})
+        return queryset
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        action_record = perform_curation_action(request.user, serializer.validated_data)
+        output = CurationActionSerializer(action_record, context={"request": request})
+        return Response(output.data, status=status.HTTP_201_CREATED)
+
+
+def _task_dialect(dialect):
+    return DialectRefSerializer(dialect).data if dialect else None
+
+
+class CurationTaskView(APIView):
+    permission_classes = [IsActiveCurator]
+
+    def get(self, request):
+        kind_filter = request.query_params.get("kind", "")
+        try:
+            limit = min(max(int(request.query_params.get("limit", 40)), 1), 100)
+        except (TypeError, ValueError):
+            raise BadRequestException("limit 必须是 1 到 100 的整数")
+        tasks = []
+
+        def add(kind, obj_id, title, summary, target_type, dialect=None, actions=None):
+            if kind_filter and kind_filter != kind:
+                return
+            tasks.append(
+                {
+                    "kind": kind,
+                    "id": obj_id,
+                    "title": title,
+                    "summary": summary,
+                    "target_type": target_type,
+                    "dialect": _task_dialect(dialect),
+                    "actions": actions or ["reviewed", "disputed"],
+                }
+            )
+
+        grants = active_curator_grants(request.user)
+        lexical = (
+            request.user.is_staff
+            or grants.filter(role=CuratorGrant.Role.LEXICAL).exists()
+        )
+        regional_ids = regional_curator_scope_ids(request.user)
+        if lexical:
+            for item in LegacyReviewCandidate.objects.filter(
+                status=LegacyReviewCandidate.Status.PENDING
+            ).select_related("primary_entry")[:limit]:
+                add(
+                    "legacy_candidate",
+                    item.id,
+                    item.get_candidate_type_display(),
+                    item.candidate_key,
+                    CurationAction.TargetType.LEGACY_CANDIDATE,
+                    actions=["accepted", "rejected"],
+                )
+            for entry in Entry.objects.filter(
+                status__in=[Entry.Status.DRAFT, Entry.Status.DISPUTED]
+            ).select_related("usage_dialect")[:limit]:
+                add(
+                    "entry",
+                    entry.id,
+                    str(entry),
+                    entry.summary or "待补充大意",
+                    CurationAction.TargetType.ENTRY,
+                    entry.usage_dialect,
+                )
+            for sense in EntrySense.objects.filter(
+                status__in=[EntrySense.Status.DRAFT, EntrySense.Status.DISPUTED]
+            ).select_related("entry", "entry__usage_dialect")[:limit]:
+                add(
+                    "sense",
+                    sense.id,
+                    f"义项 {sense.sense_number}",
+                    sense.gloss,
+                    CurationAction.TargetType.SENSE,
+                    sense.entry.usage_dialect,
+                )
+        if regional_ids or request.user.is_staff:
+            recordings = Recording.objects.filter(
+                status__in=[Recording.Status.DRAFT, Recording.Status.DISPUTED]
+            ).select_related("usage_dialect")
+            variants = PronunciationVariant.objects.filter(
+                status__in=[
+                    PronunciationVariant.Status.DRAFT,
+                    PronunciationVariant.Status.DISPUTED,
+                ]
+            ).select_related("dialect", "entry")
+            links = RecordingEntryLink.objects.filter(
+                status__in=[
+                    RecordingEntryLink.Status.SUGGESTED,
+                    RecordingEntryLink.Status.DISPUTED,
+                ],
+                is_current=True,
+            ).select_related("recording__usage_dialect", "entry")
+            if not request.user.is_staff:
+                recordings = recordings.filter(usage_dialect_id__in=regional_ids)
+                variants = variants.filter(dialect_id__in=regional_ids)
+                links = links.filter(recording__usage_dialect_id__in=regional_ids)
+            for recording in recordings[:limit]:
+                add(
+                    "recording",
+                    recording.id,
+                    recording.original_gloss or f"录音 {recording.id}",
+                    "核对地区范围、原始大意与授权",
+                    CurationAction.TargetType.RECORDING,
+                    recording.usage_dialect,
+                    ["published", "disputed", "rejected"],
+                )
+            for variant in variants[:limit]:
+                add(
+                    "pronunciation",
+                    variant.id,
+                    str(variant),
+                    "核对 IPA、罗马字和地区范围",
+                    CurationAction.TargetType.PRONUNCIATION,
+                    variant.dialect,
+                    ["reviewed", "disputed", "rejected"],
+                )
+            for link in links[:limit]:
+                add(
+                    "recording_link",
+                    link.id,
+                    f"录音 {link.recording_id} ↔ {str(link.entry)}",
+                    link.get_role_display(),
+                    CurationAction.TargetType.RECORDING_LINK,
+                    link.recording.usage_dialect,
+                    ["accepted", "disputed", "rejected"],
+                )
+        return Response({"count": len(tasks), "results": tasks[:limit]})
+
+
+class MyContributionHistoryView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        recordings = Recording.objects.filter(recorder=user).select_related(
+            "usage_dialect"
+        )
+        evidence = EvidenceRecord.objects.filter(contributor=user)
+        actions = CurationAction.objects.filter(actor=user)
+        attestations = UsageAttestation.objects.filter(
+            attester=user, active=True
+        ).select_related("dialect", "entry")
+
+        dialect_counts = {}
+        dialect_objects = {}
+        for recording in recordings:
+            dialect_counts[recording.usage_dialect_id] = (
+                dialect_counts.get(recording.usage_dialect_id, 0) + 1
+            )
+            dialect_objects[recording.usage_dialect_id] = recording.usage_dialect
+        for attestation in attestations:
+            dialect_counts[attestation.dialect_id] = (
+                dialect_counts.get(attestation.dialect_id, 0) + 1
+            )
+            dialect_objects[attestation.dialect_id] = attestation.dialect
+        footprint = [
+            {
+                "dialect": _task_dialect(dialect_objects[dialect_id]),
+                "contribution_count": count,
+            }
+            for dialect_id, count in sorted(
+                dialect_counts.items(), key=lambda item: (-item[1], item[0])
+            )
+        ]
+
+        events = []
+        for recording in recordings.order_by("-created_at")[:20]:
+            events.append(
+                {
+                    "kind": "recording",
+                    "label": recording.original_gloss or f"录音 {recording.id}",
+                    "created_at": recording.created_at,
+                    "target_id": recording.id,
+                }
+            )
+        for record in evidence.order_by("-created_at")[:20]:
+            events.append(
+                {
+                    "kind": "evidence",
+                    "label": record.original_writing
+                    or record.original_gloss
+                    or record.citation
+                    or f"依据 {record.id}",
+                    "created_at": record.created_at,
+                    "target_id": record.id,
+                }
+            )
+        for action_record in actions.order_by("-created_at")[:20]:
+            events.append(
+                {
+                    "kind": "revision",
+                    "label": action_record.target_label
+                    or action_record.get_action_type_display(),
+                    "created_at": action_record.created_at,
+                    "target_id": action_record.id,
+                }
+            )
+        for attestation in attestations.order_by("-attested_at")[:20]:
+            events.append(
+                {
+                    "kind": "attestation",
+                    "label": f"{str(attestation.entry)} · {attestation.dialect.name}",
+                    "created_at": attestation.attested_at,
+                    "target_id": attestation.id,
+                }
+            )
+        events.sort(key=lambda item: item["created_at"], reverse=True)
+        for event in events:
+            event["created_at"] = event["created_at"].isoformat()
+        return Response(
+            {
+                "summary": {
+                    "recordings": recordings.count(),
+                    "evidence": evidence.count(),
+                    "revisions": actions.count(),
+                    "dialects": len(footprint),
+                },
+                "dialect_footprint": footprint,
+                "recent_activity": events[:40],
             }
         )

@@ -38,6 +38,34 @@ export function getCurationSummary() {
   return request.get('/curation/', {}, true);
 }
 
+export function listCuratorApplications(params = {}) {
+  return request.get('/curator-applications/', params, true);
+}
+
+export function createCuratorApplication(payload) {
+  return request.post('/curator-applications/', payload);
+}
+
+export function withdrawCuratorApplication(id) {
+  return request.del(`/curator-applications/${id}/`);
+}
+
+export function listCuratorGrants(params = {}) {
+  return request.get('/curator-grants/', params, true);
+}
+
+export function listCurationTasks(params = {}) {
+  return request.get('/curation/tasks/', params, true);
+}
+
+export function createCurationAction(payload) {
+  return request.post('/curation/actions/', payload);
+}
+
+export function getMyContributionHistory() {
+  return request.get('/contributions/me/', {}, true);
+}
+
 export function primaryEntryLink(recording = {}) {
   const links = (recording.entry_links || []).filter((link) => (
     link.is_current !== false && link.status !== 'rejected'
@@ -80,15 +108,22 @@ export function buildEntrySearchParams(filters = {}) {
 
 export default {
   buildEntrySearchParams,
+  createCurationAction,
+  createCuratorApplication,
   createRecording,
   createUsageAttestation,
   dialectLabel,
   entryTitle,
   getCurationSummary,
   getEntry,
+  getMyContributionHistory,
   getRecording,
+  listCurationTasks,
+  listCuratorApplications,
+  listCuratorGrants,
   listEntries,
   listRecordings,
   pageResults,
   primaryEntryLink,
+  withdrawCuratorApplication,
 };

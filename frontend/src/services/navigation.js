@@ -28,6 +28,9 @@ export const ROUTES = Object.freeze({
   userDetail: '/pages/users/details',
   onboarding: '/pages/users/onboarding',
   recommendFollow: '/pages/users/recommend-follow',
+  contributionHistory: '/pages/users/contributions',
+  curationWorkbench: '/pages/curation/index',
+  curatorApplication: '/pages/curation/apply',
   loginRegister: '/pages/login/register',
   loginWechatRegister: '/pages/login/register/wechat',
   loginForget: '/pages/login/forget',
@@ -158,6 +161,9 @@ export const goRecommendFollow = (reset = false) => openPage(
   {},
   { reset },
 );
+export const goContributionHistory = () => openPage(ROUTES.contributionHistory);
+export const goCurationWorkbench = () => openPage(ROUTES.curationWorkbench);
+export const goCuratorApplication = () => openPage(ROUTES.curatorApplication);
 export const goLoginRegister = () => openPage(ROUTES.loginRegister);
 export const goLoginWechatRegister = () => openPage(ROUTES.loginWechatRegister);
 export const goLoginForget = (params = {}) => openPage(ROUTES.loginForget, params);
@@ -218,6 +224,9 @@ export default {
   goCircleList,
   goCreateCan,
   goCreateNameplate,
+  goContributionHistory,
+  goCurationWorkbench,
+  goCuratorApplication,
   goDiscovery,
   goEntryDetail,
   goFlavorDetail,

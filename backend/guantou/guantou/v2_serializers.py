@@ -3,6 +3,8 @@ from rest_framework import serializers
 
 from .models import (
     Concept,
+    CurationAction,
+    CuratorApplication,
     CuratorGrant,
     Dialect,
     Entry,
@@ -874,5 +876,134 @@ class CuratorGrantSerializer(serializers.ModelSerializer):
             "revoked_at",
             "revocation_reason",
             "is_active",
+        ]
+        read_only_fields = fields
+
+
+class CuratorApplicationSerializer(serializers.ModelSerializer):
+    applicant = UserLiteSerializer(read_only=True)
+    dialect = DialectRefSerializer(read_only=True)
+    dialect_id = serializers.PrimaryKeyRelatedField(
+        source="dialect",
+        queryset=Dialect.objects.all(),
+        required=False,
+        allow_null=True,
+        write_only=True,
+    )
+    reviewed_by = UserLiteSerializer(read_only=True)
+
+    class Meta:
+        model = CuratorApplication
+        fields = [
+            "id",
+            "applicant",
+            "role",
+            "dialect",
+            "dialect_id",
+            "statement",
+            "experience",
+            "status",
+            "reviewed_by",
+            "review_reason",
+            "reviewed_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "applicant",
+            "status",
+            "reviewed_by",
+            "review_reason",
+            "reviewed_at",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        role = attrs.get("role")
+        dialect = attrs.get("dialect")
+        statement = str(attrs.get("statement") or "").strip()
+        if len(statement) < 20:
+            raise serializers.ValidationError(
+                {"statement": "请至少用 20 个字说明熟悉的方言、写法或资料"}
+            )
+        if role == CuratorGrant.Role.REGIONAL and dialect is None:
+            raise serializers.ValidationError(
+                {"dialect_id": "地区整理员必须选择申请范围"}
+            )
+        if role == CuratorGrant.Role.LEXICAL and dialect is not None:
+            raise serializers.ValidationError(
+                {"dialect_id": "词条整理员不选择地区范围"}
+            )
+        request = self.context.get("request")
+        if (
+            request
+            and CuratorApplication.objects.filter(
+                applicant=request.user,
+                role=role,
+                dialect=dialect,
+                status=CuratorApplication.Status.PENDING,
+            ).exists()
+        ):
+            raise serializers.ValidationError("你已有相同范围的待审申请")
+        attrs["statement"] = statement
+        attrs["experience"] = str(attrs.get("experience") or "").strip()
+        return attrs
+
+    def create(self, validated_data):
+        return CuratorApplication.objects.create(
+            applicant=self.context["request"].user,
+            **validated_data,
+        )
+
+
+class CuratorApplicationReviewSerializer(serializers.Serializer):
+    decision = serializers.ChoiceField(
+        choices=[CuratorApplication.Status.APPROVED, CuratorApplication.Status.REJECTED]
+    )
+    reason = serializers.CharField(min_length=4, max_length=1000)
+    valid_days = serializers.IntegerField(min_value=1, max_value=730, default=365)
+
+
+class CurationActionRequestSerializer(serializers.Serializer):
+    action_type = serializers.ChoiceField(choices=CurationAction.ActionType.choices)
+    target_type = serializers.ChoiceField(choices=CurationAction.TargetType.choices)
+    target_id = serializers.IntegerField(min_value=1)
+    reason = serializers.CharField(min_length=4, max_length=2000)
+    evidence_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1), required=False, default=list
+    )
+    changes = serializers.JSONField(required=False, default=dict)
+
+    def validate_changes(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("更改内容必须是对象")
+        return value
+
+
+class CurationActionSerializer(serializers.ModelSerializer):
+    actor = UserLiteSerializer(read_only=True)
+    grant = CuratorGrantSerializer(read_only=True)
+    evidence_ids = serializers.PrimaryKeyRelatedField(
+        source="evidence", many=True, read_only=True
+    )
+
+    class Meta:
+        model = CurationAction
+        fields = [
+            "id",
+            "actor",
+            "grant",
+            "action_type",
+            "target_type",
+            "target_id",
+            "target_label",
+            "before_snapshot",
+            "after_snapshot",
+            "reason",
+            "evidence_ids",
+            "created_at",
         ]
         read_only_fields = fields

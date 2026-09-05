@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/utils/request', () => ({
   default: {
+    del: vi.fn(),
     get: vi.fn(),
     post: vi.fn(),
   },
@@ -67,5 +68,27 @@ describe('Entry / Recording V2 service', () => {
       dialect_id: 11,
       note: '我这里常说',
     });
+  });
+
+  it('exposes governance and contribution endpoints', async () => {
+    request.get.mockResolvedValue({ results: [] });
+    request.post.mockResolvedValue({ id: 12 });
+    request.del.mockResolvedValue(null);
+
+    await service.listCuratorApplications();
+    await service.createCuratorApplication({ role: 'lexical' });
+    await service.withdrawCuratorApplication(9);
+    await service.listCuratorGrants({ active: true });
+    await service.listCurationTasks();
+    await service.createCurationAction({ action_type: 'review' });
+    await service.getMyContributionHistory();
+
+    expect(request.get).toHaveBeenCalledWith('/curator-applications/', {}, true);
+    expect(request.post).toHaveBeenCalledWith('/curator-applications/', { role: 'lexical' });
+    expect(request.del).toHaveBeenCalledWith('/curator-applications/9/');
+    expect(request.get).toHaveBeenCalledWith('/curator-grants/', { active: true }, true);
+    expect(request.get).toHaveBeenCalledWith('/curation/tasks/', {}, true);
+    expect(request.post).toHaveBeenCalledWith('/curation/actions/', { action_type: 'review' });
+    expect(request.get).toHaveBeenCalledWith('/contributions/me/', {}, true);
   });
 });
