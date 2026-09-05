@@ -3,7 +3,7 @@
     title="我的账户"
     active="me"
   >
-    <view class="page">
+    <view class="account-page">
       <template v-if="loggedIn">
         <view
           v-if="loading"
@@ -758,7 +758,7 @@ export default {
 </script>
 
 <style scoped>
-.page {
+.account-page {
   color: var(--dress-home-bg-color, var(--text-color));
   background: var(--dress-home-bg-background, transparent);
 }

@@ -189,6 +189,8 @@ describe('account UI tokens', () => {
       resolve(process.cwd(), 'src/pages/users/me.vue'),
       'utf8',
     );
+    expect(source).toContain('class="account-page"');
+    expect(source).not.toContain('class="page"');
     expect(source).toContain('编辑资料');
     expect(source).toContain('乡声号');
     expect(source).toContain('录乡音');

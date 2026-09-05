@@ -274,6 +274,20 @@ test('H5 mine account menu hides WeChat bind and keeps email', async ({ page }) 
   await expect(page.getByText('修改密码')).toBeVisible();
   await expect(page.getByText('绑定微信')).toHaveCount(0);
   await expect(page.getByText('点此授权')).toHaveCount(0);
+
+  const buttonTokens = await page.locator('.profile-actions .t-button').first().evaluate((element) => {
+    const styles = getComputedStyle(element);
+    const root = getComputedStyle(document.documentElement);
+    return {
+      brand: styles.getPropertyValue('--td-brand-color').trim().toLowerCase(),
+      rootAccent: root.getPropertyValue('--accent-color').trim().toLowerCase(),
+      rootBrand: root.getPropertyValue('--td-brand-color').trim().toLowerCase(),
+    };
+  });
+  expect(buttonTokens.brand).toBe(buttonTokens.rootAccent);
+  expect(buttonTokens.brand).toBe(buttonTokens.rootBrand);
+  expect(buttonTokens.brand).not.toBe('#0052d9');
+  expect(buttonTokens.brand).not.toBe('#366ef4');
 });
 
 test('password settings use design-system fields, visibility, and loading', async ({ page }) => {
