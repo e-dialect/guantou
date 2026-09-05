@@ -126,27 +126,31 @@
             class="theme-action-wrap"
             @tap.stop
           >
-            <view
+            <BaseButton
               class="icon-btn"
               :class="{
                 on: isItemFav(item.id),
-                disabled: !item.available,
               }"
-              role="button"
-              :aria-label="isItemFav(item.id) ? '取消收藏' : '收藏装扮'"
-              @tap="onToggleFavorite(item)"
+              size="extra-small"
+              variant="light"
+              shape="circle"
+              :aria-label="`${isItemFav(item.id) ? '取消收藏' : '收藏'}装扮：${item.name}`"
+              :disabled="!item.available"
+              @click="onToggleFavorite(item)"
             >
               {{ isItemFav(item.id) ? '★' : '☆' }}
-            </view>
-            <view
+            </BaseButton>
+            <BaseButton
               class="icon-btn"
-              :class="{ disabled: !item.available }"
-              role="button"
-              aria-label="分享装扮"
-              @tap="onShare(item)"
+              size="extra-small"
+              variant="light"
+              shape="circle"
+              :aria-label="`分享装扮：${item.name}`"
+              :disabled="!item.available"
+              @click="onShare(item)"
             >
               ↗
-            </view>
+            </BaseButton>
             <BaseButton
               class="item-action"
               size="extra-small"
@@ -206,23 +210,31 @@
             class="sheet-tools"
             @tap.stop
           >
-            <view
+            <BaseButton
               class="icon-btn"
               :class="{
                 on: isItemFav(detailItem.id),
-                disabled: !detailItem.available,
               }"
-              @tap="onToggleFavorite(detailItem)"
+              size="extra-small"
+              variant="light"
+              shape="circle"
+              :aria-label="`${isItemFav(detailItem.id) ? '取消收藏' : '收藏'}装扮：${detailItem.name}`"
+              :disabled="!detailItem.available"
+              @click="onToggleFavorite(detailItem)"
             >
               {{ isItemFav(detailItem.id) ? '★' : '☆' }}
-            </view>
-            <view
+            </BaseButton>
+            <BaseButton
               class="icon-btn"
-              :class="{ disabled: !detailItem.available }"
-              @tap="onShare(detailItem)"
+              size="extra-small"
+              variant="light"
+              shape="circle"
+              :aria-label="`分享装扮：${detailItem.name}`"
+              :disabled="!detailItem.available"
+              @click="onShare(detailItem)"
             >
               ↗
-            </view>
+            </BaseButton>
           </view>
           <view
             class="thumb thumb-lg pressable"
@@ -1002,23 +1014,15 @@ export default {
 }
 
 .icon-btn {
-  width: 48rpx;
-  height: 48rpx;
-  border-radius: var(--radius-pill);
-  background: var(--surface-subtle-color);
+  flex-shrink: 0;
+  margin: 0;
   color: var(--muted-color);
   font-size: var(--font-size-sm);
-  line-height: 48rpx;
-  text-align: center;
+  box-sizing: border-box;
 }
 
 .icon-btn.on {
   color: var(--warning-color);
-  background: var(--accent-subtle-color);
-}
-
-.icon-btn.disabled {
-  opacity: 0.4;
 }
 
 .sheet-tools {

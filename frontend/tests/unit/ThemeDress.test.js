@@ -3,6 +3,7 @@ import {
   beforeEach, describe, expect, it, vi,
 } from 'vitest';
 import confirmDialog from '@/components/ConfirmDialog';
+import BaseButton from '@/components/BaseButton.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import { isWechatMiniProgram } from '@/services/platform';
 import {
@@ -204,12 +205,38 @@ describe('Theme dress page', () => {
     wrapper.vm.refresh();
     await wrapper.vm.$nextTick();
     const live = wrapper.vm.items.find((item) => item.id === 'navbar-plain');
+    const upcoming = wrapper.vm.items.find((item) => !item.available);
+    const actionButtons = wrapper.findAllComponents(BaseButton)
+      .filter((button) => button.props('ariaLabel'));
+    const liveFavorite = actionButtons.find((button) => (
+      button.props('ariaLabel') === `收藏装扮：${live.name}`
+    ));
+    const liveShare = actionButtons.find((button) => (
+      button.props('ariaLabel') === `分享装扮：${live.name}`
+    ));
+    const upcomingFavorite = actionButtons.find((button) => (
+      button.props('ariaLabel') === `收藏装扮：${upcoming.name}`
+    ));
+    const upcomingShare = actionButtons.find((button) => (
+      button.props('ariaLabel') === `分享装扮：${upcoming.name}`
+    ));
+    expect(liveFavorite?.props()).toMatchObject({
+      disabled: false, shape: 'circle', size: 'extra-small', variant: 'light',
+    });
+    expect(liveShare?.props('disabled')).toBe(false);
+    expect(upcomingFavorite?.props('disabled')).toBe(true);
+    expect(upcomingShare?.props('disabled')).toBe(true);
+    wrapper.vm.openDetail(live);
+    await wrapper.vm.$nextTick();
+    const detailActions = wrapper.findAllComponents(BaseButton)
+      .filter((button) => button.props('ariaLabel') === `收藏装扮：${live.name}`);
+    expect(detailActions).toHaveLength(2);
+    wrapper.vm.closeDetail();
     await wrapper.vm.onToggleFavorite(live);
     expect(notifySuccess).toHaveBeenCalledWith('已收藏该装扮');
     await wrapper.vm.onShare(live);
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain('分享这个装扮');
-    const upcoming = wrapper.vm.items.find((item) => !item.available);
     await wrapper.vm.onShare(upcoming);
     expect(notify).toHaveBeenCalledWith({ title: '待上线装扮暂不支持分享' });
   });

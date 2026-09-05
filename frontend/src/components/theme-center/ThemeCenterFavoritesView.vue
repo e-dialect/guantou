@@ -59,19 +59,28 @@
           class="theme-action-wrap"
           @tap.stop
         >
-          <view
+          <BaseButton
             class="icon-btn on"
-            @tap="$emit('toggle-favorite', entry.kind, entry.item)"
+            size="extra-small"
+            variant="light"
+            shape="circle"
+            :aria-label="`取消收藏${entry.kind === 'theme' ? '主题' : '装扮'}：${entry.item.name}`"
+            :disabled="!entry.item.available"
+            @click="$emit('toggle-favorite', entry.kind, entry.item)"
           >
             ★
-          </view>
-          <view
+          </BaseButton>
+          <BaseButton
             class="icon-btn"
-            :class="{ disabled: !entry.item.available }"
-            @tap="$emit('share', entry.kind, entry.item)"
+            size="extra-small"
+            variant="light"
+            shape="circle"
+            :aria-label="`分享${entry.kind === 'theme' ? '主题' : '装扮'}：${entry.item.name}`"
+            :disabled="!entry.item.available"
+            @click="$emit('share', entry.kind, entry.item)"
           >
             ↗
-          </view>
+          </BaseButton>
           <BaseButton
             class="theme-action"
             size="small"

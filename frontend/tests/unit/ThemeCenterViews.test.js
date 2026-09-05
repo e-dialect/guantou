@@ -14,9 +14,14 @@ import ThemeCenterRecentView from '@/components/theme-center/ThemeCenterRecentVi
 import ThemeCenterThemeDetail from '@/components/theme-center/ThemeCenterThemeDetail.vue';
 
 const BaseButton = {
-  props: ['disabled', 'variant'],
+  props: ['ariaLabel', 'disabled', 'shape', 'size', 'variant'],
   emits: ['click'],
-  template: '<button class="base-button" :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
+  template: '<button class="base-button" :aria-label="ariaLabel" :data-shape="shape" :data-size="size" :disabled="disabled" @click="onClick"><slot /></button>',
+  methods: {
+    onClick() {
+      if (!this.disabled) this.$emit('click');
+    },
+  },
 };
 const BaseField = {
   props: ['modelValue'],
@@ -279,8 +284,21 @@ describe('theme center independent views', () => {
     await wrapper.setProps({ themes: [theme], footerLines: ['说明边界'] });
     expect(wrapper.text()).toContain('纸页主题');
     expect(wrapper.text()).toContain('说明边界');
+    const favorite = wrapper.get('[aria-label="收藏主题：纸页主题"]');
+    const share = wrapper.get('[aria-label="分享主题：纸页主题"]');
+    expect(favorite.attributes('data-shape')).toBe('circle');
+    expect(favorite.attributes('data-size')).toBe('extra-small');
+    await favorite.trigger('click');
+    await share.trigger('click');
+    expect(wrapper.emitted('toggle-favorite')?.[0]).toEqual(['theme', theme]);
+    expect(wrapper.emitted('share')?.[0]).toEqual(['theme', theme]);
     await wrapper.find('.theme-card').trigger('tap');
     expect(wrapper.emitted('open-detail')?.[0]).toEqual([theme]);
+
+    const upcoming = { ...theme, id: 'soon', name: '待上线主题', available: false };
+    await wrapper.setProps({ themes: [upcoming] });
+    expect(wrapper.get('[aria-label="收藏主题：待上线主题"]').attributes('disabled')).toBeDefined();
+    expect(wrapper.get('[aria-label="分享主题：待上线主题"]').attributes('disabled')).toBeDefined();
   });
 
   it('renders local catalog empty, filtered, and available group states', async () => {
@@ -314,6 +332,15 @@ describe('theme center independent views', () => {
     expect(wrapper.emitted('update-filter')?.[0]).toEqual(['theme']);
     await wrapper.setProps({ entries: [{ kind: 'theme', item: theme }] });
     expect(wrapper.text()).toContain('纸页主题');
+    await wrapper.get('[aria-label="取消收藏主题：纸页主题"]').trigger('click');
+    await wrapper.get('[aria-label="分享主题：纸页主题"]').trigger('click');
+    expect(wrapper.emitted('toggle-favorite')?.[0]).toEqual(['theme', theme]);
+    expect(wrapper.emitted('share')?.[0]).toEqual(['theme', theme]);
+
+    const retired = { ...theme, id: 'retired', name: '已下架主题', available: false };
+    await wrapper.setProps({ entries: [{ kind: 'theme', item: retired }] });
+    expect(wrapper.get('[aria-label="取消收藏主题：已下架主题"]').attributes('disabled')).toBeDefined();
+    expect(wrapper.get('[aria-label="分享主题：已下架主题"]').attributes('disabled')).toBeDefined();
   });
 
   it('renders mine empty and populated outfit states with explicit commands', async () => {
@@ -351,10 +378,21 @@ describe('theme center independent views', () => {
     });
     expect(wrapper.text()).toContain('保留乡音的温度');
     expect(wrapper.text()).toContain('导航栏');
+    const favorite = wrapper.get('.sheet-tools [aria-label="收藏主题：纸页主题"]');
+    const share = wrapper.get('.sheet-tools [aria-label="分享主题：纸页主题"]');
+    await favorite.trigger('click');
+    await share.trigger('click');
+    expect(wrapper.emitted('toggle-favorite')?.[0]).toEqual(['theme', theme]);
+    expect(wrapper.emitted('share')?.[0]).toEqual(['theme', theme]);
     await wrapper.find('.shot-lg').trigger('tap');
     expect(wrapper.emitted('open-zoom')).toHaveLength(1);
 
-    await wrapper.setProps({ zoomOpen: true });
+    const upcoming = { ...theme, available: false };
+    await wrapper.setProps({ theme: upcoming });
+    expect(wrapper.get('.sheet-tools [aria-label="收藏主题：纸页主题"]').attributes('disabled')).toBeDefined();
+    expect(wrapper.get('.sheet-tools [aria-label="分享主题：纸页主题"]').attributes('disabled')).toBeDefined();
+
+    await wrapper.setProps({ theme, zoomOpen: true });
     expect(wrapper.find('.zoom-mask').exists()).toBe(true);
     await wrapper.find('.preview-close').trigger('tap');
     expect(wrapper.emitted('close-zoom')).toHaveLength(1);

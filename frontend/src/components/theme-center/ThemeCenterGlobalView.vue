@@ -179,23 +179,31 @@
             class="theme-action-wrap"
             @tap.stop
           >
-            <view
+            <BaseButton
               class="icon-btn"
               :class="{
                 on: isItemFav('theme', theme.id),
-                disabled: !theme.available,
               }"
-              @tap="$emit('toggle-favorite', 'theme', theme)"
+              size="extra-small"
+              variant="light"
+              shape="circle"
+              :aria-label="`${isItemFav('theme', theme.id) ? '取消收藏' : '收藏'}主题：${theme.name}`"
+              :disabled="!theme.available"
+              @click="$emit('toggle-favorite', 'theme', theme)"
             >
               {{ isItemFav('theme', theme.id) ? '★' : '☆' }}
-            </view>
-            <view
+            </BaseButton>
+            <BaseButton
               class="icon-btn"
-              :class="{ disabled: !theme.available }"
-              @tap="$emit('share', 'theme', theme)"
+              size="extra-small"
+              variant="light"
+              shape="circle"
+              :aria-label="`分享主题：${theme.name}`"
+              :disabled="!theme.available"
+              @click="$emit('share', 'theme', theme)"
             >
               ↗
-            </view>
+            </BaseButton>
             <BaseButton
               class="theme-action"
               size="extra-small"
