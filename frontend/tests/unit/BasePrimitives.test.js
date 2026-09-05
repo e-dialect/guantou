@@ -158,6 +158,24 @@ describe('BaseButton', () => {
 });
 
 describe('BaseField', () => {
+  it('provides a safe per-field form relation when used standalone', () => {
+    const wrapper = mount(BaseField, {
+      props: { name: 'keyword', label: '关键词' },
+    });
+    const relation = wrapper.vm.standaloneFormRelation;
+    const child = { name: 'keyword' };
+
+    expect(relation).toMatchObject({
+      data: {},
+      formData: {},
+      rules: {},
+    });
+    relation.registerChild(child);
+    expect(relation.children).toEqual([child]);
+    relation.unregisterChild('keyword');
+    expect(relation.children).toEqual([]);
+  });
+
   it('wraps a picker trigger without rendering an extra text input', () => {
     const wrapper = mount(BaseField, {
       props: { name: 'dialect', label: '方言点', error: '请选择方言点' },

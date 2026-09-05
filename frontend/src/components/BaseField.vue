@@ -67,9 +67,45 @@ import TFormItem from '@tdesign/uniapp/form-item/form-item.vue';
 import TInput from '@tdesign/uniapp/input/input.vue';
 import TTextarea from '@tdesign/uniapp/textarea/textarea.vue';
 
+const TDESIGN_FORM_RELATION = 'Form';
+
+function createStandaloneFormRelation() {
+  return {
+    children: [],
+    data: {},
+    formData: {},
+    rules: {},
+    labelAlign: 'top',
+    labelWidth: '',
+    contentAlign: '',
+    requiredMark: false,
+    showErrorMessage: false,
+    requiredMarkPosition: 'left',
+    errorMessage: {},
+    registerChild(child) {
+      if (this.children.some((item) => item.name === child.name)) return;
+      this.children = [...this.children, child];
+    },
+    unregisterChild(childName) {
+      this.children = this.children.filter((item) => item.name !== childName);
+    },
+  };
+}
+
 export default {
   name: 'BaseField',
   components: { TFormItem, TInput, TTextarea },
+  inject: {
+    inheritedFormRelation: {
+      from: TDESIGN_FORM_RELATION,
+      default: null,
+    },
+  },
+  provide() {
+    return {
+      [TDESIGN_FORM_RELATION]: this.inheritedFormRelation || this.standaloneFormRelation,
+    };
+  },
   props: {
     modelValue: { type: [String, Number], default: '' },
     name: { type: String, required: true },
@@ -106,6 +142,11 @@ export default {
     },
   },
   emits: ['update:modelValue', 'change', 'input', 'blur', 'focus', 'enter', 'confirm'],
+  data() {
+    return {
+      standaloneFormRelation: createStandaloneFormRelation(),
+    };
+  },
   computed: {
     inputType() {
       if (this.type === 'tel') return 'number';
