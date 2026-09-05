@@ -22,7 +22,7 @@ describe('PageShell', () => {
     };
   });
 
-  it('keeps the title in the center grid column when back is hidden', () => {
+  it('keeps the title in the centered grid column when back is hidden', () => {
     const wrapper = mount(PageShell, {
       props: {
         title: '乡声集盒',
@@ -39,6 +39,19 @@ describe('PageShell', () => {
     expect(topbar.find('.shell-back-placeholder').exists()).toBe(true);
     expect(topbar.find('.shell-title').text()).toBe('乡声集盒');
     expect(wrapper.findComponent(FeedbackHost).exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('gives the back affordance an accessible name', () => {
+    const wrapper = mount(PageShell, {
+      props: { title: '词条详情' },
+      global: {
+        stubs: { 'scroll-view': { template: '<div><slot /></div>' } },
+      },
+    });
+
+    expect(wrapper.get('.shell-back').attributes('role')).toBe('button');
+    expect(wrapper.get('.shell-back').attributes('aria-label')).toBe('返回');
     wrapper.unmount();
   });
 
@@ -77,8 +90,9 @@ describe('PageShell', () => {
 
   it('tints the top bar with the active accent tokens', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/components/PageShell.vue'), 'utf8');
-    expect(source).toContain('var(--dress-nav-bar-background, var(--accent-subtle-color))');
-    expect(source).toContain('var(--dress-nav-bar-border-color, var(--accent-color))');
+    expect(source).toContain('--dress-nav-bar-background');
+    expect(source).toContain('linear-gradient(90deg, var(--surface-color), var(--accent-subtle-color))');
+    expect(source).toContain('var(--dress-nav-bar-border-color, var(--border-color))');
     expect(source).toContain('shell-grain');
     expect(source).toContain('var(--dress-grain-image, var(--grain-dot))');
   });

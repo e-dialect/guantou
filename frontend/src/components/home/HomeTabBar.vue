@@ -9,8 +9,10 @@
           'home-tab-bar__item--active': active === item.key,
           'home-tab-bar__item--record': item.key === 'record',
         }"
+        :data-nav-state="navState(item.key)"
         role="button"
         :aria-label="item.ariaLabel"
+        :aria-current="active === item.key ? 'page' : undefined"
         @tap="open(item.key)"
       >
         <view
@@ -60,6 +62,10 @@ export default {
     return { items: ITEMS };
   },
   methods: {
+    navState(key) {
+      if (key === this.active) return 'selected';
+      return key === 'record' ? 'action' : 'idle';
+    },
     open(key) {
       if (key === this.active) return;
       if (key === 'listen') goHome(true);
@@ -80,16 +86,29 @@ export default {
   right: 0;
   bottom: 0;
   z-index: 30;
-  background: var(--dress-tab-bar-background, var(--immersive-veil-color));
+  background: linear-gradient(
+    180deg,
+    var(--immersive-bg-soft-color),
+    var(--immersive-bg-color)
+  );
   border-top: 1rpx solid var(--immersive-border-color);
   backdrop-filter: blur(18rpx);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+.home-tab-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--dress-tab-bar-background, transparent);
+  pointer-events: none;
+}
+
 .home-tab-bar__inner {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  height: 108rpx;
+  height: 112rpx;
 }
 
 .home-tab-bar__item {
@@ -111,6 +130,7 @@ export default {
   border-radius: 18rpx;
   font-size: 29rpx;
   font-weight: 900;
+  box-sizing: border-box;
 }
 
 .home-tab-bar__hint {
@@ -123,12 +143,21 @@ export default {
 }
 
 .home-tab-bar__item--active .home-tab-bar__glyph,
-.home-tab-bar__item--record .home-tab-bar__glyph {
+.home-tab-bar__item--record.home-tab-bar__item--active .home-tab-bar__glyph {
   background: var(--immersive-accent-color);
   color: var(--immersive-bg-strong-color);
 }
 
-.home-tab-bar__item--record:not(.home-tab-bar__item--active) .home-tab-bar__hint {
-  color: var(--on-immersive-color);
+.home-tab-bar__item--record .home-tab-bar__glyph {
+  width: 58rpx;
+  height: 58rpx;
+  border-radius: var(--radius-pill);
+  transform: translateY(-3rpx);
+}
+
+.home-tab-bar__item--record:not(.home-tab-bar__item--active) .home-tab-bar__glyph {
+  border: 2rpx solid var(--immersive-accent-color);
+  background: var(--immersive-surface-color);
+  color: var(--immersive-accent-color);
 }
 </style>

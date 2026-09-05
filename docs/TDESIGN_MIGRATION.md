@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | `components/BaseButton/BaseForm/BaseField/BaseLoading` | done | 项目级原语 |
 | `components/EmptyState` | done | 所有现有消费者自动迁移 |
-| `components/PageShell` / `components/AppShell` | done | 已接入按钮原语与反馈 Host |
+| `components/PageShell` / `components/AppShell` / `components/home/HomeTabBar` | done | 已接入按钮原语与反馈 Host；[#340](https://github.com/e-dialect/guantou/issues/340) 收敛主入口标题区、普通页面顶栏与底部导航层级，底栏始终只有一个选中态，“录”在未选中时保留独立行动入口语义 |
 | `components/CommentThread` | done | 表单、按钮、加载与空态使用项目原语 |
 | `pages/error/not-found` | done | TDesign 空态 |
 | `pages/users/settings/username` | done | 单字段表单 |

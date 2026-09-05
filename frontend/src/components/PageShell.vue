@@ -12,6 +12,8 @@
       <text
         v-if="showBack"
         class="shell-back"
+        role="button"
+        aria-label="返回"
         @tap="handleBack"
       >
         ‹
@@ -159,14 +161,17 @@ export default {
 .shell-topbar {
   position: relative;
   z-index: 1;
-  height: 96rpx;
+  height: calc(104rpx + env(safe-area-inset-top));
   display: grid;
-  grid-template-columns: 56rpx 1fr auto;
+  grid-template-columns: minmax(56rpx, 1fr) auto minmax(56rpx, 1fr);
   align-items: center;
   gap: 16rpx;
-  padding: 0 28rpx;
-  background: var(--dress-nav-bar-background, var(--accent-subtle-color));
-  border-bottom: 1px solid var(--dress-nav-bar-border-color, var(--accent-color));
+  padding: env(safe-area-inset-top) 24rpx 0;
+  background: var(
+    --dress-nav-bar-background,
+    linear-gradient(90deg, var(--surface-color), var(--accent-subtle-color))
+  );
+  border-bottom: 1rpx solid var(--dress-nav-bar-border-color, var(--border-color));
   color: var(--dress-nav-bar-color, var(--text-color));
   box-sizing: border-box;
 }
@@ -177,14 +182,25 @@ export default {
 }
 
 .shell-back {
-  font-size: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 64rpx;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle-color);
+  color: var(--accent-color);
+  font-size: 48rpx;
   line-height: 1;
 }
 
 .shell-title {
   min-width: 0;
-  font-size: 34rpx;
-  font-weight: 700;
+  max-width: 420rpx;
+  text-align: center;
+  font-family: STSong, SimSun, serif;
+  font-size: 32rpx;
+  font-weight: 900;
+  letter-spacing: 1rpx;
   overflow-wrap: anywhere;
 }
 
@@ -195,17 +211,18 @@ export default {
 
 .shell-action {
   margin: 0;
+  justify-self: end;
 }
 
 .shell-content {
   position: relative;
   z-index: 1;
-  min-height: calc(100vh - 96rpx);
+  min-height: calc(100vh - 104rpx - env(safe-area-inset-top));
   padding: 28rpx;
   box-sizing: border-box;
 }
 
 .shell-scroll {
-  height: calc(100vh - 96rpx);
+  height: calc(100vh - 104rpx - env(safe-area-inset-top));
 }
 </style>

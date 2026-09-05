@@ -5,7 +5,7 @@
     :style="outfitVars"
   >
     <view class="app-shell__header">
-      <view>
+      <view class="app-shell__heading">
         <view class="app-shell__brand">
           乡声集盒 · FIELD ARCHIVE
         </view>
@@ -95,51 +95,86 @@ export default {
 
 <style scoped>
 .app-shell {
+  height: 100vh;
+  overflow: hidden;
   min-height: 100vh;
-  background: linear-gradient(
-    180deg,
-    var(--accent-subtle-color) 0%,
-    var(--page-color) 38%,
-    var(--surface-subtle-color) 100%
-  );
+  background: var(--page-color);
   color: var(--text-color);
 }
 .app-shell__header {
+  position: relative;
+  isolation: isolate;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 24rpx;
-  padding: calc(28rpx + env(safe-area-inset-top)) 30rpx 28rpx;
+  height: calc(136rpx + env(safe-area-inset-top));
+  padding: calc(20rpx + env(safe-area-inset-top)) 30rpx 20rpx;
+  box-sizing: border-box;
+  overflow: hidden;
   background: linear-gradient(
-    145deg,
-    var(--immersive-bg-color),
-    var(--immersive-bg-strong-color)
+    155deg,
+    var(--immersive-bg-strong-color) 0%,
+    var(--immersive-bg-soft-color) 62%,
+    var(--immersive-bg-color) 100%
   );
+  border-bottom: 1rpx solid var(--immersive-border-color);
   color: var(--on-immersive-color);
-  box-shadow: 0 12rpx 40rpx var(--immersive-veil-color);
+}
+.app-shell__header::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: -150rpx;
+  right: -120rpx;
+  width: 420rpx;
+  height: 420rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--immersive-glow-color), transparent 68%);
+  pointer-events: none;
+}
+.app-shell__heading {
+  min-width: 0;
 }
 .app-shell__brand {
   color: var(--immersive-accent-color);
-  font-size: 18rpx;
+  font-size: 16rpx;
   font-weight: 900;
-  letter-spacing: 4rpx;
+  letter-spacing: 3rpx;
 }
 .app-shell__title {
-  margin-top: 8rpx;
+  margin-top: 6rpx;
   font-family: STSong, SimSun, serif;
-  font-size: 42rpx;
+  font-size: 40rpx;
   font-weight: 900;
   letter-spacing: 2rpx;
+  line-height: 1.16;
+  overflow-wrap: anywhere;
 }
-.app-shell__scroll { height: calc(100vh - 116rpx - env(safe-area-inset-top)); }
+.app-shell__scroll {
+  height: calc(100vh - 136rpx - env(safe-area-inset-top));
+  background: linear-gradient(
+    180deg,
+    var(--accent-subtle-color) 0%,
+    var(--page-color) 112rpx
+  );
+}
 .app-shell__content {
-  min-height: calc(100vh - 300rpx);
-  padding: 28rpx 28rpx 170rpx;
+  min-height: calc(100vh - 296rpx - env(safe-area-inset-top));
+  padding: 30rpx 28rpx calc(148rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
-.app-shell__content--fixed { padding-bottom: 170rpx; }
+.app-shell__content--fixed {
+  min-height: calc(100vh - 136rpx - env(safe-area-inset-top));
+  padding-bottom: calc(148rpx + env(safe-area-inset-bottom));
+  background: linear-gradient(
+    180deg,
+    var(--accent-subtle-color) 0%,
+    var(--page-color) 112rpx
+  );
+}
 .app-shell__footer {
-  padding: 36rpx 30rpx 180rpx;
+  padding: 24rpx 30rpx calc(148rpx + env(safe-area-inset-bottom));
   color: var(--muted-color);
   text-align: center;
   font-family: STSong, SimSun, serif;
