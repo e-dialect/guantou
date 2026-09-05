@@ -21,7 +21,29 @@ async function openMine(page) {
   await expect(page.getByText('还没有登录')).toBeVisible();
 }
 
+function waitForThemeCatalog(page) {
+  const catalogPaths = ['/themes/', '/decorations/'];
+  return Promise.all(catalogPaths.map((pathname) => page.waitForResponse((response) => (
+    new URL(response.url()).pathname === pathname && response.ok()
+  ))));
+}
+
 async function themeCenterLayout(page) {
+  await page.evaluate(() => new Promise((resolve) => {
+    const resetScroll = () => {
+      window.scrollTo(0, 0);
+      document.querySelectorAll('.shell-scroll, .app-shell__scroll')
+        .forEach((element) => element.scrollTo(0, 0));
+    };
+    resetScroll();
+    requestAnimationFrame(() => {
+      resetScroll();
+      requestAnimationFrame(() => {
+        resetScroll();
+        resolve();
+      });
+    });
+  }));
   return page.evaluate(() => {
     const recentElement = document.querySelector('.recent-block');
     const currentElement = document.querySelector('.current-card');
@@ -35,6 +57,7 @@ async function themeCenterLayout(page) {
     return {
       recentHeight: recent?.height || 0,
       currentTop,
+      scrollTop: scrollContainer?.scrollTop || window.scrollY,
       overflow: document.documentElement.scrollWidth - window.innerWidth,
     };
   });
@@ -54,7 +77,10 @@ async function themeTokens(page) {
 
 test('mine page keeps contrast in light and dark themes', async ({ page }) => {
   await openMine(page);
+  const initialCatalogReady = waitForThemeCatalog(page);
   await tap(page.getByText('主题中心'));
+  await initialCatalogReady;
+  await expect(page.getByText('装扮目录加载中…')).toHaveCount(0);
   await expect(page.getByText('当前使用')).toBeVisible();
   await expect(page.locator('.recent-block .theme-status-pane--compact')).toBeVisible();
   await expect(page.locator('.recent-block .empty-state')).toHaveCount(0);
@@ -62,6 +88,7 @@ test('mine page keeps contrast in light and dark themes', async ({ page }) => {
   const lightLayout = await themeCenterLayout(page);
   expect(lightLayout.recentHeight).toBeLessThanOrEqual(120);
   expect(lightLayout.currentTop).toBeLessThanOrEqual(539);
+  expect(lightLayout.scrollTop).toBe(0);
   expect(lightLayout.overflow).toBeLessThanOrEqual(0);
 
   const light = await themeTokens(page);
@@ -74,7 +101,10 @@ test('mine page keeps contrast in light and dark themes', async ({ page }) => {
 
   await tap(page.locator('.filters.appearance .chip', { hasText: '深色' }));
   await expect.poll(async () => (await themeTokens(page)).theme).toBe('dark');
+  const darkCatalogReady = waitForThemeCatalog(page);
   await page.reload();
+  await darkCatalogReady;
+  await expect(page.getByText('装扮目录加载中…')).toHaveCount(0);
   await expect(page.getByText('当前使用')).toBeVisible();
   await expect.poll(async () => (await themeTokens(page)).theme).toBe('dark');
 
