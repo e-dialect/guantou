@@ -2,15 +2,16 @@
   <PageShell
     title="微信注册"
     :show-back="true"
+    content-class="auth-page"
   >
-    <view class="auth-card">
-      <view class="auth-card__title">
-        绑定账号信息
-      </view>
-      <view class="auth-card__lead">
-        为你的微信登录补全用户名、昵称和密码。
-      </view>
-
+    <AuthJourney
+      eyebrow="微信身份接入"
+      title="为微信登录留个署名"
+      lead="补全用户名、昵称和密码后，这个微信账号就能安全进入你的乡声档案。"
+      :step="1"
+      :step-total="2"
+      step-label="补全账户"
+    >
       <view class="auth-form">
         <BaseField
           v-model="username"
@@ -55,14 +56,15 @@
           :loading="submitting"
           @click="wechatRegister"
         >
-          微信注册
+          创建账户并继续
         </BaseButton>
       </view>
-    </view>
+    </AuthJourney>
   </PageShell>
 </template>
 
 <script>
+import AuthJourney from '@/pages/login/components/AuthJourney.vue';
 import PageShell from '@/components/PageShell.vue';
 import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
@@ -72,7 +74,9 @@ import { applyFieldErrors, readableErrorMessage } from '@/utils/apiError';
 
 export default {
   name: 'WechatRegisterPage',
-  components: { PageShell, BaseButton, BaseField },
+  components: {
+    AuthJourney, PageShell, BaseButton, BaseField,
+  },
   data() {
     return {
       username: '',
@@ -136,31 +140,12 @@ export default {
 </script>
 
 <style scoped>
-.auth-card {
-  max-width: 680rpx;
-  margin: 42rpx auto 0;
-  padding: 52rpx 34rpx 38rpx;
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-lg);
-  background: var(--surface-color);
-  box-shadow: 0 20rpx 60rpx var(--border-color);
-  box-sizing: border-box;
-}
-
-.auth-card__title {
-  color: var(--text-color);
-  font-size: var(--font-size-xl);
-  font-weight: 800;
-}
-
-.auth-card__lead {
-  margin-top: var(--space-2);
-  color: var(--text-secondary-color);
-  font-size: var(--font-size-sm);
-  line-height: 1.6;
-}
-
-.auth-form {
-  margin-top: var(--space-4);
+:deep(.auth-page) {
+  background: linear-gradient(
+    180deg,
+    var(--accent-subtle-color) 0%,
+    var(--page-color) 36%,
+    var(--surface-subtle-color) 100%
+  );
 }
 </style>

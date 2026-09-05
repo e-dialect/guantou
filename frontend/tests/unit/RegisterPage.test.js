@@ -68,6 +68,26 @@ describe('register page', () => {
     expect(wrapper.vm.errors.passwordConfirmed).toBe('两次密码不相同');
   });
 
+  it('keeps email verification behind valid account details', async () => {
+    const wrapper = mountPage();
+
+    expect(wrapper.vm.formStep).toBe(1);
+    expect(wrapper.text()).not.toContain('邮箱只用于验证身份');
+    wrapper.vm.continueToEmail();
+    expect(wrapper.vm.errors.username).toBe('请输入用户名');
+    expect(wrapper.vm.formStep).toBe(1);
+
+    wrapper.vm.username = '  collector  ';
+    wrapper.vm.password = 'password123';
+    wrapper.vm.passwordConfirmed = 'password123';
+    wrapper.vm.continueToEmail();
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.username).toBe('collector');
+    expect(wrapper.vm.formStep).toBe(2);
+    expect(wrapper.text()).toContain('邮箱只用于验证身份');
+  });
+
   it('sends email code when contact is an email', async () => {
     const wrapper = mountPage();
     wrapper.vm.email = 'collector@example.com';

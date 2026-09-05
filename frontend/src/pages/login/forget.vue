@@ -2,15 +2,16 @@
   <PageShell
     title="忘记密码"
     :show-back="true"
+    content-class="auth-page"
   >
-    <view class="auth-card">
-      <view class="auth-card__title">
-        找回密码
-      </view>
-      <view class="auth-card__lead">
-        通过账号绑定的邮箱验证身份后，即可设置新密码。
-      </view>
-
+    <AuthJourney
+      eyebrow="找回乡声档案"
+      :title="journeyTitle"
+      :lead="journeyLead"
+      :step="steps + 1"
+      :step-total="2"
+      :step-label="steps === 0 ? '确认账号' : '设置新密码'"
+    >
       <view
         v-if="steps === 0"
         class="auth-form"
@@ -57,13 +58,20 @@
           :error="errors.repeatedPassword"
           @input="clearFieldError('repeatedPassword')"
         />
-        <BaseField
-          v-model="emailMasked"
-          name="emailMasked"
-          label="邮箱"
-          placeholder="已绑定的邮箱"
-          disabled
-        />
+        <view
+          class="identity-proof"
+          role="note"
+        >
+          <view class="identity-proof__label">
+            正在找回
+          </view>
+          <view class="identity-proof__value">
+            {{ username }}
+          </view>
+          <view class="identity-proof__note">
+            验证码将发送到 {{ emailMasked }}
+          </view>
+        </view>
 
         <view class="code-row">
           <view class="code-field">
@@ -95,11 +103,12 @@
           重置密码
         </BaseButton>
       </view>
-    </view>
+    </AuthJourney>
   </PageShell>
 </template>
 
 <script>
+import AuthJourney from '@/pages/login/components/AuthJourney.vue';
 import PageShell from '@/components/PageShell.vue';
 import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
@@ -113,7 +122,9 @@ import getCodeMixin from './mixin/getCodeMixin';
 
 export default {
   name: 'ForgetPage',
-  components: { PageShell, BaseButton, BaseField },
+  components: {
+    AuthJourney, PageShell, BaseButton, BaseField,
+  },
   mixins: [getCodeMixin],
   data() {
     return {
@@ -135,6 +146,15 @@ export default {
   },
   onLoad(query) {
     this.username = String(query?.username || '').trim();
+  },
+  computed: {
+    journeyTitle() {
+      return this.steps === 0 ? '先确认你的账号' : '换一把新的钥匙';
+    },
+    journeyLead() {
+      if (this.steps === 0) return '先找到账号，再通过已绑定的邮箱验证身份。不会展示完整邮箱。';
+      return '设置新密码后，你的录音、收藏和贡献记录都会原样保留。';
+    },
   },
   methods: {
     clearFieldError(field) {
@@ -213,48 +233,39 @@ export default {
 </script>
 
 <style scoped>
-.auth-card {
-  max-width: 680rpx;
-  margin: 42rpx auto 0;
-  padding: 52rpx 34rpx 38rpx;
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-lg);
-  background: var(--surface-color);
-  box-shadow: 0 20rpx 60rpx var(--border-color);
-  box-sizing: border-box;
+.identity-proof {
+  padding: 20rpx 22rpx;
+  border-left: 5rpx solid var(--accent-color);
+  background: var(--accent-subtle-color);
 }
 
-.auth-card__title {
+.identity-proof__label {
+  color: var(--muted-color);
+  font-size: 20rpx;
+  letter-spacing: 2rpx;
+}
+
+.identity-proof__value {
+  margin-top: 6rpx;
   color: var(--text-color);
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
-.auth-card__lead {
-  margin-top: var(--space-2);
+.identity-proof__note {
+  margin-top: 6rpx;
   color: var(--text-secondary-color);
-  font-size: var(--font-size-sm);
-  line-height: 1.6;
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
 }
 
-.auth-form {
-  margin-top: var(--space-4);
+:deep(.auth-page) {
+  background: linear-gradient(
+    180deg,
+    var(--accent-subtle-color) 0%,
+    var(--page-color) 36%,
+    var(--surface-subtle-color) 100%
+  );
 }
-
-.code-row {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-2);
-}
-
-.code-field {
-  flex: 1;
-  min-width: 0;
-}
-
-.code-button {
-  flex: 0 0 auto;
-  margin-bottom: var(--space-3);
-}
-
 </style>
