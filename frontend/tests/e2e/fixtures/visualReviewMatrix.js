@@ -1,6 +1,6 @@
 export const ROUTE_VISUAL_MATRIX = Object.freeze([
   {
-    route: '/pages/index', target: '/pages/index', slug: 'listen', issues: [341], persona: 'guest',
+    route: '/pages/index', target: '/', expectedPath: '/', slug: 'listen', issues: [341], persona: 'guest',
   },
   {
     route: '/pages/search', target: '/pages/search', slug: 'search', issues: [342], persona: 'guest',

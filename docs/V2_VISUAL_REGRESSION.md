@@ -36,6 +36,8 @@ npm run review:visual:h5
 
 路由表由 `frontend/tests/e2e/fixtures/visualReviewMatrix.js` 单点维护，单元测试会阻止新增页面漏入清单、页面重复映射或责任 Issue 缺失。
 
+清单将 uni-app 注册路由与浏览器实际地址分开校验；例如注册页 `/pages/index` 在 H5 中的规范地址是 `/`，不会因此误报缺页。
+
 | 范围 | 数量 | 责任 Issue |
 | --- | ---: | --- |
 | 首页“听” | 1 | #341 |

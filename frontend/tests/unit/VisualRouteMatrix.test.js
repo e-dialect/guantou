@@ -19,7 +19,12 @@ describe('V2 visual review matrix', () => {
 
   it('gives every route a concrete responsibility and repeatable target', () => {
     ROUTE_VISUAL_MATRIX.forEach((entry) => {
-      expect(entry.target.startsWith(entry.route)).toBe(true);
+      if (entry.expectedPath) {
+        expect(entry.route).toBe('/pages/index');
+        expect(entry.target).toBe(entry.expectedPath);
+      } else {
+        expect(entry.target.startsWith(entry.route)).toBe(true);
+      }
       expect(entry.issues.length).toBeGreaterThan(0);
       expect(entry.issues.every((issue) => Number.isInteger(issue) && issue > 0)).toBe(true);
       expect(['guest', 'member']).toContain(entry.persona);

@@ -92,7 +92,7 @@ test.afterAll(async () => {
 ROUTE_VISUAL_MATRIX.forEach((entry, index) => {
   test(`route ${String(index + 1).padStart(2, '0')} ${entry.route} · ${issueLabel(entry.issues)}`, async ({ page }) => {
     await capture(page, {
-      actualPathExpected: entry.route,
+      actualPathExpected: entry.expectedPath || entry.route,
       filename: `${String(index + 1).padStart(2, '0')}-${entry.slug}-light-${entry.persona}`,
       group: 'routes',
       issues: entry.issues,
