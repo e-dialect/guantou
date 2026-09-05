@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  beforeEach, describe, expect, it, vi,
+} from 'vitest';
 
 vi.mock('@/services/entryRecording', () => ({
   createRecording: vi.fn(),
@@ -171,6 +173,30 @@ describe('low-threshold recording flow', () => {
     expect(await page.validateForm()).toBe(true);
     expect(page.form.original_writing).toBe('');
     expect(page.form.original_pronunciation).toBe('');
+  });
+
+  it('exposes the three required steps without treating professional fields as progress', () => {
+    const page = context(RecordingCreate);
+    page.audio = { path: '/tmp/voice.mp3', durationMs: 1200, invalid: false };
+    page.form.usage_dialect_id = 11;
+    page.form.original_writing = '行';
+    page.form.original_pronunciation = 'hiŋ';
+
+    const stepsBeforeGloss = RecordingCreate.computed.requiredSteps.call(page);
+    expect(stepsBeforeGloss.map((step) => ({
+      key: step.key,
+      complete: step.complete,
+      current: step.current,
+    }))).toEqual([
+      { key: 'audio', complete: true, current: false },
+      { key: 'dialect', complete: true, current: false },
+      { key: 'gloss', complete: false, current: true },
+    ]);
+
+    page.form.original_gloss = '表示可以通行';
+    const completedSteps = RecordingCreate.computed.requiredSteps.call(page);
+    expect(completedSteps.every((step) => step.complete)).toBe(true);
+    expect(completedSteps.some((step) => step.current)).toBe(false);
   });
 });
 

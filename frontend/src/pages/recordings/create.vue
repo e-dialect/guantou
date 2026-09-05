@@ -5,17 +5,49 @@
   >
     <view class="record-page">
       <view class="record-page__intro">
+        <view class="record-page__intro-meta">
+          <text class="record-page__eyebrow">
+            一分钟采集
+          </text>
+          <text class="record-page__progress-copy">
+            {{ requiredProgressLabel }}
+          </text>
+        </view>
         <text class="record-page__title">
-          会说就能贡献
+          会说，就能把乡音留下来
         </text>
         <text class="record-page__copy">
           最低只需一段录音、使用地区和大意。不会写汉字、不会 IPA，都可以先留空。
         </text>
+        <view
+          class="record-progress"
+          role="list"
+          :aria-label="requiredProgressLabel"
+        >
+          <view
+            v-for="step in requiredSteps"
+            :key="step.key"
+            class="record-progress__item"
+            :class="{
+              'record-progress__item--complete': step.complete,
+              'record-progress__item--current': step.current,
+            }"
+            role="listitem"
+            :aria-label="`${step.label}：${step.stateLabel}`"
+          >
+            <view class="record-progress__index">
+              {{ step.complete ? '✓' : step.number }}
+            </view>
+            <text class="record-progress__label">
+              {{ step.label }}
+            </text>
+          </view>
+        </view>
       </view>
 
       <view
         v-if="!capabilityAvailable"
-        class="record-section"
+        class="record-section record-section--standalone"
       >
         录音提交正在维护。你可以稍后再试；应用不会读取或保存设备位置。
       </view>
@@ -23,70 +55,133 @@
       <BaseForm
         v-else
         ref="form"
+        class="record-form"
         :data="form"
         :rules="rules"
       >
-        <view class="record-section">
-          <view class="record-section__heading">
-            1 · 录音
-          </view>
-          <AudioCapture
-            :audio="audio"
-            :invalid="Boolean(fieldErrors.audio_url)"
-            @change="onAudioChange"
-            @clear="clearAudio"
-            @error="onAudioError"
-          />
+        <view class="required-flow">
           <view
-            v-if="fieldErrors.audio_url"
-            class="field-error"
+            class="record-section record-section--audio"
+            :class="{ 'record-section--complete': requiredSteps[0].complete }"
           >
-            {{ fieldErrors.audio_url }}
+            <view class="record-section__heading">
+              <view class="record-section__index">
+                1
+              </view>
+              <view class="record-section__heading-copy">
+                <text class="record-section__title">
+                  录下这句乡音
+                </text>
+                <text class="record-section__caption">
+                  说一次你日常会用的词或短语
+                </text>
+              </view>
+              <text
+                class="record-section__state"
+                :class="{ 'record-section__state--complete': requiredSteps[0].complete }"
+              >
+                {{ requiredSteps[0].stateLabel }}
+              </text>
+            </view>
+            <view class="record-section__capture">
+              <AudioCapture
+                :audio="audio"
+                :invalid="Boolean(audio.invalid || (audio.path && fieldErrors.audio_url))"
+                @change="onAudioChange"
+                @clear="clearAudio"
+                @error="onAudioError"
+              />
+            </view>
+            <view
+              v-if="fieldErrors.audio_url"
+              class="field-error"
+            >
+              {{ fieldErrors.audio_url }}
+            </view>
           </view>
-        </view>
 
-        <view class="record-section">
-          <view class="record-section__heading">
-            2 · 在哪里这样说
-          </view>
-          <t-cell
-            title="使用地区"
-            required
-            :note="selectedDialectLabel"
-            arrow
-            hover
-            @click="dialectPickerVisible = true"
-          />
           <view
-            v-if="fieldErrors.usage_dialect_id"
-            class="field-error"
+            class="record-section"
+            :class="{ 'record-section--complete': requiredSteps[1].complete }"
           >
-            {{ fieldErrors.usage_dialect_id }}
+            <view class="record-section__heading">
+              <view class="record-section__index">
+                2
+              </view>
+              <view class="record-section__heading-copy">
+                <text class="record-section__title">
+                  标记使用地区
+                </text>
+                <text class="record-section__caption">
+                  选择你能确定的最小范围
+                </text>
+              </view>
+              <text
+                class="record-section__state"
+                :class="{ 'record-section__state--complete': requiredSteps[1].complete }"
+              >
+                {{ requiredSteps[1].stateLabel }}
+              </text>
+            </view>
+            <t-cell
+              title="使用地区"
+              required
+              :note="selectedDialectLabel"
+              arrow
+              hover
+              @click="dialectPickerVisible = true"
+            />
+            <view
+              v-if="fieldErrors.usage_dialect_id"
+              class="field-error"
+            >
+              {{ fieldErrors.usage_dialect_id }}
+            </view>
+            <view class="record-section__help">
+              不知道更细的地点时，可以停在自己确定的上一级范围。
+            </view>
           </view>
-          <view class="record-section__help">
-            不知道更细的地点时，可以停在自己确定的上一级范围。
-          </view>
-        </view>
 
-        <view class="record-section">
-          <view class="record-section__heading">
-            3 · 大概是什么意思
+          <view
+            class="record-section"
+            :class="{ 'record-section--complete': requiredSteps[2].complete }"
+          >
+            <view class="record-section__heading">
+              <view class="record-section__index">
+                3
+              </view>
+              <view class="record-section__heading-copy">
+                <text class="record-section__title">
+                  用自己的话说明大意
+                </text>
+                <text class="record-section__caption">
+                  不需要专业术语，能说明白就好
+                </text>
+              </view>
+              <text
+                class="record-section__state"
+                :class="{ 'record-section__state--complete': requiredSteps[2].complete }"
+              >
+                {{ requiredSteps[2].stateLabel }}
+              </text>
+            </view>
+            <BaseField
+              v-model="form.original_gloss"
+              name="original_gloss"
+              type="textarea"
+              label="大意"
+              required
+              :maxlength="300"
+              placeholder="例如：表示害怕的意思；看到危险时会说"
+              :error="fieldErrors.original_gloss"
+              @change="clearFieldError('original_gloss')"
+            />
           </view>
-          <BaseField
-            v-model="form.original_gloss"
-            name="original_gloss"
-            type="textarea"
-            label="用你自己的话说明"
-            required
-            :maxlength="300"
-            placeholder="例如：表示害怕的意思；看到危险时会说"
-            :error="fieldErrors.original_gloss"
-            @change="clearFieldError('original_gloss')"
-          />
         </view>
 
         <t-collapse
           v-model:value="optionalSections"
+          class="record-optional"
           theme="card"
         >
           <t-collapse-panel
@@ -189,8 +284,17 @@
         </t-collapse>
 
         <view class="record-submit">
+          <view class="record-submit__title">
+            先保存，再慢慢补全
+          </view>
           <view class="record-submit__note">
             提交后先成为可追溯初稿，写法和专业读音可以由你或整理员继续补充。
+          </view>
+          <view
+            class="record-submit__status"
+            :class="{ 'record-submit__status--ready': completedRequiredSteps === 3 }"
+          >
+            {{ recordSubmitHint }}
           </view>
           <BaseButton
             block
@@ -290,6 +394,37 @@ export default {
     };
   },
   computed: {
+    requiredSteps() {
+      const steps = [
+        {
+          key: 'audio', number: 1, label: '录音', complete: Boolean(this.audio.path && !this.audio.invalid),
+        },
+        {
+          key: 'dialect', number: 2, label: '地区', complete: Boolean(this.form.usage_dialect_id),
+        },
+        {
+          key: 'gloss', number: 3, label: '大意', complete: Boolean(String(this.form.original_gloss || '').trim()),
+        },
+      ];
+      const currentIndex = steps.findIndex((step) => !step.complete);
+      return steps.map((step, index) => {
+        const current = index === currentIndex;
+        let stateLabel = '待填写';
+        if (step.complete) stateLabel = '已完成';
+        else if (current) stateLabel = '当前';
+        return { ...step, current, stateLabel };
+      });
+    },
+    completedRequiredSteps() {
+      return this.requiredSteps.filter((step) => step.complete).length;
+    },
+    requiredProgressLabel() {
+      return `必要信息 ${this.completedRequiredSteps}/3`;
+    },
+    recordSubmitHint() {
+      const remaining = 3 - this.completedRequiredSteps;
+      return remaining === 0 ? '三项必要信息已齐，可以保存' : `还差 ${remaining} 项必要信息`;
+    },
     primaryDialect() {
       return getApp()?.globalData?.userInfo?.primary_dialect || null;
     },
@@ -433,13 +568,13 @@ export default {
 
 <style scoped>
 .record-page,
+.record-form,
 .optional-fields {
   display: grid;
   gap: 24rpx;
 }
 
 .record-page__intro,
-.record-section,
 .record-submit,
 .entry-linker {
   padding: 28rpx;
@@ -450,12 +585,30 @@ export default {
 
 .record-page__intro {
   display: grid;
-  gap: 10rpx;
+  gap: 12rpx;
+  background: var(--accent-subtle-color);
+  border-color: transparent;
+}
+
+.record-page__intro-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.record-page__eyebrow,
+.record-page__progress-copy {
+  color: var(--accent-color);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 1rpx;
 }
 
 .record-page__title {
   font-size: 38rpx;
   font-weight: 800;
+  line-height: 1.35;
 }
 
 .record-page__copy,
@@ -468,16 +621,146 @@ export default {
   line-height: 1.6;
 }
 
+.record-progress {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid var(--border-color);
+}
+
+.record-progress__item {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  min-width: 0;
+  color: var(--muted-color);
+}
+
+.record-progress__index,
+.record-section__index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  background: var(--surface-color);
+  color: var(--muted-color);
+  font-weight: 800;
+}
+
+.record-progress__index {
+  width: 34rpx;
+  height: 34rpx;
+  font-size: 20rpx;
+}
+
+.record-progress__label {
+  min-width: 0;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
+.record-progress__item--current {
+  color: var(--text-color);
+}
+
+.record-progress__item--current .record-progress__index {
+  background: var(--accent-color);
+  color: var(--on-accent-color);
+}
+
+.record-progress__item--complete,
+.record-progress__item--complete .record-progress__index {
+  color: var(--accent-color);
+}
+
+.required-flow {
+  overflow: hidden;
+  border: 1rpx solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--surface-color);
+}
+
 .record-section {
   display: grid;
   gap: 18rpx;
+  padding: 28rpx;
 }
 
-.record-section__heading,
+.record-section + .record-section {
+  border-top: 1rpx solid var(--border-color);
+}
+
+.record-section--standalone {
+  border: 1rpx solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--surface-color);
+}
+
+.record-section__heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14rpx;
+}
+
+.record-section__index {
+  width: 46rpx;
+  height: 46rpx;
+  background: var(--surface-subtle-color);
+  color: var(--text-secondary-color);
+  font-size: var(--font-size-sm);
+}
+
+.record-section--complete .record-section__index {
+  background: var(--accent-subtle-color);
+  color: var(--accent-color);
+}
+
+.record-section__heading-copy {
+  display: grid;
+  gap: 2rpx;
+  min-width: 0;
+}
+
+.record-section__capture {
+  --accent-color: var(--immersive-bg-strong-color);
+  --on-accent-color: var(--on-immersive-color);
+}
+
+.record-section__capture :deep(.record-primary) {
+  --surface-color: var(--on-immersive-color);
+  --accent-color: var(--immersive-bg-strong-color);
+  --text-color: var(--immersive-bg-strong-color);
+}
+
+.record-section__title,
 .entry-linker__heading,
 .selected-entry__title,
 .entry-candidate__title {
   font-weight: 800;
+}
+
+.record-section__caption {
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+}
+
+.record-section__state {
+  padding: 5rpx 12rpx;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle-color);
+  color: var(--muted-color);
+  font-size: 20rpx;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.record-section__state--complete {
+  background: var(--accent-subtle-color);
+  color: var(--accent-color);
 }
 
 .field-error {
@@ -485,10 +768,36 @@ export default {
   font-size: 23rpx;
 }
 
+.record-optional {
+  overflow: hidden;
+  border: 1rpx solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--surface-color);
+}
+
 .entry-linker,
 .record-submit {
   display: grid;
   gap: 18rpx;
+}
+
+.record-submit {
+  border-color: var(--accent-subtle-color);
+}
+
+.record-submit__title {
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+}
+
+.record-submit__status {
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
+.record-submit__status--ready {
+  color: var(--success-color);
 }
 
 .selected-entry {
