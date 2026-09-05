@@ -25,6 +25,11 @@ describe('BaseButton', () => {
     expect(wrapper.getComponent({ name: 'TDesignStub' }).props('icon')).toBe('refresh');
   });
 
+  it('forwards the mini program share capability explicitly', () => {
+    const wrapper = mount(BaseButton, { props: { openType: 'share' } });
+    expect(wrapper.getComponent({ name: 'TDesignStub' }).props('openType')).toBe('share');
+  });
+
   it('omits an empty aria-label so slot text stays the accessible name', () => {
     const wrapper = mount(BaseButton, {
       slots: { default: '保存' },

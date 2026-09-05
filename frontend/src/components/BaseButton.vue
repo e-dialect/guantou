@@ -14,6 +14,7 @@
     :disabled="disabled"
     :loading="loading"
     :type="type || undefined"
+    :open-type="openType || undefined"
     v-bind="buttonA11y"
     @click="handleClick"
     @tap="handleClick"
@@ -62,6 +63,11 @@ export default {
       type: String,
       default: '',
       validator: (value) => ['', 'submit', 'reset'].includes(value),
+    },
+    openType: {
+      type: String,
+      default: '',
+      validator: (value) => ['', 'share'].includes(value),
     },
   },
   emits: ['click'],

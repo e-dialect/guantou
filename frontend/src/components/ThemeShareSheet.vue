@@ -15,40 +15,65 @@
       <view class="muted">
         {{ copy }}
       </view>
-      <view
-        class="share-row pressable"
-        @tap="onFriend"
+      <BaseButton
+        class="share-row"
+        size="medium"
+        variant="ghost"
+        shape="rectangle"
+        aria-label="分享给好友"
+        block
+        @click="onFriend"
       >
         分享给好友
-      </view>
-      <button
+      </BaseButton>
+      <BaseButton
         v-if="isMiniProgram"
-        class="share-row share-native"
+        class="share-row"
+        size="medium"
+        variant="ghost"
+        shape="rectangle"
+        aria-label="分享到微信"
+        block
         open-type="share"
-        @tap="onMpShare"
+        @click="onMpShare"
       >
         分享到微信
-      </button>
-      <view
+      </BaseButton>
+      <BaseButton
         v-else
-        class="share-row pressable"
-        @tap="onWechatH5"
+        class="share-row"
+        size="medium"
+        variant="ghost"
+        shape="rectangle"
+        aria-label="分享到微信"
+        block
+        @click="onWechatH5"
       >
         分享到微信
-      </view>
-      <view
+      </BaseButton>
+      <BaseButton
         v-if="!isMiniProgram"
-        class="share-row pressable"
-        @tap="onCopy"
+        class="share-row"
+        size="medium"
+        variant="ghost"
+        shape="rectangle"
+        aria-label="复制链接"
+        block
+        @click="onCopy"
       >
         复制链接
-      </view>
-      <view
-        class="share-row pressable"
-        @tap="posterOpen = true"
+      </BaseButton>
+      <BaseButton
+        class="share-row"
+        size="medium"
+        variant="ghost"
+        shape="rectangle"
+        aria-label="生成分享图片"
+        block
+        @click="posterOpen = true"
       >
         生成分享图片
-      </view>
+      </BaseButton>
       <view
         v-if="posterOpen"
         class="poster"
@@ -233,19 +258,6 @@ export default {
 
 .share-row {
   margin-top: var(--space-2);
-  padding: var(--space-3);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: var(--page-color);
-  font-size: var(--font-size-sm);
-}
-
-.share-native {
-  width: 100%;
-  line-height: inherit;
-  text-align: left;
-  color: inherit;
-  background: var(--page-color);
 }
 
 .poster {
