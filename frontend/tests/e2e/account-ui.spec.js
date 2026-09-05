@@ -194,7 +194,10 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
   await page.locator('.tab', { hasText: '局部装扮' }).click();
   await page.locator('.dress-card', { hasText: '导航栏底色与图标' }).locator('.theme-name').click();
   await expect(page.getByText('系统默认顶栏').first()).toBeVisible();
-  await expect(page.getByText('该分类装扮素材即将上线，敬请期待').first()).toBeVisible();
+  const availability = page.locator('.availability-note');
+  await expect(availability.getByText('目录状态', { exact: true })).toBeVisible();
+  await expect(availability).toContainText('部分素材仍在制作，已上线项可正常预览和应用。');
+  await expect(page.locator('.directory-head')).toContainText('可用目录');
   await page.getByText('系统默认顶栏').first().click();
   await expect(page.getByText('H5网页版：完整生效').first()).toBeVisible();
   await page.locator('.sheet-actions .base-button').last().click({ force: true });
