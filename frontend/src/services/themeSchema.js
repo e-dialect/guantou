@@ -5,6 +5,7 @@
  */
 import { isWechatMiniProgram } from '@/services/platform';
 import { parseThemeStyle } from '@/services/themeFault';
+import { bindThemeRuntimeAdapters } from '@/services/themeRuntime';
 import {
   applyTheme,
   getAccentPreference,
@@ -673,3 +674,7 @@ export function clearOutfitStyleVars() {
   writeDocumentVars({});
   appliedVarKeys = [];
 }
+
+bindThemeRuntimeAdapters({
+  clearThemeStyleCache,
+});

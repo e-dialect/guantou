@@ -28,6 +28,7 @@ import {
   setThemeCloudFlusher,
 } from '@/services/themeFault';
 import { THEME_API_PATHS } from '@/services/themeSchema';
+import { bindThemeRuntimeAdapters } from '@/services/themeRuntime';
 
 describe('themeApi', () => {
   beforeEach(() => {
@@ -243,22 +244,33 @@ describe('themeApi', () => {
 
   it('hydrates the local outfit from cloud config', async () => {
     const hydrateFromCloudConfig = vi.fn();
-    vi.doMock('@/services/themeCenter', () => ({
+    const hydrateFavoriteMap = vi.fn();
+    const hydrateSavedOutfits = vi.fn();
+    const restore = bindThemeRuntimeAdapters({
+      hydrateFavoriteMap,
       hydrateFromCloudConfig,
-    }));
+      hydrateSavedOutfits,
+    });
     request.mockResolvedValue({
       global_theme_id: 'default',
       decoration_map: {},
       is_cover_local_decoration: true,
     });
-    const result = await pullThemeCloudState();
-    expect(result.ok).toBe(true);
-    expect(request).toHaveBeenCalledWith(
-      'GET',
-      THEME_API_PATHS.config,
-      {},
-      expect.objectContaining({ silent: true }),
-    );
+    try {
+      const result = await pullThemeCloudState();
+      expect(result.ok).toBe(true);
+      expect(request).toHaveBeenCalledWith(
+        'GET',
+        THEME_API_PATHS.config,
+        {},
+        expect.objectContaining({ silent: true }),
+      );
+      expect(hydrateFromCloudConfig).toHaveBeenCalledWith(expect.objectContaining({
+        global_theme_id: 'default',
+      }));
+    } finally {
+      restore();
+    }
   });
 
   it('posts apply with the current terminal', async () => {

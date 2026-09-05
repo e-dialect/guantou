@@ -5,6 +5,10 @@
 import { isLoggedIn } from '@/services/authGuard';
 import { isWechatMiniProgram } from '@/services/platform';
 import {
+  trackThemePerfError,
+  trackThemePerfStyle,
+} from '@/services/themeAnalytics';
+import {
   applyThemeRemote,
   claimThemeRemote,
   collectThemeRemote,
@@ -35,6 +39,7 @@ import {
   toCurrentConfig,
   toSavedMix,
 } from '@/services/themeSchema';
+import { bindThemeRuntimeAdapters } from '@/services/themeRuntime';
 
 export const THEME_PACK_STORAGE_KEY = 'ui_theme_pack';
 export const THEME_OVERLAY_STORAGE_KEY = 'ui_theme_overlay_local';
@@ -4646,10 +4651,8 @@ function reportHydratePerf({ hydrateMs, layerCount, ok }) {
   const now = Date.now();
   if (now - lastHydratePerfAt < 2000 && ok) return;
   lastHydratePerfAt = now;
-  import('@/services/themeAnalytics').then((mod) => {
-    mod.trackThemePerfStyle?.({ hydrateMs, layerCount });
-    if (!ok) mod.trackThemePerfError?.('style_json');
-  }).catch(() => {});
+  trackThemePerfStyle({ hydrateMs, layerCount });
+  if (!ok) trackThemePerfError('style_json');
 }
 
 export function hydrateOutfitStyle() {
@@ -5364,3 +5367,30 @@ export async function resetAllDress() {
     queued: queueCloudSync(),
   };
 }
+
+bindThemeRuntimeAdapters({
+  accessLabel,
+  applyRemoteEntitlement,
+  catalogStatus,
+  defaultCatalog: () => ({
+    themes: GLOBAL_THEMES,
+    dresses: LOCAL_DRESS_ITEMS,
+  }),
+  getActiveThemeId,
+  getDefaultThemeId: () => DEFAULT_THEME_ID,
+  getDialectRegions: () => DIALECT_REGIONS,
+  getDressCategories: () => DRESS_CATEGORIES,
+  getDressGroup,
+  getMemberStatus,
+  getThemeAccessFilters: () => THEME_ACCESS_FILTERS,
+  getThemeCategories: () => THEME_CATEGORIES,
+  getThemeSorts: () => THEME_SORTS,
+  hydrateFavoriteMap,
+  hydrateFromCloudConfig,
+  hydrateSavedOutfits,
+  mergeGuestThemeSnapshot,
+  mergeRemoteCatalog,
+  persistActiveTheme,
+  persistLocalDress,
+  setOverlayLocalDress,
+});

@@ -18,10 +18,15 @@ yarn build:mp-weixin:checked
 
 | 指纹 | 平台 | 归属 | 退出条件 |
 | --- | --- | --- | --- |
-| themeApi.js / themeCenter.js / themeSchema.js 同时被静态与动态导入 | H5 | #328 | 主题模块完成分层后删除三项精确允许规则 |
 | UniApp 检测到新版本 | H5 / 微信小程序 | #353 | 按同一官方兼容矩阵成组升级 DCloud 依赖 |
 
 微信小程序编译器内部仍通过 Vue SFC 的 `renderSync` 进入 Sass legacy JS API。项目 Sass 已完成模块化迁移，因此 `vite.config.mjs` 仅对 `legacy-js-api` 这一条上游弃用提示使用 Sass 官方 `silenceDeprecations`；#353 升级编译器并确认改用现代 API 后必须删除该配置。
+
+## #367 已清理项
+
+- themeFault、themeApi、themeAnalytics、themeCenter 与 themeSchema 已通过显式运行时适配器解除反向动态依赖。
+- H5 不再输出 themeApi.js、themeCenter.js、themeSchema.js 无法拆分 chunk 的三条提示；#328 允许规则已删除。
+- 主题服务依赖图与适配器注册/恢复已有单元测试，不能靠重新加入动态 import 或循环静态 import 绕开边界。设计与体积/时延基线见 [`THEME_RUNTIME_BOUNDARY.md`](THEME_RUNTIME_BOUNDARY.md)。
 
 ## #352 已清理项
 

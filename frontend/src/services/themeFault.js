@@ -1,6 +1,8 @@
 import { isLoggedIn } from '@/services/authGuard';
 import { notify } from '@/services/feedback';
 import { isWechatMiniProgram } from '@/services/platform';
+import { trackThemeFault } from '@/services/themeAnalytics';
+import { themeRuntime } from '@/services/themeRuntime';
 
 export const THEME_CATALOG_CACHE_KEY = 'ui_theme_catalog_cache';
 export const THEME_CATALOG_VERSION_KEY = 'ui_theme_catalog_version';
@@ -240,11 +242,7 @@ export function isThemeSdkSupported() {
 }
 
 async function defaultCatalog() {
-  const { GLOBAL_THEMES, LOCAL_DRESS_ITEMS } = await import('@/services/themeCenter');
-  return {
-    themes: GLOBAL_THEMES,
-    dresses: LOCAL_DRESS_ITEMS,
-  };
+  return themeRuntime().defaultCatalog();
 }
 
 function catalogMetaList(items) {
@@ -268,9 +266,11 @@ function rememberCatalogVersion(version) {
         // ignore
       }
     });
-    import('@/services/themeSchema').then((mod) => {
-      mod.clearThemeStyleCache?.();
-    }).catch(() => {});
+    try {
+      themeRuntime().clearThemeStyleCache();
+    } catch {
+      // A stale style cache must not block catalog refresh.
+    }
   }
   writeThemeStorage(THEME_CATALOG_VERSION_KEY, next);
 }
@@ -329,7 +329,7 @@ export async function refreshThemeMemberStatus() {
   }
   memberSyncing = true;
   try {
-    const { applyRemoteEntitlement, getMemberStatus } = await import('@/services/themeCenter');
+    const { applyRemoteEntitlement, getMemberStatus } = themeRuntime();
     if (!memberFetcher) {
       memberSyncing = false;
       return { syncing: false, member: getMemberStatus() };
@@ -393,9 +393,7 @@ export function scheduleThemeCloudFlush({ social = false } = {}) {
       notify({
         title: social ? THEME_FAULT_TOAST.socialSyncFail : THEME_FAULT_TOAST.syncFail,
       });
-      import('@/services/themeAnalytics').then((mod) => {
-        mod.trackThemeFault?.('sync');
-      }).catch(() => {});
+      trackThemeFault('sync');
     }
   }, 300);
   return { queued: true };
@@ -410,10 +408,9 @@ export function bindThemeNetworkFlush() {
     if (!status?.isConnected) return;
     flushThemeCloudQueue();
     if (!catalogFetcher) return;
-    loadThemeCatalog().then(async (result) => {
+    loadThemeCatalog().then((result) => {
       if (!result?.ok || !result.data) return;
-      const { mergeRemoteCatalog } = await import('@/services/themeCenter');
-      mergeRemoteCatalog(result.data);
+      themeRuntime().mergeRemoteCatalog(result.data);
     }).catch(() => {
       // Keep the current catalog; the next page show can retry.
     });
@@ -504,12 +501,12 @@ export async function applyThemeMergeChoice(choice, snapshot) {
     persistActiveTheme,
     persistLocalDress,
     setOverlayLocalDress,
-    DEFAULT_THEME_ID,
-  } = await import('@/services/themeCenter');
+    getDefaultThemeId,
+    pullThemeCloudState,
+  } = themeRuntime();
   if (choice === 'cloud' || choice === 'merge') {
     writeThemeStorage(THEME_GUEST_SNAP_KEY, '');
     try {
-      const { pullThemeCloudState } = await import('@/services/themeApi');
       const pulled = await pullThemeCloudState();
       if (!pulled?.ok) throw new Error(pulled?.reason || 'cloud');
       if (choice === 'merge') {
@@ -529,7 +526,7 @@ export async function applyThemeMergeChoice(choice, snapshot) {
   }
   if (choice === 'local') {
     setOverlayLocalDress(false);
-    const themeId = snapshot?.themeId || DEFAULT_THEME_ID;
+    const themeId = snapshot?.themeId || getDefaultThemeId();
     const themeResult = await persistActiveTheme(themeId);
     const dressResults = await Promise.all(
       Object.entries(snapshot?.localDress || {}).map(([groupId, itemId]) => (

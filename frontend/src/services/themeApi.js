@@ -19,6 +19,10 @@ import {
   toCurrentConfig,
   toSavedMix,
 } from '@/services/themeSchema';
+import {
+  bindThemeRuntimeAdapters,
+  themeRuntime,
+} from '@/services/themeRuntime';
 import { request } from '@/utils/httpClient';
 
 const silent = {
@@ -172,17 +176,17 @@ export async function pullThemeCloudState() {
   const pending = await flushThemeCloudQueue();
   if (!pending.ok) return { ok: false, reason: 'sync-pending' };
   const config = await fetchThemeConfig();
-  const themeCenter = await import('@/services/themeCenter');
-  themeCenter.hydrateFromCloudConfig(config);
+  const runtime = themeRuntime();
+  runtime.hydrateFromCloudConfig(config);
   try {
     const remote = await request('GET', THEME_API_PATHS.collects, {}, silent);
-    themeCenter.hydrateFavoriteMap?.(remote?.collect_list);
+    runtime.hydrateFavoriteMap(remote?.collect_list);
   } catch {
     // Keep local favorites; apply/config already landed.
   }
   try {
     const mixes = await request('GET', THEME_API_PATHS.mixes, {}, silent);
-    if (Array.isArray(mixes)) themeCenter.hydrateSavedOutfits?.(mixes);
+    if (Array.isArray(mixes)) runtime.hydrateSavedOutfits(mixes);
   } catch {
     // Keep local mixes; config already landed.
   }
@@ -266,3 +270,8 @@ export function bindThemeAdapters() {
 }
 
 export { fromCurrentConfig };
+
+bindThemeRuntimeAdapters({
+  postThemeEvent,
+  pullThemeCloudState,
+});

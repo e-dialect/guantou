@@ -12,19 +12,12 @@ const uniCli = path.join(
   'uni.js',
 );
 
-const knownThemeChunkModules = new Set([
-  'themeApi.js',
-  'themeCenter.js',
-  'themeSchema.js',
-]);
-
 const ansiPattern = /\u001b\[[0-9;]*m/g;
 const warningPattern = /(^|\W)(warning|warnings|deprecated|deprecation)(\W|$)/i;
 
 export function auditBuildOutput(rawOutput, target) {
   const allowed = [];
   const violations = [];
-  const seenThemeChunkModules = new Set();
 
   String(rawOutput || '')
     .replace(ansiPattern, '')
@@ -33,25 +26,6 @@ export function auditBuildOutput(rawOutput, target) {
     .filter(Boolean)
     .forEach((line) => {
       if (line.includes('[plugin:vite:reporter]')) return;
-
-      if (
-        line.includes('is dynamically imported by')
-        && line.includes('dynamic import will not move module into another chunk')
-      ) {
-        const match = line.match(/[\\/]src[\\/]services[\\/](theme(?:Api|Center|Schema)\.js)/);
-        const moduleName = match?.[1] || '';
-        if (
-          target === 'h5'
-          && knownThemeChunkModules.has(moduleName)
-          && !seenThemeChunkModules.has(moduleName)
-        ) {
-          seenThemeChunkModules.add(moduleName);
-          allowed.push({ issue: '#328', kind: 'theme-chunk', module: moduleName });
-          return;
-        }
-        violations.push(line);
-        return;
-      }
 
       if (line.includes('uni-app 有新版本发布')) {
         allowed.push({ issue: '#353', kind: 'uni-app-update' });

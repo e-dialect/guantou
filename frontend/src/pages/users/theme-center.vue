@@ -1765,6 +1765,7 @@ import {
   setThemePreference,
   THEME_OPTIONS,
 } from '@/services/theme';
+import { pullThemeCloudState } from '@/services/themeApi';
 import {
   trackThemeApply,
   trackThemeApplyInvalid,
@@ -2162,7 +2163,6 @@ export default {
           this.mergeSheet = true;
         } else if (login.switched) {
           try {
-            const { pullThemeCloudState } = await import('@/services/themeApi');
             await pullThemeCloudState();
             this.refreshOutfit();
           } catch {
