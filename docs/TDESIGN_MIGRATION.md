@@ -138,6 +138,12 @@ V2 全站聚合验收由 [#346](https://github.com/e-dialect/guantou/issues/346)
 - H5 尽可能从导航历史恢复刚才访问的 pathname；显式 `path` / `from` 参数可供其它平台使用。展示前会解码并剥离 query/hash，避免把 token 等敏感参数回显到页面。
 - 长路径允许逐字符换行；直接访问兜底页时不伪造来源路径。单测覆盖脱敏与唯一可访问动作，H5 回归从真实未知长路径进入并验证返回首页。
 
+## 未知 H5 路由门禁（#363）
+
+- UniApp 原有 `App.onLaunch` 兜底晚于 Vue Router 的首次解析，真实未知 URL 会先产生 `No match found` warning。H5 构建现在通过后置 Vite 插件，在路由实例创建前向 UniApp 生成的 `__uniRoutes` 追加唯一 catch-all。
+- catch-all 只把 `to.path` 作为 `path` query 传给 #362 页面，不携带原 URL 的 query/hash；已注册路由仍优先匹配。插件按 `UNI_PLATFORM=h5` 和 UniApp `__uniRoutes` 生成锚点双重限域，mp-weixin 不注入。
+- 独立单测固定生成代码的锚点和平台边界；独立 H5 E2E 从真实未知长 URL 进入，要求脱敏路径、恢复动作以及 console warning/error、pageerror 全部通过。
+
 ## Completion
 
 所有 `issue` 和 `queued` 页面完成后：确认仓库不再使用原生交互控件、`uni-ui` 表单或 `cu-*`，再删除 `legacy-form-compat.scss`、ColorUI 全局引入、无用 easycom 映射与 `@dcloudio/uni-ui` 依赖。

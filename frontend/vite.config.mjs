@@ -3,6 +3,7 @@ import uniModule from '@dcloudio/vite-plugin-uni';
 import alias from '@rollup/plugin-alias';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
+import { h5NotFoundRoutePlugin } from './build/h5NotFoundRoutePlugin.mjs';
 
 const projectRootDir = fileURLToPath(new URL('.', import.meta.url));
 const uni = uniModule.default;
@@ -47,6 +48,7 @@ export default defineConfig({
     uni(),
     alias(),
     ...(isolatedH5Server ? [isolatedH5Server] : []),
+    h5NotFoundRoutePlugin(),
   ],
   resolve: {
     alias: {
