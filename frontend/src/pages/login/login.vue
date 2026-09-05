@@ -139,25 +139,62 @@
 
       <template #footer>
         <view class="auth-secondary">
-          <view
+          <t-button
             class="browse-first"
-            @tap="cancelLoginToSearch"
+            theme="primary"
+            variant="text"
+            size="medium"
+            role="button"
+            tabindex="0"
+            aria-label="暂不登录，先去查词"
+            @click="cancelLoginToSearch"
+            @keydown.enter.space.prevent="cancelLoginToSearch"
           >
             暂不登录，先去查词
-          </view>
+          </t-button>
           <view class="login-links">
-            <text @tap="toForgetPage()">
+            <t-button
+              class="login-link"
+              theme="default"
+              variant="text"
+              size="medium"
+              role="button"
+              tabindex="0"
+              aria-label="忘记密码"
+              @click="toForgetPage()"
+              @keydown.enter.space.prevent="toForgetPage()"
+            >
               忘记密码
-            </text>
+            </t-button>
             <!-- #ifndef MP-WEIXIN -->
-            <text @tap="toRegisterPage()">
+            <t-button
+              class="login-link"
+              theme="default"
+              variant="text"
+              size="medium"
+              role="button"
+              tabindex="0"
+              aria-label="用户注册"
+              @click="toRegisterPage()"
+              @keydown.enter.space.prevent="toRegisterPage()"
+            >
               用户注册
-            </text>
+            </t-button>
             <!-- #endif -->
             <!-- #ifdef MP-WEIXIN -->
-            <text @tap="toWechatRegisterPage()">
+            <t-button
+              class="login-link"
+              theme="default"
+              variant="text"
+              size="medium"
+              role="button"
+              tabindex="0"
+              aria-label="微信注册"
+              @click="toWechatRegisterPage()"
+              @keydown.enter.space.prevent="toWechatRegisterPage()"
+            >
               微信注册
-            </text>
+            </t-button>
             <!-- #endif -->
           </view>
         </view>
@@ -169,6 +206,7 @@
 <script>
 import TTabPanel from '@tdesign/uniapp/tab-panel/tab-panel.vue';
 import TTabs from '@tdesign/uniapp/tabs/tabs.vue';
+import TButton from '@tdesign/uniapp/button/button.vue';
 import AuthJourney from '@/pages/login/components/AuthJourney.vue';
 import PageShell from '@/components/PageShell.vue';
 import BaseButton from '@/components/BaseButton.vue';
@@ -189,6 +227,7 @@ export default {
     BaseField,
     TTabPanel,
     TTabs,
+    TButton,
   },
   data() {
     return {
@@ -363,38 +402,31 @@ export default {
 }
 
 .browse-first {
+  display: flex;
+  width: 100%;
+  margin: 0;
+  --td-button-medium-font: 700 28rpx / 40rpx var(--td-font-family);
+  --td-button-medium-height: 80rpx;
+  --td-button-primary-text-color: var(--accent-color);
+  --td-button-primary-text-active-bg-color: var(--accent-subtle-color);
   color: var(--accent-color);
-  text-align: center;
-  font-size: 24rpx;
-  transition: opacity 0.2s ease;
-}
-
-.browse-first:active {
-  opacity: 0.6;
 }
 
 .login-links {
   display: flex;
   justify-content: center;
-  gap: 44rpx;
-  margin-top: 22rpx;
+  gap: var(--space-1);
+  margin-top: 2rpx;
   color: var(--muted-color);
-  font-size: 22rpx;
 }
 
-.login-links text {
-  transition: color 0.2s ease;
-}
-
-.login-links text:active {
-  color: var(--accent-color);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .browse-first,
-  .login-links text {
-    transition: none;
-  }
+.login-link {
+  min-width: 132rpx;
+  margin: 0;
+  --td-button-medium-font: 600 24rpx / 36rpx var(--td-font-family);
+  --td-button-medium-height: 80rpx;
+  --td-button-default-color: var(--muted-color);
+  --td-button-default-text-active-bg-color: var(--surface-subtle-color);
 }
 
 :deep(.auth-page) {
