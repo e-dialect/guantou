@@ -3,113 +3,120 @@
     :title="hasPassword ? '修改密码' : '设置密码'"
     :back-fallback="ROUTES.userInformation"
   >
-    <view class="password-form">
-      <view class="hint">
-        {{ hasPassword
-          ? '新密码长度为 6 到 32 个字符。修改成功后，下次登录请使用新密码。'
-          : '当前账号还没有登录密码。设置 6 到 32 个字符的密码后，可以用账号密码登录。' }}
-      </view>
-      <view
-        v-if="hasPassword"
-        class="forget-link pressable"
-        @tap="goForgetPassword"
-      >
-        不记得原密码？去邮箱找回
-      </view>
-
-      <BaseForm
-        ref="form"
-        :data="form"
-        :rules="rules"
-      >
+    <AccountSettingPanel
+      eyebrow="账户与安全"
+      mark="安"
+      :title="hasPassword ? '为乡声档案换把新锁' : '给乡声档案加把锁'"
+      :description="hasPassword
+        ? '新密码长度为 6 到 32 个字符。修改成功后，下次登录请使用新密码。'
+        : '设置 6 到 32 个字符的密码后，就可以使用账号密码登录。'"
+    >
+      <view class="password-form">
         <view
           v-if="hasPassword"
-          class="password-row"
+          class="forget-link pressable"
+          @tap="goForgetPassword"
         >
-          <view class="password-field">
-            <BaseField
-              v-model="form.oldpassword"
-              name="oldpassword"
-              label="原密码"
-              :type="oldVisible ? 'text' : 'password'"
-              required
-              placeholder="请输入原密码"
-              :maxlength="32"
-              :error="oldError"
-              :disabled="saving"
-            />
-          </view>
-          <BaseButton
-            class="password-toggle"
-            size="small"
-            variant="ghost"
-            :disabled="saving"
-            @click="toggleVisible('old')"
-          >
-            {{ oldVisible ? '隐藏' : '显示' }}
-          </BaseButton>
+          <text>不记得原密码？</text>
+          <text class="forget-link__action">
+            去邮箱找回 ›
+          </text>
         </view>
 
-        <view class="password-row">
-          <view class="password-field">
-            <BaseField
-              v-model="form.newpassword"
-              name="newpassword"
-              label="新密码"
-              :type="newVisible ? 'text' : 'password'"
-              required
-              placeholder="请输入新密码"
-              :maxlength="32"
-              :error="newError"
-              :disabled="saving"
-            />
-          </view>
-          <BaseButton
-            class="password-toggle"
-            size="small"
-            variant="ghost"
-            :disabled="saving"
-            @click="toggleVisible('new')"
-          >
-            {{ newVisible ? '隐藏' : '显示' }}
-          </BaseButton>
-        </view>
-
-        <view class="password-row">
-          <view class="password-field">
-            <BaseField
-              v-model="form.confirm"
-              name="confirm"
-              label="确认密码"
-              :type="confirmVisible ? 'text' : 'password'"
-              required
-              placeholder="请再次输入新密码"
-              :maxlength="32"
-              :error="confirmError"
-              :disabled="saving"
-            />
-          </view>
-          <BaseButton
-            class="password-toggle"
-            size="small"
-            variant="ghost"
-            :disabled="saving"
-            @click="toggleVisible('confirm')"
-          >
-            {{ confirmVisible ? '隐藏' : '显示' }}
-          </BaseButton>
-        </view>
-
-        <BaseButton
-          block
-          :disabled="saving"
-          :loading="saving"
-          @click="savePassword"
+        <BaseForm
+          ref="form"
+          :data="form"
+          :rules="rules"
         >
-          保存
-        </BaseButton>
-      </BaseForm>
-    </view>
+          <view
+            v-if="hasPassword"
+            class="password-row"
+          >
+            <view class="password-field">
+              <BaseField
+                v-model="form.oldpassword"
+                name="oldpassword"
+                label="原密码"
+                :type="oldVisible ? 'text' : 'password'"
+                required
+                placeholder="请输入原密码"
+                :maxlength="32"
+                :error="oldError"
+                :disabled="saving"
+              />
+            </view>
+            <BaseButton
+              class="password-toggle"
+              size="small"
+              variant="ghost"
+              :disabled="saving"
+              @click="toggleVisible('old')"
+            >
+              {{ oldVisible ? '隐藏' : '显示' }}
+            </BaseButton>
+          </view>
+
+          <view class="password-row">
+            <view class="password-field">
+              <BaseField
+                v-model="form.newpassword"
+                name="newpassword"
+                label="新密码"
+                :type="newVisible ? 'text' : 'password'"
+                required
+                placeholder="请输入新密码"
+                :maxlength="32"
+                :error="newError"
+                :disabled="saving"
+              />
+            </view>
+            <BaseButton
+              class="password-toggle"
+              size="small"
+              variant="ghost"
+              :disabled="saving"
+              @click="toggleVisible('new')"
+            >
+              {{ newVisible ? '隐藏' : '显示' }}
+            </BaseButton>
+          </view>
+
+          <view class="password-row">
+            <view class="password-field">
+              <BaseField
+                v-model="form.confirm"
+                name="confirm"
+                label="确认密码"
+                :type="confirmVisible ? 'text' : 'password'"
+                required
+                placeholder="请再次输入新密码"
+                :maxlength="32"
+                :error="confirmError"
+                :disabled="saving"
+              />
+            </view>
+            <BaseButton
+              class="password-toggle"
+              size="small"
+              variant="ghost"
+              :disabled="saving"
+              @click="toggleVisible('confirm')"
+            >
+              {{ confirmVisible ? '隐藏' : '显示' }}
+            </BaseButton>
+          </view>
+
+          <BaseButton
+            block
+            :disabled="saving"
+            :loading="saving"
+            @click="savePassword"
+          >
+            保存新密码
+          </BaseButton>
+        </BaseForm>
+      </view>
+    </AccountSettingPanel>
   </PageShell>
 </template>
 
@@ -118,6 +125,7 @@ import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
 import BaseForm from '@/components/BaseForm.vue';
 import PageShell from '@/components/PageShell.vue';
+import AccountSettingPanel from '@/pages/users/settings/components/AccountSettingPanel.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import {
   goBack,
@@ -158,7 +166,7 @@ function isPasswordLengthValid(value) {
 export default {
   name: 'ChangePassword',
   components: {
-    BaseButton, BaseField, BaseForm, PageShell,
+    AccountSettingPanel, BaseButton, BaseField, BaseForm, PageShell,
   },
   data() {
     return {
@@ -297,17 +305,22 @@ export default {
   box-sizing: border-box;
 }
 
-.hint {
+.forget-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
   margin-bottom: var(--space-3);
-  color: var(--muted-color);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--accent-subtle-color);
+  color: var(--text-secondary-color);
   font-size: var(--font-size-sm);
-  line-height: 1.6;
 }
 
-.forget-link {
-  margin-bottom: var(--space-4);
+.forget-link__action {
   color: var(--accent-color);
-  font-size: var(--font-size-sm);
+  font-weight: 700;
 }
 
 .password-row {

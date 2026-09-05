@@ -15,15 +15,15 @@
 | `components/PageShell` / `components/AppShell` / `components/home/HomeTabBar` | done | 已接入按钮原语与反馈 Host；[#340](https://github.com/e-dialect/guantou/issues/340) 收敛主入口标题区、普通页面顶栏与底部导航层级，底栏始终只有一个选中态，“录”在未选中时保留独立行动入口语义 |
 | `components/CommentThread` | done | 表单、按钮、加载与空态使用项目原语 |
 | `pages/error/not-found` | done | TDesign 空态 |
-| `pages/users/settings/username` | done | 单字段表单 |
-| `pages/users/settings/nickname` | done | 单字段表单 |
-| `pages/users/settings/telephone` | done | 单字段表单 |
+| `pages/users/settings/username` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：共享账户设置面板与单字段表单 |
+| `pages/users/settings/nickname` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：共享账户设置面板与单字段表单 |
+| `pages/users/settings/telephone` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：共享账户设置面板与单字段表单 |
 | `pages/mails/send` | done | [#195](https://github.com/e-dialect/guantou/issues/195) / [PR #216](https://github.com/e-dialect/guantou/pull/216)：标准表单、字段错误与 payload 回归测试 |
 | `pages/login/login` | done | [#238](https://github.com/e-dialect/guantou/issues/238) / [PR #309](https://github.com/e-dialect/guantou/pull/309)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：BaseField/BaseButton、双登录模式独立校验、字段错误与提交状态；保留登录恢复 |
 | `pages/nameplates/create` | done | [#237](https://github.com/e-dialect/guantou/issues/237)：BaseForm/BaseField/BaseButton、与装罐页一致的 Cascader/Picker、联合校验、加载重试与防重复提交；H5 浅暗主题已验收，小程序构建通过，真机验收待补 |
-| `pages/users/settings/information` | done | [#225](https://github.com/e-dialect/guantou/issues/225) / [PR #208](https://github.com/e-dialect/guantou/pull/208)：头像开放能力、日期与方言 Picker |
-| `pages/users/settings/password` | done | [#229](https://github.com/e-dialect/guantou/issues/229) / [PR #208](https://github.com/e-dialect/guantou/pull/208)：密码显示与表单提交 |
-| `pages/users/settings/email` | done | [#227](https://github.com/e-dialect/guantou/issues/227) / [PR #208](https://github.com/e-dialect/guantou/pull/208)：验证码与邮箱绑定流程 |
+| `pages/users/settings/information` | done | [#225](https://github.com/e-dialect/guantou/issues/225) / [#344](https://github.com/e-dialect/guantou/issues/344)：头像开放能力、无头像回退、日期与方言 Picker |
+| `pages/users/settings/password` | done | [#229](https://github.com/e-dialect/guantou/issues/229) / [#344](https://github.com/e-dialect/guantou/issues/344)：密码显示、表单提交与账户安全视觉层级 |
+| `pages/users/settings/email` | done | [#227](https://github.com/e-dialect/guantou/issues/227) / [#344](https://github.com/e-dialect/guantou/issues/344)：验证码、邮箱绑定流程与账户安全视觉层级 |
 | `pages/login/register` | done | [#228](https://github.com/e-dialect/guantou/issues/228) / [PR #309](https://github.com/e-dialect/guantou/pull/309)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：邮箱注册迁移到 BaseField/BaseButton，保留既有 API 契约并补字段错误与提交状态 |
 | `pages/login/register/wechat` | done | [#230](https://github.com/e-dialect/guantou/issues/230) / [PR #308](https://github.com/e-dialect/guantou/pull/308)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：BaseField/BaseButton、昵称确认、行内错误及可等待的微信授权注册 |
 | `pages/login/forget` | done | [#226](https://github.com/e-dialect/guantou/issues/226) / [PR #308](https://github.com/e-dialect/guantou/pull/308)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：分步找回、字段校验、提交状态与错误映射；不引入演示验证码 |
@@ -44,14 +44,22 @@
 | `pages/packages/index` / `details` | queued | 搜索、加载与详情操作 |
 | `pages/circles/index` / `details` | queued | 搜索、Picker 与详情操作 |
 | `pages/discovery/index` | queued | 操作按钮与加载状态 |
-| `pages/users/me` | done | “我”已成为完整账户中心：资料、隐私、关注收藏、贡献履历、录音授权及按权限显示的整理入口 |
-| `pages/users/recommend-follow` | done | [PR #310](https://github.com/e-dialect/guantou/pull/310)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：BaseButton、统一加载/空态/重试及关注结果反馈 |
+| `pages/users/me` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：完整账户中心与游客身份入口 |
+| `pages/users/recommend-follow` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：延续身份旅程，并保留统一加载、空态、重试及关注结果反馈 |
 | `pages/users/theme-center` | done | 总览 THEME_CENTER.md。分期 ROADMAP：一期核心切换；二期搜索收藏预览权限；三期不在本页做投稿社区。跳转 NAV |
 | `pages/users/theme-dress` | done | 单组局部装扮：免费/会员/活动/创作者权限、待上线占位；不覆盖其它分组 |
 | `pages/users/theme-acquire` | done | 装扮获取聚合：会员、活动、创作任务与方言主题福利 |
 | `pages/users/theme-member` | done | 开通会员，权益 H5/小程序同步 |
 | `pages/users/theme-event` | done | 活动领取与已绝版提示 |
 | `pages/mails/index` / `details` | queued | Cell、加载和通用操作 |
+
+## 账户身份旅程（#344 / PR #348）
+
+- 游客“我”、登录、注册、找回、新用户称呼与主方言设置使用同一套深松绿身份区与温润表单面；注册的四段进度对应真实提交步骤，不制造装饰性假进度。
+- 推荐关注页延续身份旅程，但明确标成“身份设置已完成”，不把可跳过的关注推荐伪装成第五个必填步骤。主方言、关注地区与真实贡献者保留原服务契约。
+- 用户名、昵称、邮箱、密码、手机号共用账户设置页级面板；编辑资料页为空头像与推荐作者补可辨识的文字回退，不改变头像上传、生日或方言选择能力。
+- 390×844 H5 截图：推荐关注[浅色](assets/ui-v2/issue-344/recommend-follow-after-light-390x844.png) / [暗色](assets/ui-v2/issue-344/recommend-follow-after-dark-390x844.png)，账户安全[浅色](assets/ui-v2/issue-344/account-settings-after-light-390x844.png) / [暗色](assets/ui-v2/issue-344/account-settings-after-dark-390x844.png)，[编辑资料](assets/ui-v2/issue-344/profile-settings-after-light-390x844.png)。
+- 自动化验证覆盖 lint、完整单元测试、H5/微信小程序构建，以及账户设置和方言引导 H5 E2E。运行期 H5 原生 API 噪声、SQLite 审计锁争用与构建弃用告警分别由 #350、#351、#352 跟踪；主题模块 chunk 告警沿用 #328。
 
 ## 装罐页 #232 验收记录
 

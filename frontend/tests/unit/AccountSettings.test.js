@@ -139,6 +139,8 @@ const accountPages = [
   'src/pages/users/settings/email.vue',
   'src/pages/users/settings/password.vue',
   'src/pages/users/settings/telephone.vue',
+  'src/pages/users/settings/components/AccountSettingPanel.vue',
+  'src/pages/users/recommend-follow.vue',
   'src/pages/users/theme-center.vue',
   'src/pages/users/theme-dress.vue',
   'src/pages/users/theme-acquire.vue',
@@ -248,6 +250,32 @@ describe('account UI tokens', () => {
     expect(source).not.toContain('type="nickname"');
     expect(source).not.toContain('微信头像和聊天记录需要在小程序里使用');
     expect(source).not.toContain('将会默认公开');
+  });
+
+  it('keeps the identity journey and account settings on one visual language', () => {
+    const compactSettingPages = [
+      'src/pages/users/settings/username.vue',
+      'src/pages/users/settings/nickname.vue',
+      'src/pages/users/settings/email.vue',
+      'src/pages/users/settings/password.vue',
+      'src/pages/users/settings/telephone.vue',
+    ];
+    compactSettingPages.forEach((relativePath) => {
+      const source = readFileSync(resolve(process.cwd(), relativePath), 'utf8');
+      expect(source, relativePath).toContain('AccountSettingPanel');
+    });
+
+    const recommendations = readFileSync(
+      resolve(process.cwd(), 'src/pages/users/recommend-follow.vue'),
+      'utf8',
+    );
+    const information = readFileSync(
+      resolve(process.cwd(), 'src/pages/users/settings/information.vue'),
+      'utf8',
+    );
+    expect(recommendations).toContain('AuthJourney');
+    expect(recommendations).toContain('creator-avatar--fallback');
+    expect(information).toContain('hero-avatar--fallback');
   });
 });
 

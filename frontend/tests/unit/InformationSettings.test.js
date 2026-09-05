@@ -95,6 +95,7 @@ function mountPage() {
         PageShell: {
           template: '<main><slot name="before" /><slot /></main>',
         },
+        'scroll-view': { template: '<div><slot /></div>' },
         SectionBlock: { template: '<section><slot /></section>' },
       },
     },

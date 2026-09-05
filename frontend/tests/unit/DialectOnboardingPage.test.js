@@ -51,6 +51,7 @@ function mountPage() {
         PageShell: {
           template: '<main><slot /></main>',
         },
+        'scroll-view': { template: '<div><slot /></div>' },
       },
     },
   });

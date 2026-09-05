@@ -3,51 +3,55 @@
     title="修改昵称"
     :back-fallback="ROUTES.userInformation"
   >
-    <view class="setting-hint">
-      昵称会展示给其他乡友。
-      <text
-        v-if="canUseWechatAuth"
-        class="setting-hint-extra"
-      >
-        也可以点下方授权，填入微信昵称后再保存。
-      </text>
-    </view>
-    <BaseForm
-      ref="form"
-      :data="form"
-      :rules="rules"
+    <AccountSettingPanel
+      eyebrow="公开身份"
+      mark="名"
+      title="大家怎么称呼你"
+      description="昵称会展示给其他乡友，可以比登录用户名更亲切。"
     >
-      <BaseField
-        v-model="form.nickname"
-        name="nickname"
-        label="昵称"
-        required
-        clearable
-        placeholder="请输入不超过 20 位的昵称"
-        :maxlength="20"
-        :error="error"
-        :disabled="saving"
-      />
-      <!-- 微信昵称只能写在原生 input[type=nickname] 上，H5 编译时会去掉。 -->
-      <!--  #ifdef  MP-WEIXIN -->
-      <input
+      <view
         v-if="canUseWechatAuth"
-        class="wechat-nickname"
-        type="nickname"
-        :value="form.nickname"
-        placeholder="点这里填入微信昵称"
-        :disabled="saving"
-        @blur="onWechatNickname"
+        class="setting-note"
       >
-      <!--  #endif -->
-      <BaseButton
-        block
-        text="保存"
-        :disabled="saving || form.nickname === currentNickname"
-        :loading="saving"
-        @click="saveNickname"
-      />
-    </BaseForm>
+        也可以点下方授权，填入微信昵称后再确认保存。
+      </view>
+      <BaseForm
+        ref="form"
+        :data="form"
+        :rules="rules"
+      >
+        <BaseField
+          v-model="form.nickname"
+          name="nickname"
+          label="昵称"
+          required
+          clearable
+          placeholder="请输入不超过 20 位的昵称"
+          :maxlength="20"
+          :error="error"
+          :disabled="saving"
+        />
+        <!-- 微信昵称只能写在原生 input[type=nickname] 上，H5 编译时会去掉。 -->
+        <!--  #ifdef  MP-WEIXIN -->
+        <input
+          v-if="canUseWechatAuth"
+          class="wechat-nickname"
+          type="nickname"
+          :value="form.nickname"
+          placeholder="点这里填入微信昵称"
+          :disabled="saving"
+          @blur="onWechatNickname"
+        >
+        <!--  #endif -->
+        <BaseButton
+          block
+          text="保存昵称"
+          :disabled="saving || form.nickname === currentNickname"
+          :loading="saving"
+          @click="saveNickname"
+        />
+      </BaseForm>
+    </AccountSettingPanel>
   </PageShell>
 </template>
 
@@ -56,6 +60,7 @@ import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
 import BaseForm from '@/components/BaseForm.vue';
 import PageShell from '@/components/PageShell.vue';
+import AccountSettingPanel from '@/pages/users/settings/components/AccountSettingPanel.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import { CAPABILITIES, isCapabilityEnabled } from '@/services/capabilities';
 import { goBack, goLogin, ROUTES } from '@/services/navigation';
@@ -74,7 +79,7 @@ function fieldErrorMessage(error, field) {
 export default {
   name: 'ChangeNickname',
   components: {
-    BaseButton, BaseField, BaseForm, PageShell,
+    AccountSettingPanel, BaseButton, BaseField, BaseForm, PageShell,
   },
   data() {
     return {
@@ -141,7 +146,7 @@ export default {
 </script>
 
 <style scoped>
-.setting-hint {
+.setting-note {
   margin-bottom: var(--space-3);
   padding: var(--space-3);
   border-radius: var(--radius-md);
@@ -149,11 +154,6 @@ export default {
   color: var(--text-secondary-color);
   font-size: var(--font-size-sm);
   line-height: 1.6;
-}
-
-.setting-hint-extra {
-  display: block;
-  margin-top: var(--space-1);
 }
 
 .wechat-nickname {
