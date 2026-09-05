@@ -26,5 +26,6 @@ export default defineConfig({
     globals: true,
     include: ['tests/unit/**/*.test.js'],
     clearMocks: true,
+    setupFiles: ['tests/setup.js'],
   },
 });
