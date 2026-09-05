@@ -8,6 +8,9 @@ vi.mock('@/services/navigation', async (importOriginal) => {
   return {
     ...actual,
     goBack: vi.fn(),
+    goCircleList: vi.fn(),
+    goContributionHistory: vi.fn(),
+    goEntryBookmarks: vi.fn(),
     goHome: vi.fn(),
     goLogin: vi.fn(),
     goMailSend: vi.fn(),
@@ -111,7 +114,17 @@ vi.mock('@/components/ConfirmDialog', () => ({
   default: vi.fn(async () => true),
 }));
 
-import { goBack, goHome, goLogin, goMailSend, goUserEmail, goUserInformation } from '@/services/navigation';
+import {
+  goBack,
+  goCircleList,
+  goContributionHistory,
+  goEntryBookmarks,
+  goHome,
+  goLogin,
+  goMailSend,
+  goUserEmail,
+  goUserInformation,
+} from '@/services/navigation';
 import { notify, notifySuccess } from '@/services/feedback';
 import { bindingWechat, cancelBindingWechat, clearUserInfo, changeUserInfo, getUserInfo } from '@/services/user';
 import request from '@/utils/request';
@@ -162,6 +175,12 @@ function mountForm(Page) {
       stubs: {
         PageShell: { template: '<main><slot /></main>' },
         AppShell: { template: '<main><slot /></main>' },
+        TCell: {
+          name: 'TCell',
+          props: ['title', 'note', 'arrow', 'hover', 'bordered', 'customStyle', 'ariaLabel'],
+          emits: ['click'],
+          template: '<button class="t-cell-stub" @click="$emit(\'click\')">{{ title }} {{ note }}</button>',
+        },
         SectionBlock: { template: '<section><slot /></section>' },
         BaseForm: {
           name: 'BaseForm',
@@ -617,6 +636,59 @@ describe('mine page logout', () => {
     wrapper.vm.recordingsCount = 3;
     wrapper.vm.worksTab = 'recordings';
     expect(wrapper.vm.worksPanelTitle).toBe('留下 3 段录音');
+  });
+
+  it('keeps profile stats read-only and one contribution entry surface', async () => {
+    getUserInfo.mockResolvedValueOnce({
+      user: {
+        id: 7,
+        avatar: '',
+        nickname: '采集者',
+        username: 'collector',
+        email: '',
+        wechat: false,
+        followed_dialects: [{ id: 3, name: '莆仙方言' }],
+      },
+      contribution: {
+        recordings_total: 12,
+        entries_total: 5,
+        senses_total: 8,
+        evidence: 7,
+      },
+      notification: { statistics: { unread: 0 } },
+    });
+    const wrapper = mountForm(MePage);
+    await flushPromises();
+
+    expect(wrapper.findAll('.social-stat')).toHaveLength(3);
+    expect(wrapper.find('.social-stat.pressable').exists()).toBe(false);
+    expect(wrapper.find('.tool-grid').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('既有录音');
+    expect(wrapper.text()).not.toContain('查看完整贡献履历');
+    expect(wrapper.get('[role="tablist"]').attributes('aria-label')).toBe('贡献类型');
+
+    const tabs = wrapper.findAll('[role="tab"]');
+    expect(tabs).toHaveLength(3);
+    await tabs[1].trigger('keydown', { key: 'Enter' });
+    expect(wrapper.vm.worksTab).toBe('entries');
+
+    const archiveCells = wrapper.get('.archive-menu').findAllComponents({ name: 'TCell' });
+    expect(archiveCells).toHaveLength(2);
+    expect(archiveCells[0].props()).toMatchObject({
+      title: '词条收藏',
+      note: '仅自己可见',
+    });
+    expect(archiveCells[1].props()).toMatchObject({
+      title: '关注方言',
+      note: '1 个',
+    });
+    await archiveCells[0].trigger('click');
+    await archiveCells[1].trigger('click');
+    expect(goEntryBookmarks).toHaveBeenCalledTimes(1);
+    expect(goCircleList).toHaveBeenCalledTimes(1);
+
+    wrapper.vm.toContributionHistory();
+    expect(goContributionHistory).toHaveBeenCalledTimes(1);
   });
 
   it('loads the archive from a stored id before App hydrates globalData', async () => {

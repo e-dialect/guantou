@@ -72,10 +72,7 @@
           </view>
 
           <view class="social-stats">
-            <view
-              class="social-stat pressable"
-              @tap="toContributionHistory"
-            >
+            <view class="social-stat">
               <view class="number">
                 {{ recordingsCount }}
               </view>
@@ -152,25 +149,44 @@
           </view>
 
           <view class="works">
-            <view class="works-tabs">
+            <view
+              class="works-tabs"
+              role="tablist"
+              aria-label="贡献类型"
+            >
               <view
                 class="works-tab pressable"
                 :class="{ active: worksTab === 'recordings' }"
-                @tap="worksTab = 'recordings'"
+                role="tab"
+                tabindex="0"
+                :aria-selected="worksTab === 'recordings' ? 'true' : 'false'"
+                @tap="selectWorksTab('recordings')"
+                @keydown.enter="selectWorksTab('recordings')"
+                @keydown.space.prevent="selectWorksTab('recordings')"
               >
                 录音 {{ recordingsCount }}
               </view>
               <view
                 class="works-tab pressable"
                 :class="{ active: worksTab === 'entries' }"
-                @tap="worksTab = 'entries'"
+                role="tab"
+                tabindex="0"
+                :aria-selected="worksTab === 'entries' ? 'true' : 'false'"
+                @tap="selectWorksTab('entries')"
+                @keydown.enter="selectWorksTab('entries')"
+                @keydown.space.prevent="selectWorksTab('entries')"
               >
                 词条 {{ entriesCount }}
               </view>
               <view
                 class="works-tab pressable"
                 :class="{ active: worksTab === 'senses' }"
-                @tap="worksTab = 'senses'"
+                role="tab"
+                tabindex="0"
+                :aria-selected="worksTab === 'senses' ? 'true' : 'false'"
+                @tap="selectWorksTab('senses')"
+                @keydown.enter="selectWorksTab('senses')"
+                @keydown.space.prevent="selectWorksTab('senses')"
               >
                 义项 {{ sensesCount }}
               </view>
@@ -202,56 +218,36 @@
             </view>
           </view>
 
-          <view class="tool-grid">
-            <view
-              class="tool-item pressable"
-              @tap="toContributionHistory"
-            >
-              <view class="tool-count">
-                {{ recordingsCount }}
-              </view>
-              <view class="tool-label">
-                既有录音
-              </view>
+          <view class="archive-menu">
+            <view class="section-kicker menu-kicker">
+              档案导航
             </view>
-            <view
-              class="tool-item pressable"
-              @tap="toBookmarks"
-            >
-              <view class="tool-count">
-                ·
-              </view>
-              <view class="tool-label">
-                词条收藏
-              </view>
-            </view>
-            <view
-              class="tool-item pressable"
-              @tap="toCircleList"
-            >
-              <view class="tool-count">
-                {{ followedDialects.length }}
-              </view>
-              <view class="tool-label">
-                关注方言
-              </view>
-            </view>
-          </view>
-
-          <view class="account-section">
-            <view class="section-kicker">
-              贡献履历
-            </view>
-            <view class="account-section__copy">
-              你已留下 {{ recordingsCount }} 段录音、参与 {{ entriesCount }} 个词条、
-              补充 {{ sensesCount }} 个义项与 {{ evidenceCount }} 条原始证据。修订和地区足迹也会形成可追溯记录。
-            </view>
-            <BaseButton
-              class="account-section__action"
-              size="small"
-              variant="ghost"
-              text="查看完整贡献履历"
-              @click="toContributionHistory"
+            <t-cell
+              title="词条收藏"
+              note="仅自己可见"
+              arrow
+              hover
+              custom-style="padding: var(--space-3); background: transparent;"
+              aria-label="查看词条收藏"
+              role="button"
+              tabindex="0"
+              @click="toBookmarks"
+              @keydown.enter="toBookmarks"
+              @keydown.space.prevent="toBookmarks"
+            />
+            <t-cell
+              title="关注方言"
+              :note="`${followedDialects.length} 个`"
+              arrow
+              hover
+              :bordered="false"
+              custom-style="padding: var(--space-3); background: transparent;"
+              :aria-label="`查看关注方言，当前 ${followedDialects.length} 个`"
+              role="button"
+              tabindex="0"
+              @click="toCircleList"
+              @keydown.enter="toCircleList"
+              @keydown.space.prevent="toCircleList"
             />
           </view>
 
@@ -453,6 +449,7 @@
 </template>
 
 <script>
+import TCell from '@tdesign/uniapp/cell/cell.vue';
 import AppShell from '@/components/AppShell.vue';
 import BaseButton from '@/components/BaseButton.vue';
 import confirmDialog from '@/components/ConfirmDialog';
@@ -486,7 +483,7 @@ import {
 } from '@/services/user';
 
 export default {
-  components: { AppShell, BaseButton },
+  components: { AppShell, BaseButton, TCell },
   data() {
     return {
       id: '',
@@ -543,7 +540,7 @@ export default {
     },
     worksPanelCopy() {
       if (this.worksCount > 0) {
-        return '既有贡献仍可查看；新录音会按词条和地区建立可追溯关联。';
+        return '既有贡献仍可查看；新录音会按词条和地区建立可追溯关联，并形成地区足迹。';
       }
       if (this.worksTab === 'entries') {
         return '不会写汉字也没关系，先录音和说明大意，之后再逐步完善词条。';
@@ -623,6 +620,9 @@ export default {
     },
     toBookmarks() { goEntryBookmarks(); },
     toCircleList() { goCircleList(); },
+    selectWorksTab(tab) {
+      this.worksTab = tab;
+    },
     toContributionHistory() {
       goContributionHistory();
     },
@@ -1016,8 +1016,7 @@ export default {
   font-weight: 800;
 }
 
-.label,
-.tool-label {
+.label {
   margin-top: var(--space-1);
   color: var(--muted-color);
   font-size: var(--font-size-xs);
@@ -1051,7 +1050,7 @@ export default {
 }
 
 .works,
-.tool-grid,
+.archive-menu,
 .menu,
 .account-section {
   margin-top: var(--space-4);
@@ -1112,22 +1111,6 @@ export default {
 
 .works-empty-action {
   margin-top: var(--space-3);
-}
-
-.tool-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  padding: var(--space-3) 0;
-}
-
-.tool-item {
-  position: relative;
-  text-align: center;
-}
-
-.tool-count {
-  font-size: var(--font-size-lg);
-  font-weight: 800;
 }
 
 .menu-item {
