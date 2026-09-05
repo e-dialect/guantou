@@ -8,6 +8,8 @@
 
 本轮 H5 视觉基线保存在 [`docs/assets/tdesign-migration/`](assets/tdesign-migration/)（390×844，含浅色、暗色、旧表单兼容与 404 空态）。
 
+V2 全站聚合验收由 [#346](https://github.com/e-dialect/guantou/issues/346) 跟踪；33 个当前注册页面、核心界面明暗/身份组合、四种数据状态以及微信真机待验项见 [`V2_VISUAL_REGRESSION.md`](V2_VISUAL_REGRESSION.md)。
+
 | 页面/共享区域 | 状态 | 后续工作或 Issue |
 | --- | --- | --- |
 | `components/BaseButton/BaseForm/BaseField/BaseLoading` | done | 项目级原语 |

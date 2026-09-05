@@ -44,6 +44,7 @@
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:e2e:h5": "playwright test",
+    "review:visual:h5": "playwright test --config=playwright.visual.config.js",
     "wait:e2e:h5": "wait-on http-get://localhost:8181 http-get://localhost:8000/site-settings/carousel http-get://localhost:8000/recordings/",
     "demo:account": "node scripts/demo-account-pages.mjs",
     "demo:iphone": "node scripts/demo-iphone-devtools.mjs",
