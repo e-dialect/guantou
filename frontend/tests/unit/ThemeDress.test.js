@@ -91,7 +91,9 @@ describe('Theme dress page', () => {
     expect(wrapper.vm.applyLabel(live)).toBe('应用');
     expect(wrapper.vm.applyLabel(upcoming)).toBe('敬请期待');
     expect(wrapper.text()).toContain('敬请期待');
-    expect(wrapper.text()).toContain('该分类装扮素材即将上线，敬请期待');
+    expect(wrapper.text()).toContain('部分素材仍在制作，已上线项可正常预览和应用');
+    expect(wrapper.text()).toContain('选择一种外观');
+    expect(wrapper.vm.journeyStatus).toContain('只替换当前部件');
     expect(wrapper.text()).toContain('最新上架');
 
     wrapper.vm.openDetail(live);
@@ -152,6 +154,7 @@ describe('Theme dress page', () => {
     await wrapper.vm.onApply(live);
     expect(notifySuccess).toHaveBeenCalledWith('装扮已生效');
     expect(wrapper.text()).toContain('暂时失效');
+    expect(wrapper.vm.journeyTone).toBe('warning');
   });
 
   it('does not apply upcoming placeholders', async () => {

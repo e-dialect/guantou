@@ -148,6 +148,7 @@ const accountPages = [
   'src/pages/users/theme-event.vue',
   'src/components/ThemeShareSheet.vue',
   'src/components/ThemeLivePreview.vue',
+  'src/components/ThemeJourneyIntro.vue',
 ];
 
 const { default: NicknamePage } = await import('@/pages/users/settings/nickname.vue');

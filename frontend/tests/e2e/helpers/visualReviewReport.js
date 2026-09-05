@@ -18,7 +18,7 @@ function escapeHtml(value) {
 
 export async function prepareVisualReviewOutput() {
   await mkdir(visualReviewOutput, { recursive: true });
-  await Promise.all(['routes', 'core', 'states'].map((group) => (
+  await Promise.all(['routes', 'core', 'states', 'themes'].map((group) => (
     mkdir(path.join(visualReviewOutput, group), { recursive: true })
   )));
 }

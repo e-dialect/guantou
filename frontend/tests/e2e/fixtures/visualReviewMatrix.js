@@ -63,16 +63,16 @@ export const ROUTE_VISUAL_MATRIX = Object.freeze([
     route: '/pages/users/theme-center', target: '/pages/users/theme-center', slug: 'theme-center', issues: [262, 264], persona: 'member',
   },
   {
-    route: '/pages/users/theme-dress', target: '/pages/users/theme-dress?group=navbar', slug: 'theme-dress', issues: [262, 264], persona: 'member',
+    route: '/pages/users/theme-dress', target: '/pages/users/theme-dress?group=navbar', slug: 'theme-dress', issues: [262, 264, 371], persona: 'member',
   },
   {
-    route: '/pages/users/theme-acquire', target: '/pages/users/theme-acquire', slug: 'theme-acquire', issues: [262, 264], persona: 'member',
+    route: '/pages/users/theme-acquire', target: '/pages/users/theme-acquire', slug: 'theme-acquire', issues: [262, 264, 371], persona: 'member',
   },
   {
-    route: '/pages/users/theme-member', target: '/pages/users/theme-member', slug: 'theme-member', issues: [262, 264], persona: 'member',
+    route: '/pages/users/theme-member', target: '/pages/users/theme-member', slug: 'theme-member', issues: [262, 264, 371], persona: 'member',
   },
   {
-    route: '/pages/users/theme-event', target: '/pages/users/theme-event?id=event-lantern', slug: 'theme-event', issues: [262, 264], persona: 'member',
+    route: '/pages/users/theme-event', target: '/pages/users/theme-event?id=event-lantern', slug: 'theme-event', issues: [262, 264, 371], persona: 'member',
   },
   {
     route: '/pages/mails/index', target: '/pages/mails/index', slug: 'mail-index', issues: [356], persona: 'member',
@@ -119,6 +119,58 @@ export const STATE_VISUAL_MATRIX = Object.freeze([
   },
   {
     state: 'success', surface: 'listen', target: '/', issues: [341], focus: 'recordings',
+  },
+]);
+
+export const THEME_JOURNEY_VISUAL_MATRIX = Object.freeze([
+  {
+    name: '局部装扮暗色目录',
+    target: '/pages/users/theme-dress?group=navbar',
+    slug: 'theme-dress-dark-member',
+    issues: [371],
+    persona: 'member',
+    theme: 'dark',
+    checkSoonLabel: true,
+  },
+  {
+    name: '装扮获取暗色路径',
+    target: '/pages/users/theme-acquire',
+    slug: 'theme-acquire-dark-member',
+    issues: [371],
+    persona: 'member',
+    theme: 'dark',
+  },
+  {
+    name: '会员权益暗色状态',
+    target: '/pages/users/theme-member',
+    slug: 'theme-member-dark-member',
+    issues: [371],
+    persona: 'member',
+    theme: 'dark',
+  },
+  {
+    name: '进行中活动暗色状态',
+    target: '/pages/users/theme-event?id=event-lantern',
+    slug: 'theme-event-active-dark-member',
+    issues: [371],
+    persona: 'member',
+    theme: 'dark',
+  },
+  {
+    name: '已结束活动',
+    target: '/pages/users/theme-event?id=event-spring',
+    slug: 'theme-event-ended-light-member',
+    issues: [371],
+    persona: 'member',
+    theme: 'light',
+  },
+  {
+    name: '无效活动入口',
+    target: '/pages/users/theme-event?id=missing-theme',
+    slug: 'theme-event-missing-light-member',
+    issues: [371],
+    persona: 'member',
+    theme: 'light',
   },
 ]);
 

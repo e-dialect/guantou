@@ -11,37 +11,39 @@
       <ThemeStatusPane scene="dress_coming" />
     </view>
     <view v-else>
-      <view class="lead">
-        <view class="muted">
-          {{ group.hint }}
-        </view>
-        <view
-          v-if="blocked"
-          class="warn"
-        >
-          当前小程序环境暂不支持该装扮
-        </view>
-        <view
-          v-else-if="overlay"
-          class="warn"
-        >
-          已开启全局主题覆盖，应用后会暂时失效。
-        </view>
-        <view
-          v-else
-          class="muted"
-        >
-          应用后只改这一类部件，其它已选装扮保留。
-        </view>
-      </view>
+      <ThemeJourneyIntro
+        eyebrow="局部装扮"
+        :title="group.name"
+        :description="group.hint"
+        :status="journeyStatus"
+        :tone="journeyTone"
+      />
 
       <view
         v-if="hasUpcomingItems"
-        class="lead"
+        class="availability-note"
       >
-        该分类装扮素材即将上线，敬请期待
+        <text class="availability-note__label">
+          目录状态
+        </text>
+        <text class="availability-note__copy">
+          部分素材仍在制作，已上线项可正常预览和应用。
+        </text>
       </view>
 
+      <view class="directory-head">
+        <view>
+          <view class="directory-kicker">
+            可用目录
+          </view>
+          <view class="directory-title">
+            选择一种外观
+          </view>
+        </view>
+        <view class="directory-count">
+          {{ items.length }} 项
+        </view>
+      </view>
       <view class="filter-row">
         <view
           v-for="item in sortOptions"
@@ -130,6 +132,8 @@
                 on: isItemFav(item.id),
                 disabled: !item.available,
               }"
+              role="button"
+              :aria-label="isItemFav(item.id) ? '取消收藏' : '收藏装扮'"
               @tap="onToggleFavorite(item)"
             >
               {{ isItemFav(item.id) ? '★' : '☆' }}
@@ -137,6 +141,8 @@
             <view
               class="icon-btn"
               :class="{ disabled: !item.available }"
+              role="button"
+              aria-label="分享装扮"
               @tap="onShare(item)"
             >
               ↗
@@ -418,6 +424,7 @@
 import BaseButton from '@/components/BaseButton.vue';
 import confirmDialog from '@/components/ConfirmDialog';
 import PageShell from '@/components/PageShell.vue';
+import ThemeJourneyIntro from '@/components/ThemeJourneyIntro.vue';
 import ThemeLivePreview from '@/components/ThemeLivePreview.vue';
 import ThemeShareSheet from '@/components/ThemeShareSheet.vue';
 import ThemeStatusPane from '@/components/ThemeStatusPane.vue';
@@ -479,7 +486,7 @@ import { cleanThemeShareQuery, themeSharePayload } from '@/utils/themeShare';
 
 export default {
   components: {
-    BaseButton, PageShell, ThemeLivePreview, ThemeShareSheet, ThemeStatusPane,
+    BaseButton, PageShell, ThemeJourneyIntro, ThemeLivePreview, ThemeShareSheet, ThemeStatusPane,
   },
   data() {
     return {
@@ -507,6 +514,14 @@ export default {
     };
   },
   computed: {
+    journeyStatus() {
+      if (this.blocked) return '当前小程序环境暂不支持该类装扮';
+      if (this.overlay) return '全局主题覆盖已开启，局部选择会保留但暂不显示';
+      return '只替换当前部件，其它已选装扮保持不变';
+    },
+    journeyTone() {
+      return this.blocked || this.overlay ? 'warning' : 'accent';
+    },
     group() {
       return getDressGroup(this.groupId);
     },
@@ -861,7 +876,6 @@ export default {
 </script>
 
 <style scoped>
-.lead,
 .item-card {
   margin-top: var(--space-3);
   padding: var(--space-3);
@@ -877,7 +891,12 @@ export default {
 }
 
 .item-card.placeholder {
-  opacity: 0.84;
+  background: var(--surface-subtle-color);
+}
+
+.item-card.applied {
+  border-color: var(--accent-color);
+  box-shadow: inset 0 0 0 1px var(--accent-subtle-color);
 }
 
 .item-body {
@@ -892,10 +911,21 @@ export default {
   gap: var(--space-2);
 }
 
+.item-head .tag,
+.item-head .item-name {
+  margin-top: 0;
+}
+
 .theme-action-wrap {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.theme-action-wrap .item-action {
+  margin-top: 0;
 }
 
 .filter-row {
@@ -903,6 +933,57 @@ export default {
   flex-wrap: wrap;
   gap: var(--space-2);
   margin-top: var(--space-3);
+}
+
+.directory-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.directory-kicker,
+.availability-note__label {
+  color: var(--accent-color);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.directory-title {
+  margin-top: var(--space-1);
+  color: var(--text-color);
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+}
+
+.directory-count {
+  flex: 0 0 auto;
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
+}
+
+.availability-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle-color);
+}
+
+.availability-note__label {
+  flex: 0 0 auto;
+  letter-spacing: 0;
+}
+
+.availability-note__copy {
+  min-width: 0;
+  color: var(--text-secondary-color);
+  font-size: var(--font-size-xs);
+  line-height: 1.55;
 }
 
 .chip {
@@ -1041,8 +1122,8 @@ export default {
 }
 
 .thumb {
-  width: 128rpx;
-  height: 128rpx;
+  width: 144rpx;
+  height: 144rpx;
   padding: var(--space-1);
   border-radius: var(--radius-md);
   background: var(--page-color);
@@ -1109,12 +1190,16 @@ export default {
   position: absolute;
   top: 50%;
   left: 50%;
-  padding: 0 var(--space-2);
+  max-width: calc(100% - var(--space-1));
+  padding: 0 var(--space-1);
   border-radius: var(--radius-pill);
   background: var(--surface-color);
   color: var(--muted-color);
-  font-size: var(--font-size-xs);
-  line-height: 44rpx;
+  font-size: 18rpx;
+  font-weight: 700;
+  line-height: 34rpx;
+  white-space: nowrap;
+  box-sizing: border-box;
   transform: translate(-50%, -50%);
 }
 

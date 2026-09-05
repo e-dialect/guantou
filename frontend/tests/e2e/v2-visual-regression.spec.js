@@ -4,6 +4,7 @@ import {
   issueLabel,
   ROUTE_VISUAL_MATRIX,
   STATE_VISUAL_MATRIX,
+  THEME_JOURNEY_VISUAL_MATRIX,
 } from './fixtures/visualReviewMatrix';
 import {
   horizontalOverflow,
@@ -85,6 +86,7 @@ test.afterAll(async () => {
     registeredPageCount: ROUTE_VISUAL_MATRIX.length,
     coreVariantCount: CORE_VISUAL_MATRIX.length * 4,
     stateSampleCount: STATE_VISUAL_MATRIX.length,
+    themeJourneyVariantCount: THEME_JOURNEY_VISUAL_MATRIX.length,
     outputDirectory: visualReviewOutput,
   });
 });
@@ -137,5 +139,27 @@ STATE_VISUAL_MATRIX.forEach((entry) => {
       target: entry.target,
       waitMs: entry.state === 'loading' ? 100 : 350,
     });
+  });
+});
+
+THEME_JOURNEY_VISUAL_MATRIX.forEach((entry) => {
+  test(`theme journey ${entry.name} · ${issueLabel(entry.issues)}`, async ({ page }) => {
+    await capture(page, {
+      actualPathExpected: pathname(entry.target),
+      filename: entry.slug,
+      group: 'themes',
+      issues: entry.issues,
+      name: entry.name,
+      persona: entry.persona,
+      target: entry.target,
+      theme: entry.theme,
+    });
+
+    if (entry.checkSoonLabel) {
+      const soonLabel = page.locator('.soon-overlay').first();
+      await expect(soonLabel).toBeVisible();
+      expect(await soonLabel.evaluate((element) => getComputedStyle(element).whiteSpace)).toBe('nowrap');
+      expect((await soonLabel.boundingBox())?.height || 0).toBeLessThan(30);
+    }
   });
 });
