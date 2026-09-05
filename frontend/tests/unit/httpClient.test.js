@@ -1,10 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  beforeEach, describe, expect, it, vi,
+} from 'vitest';
 
 vi.mock('@/routers/login', () => ({
   toLoginPage: vi.fn(),
 }));
 
 const { toLoginPage } = await import('@/routers/login');
+const feedback = await import('@/services/feedback');
 const httpClient = await import('@/utils/httpClient');
 const request = (await import('@/utils/request')).default;
 const rawRequest = (await import('@/utils/rawRequest')).default;
@@ -29,6 +32,7 @@ function installUniMock() {
 
 describe('httpClient compatibility wrappers', () => {
   beforeEach(() => {
+    feedback.resetLoading();
     installUniMock();
     vi.useRealTimers();
   });
@@ -73,6 +77,56 @@ describe('httpClient compatibility wrappers', () => {
       },
     }));
     expect(uni.showLoading).not.toHaveBeenCalled();
+  });
+
+  it('pairs concurrent success, HTTP failure and network rejection at the last settle', async () => {
+    const pending = [];
+    uni.hideLoading.mockResolvedValue();
+    uni.request.mockImplementation(() => new Promise((resolve, reject) => {
+      pending.push({ resolve, reject });
+    }));
+
+    const success = httpClient.request('GET', '/success');
+    const httpFailure = httpClient.request('GET', '/http-failure');
+    const networkFailure = httpClient.request('GET', '/network-failure');
+    const silent = httpClient.request('GET', '/silent', {}, { loading: false, silent: true });
+
+    expect(uni.showLoading).toHaveBeenCalledTimes(1);
+    pending[1].resolve({ statusCode: 503, data: { message: '服务繁忙' } });
+    pending[2].reject({ errMsg: '网络断开' });
+    pending[3].resolve({ statusCode: 200, data: { quiet: true } });
+    await silent;
+    await Promise.resolve();
+    expect(uni.hideLoading).not.toHaveBeenCalled();
+
+    pending[0].resolve({ statusCode: 200, data: { ok: true } });
+    const results = await Promise.allSettled([success, httpFailure, networkFailure]);
+    await Promise.resolve();
+
+    expect(results).toMatchObject([
+      { status: 'fulfilled', value: { ok: true } },
+      { status: 'rejected', reason: { statusCode: 503, message: '服务繁忙' } },
+      { status: 'rejected', reason: { statusCode: 0, message: '网络断开' } },
+    ]);
+    expect(uni.hideLoading).toHaveBeenCalledTimes(1);
+    expect(uni.showToast).toHaveBeenCalledTimes(1);
+
+    uni.request.mockResolvedValueOnce({ statusCode: 200, data: { recovered: true } });
+    await expect(httpClient.request('GET', '/after')).resolves.toEqual({ recovered: true });
+    expect(uni.showLoading).toHaveBeenCalledTimes(2);
+    expect(uni.hideLoading).toHaveBeenCalledTimes(2);
+  });
+
+  it('releases loading when uni.request throws synchronously', async () => {
+    uni.request.mockImplementation(() => {
+      throw new Error('request unavailable');
+    });
+
+    await expect(httpClient.request('GET', '/sync-failure')).rejects.toMatchObject({
+      message: 'request unavailable',
+    });
+    expect(uni.showLoading).toHaveBeenCalledTimes(1);
+    expect(uni.hideLoading).toHaveBeenCalledTimes(1);
   });
 
   it('privacy-sensitive requests can omit and avoid persisting visitor ids', async () => {

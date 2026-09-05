@@ -9,11 +9,17 @@ const DEFAULT_ERROR_MESSAGES = {
 
 const MAX_TOAST_TITLE_LENGTH = 32;
 let loadingReferences = 0;
+let nextLoadingClosureId = 0;
+const loadingClosures = new Set();
+let pendingNativeNotification = null;
 const feedbackHosts = [];
 
 export function registerFeedbackHost(host) {
   if (!host || feedbackHosts.includes(host)) return;
   feedbackHosts.push(host);
+  if (pendingNativeNotification && host.showToast(pendingNativeNotification)) {
+    pendingNativeNotification = null;
+  }
 }
 
 export function unregisterFeedbackHost(host) {
@@ -23,6 +29,19 @@ export function unregisterFeedbackHost(host) {
 
 function activeFeedbackHost() {
   return feedbackHosts[feedbackHosts.length - 1] || null;
+}
+
+function showNativeNotification(options) {
+  uni.showToast(options);
+}
+
+function flushNativeNotification() {
+  if (loadingReferences > 0 || loadingClosures.size > 0 || !pendingNativeNotification) return;
+  const notification = pendingNativeNotification;
+  pendingNativeNotification = null;
+  const host = activeFeedbackHost();
+  if (host && host.showToast(notification)) return;
+  showNativeNotification(notification);
 }
 
 function truncateTitle(title) {
@@ -46,12 +65,20 @@ export function notify({
     duration,
     mask,
   })) return;
-  uni.showToast({
+  const notification = {
     title: normalizedTitle,
     icon,
     duration,
     mask,
-  });
+  };
+  // Uni H5 的 loading 与 toast 共用弹层状态。加载尚未完成或正在关闭时直接
+  // showToast 会把 loading 顶掉，随后 hideLoading 会报告未配对；只保留最新一条
+  // 原生提示，等最后一次 loading 确认关闭后再显示。
+  if (loadingReferences > 0 || loadingClosures.size > 0) {
+    pendingNativeNotification = notification;
+    return;
+  }
+  showNativeNotification(notification);
 }
 
 export function confirm({
@@ -137,11 +164,28 @@ export function hideLoading() {
   if (loadingReferences === 0) return;
   loadingReferences -= 1;
   // 只在最后一个请求结束（1→0）时关闭。
-  if (loadingReferences === 0) uni.hideLoading();
+  if (loadingReferences !== 0) return;
+  nextLoadingClosureId += 1;
+  const closureId = nextLoadingClosureId;
+  loadingClosures.add(closureId);
+  const settleClosure = () => {
+    loadingClosures.delete(closureId);
+    flushNativeNotification();
+  };
+  let closing;
+  try {
+    closing = uni.hideLoading();
+  } catch (error) {
+    settleClosure();
+    throw error;
+  }
+  Promise.resolve(closing).then(settleClosure, settleClosure);
 }
 
 export function resetLoading() {
   loadingReferences = 0;
+  loadingClosures.clear();
+  pendingNativeNotification = null;
 }
 
 export default {

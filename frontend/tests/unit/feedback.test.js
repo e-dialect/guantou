@@ -40,6 +40,51 @@ describe('feedback service', () => {
     expect(uni.hideLoading).toHaveBeenCalledTimes(1);
   });
 
+  it('defers a native toast until the last loading overlay has closed', async () => {
+    let finishClosing;
+    uni.hideLoading.mockReturnValue(new Promise((resolve) => {
+      finishClosing = resolve;
+    }));
+
+    feedback.showLoading('加载甲');
+    feedback.showLoading('加载乙');
+    feedback.hideLoading();
+    feedback.notifyError({ message: '加载甲失败' });
+
+    expect(uni.showToast).not.toHaveBeenCalled();
+    feedback.hideLoading();
+    expect(uni.hideLoading).toHaveBeenCalledTimes(1);
+    expect(uni.showToast).not.toHaveBeenCalled();
+
+    finishClosing();
+    await Promise.resolve();
+    expect(uni.showToast).toHaveBeenCalledWith(expect.objectContaining({
+      title: '加载甲失败',
+      icon: 'error',
+    }));
+  });
+
+  it('waits for overlapping close operations before flushing a native toast', async () => {
+    const finishClosing = [];
+    uni.hideLoading.mockImplementation(() => new Promise((resolve) => {
+      finishClosing.push(resolve);
+    }));
+
+    feedback.showLoading('第一轮');
+    feedback.hideLoading();
+    feedback.showLoading('第二轮');
+    feedback.hideLoading();
+    feedback.notifyError({ message: '第二轮失败' });
+
+    finishClosing[0]();
+    await Promise.resolve();
+    expect(uni.showToast).not.toHaveBeenCalled();
+
+    finishClosing[1]();
+    await Promise.resolve();
+    expect(uni.showToast).toHaveBeenCalledTimes(1);
+  });
+
   it('maps API errors to user-facing messages', () => {
     feedback.notifyError({ statusCode: 403 });
 
