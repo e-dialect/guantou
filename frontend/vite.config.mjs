@@ -6,6 +6,30 @@ import { fileURLToPath } from 'url';
 
 const projectRootDir = fileURLToPath(new URL('.', import.meta.url));
 const uni = uniModule.default;
+const h5DevServerPort = process.env.H5_DEV_SERVER_PORT
+  ? Number(process.env.H5_DEV_SERVER_PORT)
+  : null;
+
+if (h5DevServerPort !== null && (
+  !Number.isInteger(h5DevServerPort)
+  || h5DevServerPort < 1
+  || h5DevServerPort > 65535
+)) {
+  throw new Error(`H5_DEV_SERVER_PORT is invalid: ${process.env.H5_DEV_SERVER_PORT}`);
+}
+
+const isolatedH5Server = h5DevServerPort === null ? null : {
+  name: 'guantou:h5-dev-server-port',
+  enforce: 'post',
+  config() {
+    return {
+      server: {
+        port: h5DevServerPort,
+        strictPort: true,
+      },
+    };
+  },
+};
 // https://vitejs.dev/config/
 export default defineConfig({
   css: {
@@ -22,6 +46,7 @@ export default defineConfig({
   plugins: [
     uni(),
     alias(),
+    ...(isolatedH5Server ? [isolatedH5Server] : []),
   ],
   resolve: {
     alias: {
