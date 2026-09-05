@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils';
 import {
   beforeEach, describe, expect, it, vi,
 } from 'vitest';
+import { getMyContributionHistory } from '@/services/entryRecording';
 import { notify, notifySuccess } from '@/services/feedback';
 import ThemeAcquirePage from '@/pages/users/theme-acquire.vue';
 import ThemeEventPage from '@/pages/users/theme-event.vue';
@@ -9,8 +10,13 @@ import ThemeMemberPage from '@/pages/users/theme-member.vue';
 import {
   getMemberStatus,
   isOwned,
+  setCreatorProgress,
   THEME_ACCESS_FOOTER,
 } from '@/services/themeCenter';
+
+vi.mock('@/services/entryRecording', () => ({
+  getMyContributionHistory: vi.fn(),
+}));
 
 vi.mock('@/services/feedback', () => ({
   notify: vi.fn(),
@@ -68,6 +74,31 @@ describe('theme acquire, member, and event pages', () => {
     expect(wrapper.text()).not.toContain('记录一次录音贡献');
     wrapper.vm.claimDailyShards();
     expect(notifySuccess).toHaveBeenCalled();
+  });
+
+  it('keeps the verified contribution snapshot without an authenticated request', async () => {
+    setCreatorProgress({ recordings: 4 });
+    const wrapper = mount(ThemeAcquirePage, {
+      global: { stubs: stubs() },
+    });
+
+    await wrapper.vm.syncContributionCount();
+
+    expect(getMyContributionHistory).not.toHaveBeenCalled();
+    expect(wrapper.vm.progress.recordings).toBe(4);
+  });
+
+  it('refreshes contribution progress for a signed-in user', async () => {
+    uni.setStorageSync('token', 'signed-in-token');
+    getMyContributionHistory.mockResolvedValue({ summary: { recordings: 12 } });
+    const wrapper = mount(ThemeAcquirePage, {
+      global: { stubs: stubs() },
+    });
+
+    await wrapper.vm.syncContributionCount();
+
+    expect(getMyContributionHistory).toHaveBeenCalledTimes(1);
+    expect(wrapper.vm.progress.recordings).toBe(12);
   });
 
   it('activates membership for both H5 and mini program', () => {

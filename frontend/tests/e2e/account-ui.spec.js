@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { stableScreenshot } from './helpers/stableScreenshot';
+import { observeRuntime } from './helpers/visualReviewFixture';
 
 async function tap(locator) {
   await locator.click();
@@ -87,6 +88,13 @@ test('mine page keeps contrast in light and dark themes', async ({ page }) => {
 });
 
 test('theme center keeps one live pack and placeholders', async ({ page }) => {
+  const runtimeIssues = observeRuntime(page);
+  let contributionRequests = 0;
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/contributions/me/') {
+      contributionRequests += 1;
+    }
+  });
   await openMine(page);
   await tap(page.getByText('主题中心'));
   await expect(page.locator('.tab.active', { hasText: '全局主题' })).toBeVisible();
@@ -215,6 +223,8 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
   await page.locator('.preview-close').click({ force: true });
   await page.locator('.current-card .base-button').click({ force: true });
   await expect(page.locator('.tab.active', { hasText: '全局主题' })).toBeVisible();
+  expect(contributionRequests).toBe(0);
+  expect(runtimeIssues).toEqual([]);
 });
 
 test('account settings stay behind login and use PageShell titles', async ({ page }) => {

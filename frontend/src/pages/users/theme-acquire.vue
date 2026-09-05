@@ -215,6 +215,7 @@
 import BaseButton from '@/components/BaseButton.vue';
 import PageShell from '@/components/PageShell.vue';
 import ThemeJourneyIntro from '@/components/ThemeJourneyIntro.vue';
+import { isLoggedIn } from '@/services/authGuard';
 import { getMyContributionHistory } from '@/services/entryRecording';
 import { notifySuccess } from '@/services/feedback';
 import {
@@ -288,6 +289,7 @@ export default {
       goThemeEvent({ id: item.id, kind: item.kind });
     },
     async syncContributionCount() {
+      if (!isLoggedIn()) return;
       try {
         const response = await getMyContributionHistory();
         const recordings = Math.max(0, Number(response?.summary?.recordings || 0));

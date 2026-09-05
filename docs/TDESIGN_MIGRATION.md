@@ -55,7 +55,7 @@ V2 全站聚合验收由 [#346](https://github.com/e-dialect/guantou/issues/346)
 | `pages/users/recommend-follow` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：延续身份旅程，并保留统一加载、空态、重试及关注结果反馈 |
 | `pages/users/theme-center` | done | 总览 THEME_CENTER.md；[#369](https://github.com/e-dialect/guantou/issues/369) 将路由入口拆为可独立验证的搜索、目录、最近、收藏、搭配与弹层视图，边界见 [THEME_CENTER_VIEW_ARCHITECTURE.md](THEME_CENTER_VIEW_ARCHITECTURE.md)；[#375](https://github.com/e-dialect/guantou/issues/375) 将次要的“最近使用”无记录提示收为 opt-in 紧凑状态，保留共享完整空态与曝光语义；[#387](https://github.com/e-dialect/guantou/issues/387) 收敛正文与弹层重复的筛选入口，并按全局主题、局部装扮、搜索上下文只展示有效维度。三期不在本页做投稿社区。跳转 NAV |
 | `pages/users/theme-dress` | done | 单组局部装扮：免费/会员/活动/创作者权限、待上线占位；不覆盖其它分组 |
-| `pages/users/theme-acquire` | done | 装扮获取聚合：会员、活动、创作任务与方言主题福利 |
+| `pages/users/theme-acquire` | done | 装扮获取聚合：会员、活动、创作任务与方言主题福利；[#391](https://github.com/e-dialect/guantou/issues/391) 让游客保留本地已核验进度且不请求登录态贡献接口 |
 | `pages/users/theme-member` | done | 开通会员，权益 H5/小程序同步 |
 | `pages/users/theme-event` | done | 活动领取与已绝版提示 |
 | `pages/mails/index` / `details` | done | [#356](https://github.com/e-dialect/guantou/issues/356)：消息概览与未读层级、加载/空白/失败状态、关联内容与回复闭环；[#358](https://github.com/e-dialect/guantou/issues/358)：用项目加载原语替换未解析的隐式分页组件 |
