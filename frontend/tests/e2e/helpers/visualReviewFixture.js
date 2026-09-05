@@ -34,17 +34,27 @@ const ENTRY = {
   usage_dialect: DIALECTS[1],
   writings: [
     {
-      id: 31, text: '落大雨', writing_type: 'orthographic', is_preferred: true,
+      id: 31,
+      text: '落大雨',
+      writing_type: 'orthographic',
+      is_preferred: true,
+      writing: { text: '落大雨', form_type: 'orthographic' },
     },
     {
-      id: 32, text: '骆大雨', writing_type: 'uncertain', is_preferred: false,
+      id: 32,
+      text: '骆大雨',
+      writing_type: 'uncertain',
+      is_preferred: false,
+      writing: { text: '骆大雨', form_type: 'uncertain' },
     },
   ],
   senses: [{
     id: 41,
     order: 1,
+    sense_number: 1,
     gloss: '阵雨突然变得猛烈',
     note: '常用于提醒屋外的人收衣服。',
+    usage_note: '常用于提醒屋外的人收衣服。',
     concepts: [],
   }],
   concepts: [],
@@ -52,6 +62,7 @@ const ENTRY = {
     id: 51,
     ipa: 'loʔ˥ tua˨˩ hø˧˥',
     romanization: 'loh dua ho',
+    surface_romanization: 'loh dua ho',
     dialect: DIALECTS[1],
   }],
 };
