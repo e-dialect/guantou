@@ -110,18 +110,26 @@
         >
           创建账户并继续
         </BaseButton>
-        <view
-          class="edit-account-link"
-          @tap="formStep = 1"
+        <t-button
+          class="auth-step-back"
+          theme="default"
+          variant="text"
+          size="medium"
+          role="button"
+          tabindex="0"
+          aria-label="返回修改账号信息"
+          @click="returnToAccountStep"
+          @keydown.enter.space.prevent="returnToAccountStep"
         >
           返回修改账号信息
-        </view>
+        </t-button>
       </view>
     </AuthJourney>
   </PageShell>
 </template>
 
 <script>
+import TButton from '@tdesign/uniapp/button/button.vue';
 import AuthJourney from '@/pages/login/components/AuthJourney.vue';
 import PageShell from '@/components/PageShell.vue';
 import BaseButton from '@/components/BaseButton.vue';
@@ -137,7 +145,7 @@ const SEND_COUNTDOWN = 30;
 export default {
   name: 'RegisterPage',
   components: {
-    AuthJourney, PageShell, BaseButton, BaseField,
+    AuthJourney, PageShell, BaseButton, BaseField, TButton,
   },
   data() {
     return {
@@ -189,6 +197,9 @@ export default {
     },
   },
   methods: {
+    returnToAccountStep() {
+      this.formStep = 1;
+    },
     clearFieldError(field) {
       this.errors[field] = '';
     },
@@ -315,10 +326,14 @@ export default {
   line-height: 1.5;
 }
 
-.edit-account-link {
-  color: var(--accent-color);
-  text-align: center;
-  font-size: var(--font-size-xs);
+.auth-step-back {
+  display: flex;
+  width: 100%;
+  margin: var(--space-1) 0 0;
+  --td-button-medium-font: 600 24rpx / 36rpx var(--td-font-family);
+  --td-button-medium-height: 80rpx;
+  --td-button-default-color: var(--muted-color);
+  --td-button-default-text-active-bg-color: var(--surface-subtle-color);
 }
 
 :deep(.auth-page) {

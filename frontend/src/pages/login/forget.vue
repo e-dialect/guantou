@@ -102,12 +102,26 @@
         >
           重置密码
         </BaseButton>
+        <t-button
+          class="auth-step-back"
+          theme="default"
+          variant="text"
+          size="medium"
+          role="button"
+          tabindex="0"
+          aria-label="返回修改用户名"
+          @click="returnToAccountStep"
+          @keydown.enter.space.prevent="returnToAccountStep"
+        >
+          返回修改用户名
+        </t-button>
       </view>
     </AuthJourney>
   </PageShell>
 </template>
 
 <script>
+import TButton from '@tdesign/uniapp/button/button.vue';
 import AuthJourney from '@/pages/login/components/AuthJourney.vue';
 import PageShell from '@/components/PageShell.vue';
 import BaseButton from '@/components/BaseButton.vue';
@@ -123,7 +137,7 @@ import getCodeMixin from './mixin/getCodeMixin';
 export default {
   name: 'ForgetPage',
   components: {
-    AuthJourney, PageShell, BaseButton, BaseField,
+    AuthJourney, PageShell, BaseButton, BaseField, TButton,
   },
   mixins: [getCodeMixin],
   data() {
@@ -157,6 +171,15 @@ export default {
     },
   },
   methods: {
+    returnToAccountStep() {
+      this.steps = 0;
+      this.password = '';
+      this.repeatedPassword = '';
+      this.code = '';
+      this.errors.password = '';
+      this.errors.repeatedPassword = '';
+      this.errors.code = '';
+    },
     clearFieldError(field) {
       this.errors[field] = '';
     },
@@ -258,6 +281,16 @@ export default {
   color: var(--text-secondary-color);
   font-size: var(--font-size-xs);
   line-height: 1.5;
+}
+
+.auth-step-back {
+  display: flex;
+  width: 100%;
+  margin: var(--space-1) 0 0;
+  --td-button-medium-font: 600 24rpx / 36rpx var(--td-font-family);
+  --td-button-medium-height: 80rpx;
+  --td-button-default-color: var(--muted-color);
+  --td-button-default-text-active-bg-color: var(--surface-subtle-color);
 }
 
 :deep(.auth-page) {

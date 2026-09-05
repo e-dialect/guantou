@@ -88,6 +88,22 @@ describe('register page', () => {
     expect(wrapper.text()).toContain('邮箱只用于验证身份');
   });
 
+  it('returns to account details through a TDesign text action without losing email draft', async () => {
+    const wrapper = mountPage();
+    fillValidForm(wrapper);
+    wrapper.vm.formStep = 2;
+    await wrapper.vm.$nextTick();
+
+    const backAction = wrapper.findAllComponents({ name: 'TDesignStub' })
+      .find((component) => component.props('ariaLabel') === '返回修改账号信息');
+    expect(backAction.props('variant')).toBe('text');
+    backAction.vm.$emit('click');
+
+    expect(wrapper.vm.formStep).toBe(1);
+    expect(wrapper.vm.email).toBe('collector@example.com');
+    expect(wrapper.vm.code).toBe('123456');
+  });
+
   it('sends email code when contact is an email', async () => {
     const wrapper = mountPage();
     wrapper.vm.email = 'collector@example.com';
