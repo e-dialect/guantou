@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  beforeEach, describe, expect, it, vi,
+} from 'vitest';
 
 vi.mock('@/utils/request', () => ({
   default: {
@@ -25,8 +27,8 @@ describe('Entry / Recording V2 service', () => {
     await service.listRecordings({ entry_id: 3 });
     await service.createRecording({ audio_url: 'https://example.test/a.mp3' });
 
-    expect(request.get).toHaveBeenNthCalledWith(1, '/entries/', { search: '行' }, true);
-    expect(request.get).toHaveBeenNthCalledWith(2, '/recordings/', { entry_id: 3 }, true);
+    expect(request.get).toHaveBeenNthCalledWith(1, '/entries/', { search: '行' }, true, { loading: false });
+    expect(request.get).toHaveBeenNthCalledWith(2, '/recordings/', { entry_id: 3 }, true, { loading: false });
     expect(request.post).toHaveBeenCalledWith('/recordings/', {
       audio_url: 'https://example.test/a.mp3',
     });
@@ -51,8 +53,12 @@ describe('Entry / Recording V2 service', () => {
 
   it('selects an accepted primary link without merging other interpretations', () => {
     const competing = { id: 2, role: 'competing', entry: { id: 9 } };
-    const primary = { id: 1, role: 'primary', status: 'accepted', entry: { id: 7 } };
-    const rejected = { id: 3, role: 'primary', status: 'rejected', entry: { id: 4 } };
+    const primary = {
+      id: 1, role: 'primary', status: 'accepted', entry: { id: 7 },
+    };
+    const rejected = {
+      id: 3, role: 'primary', status: 'rejected', entry: { id: 4 },
+    };
 
     expect(service.primaryEntryLink({
       entry_links: [competing, rejected, primary],
@@ -80,7 +86,7 @@ describe('Entry / Recording V2 service', () => {
     await service.bookmarkEntry(7);
     await service.unbookmarkEntry(7);
 
-    expect(request.get).toHaveBeenCalledWith('/entries/bookmarks/', { page: 2 }, true);
+    expect(request.get).toHaveBeenCalledWith('/entries/bookmarks/', { page: 2 }, true, { loading: false });
     expect(request.put).toHaveBeenCalledWith('/entries/7/bookmark/', {});
     expect(request.del).toHaveBeenCalledWith('/entries/7/bookmark/');
   });
@@ -98,12 +104,12 @@ describe('Entry / Recording V2 service', () => {
     await service.createCurationAction({ action_type: 'review' });
     await service.getMyContributionHistory();
 
-    expect(request.get).toHaveBeenCalledWith('/curator-applications/', {}, true);
+    expect(request.get).toHaveBeenCalledWith('/curator-applications/', {}, true, { loading: false });
     expect(request.post).toHaveBeenCalledWith('/curator-applications/', { role: 'lexical' });
     expect(request.del).toHaveBeenCalledWith('/curator-applications/9/');
-    expect(request.get).toHaveBeenCalledWith('/curator-grants/', { active: true }, true);
-    expect(request.get).toHaveBeenCalledWith('/curation/tasks/', {}, true);
+    expect(request.get).toHaveBeenCalledWith('/curator-grants/', { active: true }, true, { loading: false });
+    expect(request.get).toHaveBeenCalledWith('/curation/tasks/', {}, true, { loading: false });
     expect(request.post).toHaveBeenCalledWith('/curation/actions/', { action_type: 'review' });
-    expect(request.get).toHaveBeenCalledWith('/contributions/me/', {}, true);
+    expect(request.get).toHaveBeenCalledWith('/contributions/me/', {}, true, { loading: false });
   });
 });

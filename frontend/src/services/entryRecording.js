@@ -1,21 +1,23 @@
 import request from '@/utils/request';
 import { dialectCardLabel } from '@/utils/dialectTree';
 
+const PAGE_LOAD_OPTIONS = Object.freeze({ loading: false });
+
 export function pageResults(response) {
   if (Array.isArray(response)) return response;
   return response?.results || [];
 }
 
 export function listEntries(params = {}) {
-  return request.get('/entries/', params, true);
+  return request.get('/entries/', params, true, PAGE_LOAD_OPTIONS);
 }
 
 export function getEntry(id) {
-  return request.get(`/entries/${id}/`, {}, true);
+  return request.get(`/entries/${id}/`, {}, true, PAGE_LOAD_OPTIONS);
 }
 
 export function listEntryBookmarks(params = {}) {
-  return request.get('/entries/bookmarks/', params, true);
+  return request.get('/entries/bookmarks/', params, true, PAGE_LOAD_OPTIONS);
 }
 
 export function bookmarkEntry(id) {
@@ -27,11 +29,11 @@ export function unbookmarkEntry(id) {
 }
 
 export function listRecordings(params = {}) {
-  return request.get('/recordings/', params, true);
+  return request.get('/recordings/', params, true, PAGE_LOAD_OPTIONS);
 }
 
 export function getRecording(id) {
-  return request.get(`/recordings/${id}/`, {}, true);
+  return request.get(`/recordings/${id}/`, {}, true, PAGE_LOAD_OPTIONS);
 }
 
 export function createRecording(payload) {
@@ -47,11 +49,11 @@ export function createUsageAttestation(entryId, dialectId, note = '') {
 }
 
 export function getCurationSummary() {
-  return request.get('/curation/', {}, true);
+  return request.get('/curation/', {}, true, PAGE_LOAD_OPTIONS);
 }
 
 export function listCuratorApplications(params = {}) {
-  return request.get('/curator-applications/', params, true);
+  return request.get('/curator-applications/', params, true, PAGE_LOAD_OPTIONS);
 }
 
 export function createCuratorApplication(payload) {
@@ -63,11 +65,11 @@ export function withdrawCuratorApplication(id) {
 }
 
 export function listCuratorGrants(params = {}) {
-  return request.get('/curator-grants/', params, true);
+  return request.get('/curator-grants/', params, true, PAGE_LOAD_OPTIONS);
 }
 
 export function listCurationTasks(params = {}) {
-  return request.get('/curation/tasks/', params, true);
+  return request.get('/curation/tasks/', params, true, PAGE_LOAD_OPTIONS);
 }
 
 export function createCurationAction(payload) {
@@ -75,7 +77,7 @@ export function createCurationAction(payload) {
 }
 
 export function getMyContributionHistory() {
-  return request.get('/contributions/me/', {}, true);
+  return request.get('/contributions/me/', {}, true, PAGE_LOAD_OPTIONS);
 }
 
 export function primaryEntryLink(recording = {}) {

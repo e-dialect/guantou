@@ -59,7 +59,7 @@ describe('entry-first search page orchestration', () => {
       search: '行',
       page: 1,
       page_size: 20,
-    }), true);
+    }), true, { loading: false });
     expect(page.entries.map((entry) => entry.id)).toEqual([1, 2]);
     expect(page.total).toBe(2);
     expect(analyticsRequest).toHaveBeenCalledWith(

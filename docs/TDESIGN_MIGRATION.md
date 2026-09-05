@@ -144,6 +144,12 @@ V2 全站聚合验收由 [#346](https://github.com/e-dialect/guantou/issues/346)
 - catch-all 只把 `to.path` 作为 `path` query 传给 #362 页面，不携带原 URL 的 query/hash；已注册路由仍优先匹配。插件按 `UNI_PLATFORM=h5` 和 UniApp `__uniRoutes` 生成锚点双重限域，mp-weixin 不注入。
 - 独立单测固定生成代码的锚点和平台边界；独立 H5 E2E 从真实未知长 URL 进入，要求脱敏路径、恢复动作以及 console warning/error、pageerror 全部通过。
 
+## 页面级加载反馈（#365）
+
+- 已自行呈现骨架、`BaseLoading` 或局部加载按钮的 V2 页面读取由服务层显式传递 `loading: false`，不再叠加黑色全局 `uni.showLoading`；涵盖词条/录音、方言/圈子、消息与推荐关注读取。
+- 旧 `utils/request` 的布尔 `noPrompt` 参数保持兼容，仅新增可选 options 透传。创建、提交、上传、关注、收藏和审核等用户动作继续保留全局等待语义。
+- #359 仍负责并发 loading 的引用计数和 toast 竞态；本项只确定页面级与全局反馈的职责边界。单元回归分别锁定读取不显示全局 loading、动作不被静默降级，并由 #346 聚合矩阵复核 390×844 浅暗主题和浏览器 console。
+
 ## Completion
 
 所有 `issue` 和 `queued` 页面完成后：确认仓库不再使用原生交互控件、`uni-ui` 表单或 `cu-*`，再删除 `legacy-form-compat.scss`、ColorUI 全局引入、无用 easycom 映射与 `@dcloudio/uni-ui` 依赖。

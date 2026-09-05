@@ -79,6 +79,20 @@ describe('httpClient compatibility wrappers', () => {
     expect(uni.showLoading).not.toHaveBeenCalled();
   });
 
+  it('legacy request wrapper forwards local page loading options', async () => {
+    uni.request.mockResolvedValue({
+      statusCode: 200,
+      data: { results: [] },
+    });
+
+    await expect(request.get('/recordings/', { page: 1 }, true, {
+      loading: false,
+    })).resolves.toEqual({ results: [] });
+
+    expect(uni.showLoading).not.toHaveBeenCalled();
+    expect(uni.hideLoading).not.toHaveBeenCalled();
+  });
+
   it('pairs concurrent success, HTTP failure and network rejection at the last settle', async () => {
     const pending = [];
     uni.hideLoading.mockResolvedValue();
