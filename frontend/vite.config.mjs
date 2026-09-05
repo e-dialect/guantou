@@ -37,9 +37,9 @@ export default defineConfig({
     preprocessorOptions: {
       scss: {
         api: 'modern-compiler',
-        // The mp-weixin compiler still enters Sass through Vue SFC's legacy
-        // adapter. Keep this one upstream deprecation scoped and explicit;
-        // project-authored Sass is already on the module API.
+        // UniApp 5.24 still enters Sass through legacy Vue SFC adapters on H5
+        // and mp-weixin. Keep this upstream-only deprecation scoped until a
+        // stable compiler release removes those calls.
         silenceDeprecations: ['legacy-js-api'],
       },
     },

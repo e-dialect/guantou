@@ -48,6 +48,28 @@ test('a remotely disabled recording flow explains the degradation', async ({ pag
     });
   });
   await routeCapabilities(page, { recording: false });
+  // App.onLaunch refreshes persisted sessions before the protected page settles.
+  // Keep this test's authenticated precondition independent from the live backend.
+  await page.route('**/login', async (route) => {
+    if (route.request().method() === 'PUT') {
+      await route.fulfill({ json: { token: 'e2e-capability-token', id: 1 } });
+      return;
+    }
+    await route.continue();
+  });
+  await page.route('**/users/1', async (route) => {
+    await route.fulfill({
+      json: {
+        user: {
+          id: 1,
+          username: 'capability-reviewer',
+          nickname: '能力审阅者',
+          primary_dialect: { id: 3, name: '莆仙方言' },
+        },
+        contribution: {},
+      },
+    });
+  });
   await page.route('**/product-events/', async (route) => {
     await route.fulfill({ status: 202, json: { accepted: 1 } });
   });

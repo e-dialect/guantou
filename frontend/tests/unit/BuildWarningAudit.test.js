@@ -7,24 +7,22 @@ describe('frontend build warning audit', () => {
     const output = [
       '[plugin:vite:reporter]',
       '(!) /repo/src/services/themeApi.js is dynamically imported by /repo/src/services/themeFault.js but also statically imported by /repo/src/App.vue, dynamic import will not move module into another chunk.',
-      'uni-app 有新版本发布，请按兼容矩阵升级',
     ].join('\n');
 
     expect(auditBuildOutput(output, 'h5')).toEqual({
-      allowed: [
-        { issue: '#353', kind: 'uni-app-update' },
-      ],
+      allowed: [],
       violations: [output.split('\n')[1]],
     });
   });
 
-  it('rejects project Sass and stale browser-data warnings', () => {
+  it('rejects toolchain updates, project Sass, and stale browser-data warnings', () => {
     const output = [
+      'uni-app 有新版本发布，请按兼容矩阵升级',
       'DEPRECATION WARNING [import]: Sass @import rules are deprecated',
       'Browserslist: browsers data (caniuse-lite) is 9 months old',
     ].join('\n');
 
-    expect(auditBuildOutput(output, 'h5').violations).toHaveLength(2);
+    expect(auditBuildOutput(output, 'h5').violations).toHaveLength(3);
   });
 
   it('does not deduplicate repeated chunk warnings', () => {

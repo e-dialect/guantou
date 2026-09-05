@@ -18,9 +18,15 @@ yarn build:mp-weixin:checked
 
 | 指纹 | 平台 | 归属 | 退出条件 |
 | --- | --- | --- | --- |
-| UniApp 检测到新版本 | H5 / 微信小程序 | #353 | 按同一官方兼容矩阵成组升级 DCloud 依赖 |
+| 无 | — | — | 当前 checked build 不允许任何已知告警 |
 
-微信小程序编译器内部仍通过 Vue SFC 的 `renderSync` 进入 Sass legacy JS API。项目 Sass 已完成模块化迁移，因此 `vite.config.mjs` 仅对 `legacy-js-api` 这一条上游弃用提示使用 Sass 官方 `silenceDeprecations`；#353 升级编译器并确认改用现代 API 后必须删除该配置。
+正式 5.24 编译器在 H5 与微信小程序构建中仍会通过 Vue SFC 适配层进入 Sass legacy JS API。项目 Sass 已完成模块化迁移，因此 `vite.config.mjs` 仅对 `legacy-js-api` 这一条上游弃用提示使用 Sass 官方 `silenceDeprecations`；后续正式编译器不再触发该告警后必须删除此配置。
+
+## #353 已清理项
+
+- 全部 DCloud 编译器与平台包已按官方 Vue 3 模板对齐到正式 5.24 批次。
+- Vite、Rollup 和 Vue 已固定为官方模板版本，测试依赖不能再解析出另一套构建器。
+- H5 与微信小程序不再输出 UniApp 新版本提示；对应允许规则已删除，今后再出现会直接触发构建门禁。
 
 ## #367 已清理项
 
@@ -36,7 +42,7 @@ yarn build:mp-weixin:checked
 - `caniuse-lite` 从 `1.0.30001765` 更新到 `1.0.30001810`。
 - Vitest 配置改用 `.mjs` 并使用现代 Sass API，不再触发 Vite CJS Node API 与 Sass legacy JS API 弃用提示。
 
-## 产物回归基线
+## #352 语法迁移基线
 
 语法迁移前后使用同一提交、同一依赖树构建，产物保持一致：
 
@@ -46,3 +52,16 @@ yarn build:mp-weixin:checked
 | 微信小程序 | 365 | 2336 KiB | `app.wxss`: `59ba1e02cb1affb4e4affdd602272c4e31299687` |
 
 文件数、体积与关键 CSS 内容哈希在迁移前后完全相同；任何后续差异都需要在对应 PR 中解释并重新做明暗主题视觉检查。
+
+## #353 UniApp 5.24 基线
+
+下表使用实际文件字节数，比较 #352 依赖树和正式 5.24 依赖树：
+
+| 目标 | 文件数 | 总字节数 | 关键样式 SHA-1 |
+| --- | ---: | ---: | --- |
+| H5（升级前） | 115 | 1,594,005 | `index-CLQK1Xn6.css`: `100a02e7123976c1195f14d88336c82a17e4a2c2` |
+| H5（5.24） | 115 | 1,612,647 | `index-B-YtsvcJ.css`: `88f0b24564deff69f819ea5803cf8700b40c44ea` |
+| 微信小程序（升级前） | 365 | 1,340,682 | `app.wxss`: `59ba1e02cb1affb4e4affdd602272c4e31299687` |
+| 微信小程序（5.24） | 369 | 1,358,716 | `app.wxss`: `59ba1e02cb1affb4e4affdd602272c4e31299687` |
+
+H5 总体积增加 18,642 字节（1.17%），主 CSS 增加 125 字节。格式化比较后只有 UniApp 内置 Toast 文本截断和系统地图名称截断两处上游规则变化，390×844 浅色、暗色检查未见业务布局偏移。微信小程序总体积增加 18,034 字节（1.35%），业务 `app.wxss` 内容不变；新增四个文件均为页面已引用的 `uni-load-more` 组件产物。

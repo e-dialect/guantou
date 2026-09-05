@@ -28,7 +28,7 @@ export function auditBuildOutput(rawOutput, target) {
       if (line.includes('[plugin:vite:reporter]')) return;
 
       if (line.includes('uni-app 有新版本发布')) {
-        allowed.push({ issue: '#353', kind: 'uni-app-update' });
+        violations.push(line);
         return;
       }
 
