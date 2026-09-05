@@ -3,6 +3,14 @@ import path from 'node:path';
 
 const DEFAULT_OUTPUT = path.resolve(process.cwd(), '../output/playwright/v2-visual-review');
 
+export const VISUAL_REVIEW_FAVICON = [
+  'data:image/svg+xml,',
+  "%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E",
+  "%3Crect width='64' height='64' rx='16' fill='%231f5c43'/%3E",
+  "%3Cpath d='M18 38c13 0 22-8 28-22 2 18-6 31-24 31' fill='none' stroke='%23d8f2e3' stroke-width='7' stroke-linecap='round'/%3E",
+  '%3C/svg%3E',
+].join('');
+
 export const visualReviewOutput = path.resolve(
   process.env.VISUAL_REVIEW_OUTPUT || DEFAULT_OUTPUT,
 );
@@ -14,6 +22,10 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
+}
+
+export function visualReviewFaviconLink() {
+  return `<link rel="icon" type="image/svg+xml" href="${VISUAL_REVIEW_FAVICON}">`;
 }
 
 export async function prepareVisualReviewOutput() {
@@ -62,6 +74,7 @@ export async function writeVisualReviewReport(artifacts, metadata = {}) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  ${visualReviewFaviconLink()}
   <title>V2 全站视觉巡检</title>
   <style>
     :root { color-scheme: light dark; font-family: system-ui, sans-serif; }

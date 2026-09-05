@@ -22,7 +22,11 @@ VISUAL_REVIEW_BASE_URL=http://localhost:8012 npm run review:visual:h5
 - `output/playwright/v2-visual-review/manifest.json`
 - `output/playwright/v2-visual-review/{routes,core,states,themes}/`
 
-这些均是本地验收产物，已加入 `.gitignore`。若 H5 已由外部服务启动，可显式复用：
+这些均是本地验收产物，已加入 `.gitignore`。
+
+总览页使用内联 SVG favicon，不依赖站点静态资源；通过本地 HTTP 打开时不应额外请求 `/favicon.ico`，因此巡检工具自身也不会给 console 门禁制造 404 噪声。
+
+若 H5 已由外部服务启动，可显式复用：
 
 ```bash
 VISUAL_REVIEW_EXTERNAL=1 \
