@@ -56,8 +56,13 @@ INSTALLED_APPS = [
     "files",
     "inbox",
     "themes",
+    "productanalytics",
     "corsheaders",
 ]
+
+PRODUCT_EVENT_RETENTION_DAYS = env.int("PRODUCT_EVENT_RETENTION_DAYS", 90)
+if not 1 <= PRODUCT_EVENT_RETENTION_DAYS <= 90:
+    raise ImproperlyConfigured("PRODUCT_EVENT_RETENTION_DAYS must be between 1 and 90")
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

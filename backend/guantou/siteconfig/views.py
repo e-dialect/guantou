@@ -10,6 +10,7 @@ from user.tokens import get_authorization_token, token_check
 from utils.collections import order_by_id_list
 
 from .models import SiteSettings
+from .capabilities import resolved_remote_capabilities
 
 
 def announcement_payload(announcement):
@@ -156,3 +157,18 @@ def carousel(request):
             return JsonResponse({}, status=200)
         return JsonResponse({}, status=400)
     return JsonResponse({}, status=405)
+
+
+def capabilities(request):
+    if request.method != "GET":
+        return JsonResponse({}, status=405)
+    item = SiteSettings.get_solo()
+    return JsonResponse(
+        {
+            "version": 1,
+            "capabilities": resolved_remote_capabilities(item.remote_capabilities),
+            "updated_at": item.updated_at.isoformat(),
+            "cache_seconds": 300,
+        },
+        status=200,
+    )

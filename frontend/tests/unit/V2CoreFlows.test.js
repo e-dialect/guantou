@@ -29,6 +29,22 @@ vi.mock('@/services/feedback', () => ({
   notifySuccess: vi.fn(),
 }));
 
+vi.mock('@/services/capabilities', () => ({
+  CAPABILITIES: {
+    RECORDING: 'recording',
+    USAGE_ATTESTATION: 'usage_attestation',
+  },
+  ensureCapability: vi.fn(() => true),
+}));
+
+vi.mock('@/services/productAnalytics', () => ({
+  PRODUCT_EVENTS: {
+    RECORDING_SUBMIT: 'recording_submit',
+    EVIDENCE_SUBMIT: 'evidence_submit',
+  },
+  trackProductEvent: vi.fn(),
+}));
+
 vi.mock('@/services/guantou', () => ({
   listAllDialects: vi.fn(async () => []),
 }));
@@ -45,6 +61,7 @@ const entryRecording = await import('@/services/entryRecording');
 const { uploadFile } = await import('@/services/file');
 const { notifySuccess } = await import('@/services/feedback');
 const { goEntryDetail, goRecord } = await import('@/services/navigation');
+const { trackProductEvent } = await import('@/services/productAnalytics');
 const RecordingFeed = (await import('@/components/home/RecordingFeed.vue')).default;
 const RecordingCreate = (await import('@/pages/recordings/create.vue')).default;
 const EntryDetails = (await import('@/pages/entries/details.vue')).default;
@@ -126,6 +143,11 @@ describe('low-threshold recording flow', () => {
     }));
     expect(notifySuccess).toHaveBeenCalled();
     expect(goEntryDetail).toHaveBeenCalledWith(17, { replace: true });
+    expect(trackProductEvent).toHaveBeenCalledWith('recording_submit', {
+      surface: 'record',
+      result: 'success',
+      metadata: { has_linked_entry: false },
+    });
   });
 
   it('does not require a writing or IPA before validation succeeds', async () => {
@@ -158,5 +180,22 @@ describe('entry detail flow', () => {
       page_size: 50,
     });
     expect(page.recordings).toHaveLength(2);
+  });
+
+  it('reports a successful usage attestation without copying the dialect id', async () => {
+    entryRecording.createUsageAttestation.mockResolvedValue({ id: 9 });
+    const page = context(EntryDetails, {
+      id: 7,
+      entry: { attestation_count: 0 },
+    });
+
+    await page.attest({ dialectId: 11 });
+
+    expect(entryRecording.createUsageAttestation).toHaveBeenCalledWith(7, 11);
+    expect(trackProductEvent).toHaveBeenCalledWith('evidence_submit', {
+      surface: 'entry_detail',
+      result: 'success',
+    });
+    expect(JSON.stringify(trackProductEvent.mock.calls.at(-1))).not.toContain('11');
   });
 });

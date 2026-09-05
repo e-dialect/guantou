@@ -14,6 +14,14 @@ vi.mock('@/services/entryRecording', () => ({
 }));
 vi.mock('@/services/guantou', () => ({ listAllDialects: vi.fn() }));
 vi.mock('@/services/feedback', () => ({ notify: vi.fn(), notifySuccess: vi.fn() }));
+vi.mock('@/services/capabilities', () => ({
+  CAPABILITIES: { CURATION_WORKBENCH: 'curation_workbench' },
+  ensureCapability: vi.fn(() => true),
+}));
+vi.mock('@/services/productAnalytics', () => ({
+  PRODUCT_EVENTS: { CURATION_TASK_COMPLETE: 'curation_task_complete' },
+  trackProductEvent: vi.fn(),
+}));
 vi.mock('@/services/navigation', async (importOriginal) => ({
   ...(await importOriginal()),
   goRecord: vi.fn(),
@@ -21,6 +29,7 @@ vi.mock('@/services/navigation', async (importOriginal) => ({
 
 const governance = await import('@/services/entryRecording');
 const { listAllDialects } = await import('@/services/guantou');
+const { trackProductEvent } = await import('@/services/productAnalytics');
 const { default: ApplyPage } = await import('@/pages/curation/apply.vue');
 const { default: WorkbenchPage } = await import('@/pages/curation/index.vue');
 const { default: ContributionsPage } = await import('@/pages/users/contributions.vue');
@@ -115,6 +124,11 @@ describe('V2 governance journeys', () => {
       target_id: 6,
       reason: '现有证据不足，先并列保留解释。',
       changes: { status: 'disputed' },
+    });
+    expect(trackProductEvent).toHaveBeenCalledWith('curation_task_complete', {
+      surface: 'curation',
+      result: 'success',
+      metadata: { task_kind: 'recording' },
     });
   });
 

@@ -57,6 +57,8 @@ tags:
     description: 可独立存在并通过多角色关系关联词条的录音证据。
   - name: CurationV2
     description: 整理员权限、旧库待审核候选与争议待办。
+  - name: ProductAnalytics
+    description: 客户端能力降级与不含内容、账号和位置的第一方产品事件。
 
 paths:
   /login/:
@@ -1542,6 +1544,51 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SiteSetting" }
         "403": { $ref: "#/components/responses/Forbidden" }
+
+  /site-settings/capabilities:
+    get:
+      tags: [SiteSettings]
+      operationId: getClientCapabilities
+      summary: 获取服务端远程能力开关
+      description: 客户端必须与自身编译能力取交集；服务端 true 不能启用构建中不存在的能力。
+      security: []
+      responses:
+        "200":
+          description: 完整能力开关及短缓存建议
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CapabilityConfig" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /product-events/:
+    post:
+      tags: [ProductAnalytics]
+      operationId: recordProductEvents
+      summary: 记录隐私最小化的核心产品事件
+      description: |
+        可匿名调用。禁止提交搜索原文、内容 ID、账号资料、方言限定码、录音内容、经纬度或设备位置。
+        session_id 只用于生成按日变化的服务端散列，不原样落库；单批最多 50 条。
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/ProductEventWrite"
+                - $ref: "#/components/schemas/ProductEventBatchWrite"
+      responses:
+        "202":
+          description: 事件已受理
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accepted]
+                properties:
+                  accepted: { type: integer, minimum: 1, maximum: 50 }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
 
   /notifications/:
     get:
@@ -4662,6 +4709,71 @@ components:
               type: integer
               minimum: 0
               deprecated: true
+
+    CapabilitySwitches:
+      type: object
+      additionalProperties: false
+      required: [listen_feed, entry_search, recording, usage_attestation, curation_workbench, wechat_auth]
+      properties:
+        listen_feed: { type: boolean }
+        entry_search: { type: boolean }
+        recording: { type: boolean }
+        usage_attestation: { type: boolean }
+        curation_workbench: { type: boolean }
+        wechat_auth: { type: boolean }
+    CapabilityConfig:
+      type: object
+      additionalProperties: false
+      required: [version, capabilities, updated_at, cache_seconds]
+      properties:
+        version: { type: integer, const: 1 }
+        capabilities: { $ref: "#/components/schemas/CapabilitySwitches" }
+        updated_at: { type: string, format: date-time }
+        cache_seconds: { type: integer, minimum: 0, maximum: 86400 }
+    ProductEventMetadata:
+      type: object
+      additionalProperties: false
+      properties:
+        tab: { type: string, enum: [today, dialect, following, recommended] }
+        result_bucket: { type: string, enum: ["0", "1-5", "6-20", "21+"] }
+        filter_count: { type: integer, minimum: 0, maximum: 10 }
+        has_linked_entry: { type: boolean }
+        dialect_depth: { type: integer, minimum: 0, maximum: 10 }
+        task_kind:
+          type: string
+          enum: [legacy_candidate, entry, sense, recording, pronunciation, recording_link]
+        capability:
+          type: string
+          enum: [listen_feed, entry_search, recording, usage_attestation, curation_workbench, wechat_auth]
+        reason: { type: string, enum: [not_compiled, disabled_remotely, config_unavailable] }
+    ProductEventWrite:
+      type: object
+      additionalProperties: false
+      required: [session_id, event_name, platform]
+      properties:
+        session_id:
+          type: string
+          minLength: 8
+          maxLength: 128
+          writeOnly: true
+          description: 仅用于生成按日变化的散列，不原样保存。
+        event_name:
+          type: string
+          enum: [listen_feed_view, entry_search, recording_submit, evidence_submit, curation_task_complete, capability_degraded]
+        platform: { type: string, enum: [h5, mp-weixin, app, unknown] }
+        surface: { type: string, enum: [listen, search, record, entry_detail, curation, ""] }
+        result: { type: string, enum: [view, success, empty, error, unavailable, cancelled] }
+        metadata: { $ref: "#/components/schemas/ProductEventMetadata" }
+    ProductEventBatchWrite:
+      type: object
+      additionalProperties: false
+      required: [events]
+      properties:
+        events:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { $ref: "#/components/schemas/ProductEventWrite" }
 
     LegacyReviewCandidateV2:
       type: object

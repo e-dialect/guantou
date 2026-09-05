@@ -7,11 +7,16 @@ vi.mock('@/utils/request', () => ({
   },
 }));
 
+vi.mock('@/utils/httpClient', () => ({
+  request: vi.fn(() => Promise.resolve({ accepted: 1 })),
+}));
+
 vi.mock('@/services/guantou', () => ({
   listAllDialects: vi.fn(async () => []),
 }));
 
 const request = (await import('@/utils/request')).default;
+const { request: analyticsRequest } = await import('@/utils/httpClient');
 const SearchPage = (await import('@/pages/search.vue')).default;
 
 function deferred() {
@@ -55,6 +60,17 @@ describe('entry-first search page orchestration', () => {
     }), true);
     expect(page.entries.map((entry) => entry.id)).toEqual([1, 2]);
     expect(page.total).toBe(2);
+    expect(analyticsRequest).toHaveBeenCalledWith(
+      'POST',
+      '/product-events/',
+      expect.objectContaining({
+        event_name: 'entry_search',
+        result: 'success',
+        metadata: { result_bucket: '1-5', filter_count: 0 },
+      }),
+      expect.objectContaining({ auth: false, visitor: false, loading: false }),
+    );
+    expect(JSON.stringify(analyticsRequest.mock.calls[0])).not.toContain('银行用字');
   });
 
   it('preserves false and exact values in advanced filters', () => {

@@ -183,6 +183,30 @@ AUXILIARY_V2_PATHS = {
     "/contributions/me/": {"get"},
 }
 
+PLATFORM_PATHS = {
+    "/site-settings/capabilities": {"get"},
+    "/product-events/": {"post"},
+}
+
+PLATFORM_SCHEMAS = {
+    "CapabilitySwitches": {
+        "listen_feed",
+        "entry_search",
+        "recording",
+        "usage_attestation",
+        "curation_workbench",
+        "wechat_auth",
+    },
+    "ProductEventWrite": {
+        "session_id",
+        "event_name",
+        "platform",
+        "surface",
+        "result",
+        "metadata",
+    },
+}
+
 
 def parse_openapi(path=OPENAPI):
     paths = {}
@@ -320,6 +344,18 @@ def contract_errors():
         missing = methods - paths.get(path, set())
         if missing:
             errors.append(f"OpenAPI V2 辅助路径 {path} 缺少方法: {sorted(missing)}")
+    for path, methods in PLATFORM_PATHS.items():
+        missing = methods - paths.get(path, set())
+        if missing:
+            errors.append(f"OpenAPI 平台路径 {path} 缺少方法: {sorted(missing)}")
+    for schema, required_fields in PLATFORM_SCHEMAS.items():
+        missing = required_fields - expanded_schema_fields(
+            schema, schemas, schema_parents
+        )
+        if missing:
+            errors.append(
+                f"OpenAPI schema {schema} 缺少核心字段: {sorted(missing)}"
+            )
     return errors
 
 
@@ -332,7 +368,8 @@ def main():
         return 1
     print(
         "API contract check passed: old core routes and Entry/Recording v2 "
-        "and governance routes, methods, and core serializer fields are aligned."
+        "governance, capability, and analytics routes, methods, and core "
+        "serializer fields are aligned."
     )
     return 0
 

@@ -28,7 +28,7 @@
       <!-- 已访问过的 tab 保持挂载（v-if 常驻），v-show 切换可见性：
            切回已加载的 tab 不重请求、不闪烁；首次进入仍走原加载流程 -->
       <HomeFeed
-        v-if="isTabAlive('today')"
+        v-if="listenAvailable && isTabAlive('today')"
         v-show="activeTab === 'today'"
         :key="`today-${feedRevision}`"
         class="home-page__feed"
@@ -37,7 +37,7 @@
         @share="prepareShare"
       />
       <HomeFeed
-        v-if="isTabAlive('dialect')"
+        v-if="listenAvailable && isTabAlive('dialect')"
         v-show="activeTab === 'dialect'"
         :key="`dialect-${feedRevision}`"
         class="home-page__feed"
@@ -46,7 +46,7 @@
         @share="prepareShare"
       />
       <HomeFeed
-        v-if="isTabAlive('following')"
+        v-if="listenAvailable && isTabAlive('following')"
         v-show="activeTab === 'following'"
         :key="`following-${feedRevision}`"
         class="home-page__feed"
@@ -55,7 +55,7 @@
         @share="prepareShare"
       />
       <HomeFeed
-        v-if="isTabAlive('recommended')"
+        v-if="listenAvailable && isTabAlive('recommended')"
         v-show="activeTab === 'recommended'"
         :key="`recommended-${feedRevision}`"
         class="home-page__feed"
@@ -63,6 +63,12 @@
         :swipe-disabled="sheetActive"
         @share="prepareShare"
       />
+      <view
+        v-if="!listenAvailable"
+        class="home-page__unavailable"
+      >
+        听音功能正在维护，请稍后再来。查词条和个人资料仍可正常使用。
+      </view>
     </view>
 
     <HomeTabBar active="listen" />
@@ -83,6 +89,11 @@ import {
   isCommentSheetActive,
 } from '@/services/commentSheet';
 import { resolveDefaultTab } from '@/services/homeFeed';
+import {
+  CAPABILITIES,
+  ensureCapability,
+  isCapabilityEnabled,
+} from '@/services/capabilities';
 import { ROUTES } from '@/services/navigation';
 import { SHARE_TITLE } from '@/const/branding';
 import { canSharePayload } from '@/utils/shareCan';
@@ -94,6 +105,7 @@ import {
 } from '@/services/theme';
 import { hydrateOutfitStyle } from '@/services/themeCenter';
 import { getAppliedOutfitVars } from '@/services/themeSchema';
+import { PRODUCT_EVENTS, trackProductEvent } from '@/services/productAnalytics';
 
 /* 常驻 feed 数量上限：只保留最近访问的 2 个 tab，超出者从头部卸载，
  * 回访时按首次进入的懒加载流程重建，限制内存与并发请求 */
@@ -117,6 +129,7 @@ export default {
       accent: getAccentPreference(),
       sheetActive: false,
       outfitVars: {},
+      listenAvailable: isCapabilityEnabled(CAPABILITIES.LISTEN_FEED),
     };
   },
   created() {
@@ -124,6 +137,8 @@ export default {
     this.ensureTabVisited(this.activeTab);
     /* 记录首次可见时的登录态指纹（非响应式），供 onShow 比对 */
     this.lastFeedFingerprint = this.feedFingerprint();
+    this.listenAvailable = ensureCapability(CAPABILITIES.LISTEN_FEED, 'listen');
+    if (this.listenAvailable) this.trackListenView(this.activeTab);
   },
   mounted() {
     uni.$on('theme-change', this.handleThemeChange);
@@ -231,6 +246,7 @@ export default {
       this.userSelectedTab = true;
       this.ensureTabVisited(tab);
       this.activeTab = tab;
+      this.trackListenView(tab);
     },
     onSheetActiveChange(active) {
       // 评论面板打开时锁定底层罐头流滑动，避免上下滑同时驱动 swiper 与评论列表
@@ -238,6 +254,13 @@ export default {
     },
     prepareShare(can) {
       this.pendingShareCan = can;
+    },
+    trackListenView(tab) {
+      trackProductEvent(PRODUCT_EVENTS.LISTEN_FEED_VIEW, {
+        surface: 'listen',
+        result: 'view',
+        metadata: { tab },
+      });
     },
   },
 };
@@ -310,6 +333,16 @@ export default {
   display: flex;
   flex-direction: column;
   padding-bottom: calc(118rpx + env(safe-area-inset-bottom));
+}
+
+.home-page__unavailable {
+  margin: auto 40rpx;
+  padding: 34rpx;
+  border: 1rpx solid var(--immersive-border-color);
+  border-radius: var(--radius-lg);
+  background: var(--immersive-surface-color);
+  color: var(--on-immersive-color);
+  line-height: 1.7;
 }
 
 /* feed 首次挂载淡入；已访问的 tab 经 v-show 切换不再重播，避免闪烁 */

@@ -57,6 +57,8 @@ python manage.py createsuperuser
 
 后端应用按领域划分，不要求所有新代码都塞进 `guantou` app。罐头、铭牌、义项、写法、集盒等核心实体归入 `guantou`；账户归入 `user`；公告归入 `announcements`；后台可编辑运营配置归入 `siteconfig`；邮箱验证码归入 `user`；文件上传归入 `files`；站内通知归入 `inbox`。更完整的边界说明见 `docs/BACKEND_GUIDE.md`。部署环境变量仍由 `config/settings.py` 读取，不放入数据库。
 
+客户端能力开关、第一方产品事件白名单和 90 天保留任务见 [`PLATFORM_CAPABILITIES_ANALYTICS.md`](PLATFORM_CAPABILITIES_ANALYTICS.md)。部署环境应每日运行 `python manage.py aggregate_product_events`；请求路径也会每日机会式执行一次，确保低流量环境不因漏配定时任务无限保留明细。
+
 离线方言材料处理脚本放在根目录 `tools/materials/`。跨方言通用逻辑进入 `common/`，莆仙话拼音、IPA 和旧表格清洗逻辑进入 `puxian/`。这些脚本不属于 Django 后端运行依赖。
 
 ## 前端本地运行

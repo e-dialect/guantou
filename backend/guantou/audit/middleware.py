@@ -52,6 +52,8 @@ def should_track_visitor(request):
         "/admin",
         "/static",
         "/media",
+        "/product-events/",
+        "/site-settings/capabilities",
     )
     return not path.startswith(skipped_prefixes)
 
