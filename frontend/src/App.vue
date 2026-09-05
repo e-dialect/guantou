@@ -3,6 +3,7 @@ import { goNotFound } from '@/services/navigation';
 // app.js
 import { getLoginStatus } from '@/services/login';
 import { hydrateCapabilities } from '@/services/capabilities';
+import { isH5Runtime } from '@/services/platform';
 import {
   ensureDialectOnboarding,
   ONBOARDING_REASONS,
@@ -42,7 +43,14 @@ export default {
       success: (e) => {
         this.globalData.platform = e.platform;
         this.globalData.StatusBar = e.statusBarHeight;
-        const capsule = uni.getMenuButtonBoundingClientRect();
+        let capsule = null;
+        if (!isH5Runtime(e) && typeof uni.getMenuButtonBoundingClientRect === 'function') {
+          try {
+            capsule = uni.getMenuButtonBoundingClientRect();
+          } catch {
+            // Keep the platform-neutral fallback below when the optional API fails.
+          }
+        }
 
         if (capsule) {
           this.globalData.Custom = capsule;

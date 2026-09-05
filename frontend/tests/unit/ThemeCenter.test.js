@@ -107,6 +107,7 @@ vi.mock('@/components/ConfirmDialog', () => ({
 }));
 
 vi.mock('@/services/platform', () => ({
+  isH5Runtime: vi.fn(() => false),
   isWechatMiniProgram: vi.fn(() => false),
   default: vi.fn(() => false),
 }));
