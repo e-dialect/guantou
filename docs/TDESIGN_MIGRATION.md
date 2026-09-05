@@ -53,7 +53,7 @@ V2 全站聚合验收由 [#346](https://github.com/e-dialect/guantou/issues/346)
 | `pages/curation/index` / `apply` | done | [#360](https://github.com/e-dialect/guantou/issues/360)：整理权限申请、授权公开记录与审核待办统一为范围 → 资料 → 判断 → 依据的可信工作流 |
 | `pages/users/contributions` / `bookmarks` | done | [#361](https://github.com/e-dialect/guantou/issues/361)：贡献概览、地区足迹、最近参与与私人词条书签统一为可浏览的个人资料档案 |
 | `pages/users/recommend-follow` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：延续身份旅程，并保留统一加载、空态、重试及关注结果反馈 |
-| `pages/users/theme-center` | done | 总览 THEME_CENTER.md；[#369](https://github.com/e-dialect/guantou/issues/369) 将路由入口拆为可独立验证的搜索、目录、最近、收藏、搭配与弹层视图，边界见 [THEME_CENTER_VIEW_ARCHITECTURE.md](THEME_CENTER_VIEW_ARCHITECTURE.md)；[#375](https://github.com/e-dialect/guantou/issues/375) 将次要的“最近使用”无记录提示收为 opt-in 紧凑状态，保留共享完整空态与曝光语义。三期不在本页做投稿社区。跳转 NAV |
+| `pages/users/theme-center` | done | 总览 THEME_CENTER.md；[#369](https://github.com/e-dialect/guantou/issues/369) 将路由入口拆为可独立验证的搜索、目录、最近、收藏、搭配与弹层视图，边界见 [THEME_CENTER_VIEW_ARCHITECTURE.md](THEME_CENTER_VIEW_ARCHITECTURE.md)；[#375](https://github.com/e-dialect/guantou/issues/375) 将次要的“最近使用”无记录提示收为 opt-in 紧凑状态，保留共享完整空态与曝光语义；[#387](https://github.com/e-dialect/guantou/issues/387) 收敛正文与弹层重复的筛选入口，并按全局主题、局部装扮、搜索上下文只展示有效维度。三期不在本页做投稿社区。跳转 NAV |
 | `pages/users/theme-dress` | done | 单组局部装扮：免费/会员/活动/创作者权限、待上线占位；不覆盖其它分组 |
 | `pages/users/theme-acquire` | done | 装扮获取聚合：会员、活动、创作任务与方言主题福利 |
 | `pages/users/theme-member` | done | 开通会员，权益 H5/小程序同步 |
@@ -170,6 +170,12 @@ V2 全站聚合验收由 [#346](https://github.com/e-dialect/guantou/issues/346)
 - 主题中心移除 PageShell 顶栏中与正文重复的“搜索”动作；页面标题只负责定位，正文搜索字段负责说明对象、承载输入、键盘确认与提交。
 - 搜索服务、查询持久化、热门词、结果退出和返回拦截契约保持不变；不为同一 `submitThemeSearch` 保留两个同名主按钮。
 - 回归同时锁定路由入口没有顶栏搜索 action、Discovery View 仍具备键盘确认与按钮提交，并以 390×844 浅暗主题和浏览器控制台复核实际页面。
+
+## 主题中心筛选层级（#387）
+
+- 顶部“筛选”按钮与摘要是目录筛选的唯一可见入口；全局主题和局部装扮正文不再重复渲染同义分类、地域、组件或排序横条。
+- 筛选弹层按当前上下文显示有效维度：全局主题不显示局部装扮组件，局部装扮不显示全局风格和地域，聚合搜索保留两类维度。
+- 摘要只回显当前上下文真正参与结果计算的条件；隐藏的另一标签页条件可以保留，但不得造成空态或摘要误导。
 
 ## Completion
 

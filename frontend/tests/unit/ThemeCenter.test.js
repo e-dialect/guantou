@@ -991,9 +991,14 @@ describe('Theme center page', () => {
     expect(wrapper.text()).toContain('已绝版');
     expect(wrapper.text()).toContain('我的收藏');
     expect(wrapper.text()).toContain('最新上架');
+    expect(wrapper.text()).not.toContain('热度最高');
+    wrapper.vm.openFilterSheet();
+    await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain('热度最高');
     expect(wrapper.text()).toContain('免费优先');
     expect(wrapper.text()).toContain('名称A-Z');
+    wrapper.vm.closeFilterSheet();
+    await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain('热门搜索词');
     expect(wrapper.text()).toContain('筛选');
     expect(wrapper.text()).toContain('方言头像框');
@@ -1060,7 +1065,7 @@ describe('Theme center page', () => {
 
     wrapper.vm.category = 'missing';
     await wrapper.vm.$nextTick();
-    expect(wrapper.text()).toContain('暂无可用主题，更多方言主题正在制作中');
+    expect(wrapper.text()).toContain('当前筛选条件下暂无可用装扮');
   });
 
   it('keeps the live outfit when closing zoom or the preview sandbox', async () => {
@@ -1184,7 +1189,12 @@ describe('Theme center page', () => {
     expect(wrapper.text()).toContain('交互按钮');
     expect(wrapper.text()).toContain('录音卡片');
     expect(wrapper.text()).toContain('评论区');
+    expect(wrapper.text()).not.toContain('头像挂件');
+    wrapper.vm.openFilterSheet();
+    await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain('头像挂件');
+    wrapper.vm.closeFilterSheet();
+    await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain('江南吴语头像框');
     expect(wrapper.text()).not.toContain('作品卡片');
     expect(wrapper.text()).not.toContain('短视频');
@@ -1349,7 +1359,7 @@ describe('Theme center page', () => {
     expect(wrapper.text()).toContain('权限筛选');
     expect(wrapper.text()).toContain('地域方言标签');
     expect(wrapper.text()).toContain('可多选家乡风格');
-    expect(wrapper.text()).toContain('录音卡片');
+    expect(wrapper.text()).not.toContain('装扮组件');
     expect(wrapper.text()).not.toContain('作品卡片');
     expect(wrapper.text()).not.toContain('短视频');
     wrapper.vm.filterDraft.status = 'ended';
@@ -1357,6 +1367,34 @@ describe('Theme center page', () => {
     expect(wrapper.vm.statusFilter).toBe('ended');
     expect(wrapper.vm.visibleThemes.map((item) => item.id)).toContain('event-spring');
     expect(wrapper.vm.hasExtraFilters).toBe(true);
+  });
+
+  it('summarizes only filters that belong to the active catalog context', async () => {
+    const wrapper = mountPage();
+    wrapper.vm.category = 'dialect';
+    wrapper.vm.regions = ['chuankiang'];
+    wrapper.vm.themeSort = 'heat';
+    expect(wrapper.vm.filterContext).toBe('global');
+    expect(wrapper.vm.filterSummary).toContain('地域方言风');
+    expect(wrapper.vm.filterSummary).toContain('川渝');
+    expect(wrapper.vm.filterSummary).toContain('热度最高');
+    expect(wrapper.vm.hasExtraFilters).toBe(true);
+
+    wrapper.vm.tab = 'local';
+    expect(wrapper.vm.filterContext).toBe('local');
+    expect(wrapper.vm.filterSummary).not.toContain('地域方言风');
+    expect(wrapper.vm.filterSummary).not.toContain('川渝');
+    expect(wrapper.vm.hasExtraFilters).toBe(false);
+
+    wrapper.vm.dressCategory = 'cards';
+    expect(wrapper.vm.filterSummary).toContain('录音卡片');
+    expect(wrapper.vm.hasExtraFilters).toBe(true);
+
+    wrapper.vm.searching = true;
+    expect(wrapper.vm.filterContext).toBe('search');
+    expect(wrapper.vm.filterSummary).toContain('地域方言风');
+    expect(wrapper.vm.filterSummary).toContain('川渝');
+    expect(wrapper.vm.filterSummary).toContain('录音卡片');
   });
 
   it('favorites, likes, and shares live packs but blocks upcoming placeholders', async () => {

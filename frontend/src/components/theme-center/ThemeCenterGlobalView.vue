@@ -45,61 +45,6 @@
       </view>
     </view>
 
-    <scroll-view
-      scroll-x
-      class="filter-scroll"
-      :show-scrollbar="false"
-    >
-      <view class="filter-row">
-        <view
-          v-for="item in categories"
-          :key="item.value"
-          class="chip pressable"
-          :class="{ active: category === item.value }"
-          @tap="$emit('category', item.value)"
-        >
-          {{ item.label }}
-        </view>
-      </view>
-    </scroll-view>
-
-    <scroll-view
-      v-if="category === 'dialect'"
-      scroll-x
-      class="filter-scroll"
-      :show-scrollbar="false"
-    >
-      <view class="filter-row">
-        <view
-          v-for="item in dialectRegions"
-          :key="item.value"
-          class="chip pressable"
-          :class="{ active: isRegionChipOn(item.value) }"
-          @tap="$emit('region', item.value)"
-        >
-          {{ item.label }}
-        </view>
-      </view>
-    </scroll-view>
-
-    <scroll-view
-      scroll-x
-      class="filter-scroll"
-      :show-scrollbar="false"
-    >
-      <view class="filter-row">
-        <view
-          v-for="item in sortOptions"
-          :key="item.value"
-          class="chip pressable"
-          :class="{ active: themeSort === item.value }"
-          @tap="$emit('sort', item.value)"
-        >
-          {{ item.label }}
-        </view>
-      </view>
-    </scroll-view>
-
     <view
       v-if="!themes.length"
       class="empty-wrap"
@@ -246,22 +191,18 @@ export default {
   name: 'ThemeCenterGlobalView',
   components: { BaseButton, ThemeStatusPane },
   props: [
-    'activeTheme', 'appearance', 'appearanceOptions', 'catalogBadge', 'categories',
-    'category', 'dialectRegions', 'emptyScene', 'footerLines', 'isGreyTheme',
-    'isItemFav', 'isRegionChipOn', 'sortOptions', 'statsOf', 'themeActionDisabled',
+    'activeTheme', 'appearance', 'appearanceOptions', 'catalogBadge', 'emptyScene',
+    'footerLines', 'isGreyTheme', 'isItemFav', 'statsOf', 'themeActionDisabled',
     'themeActionLabel', 'themeActionVariant', 'themeCoverSrc', 'themePreviewVars',
-    'themeSort', 'themeTags', 'themes', 'visible',
+    'themeTags', 'themes', 'visible',
   ],
   emits: [
     'appearance',
-    'category',
     'empty-action',
     'enable',
     'open-detail',
     'preview-error',
-    'region',
     'share',
-    'sort',
     'toggle-favorite',
   ],
 };

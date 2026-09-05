@@ -206,10 +206,16 @@ export default {
     showFilterBar() {
       return this.searching || this.tab === 'global' || this.tab === 'local';
     },
+    filterContext() {
+      if (this.searching) return 'search';
+      return this.tab === 'local' ? 'local' : 'global';
+    },
     hasExtraFilters() {
-      return this.accessFilter !== 'all'
-        || this.statusFilter !== 'all'
-        || this.regions.length > 0;
+      const shared = this.accessFilter !== 'all' || this.statusFilter !== 'all';
+      const global = this.category !== 'all' || this.regions.length > 0;
+      const local = this.dressCategory !== 'all';
+      if (this.filterContext === 'search') return shared || global || local;
+      return shared || (this.filterContext === 'local' ? local : global);
     },
     showDressItems() {
       return this.hasExtraFilters;
@@ -219,16 +225,22 @@ export default {
     },
     filterSummary() {
       const bits = [];
+      if (this.filterContext !== 'local' && this.category !== 'all') {
+        bits.push(this.categories.find((item) => item.value === this.category)?.label);
+      }
       if (this.accessFilter !== 'all') {
         bits.push(this.accessFilters.find((item) => item.value === this.accessFilter)?.label);
       }
       if (this.statusFilter !== 'all') {
         bits.push(this.statusFilters.find((item) => item.value === this.statusFilter)?.label);
       }
-      if (this.regions.length) {
+      if (this.filterContext !== 'local' && this.regions.length) {
         bits.push(this.regions.map((value) => (
           this.dialectRegions.find((item) => item.value === value)?.label
         )).filter(Boolean).join('、'));
+      }
+      if (this.filterContext !== 'global' && this.dressCategory !== 'all') {
+        bits.push(this.dressCategories.find((item) => item.value === this.dressCategory)?.label);
       }
       bits.push(this.sortOptions.find((item) => item.value === this.themeSort)?.label || '最新上架');
       return bits.filter(Boolean).join(' · ');

@@ -112,29 +112,21 @@ const viewDefaults = new Map([
     appearance: 'system',
     appearanceOptions: [],
     catalogBadge: emptyText,
-    categories: [],
-    category: 'all',
-    dialectRegions: [],
     emptyScene: 'catalog',
     footerLines: [],
     isGreyTheme: noop,
     isItemFav: noop,
-    isRegionChipOn: noop,
-    sortOptions: [],
     statsOf: () => ({ likes: 0 }),
     themeActionDisabled: noop,
     themeActionLabel: enable,
     themeActionVariant: primary,
     themeCoverSrc: emptyText,
     themePreviewVars: emptyObject,
-    themeSort: 'newest',
     themeTags: emptyList,
     themes: [],
     visible: false,
   }],
   [ThemeCenterLocalView, {
-    dressCategories: [],
-    dressCategory: 'all',
     dressItems: [],
     groups: [],
     isGreyEntry: noop,
@@ -201,6 +193,7 @@ const viewDefaults = new Map([
   [ThemeCenterFilterSheet, {
     accessFilters: [],
     categories: [],
+    context: 'global',
     dialectRegions: [],
     draft: {
       access: 'all', category: 'all', dressCategory: 'all', regions: [], status: 'all', sort: 'newest',
@@ -318,6 +311,49 @@ describe('theme center independent views', () => {
     expect(wrapper.text()).toContain('录音卡片');
     await wrapper.findAll('.dress-card').at(-1).trigger('tap');
     expect(wrapper.emitted('open-dress')?.[0]).toEqual([group]);
+  });
+
+  it('keeps catalog filters in one context-aware sheet', async () => {
+    const global = mountView(ThemeCenterGlobalView, {
+      visible: true,
+      themes: [theme],
+    });
+    const local = mountView(ThemeCenterLocalView, {
+      visible: true,
+      groups: [{
+        id: 'cards',
+        name: '录音卡片',
+        hint: '',
+        preview: 'paper',
+        hasLive: true,
+      }],
+    });
+    expect(global.find('.filter-scroll').exists()).toBe(false);
+    expect(local.find('.filter-scroll').exists()).toBe(false);
+
+    const filter = mountView(ThemeCenterFilterSheet, {
+      open: true,
+      context: 'global',
+      categories: [{ value: 'dialect', label: '地域方言风' }],
+      dialectRegions: [{ value: 'chuankiang', label: '川渝' }],
+      dressCategories: [{ value: 'cards', label: '录音卡片' }],
+    });
+    expect(filter.text()).toContain('全局主题筛选');
+    expect(filter.text()).toContain('风格分类');
+    expect(filter.text()).toContain('地域方言标签');
+    expect(filter.text()).not.toContain('装扮组件');
+
+    await filter.setProps({ context: 'local' });
+    expect(filter.text()).toContain('局部装扮筛选');
+    expect(filter.text()).toContain('装扮组件');
+    expect(filter.text()).not.toContain('风格分类');
+    expect(filter.text()).not.toContain('地域方言标签');
+
+    await filter.setProps({ context: 'search' });
+    expect(filter.text()).toContain('搜索筛选与排序');
+    expect(filter.text()).toContain('风格分类');
+    expect(filter.text()).toContain('地域方言标签');
+    expect(filter.text()).toContain('装扮组件');
   });
 
   it('renders favorites empty and normal states with filter events', async () => {

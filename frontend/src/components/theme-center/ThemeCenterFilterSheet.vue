@@ -10,7 +10,7 @@
       @tap.stop
     >
       <view class="sheet-title">
-        筛选与排序
+        {{ sheetTitle }}
       </view>
       <view class="note-title">
         权限筛选
@@ -26,51 +26,55 @@
           {{ item.label }}
         </view>
       </view>
-      <view class="note-title">
-        风格分类
-      </view>
-      <view class="filter-row wrap">
-        <view
-          v-for="item in categories"
-          :key="`style-${item.value}`"
-          class="chip pressable"
-          :class="{ active: draft.category === item.value }"
-          @tap="updateDraft('category', item.value)"
-        >
-          {{ item.label }}
+      <template v-if="context !== 'local'">
+        <view class="note-title">
+          风格分类
         </view>
-      </view>
-      <view class="note-title">
-        装扮组件
-      </view>
-      <view class="filter-row wrap">
-        <view
-          v-for="item in dressCategories"
-          :key="`dress-cat-${item.value}`"
-          class="chip pressable"
-          :class="{ active: draft.dressCategory === item.value }"
-          @tap="updateDraft('dressCategory', item.value)"
-        >
-          {{ item.label }}
+        <view class="filter-row wrap">
+          <view
+            v-for="item in categories"
+            :key="`style-${item.value}`"
+            class="chip pressable"
+            :class="{ active: draft.category === item.value }"
+            @tap="updateDraft('category', item.value)"
+          >
+            {{ item.label }}
+          </view>
         </view>
-      </view>
-      <view class="note-title">
-        地域方言标签
-      </view>
-      <view class="muted">
-        可多选家乡风格
-      </view>
-      <view class="filter-row wrap">
-        <view
-          v-for="item in dialectRegions"
-          :key="`region-${item.value}`"
-          class="chip pressable"
-          :class="{ active: isDraftRegionOn(item.value) }"
-          @tap="$emit('toggle-region', item.value)"
-        >
-          {{ item.label }}
+        <view class="note-title">
+          地域方言标签
         </view>
-      </view>
+        <view class="muted">
+          可多选家乡风格
+        </view>
+        <view class="filter-row wrap">
+          <view
+            v-for="item in dialectRegions"
+            :key="`region-${item.value}`"
+            class="chip pressable"
+            :class="{ active: isDraftRegionOn(item.value) }"
+            @tap="$emit('toggle-region', item.value)"
+          >
+            {{ item.label }}
+          </view>
+        </view>
+      </template>
+      <template v-if="context !== 'global'">
+        <view class="note-title">
+          装扮组件
+        </view>
+        <view class="filter-row wrap">
+          <view
+            v-for="item in dressCategories"
+            :key="`dress-cat-${item.value}`"
+            class="chip pressable"
+            :class="{ active: draft.dressCategory === item.value }"
+            @tap="updateDraft('dressCategory', item.value)"
+          >
+            {{ item.label }}
+          </view>
+        </view>
+      </template>
       <view class="note-title">
         状态筛选
       </view>
@@ -126,10 +130,17 @@ export default {
   name: 'ThemeCenterFilterSheet',
   components: { BaseButton },
   props: [
-    'accessFilters', 'categories', 'dialectRegions', 'draft', 'dressCategories',
-    'isDraftRegionOn', 'open', 'sortOptions', 'statusFilters',
+    'accessFilters', 'categories', 'context', 'dialectRegions', 'draft',
+    'dressCategories', 'isDraftRegionOn', 'open', 'sortOptions', 'statusFilters',
   ],
   emits: ['close', 'confirm', 'reset', 'toggle-region', 'update-draft'],
+  computed: {
+    sheetTitle() {
+      if (this.context === 'local') return '局部装扮筛选';
+      if (this.context === 'search') return '搜索筛选与排序';
+      return '全局主题筛选';
+    },
+  },
   methods: {
     updateDraft(field, value) {
       this.$emit('update-draft', { field, value });

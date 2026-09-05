@@ -96,7 +96,7 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
   await expect(page.getByText('搜索主题、装扮名称、方言风格')).toBeVisible();
   await expect(page.getByText('热门搜索词')).toBeVisible();
   await expect(page.getByText('方言头像框')).toBeVisible();
-  await expect(page.getByText('名称A-Z')).toBeVisible();
+  await expect(page.getByText('名称A-Z')).toHaveCount(0);
   await expect(page.getByText('提示：可以通过方言地域标签快速筛选家乡风格装扮；筛选条件会临时保留。')).toBeVisible();
   await expect(page.getByText('提示：实时预览仅模拟展示效果；微信小程序部分系统原生组件不支持自定义装扮。')).toBeVisible();
   await expect(page.getByText('暂无最近使用记录，快去挑选装扮吧')).toBeVisible();
@@ -124,6 +124,7 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
   await expect(page.getByText('权限筛选')).toBeVisible();
   await expect(page.getByText('地域方言标签')).toBeVisible();
   await expect(page.getByText('可多选家乡风格')).toBeVisible();
+  await expect(page.getByText('名称A-Z')).toBeVisible();
   await page.getByText('重置').click({ force: true });
   await page.getByText('确定').click({ force: true });
 

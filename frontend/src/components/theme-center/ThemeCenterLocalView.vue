@@ -12,24 +12,6 @@
       </view>
     </view>
 
-    <scroll-view
-      scroll-x
-      class="filter-scroll"
-      :show-scrollbar="false"
-    >
-      <view class="filter-row">
-        <view
-          v-for="item in dressCategories"
-          :key="item.value"
-          class="chip pressable"
-          :class="{ active: dressCategory === item.value }"
-          @tap="$emit('category', item.value)"
-        >
-          {{ item.label }}
-        </view>
-      </view>
-    </scroll-view>
-
     <view
       v-if="showDressItems"
       class="outfit"
@@ -173,12 +155,10 @@ export default {
   name: 'ThemeCenterLocalView',
   components: { BaseButton, ThemeStatusPane },
   props: [
-    'dressCategories', 'dressCategory', 'dressItems', 'groups', 'isGreyEntry',
-    'searchActionDisabled', 'searchActionLabel', 'searchActionVariant', 'showDressItems',
-    'tagClass', 'visible',
+    'dressItems', 'groups', 'isGreyEntry', 'searchActionDisabled', 'searchActionLabel',
+    'searchActionVariant', 'showDressItems', 'tagClass', 'visible',
   ],
   emits: [
-    'category',
     'clear-filters',
     'enable-entry',
     'open-dress',
