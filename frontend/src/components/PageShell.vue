@@ -45,6 +45,17 @@
       />
     </view>
     <slot name="before" />
+    <!-- #ifdef H5 -->
+    <view
+      v-if="scroll"
+      class="shell-content shell-scroll shell-scroll--h5"
+      :class="contentClass"
+      @scroll="onH5Scroll"
+    >
+      <slot />
+    </view>
+    <!-- #endif -->
+    <!-- #ifndef H5 -->
     <scroll-view
       v-if="scroll"
       scroll-y
@@ -55,6 +66,7 @@
     >
       <slot />
     </scroll-view>
+    <!-- #endif -->
     <view
       v-else
       class="shell-content"
@@ -133,8 +145,19 @@ export default {
       this.syncOutfitVars();
     },
     onScroll(event) {
-      const top = event?.detail?.scrollTop ?? event?.scrollTop ?? 0;
+      const top = event?.detail?.scrollTop
+        ?? event?.scrollTop
+        ?? event?.currentTarget?.scrollTop
+        ?? event?.target?.scrollTop
+        ?? 0;
       this.$emit('scroll', { scrollTop: Number(top) || 0 });
+    },
+    onH5Scroll(event) {
+      this.onScroll(event);
+      const target = event?.currentTarget ?? event?.target;
+      if (!target) return;
+      const remaining = target.scrollHeight - target.clientHeight - target.scrollTop;
+      if (remaining <= 1) this.$emit('scrolltolower');
     },
     handleBack() {
       this.$emit('back');
@@ -243,6 +266,12 @@ export default {
 
 .shell-scroll {
   height: calc(100dvh - 104rpx - env(safe-area-inset-top));
+}
+
+.shell-scroll--h5 {
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 @media screen and (min-width: 960px) {

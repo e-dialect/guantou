@@ -129,15 +129,22 @@ describe('PageShell', () => {
     wrapper.unmount();
   });
 
-  it('forwards inner scroll-view motion to the page', () => {
+  it('forwards H5 native scrolling and preserves the scrolltolower contract', () => {
     const wrapper = mount(PageShell, {
       props: { title: '主题中心' },
       global: {
         stubs: { 'scroll-view': { template: '<div><slot /></div>' } },
       },
     });
-    wrapper.vm.onScroll({ detail: { scrollTop: 180 } });
+    wrapper.vm.onH5Scroll({
+      currentTarget: {
+        scrollTop: 180,
+        scrollHeight: 680,
+        clientHeight: 500,
+      },
+    });
     expect(wrapper.emitted('scroll')[0][0]).toEqual({ scrollTop: 180 });
+    expect(wrapper.emitted('scrolltolower')).toHaveLength(1);
     wrapper.unmount();
   });
 });
