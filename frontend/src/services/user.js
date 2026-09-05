@@ -84,6 +84,24 @@ export async function getUserInfo(id, silent = false) {
 }
 
 /**
+ * 按公开身份信息查找可接收站内信的用户。
+ * @param query 昵称、用户名或精确用户编号
+ * @param limit 最大结果数
+ * @returns {Promise<Array>}
+ */
+export async function searchUsers(query, limit = 8) {
+  const search = String(query || '').trim();
+  if (!search) return [];
+  const response = await request.get(
+    '/users',
+    { search, limit },
+    true,
+    PAGE_LOAD_OPTIONS,
+  );
+  return Array.isArray(response?.users) ? response.users : [];
+}
+
+/**
  * US0301 更新用户信息（除password和email外）
  * @param id 用户id
  * @returns {Promise<unknown>}

@@ -2,12 +2,18 @@ import demjson3
 import secrets
 from django.contrib.auth import authenticate
 from django.db import IntegrityError, transaction
+from django.db.models import Case, IntegerField, Q, Value, When
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from user.dto.user_all import user_all
 from user.passwords import validate_password_policy
-from user.tokens import generate_token, get_authorization_token, token_check
+from user.tokens import (
+    generate_token,
+    get_authorization_token,
+    get_request_user,
+    token_check,
+)
 from user.avatar import upload_avatar
 from user.verification import (
     check_email_code,
@@ -26,6 +32,57 @@ def router_users(request):
     try:
         # US0202 批量获取用户信息
         if request.method == "GET":
+            if "search" in request.GET:
+                viewer = get_request_user(request)
+                if not viewer.is_authenticated:
+                    return JsonResponse({"message": "请先登录"}, status=401)
+
+                query = str(request.GET.get("search", "")).strip()[:100]
+                if not query:
+                    return JsonResponse({"users": []}, status=200)
+
+                try:
+                    limit = min(max(int(request.GET.get("limit", 8)), 1), 20)
+                except (TypeError, ValueError):
+                    return JsonResponse({"message": "搜索数量无效"}, status=400)
+
+                matches = Q(username__icontains=query) | Q(
+                    user_info__nickname__icontains=query
+                )
+                exact_matches = Q(username__iexact=query) | Q(
+                    user_info__nickname__iexact=query
+                )
+                if query.isdigit():
+                    user_id = int(query)
+                    if 0 < user_id <= 2147483647:
+                        matches |= Q(id=user_id)
+                        exact_matches |= Q(id=user_id)
+
+                result = (
+                    User.objects.select_related(
+                        "user_info", "user_info__primary_dialect"
+                    )
+                    .filter(
+                        matches,
+                        is_active=True,
+                        is_superuser=False,
+                        user_info__isnull=False,
+                    )
+                    .exclude(id=viewer.id)
+                    .annotate(
+                        exact_match=Case(
+                            When(exact_matches, then=Value(0)),
+                            default=Value(1),
+                            output_field=IntegerField(),
+                        )
+                    )
+                    .order_by("exact_match", "user_info__nickname", "id")[:limit]
+                )
+                return JsonResponse(
+                    {"users": [user_all(user, private=False) for user in result]},
+                    status=200,
+                )
+
             result = User.objects.all()
             if "email" in request.GET:
                 result = result.filter(email=request.GET["email"])

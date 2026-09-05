@@ -81,7 +81,7 @@ export const ROUTE_VISUAL_MATRIX = Object.freeze([
     route: '/pages/mails/details', target: '/pages/mails/details?id=31', slug: 'mail-detail', issues: [356], persona: 'member',
   },
   {
-    route: '/pages/mails/send', target: '/pages/mails/send?recipient=12&title=%E4%B9%A1%E9%9F%B3%E5%9B%9E%E5%A4%8D', slug: 'mail-send', issues: [356], persona: 'member',
+    route: '/pages/mails/send', target: '/pages/mails/send?recipient=12&title=%E4%B9%A1%E9%9F%B3%E5%9B%9E%E5%A4%8D', slug: 'mail-send', issues: [356, 398], persona: 'member',
   },
   {
     route: '/pages/login/login', target: '/pages/login/login', slug: 'login', issues: [344], persona: 'guest',

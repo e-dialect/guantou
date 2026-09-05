@@ -8,6 +8,7 @@ import BaseForm from '@/components/BaseForm.vue';
 const mocks = vi.hoisted(() => ({
   changeUserInfo: vi.fn(),
   getUserInfo: vi.fn(),
+  searchUsers: vi.fn(),
   postMail: vi.fn(),
   toIndexPage: vi.fn(),
   toLoginPage: vi.fn(),
@@ -16,6 +17,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/services/user', () => ({
   changeUserInfo: mocks.changeUserInfo,
   getUserInfo: mocks.getUserInfo,
+  searchUsers: mocks.searchUsers,
 }));
 vi.mock('@/services/mail', () => ({ postMail: mocks.postMail }));
 vi.mock('@/routers/login', () => ({ toLoginPage: mocks.toLoginPage }));
@@ -121,6 +123,11 @@ describe('simple TDesign page migrations', () => {
       recipients: ['12'],
       title: '测试邮件',
       content: '正文',
+    };
+    wrapper.vm.selectedRecipient = {
+      id: 12,
+      username: 'recipient',
+      nickname: '收件人',
     };
 
     await wrapper.vm.sendEmail();

@@ -218,6 +218,7 @@ function successPayload(pathname, method, {
   }
   if (pathname === '/users/7') return profileFixture(USER_RESPONSE, avatarState);
   if (pathname === '/users/12') return PUBLIC_USER_RESPONSE;
+  if (pathname === '/users') return { users: empty ? [] : [PUBLIC_USER_RESPONSE.user] };
   if (pathname === '/users/recommendations') {
     return paged(empty ? [] : [{
       ...PUBLIC_USER_RESPONSE.user,

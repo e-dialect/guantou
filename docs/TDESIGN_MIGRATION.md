@@ -22,7 +22,7 @@ V2 全站聚合验收由 [#346](https://github.com/e-dialect/guantou/issues/346)
 | `pages/users/settings/username` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：共享账户设置面板与单字段表单 |
 | `pages/users/settings/nickname` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：共享账户设置面板与单字段表单 |
 | `pages/users/settings/telephone` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：共享账户设置面板与单字段表单 |
-| `pages/mails/send` | done | [#195](https://github.com/e-dialect/guantou/issues/195) / [PR #216](https://github.com/e-dialect/guantou/pull/216)：标准表单、字段错误与 payload 回归测试；[#356](https://github.com/e-dialect/guantou/issues/356)：统一“消息”术语、收件人上下文与发送反馈 |
+| `pages/mails/send` | done | [#195](https://github.com/e-dialect/guantou/issues/195) / [PR #216](https://github.com/e-dialect/guantou/pull/216)：标准表单、字段错误与 payload 回归测试；[#356](https://github.com/e-dialect/guantou/issues/356) / [#398](https://github.com/e-dialect/guantou/issues/398)：按用户任务重整收件人发现、身份确认与发送反馈 |
 | `pages/login/login` | done | [#238](https://github.com/e-dialect/guantou/issues/238) / [PR #309](https://github.com/e-dialect/guantou/pull/309)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：BaseField/BaseButton、双登录模式独立校验、字段错误与提交状态；[#388](https://github.com/e-dialect/guantou/issues/388) 将查词、找回密码与注册入口收敛为 TDesign 文字按钮，扩大触控热区并保留登录恢复与统一路由转场 |
 | `pages/nameplates/create` | done | [#237](https://github.com/e-dialect/guantou/issues/237)：BaseForm/BaseField/BaseButton、与装罐页一致的 Cascader/Picker、联合校验、加载重试与防重复提交；H5 浅暗主题已验收，小程序构建通过，真机验收待补 |
 | `pages/users/settings/information` | done | [#225](https://github.com/e-dialect/guantou/issues/225) / [#344](https://github.com/e-dialect/guantou/issues/344)：头像开放能力、无头像回退、日期与方言 Picker；[#386](https://github.com/e-dialect/guantou/issues/386) 将用户名、昵称、安全字段与选择器入口统一为带箭头和点击反馈的 TDesign Cell |
@@ -60,13 +60,14 @@ V2 全站聚合验收由 [#346](https://github.com/e-dialect/guantou/issues/346)
 | `pages/users/theme-event` | done | 活动领取与已绝版提示 |
 | `pages/mails/index` / `details` | done | [#356](https://github.com/e-dialect/guantou/issues/356)：消息概览与未读层级、加载/空白/失败状态、关联内容与回复闭环；[#358](https://github.com/e-dialect/guantou/issues/358)：用项目加载原语替换未解析的隐式分页组件 |
 
-## 站内消息体验 #356
+## 站内消息体验 #356 / #398
 
 - 收件箱、详情和发送页统一使用“消息”术语。收件箱先说明当前未读情况，再提供“全部 / 未读”筛选；列表以发送者、时间、标题、正文摘要和下一步为固定扫读顺序，缺失头像显示稳定的文字回退。
 - 首屏加载、加载失败、筛选后空白和分页失败分别提供可辨认状态。批量已读和单条已读失败不会误改本地状态；打开单条消息时，即使标记已读失败也不阻断原本的内容跳转。
 - 详情页按发送者、状态与时间、标题、正文排列；有关联对象时给出内容类型对应的动作，来自普通用户的消息可直接回复并自动带入收件人与原标题，系统消息不显示回复动作。发送页关闭根节点属性透传，避免 `title` 查询参数覆盖页面顶栏。
-- 从同乡主页进入发送页时，收件人改为已确认的上下文卡片，不再要求用户理解或重复编辑内部 ID；直接打开页面时仍保留收件人编号输入，以兼容既有入口与管理员收件人 `-1`。提交 payload、字段级 API 错误和成功返回消息中心的行为保持不变。
-- 回归覆盖收件箱筛选与已读状态、已读失败、详情重试、关联内容、回复预填、系统消息限制和收件人锁定；H5 以 390×844 浅暗主题检查三页层级及加载/失败/空白状态，并继续执行完整 lint、单元测试、H5 与微信小程序构建。
+- #398 删除直接输入收件人编号和管理员 `-1` 的交互。发送页改为带放大镜的用户搜索，可按昵称、用户名或精确编号查找；结果与已选卡同时展示头像、昵称、用户名、编号和方言点，管理员作为独立服务入口。从同乡主页或回复进入时解析真实身份并允许重新选择，ID 只保留为兼容通知 API 的内部提交值。
+- 用户搜索仅对登录用户开放，限制结果数量，排除自己、停用账户与管理员账户，不按邮箱或手机号等私密字段匹配；覆盖搜索中、无结果、失败、选择、重选、路由预选与管理员入口。
+- 回归覆盖收件箱筛选与已读状态、已读失败、详情重试、关联内容、回复预填、系统消息限制和收件人搜索/确认；H5 以 390×844 浅暗主题及跨视口矩阵检查三页层级，并继续执行完整 lint、单元测试、后端测试、H5 与微信小程序构建。
 - #358 使用 `BaseLoading` 与页面内弱提示承载加载中、可继续加载和无更多三态，统一中文文案与既有 Token；不再依赖 H5 无法解析的隐式 `uni-load-more`，也不额外引入旧组件的 Sass 构建告警。
 
 ## 账户身份旅程（#344 / PR #348）
