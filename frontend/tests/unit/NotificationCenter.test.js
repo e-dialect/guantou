@@ -55,6 +55,9 @@ describe('notification center', () => {
       unread: true,
     });
     expect(wrapper.text()).toContain('词条有新补证');
+    expect(wrapper.vm.introTitle).toBe('1 条未读消息');
+    expect(wrapper.vm.headerActionText).toBe('全部已读');
+    expect(wrapper.vm.senderInitial(notification)).toBe('乡');
   });
 
   it('marks one notification read before opening its target', async () => {
@@ -80,5 +83,17 @@ describe('notification center', () => {
 
     expect(markNotificationsRead).toHaveBeenCalledWith();
     expect(wrapper.vm.notifications[0].unread).toBe(false);
+    expect(wrapper.vm.headerActionText).toBe('');
+  });
+
+  it('keeps unread state when the mark-all request fails', async () => {
+    markNotificationsRead.mockRejectedValueOnce(new Error('服务繁忙'));
+    const wrapper = mountCenter();
+    wrapper.vm.notifications = [notification];
+
+    await wrapper.vm.markAllRead();
+
+    expect(wrapper.vm.notifications[0].unread).toBe(true);
+    expect(wrapper.vm.markingAll).toBe(false);
   });
 });

@@ -1,141 +1,225 @@
 <template>
   <PageShell
-    title="通知中心"
+    title="消息"
     :scroll="false"
-    content-class="notification-content"
-    action-text="全部已读"
+    content-class="mailbox-content"
+    :action-text="headerActionText"
     @action="markAllRead"
   >
-    <template #before>
-      <view class="filters">
-        <button
-          :class="['filter', { active: filter === 'all' }]"
-          hover-class="filter--pressed"
-          @tap="setFilter('all')"
-        >
-          全部
-        </button>
-        <button
-          :class="['filter', { active: filter === 'unread' }]"
-          hover-class="filter--pressed"
-          @tap="setFilter('unread')"
-        >
-          未读
-        </button>
-      </view>
-    </template>
-
     <scroll-view
       scroll-y
-      class="notification-scroll"
+      class="mailbox-scroll"
       refresher-enabled
       :refresher-triggered="refreshing"
       @refresherrefresh="refresh"
       @scrolltolower="loadMore"
     >
-      <view
-        v-if="loading && !notifications.length"
-        class="state"
-      >
-        正在加载通知…
-      </view>
-      <view
-        v-else-if="error && !notifications.length"
-        class="state error"
-      >
-        <text>{{ error }}</text>
-        <button
-          class="retry-button"
-          hover-class="filter--pressed"
-          @tap="refresh"
-        >
-          重试
-        </button>
-      </view>
-      <view
-        v-else-if="!notifications.length"
-        class="state"
-      >
-        <text>{{ filter === 'unread' ? '没有未读消息' : '还没有通知' }}</text>
-        <text class="state-copy">
-          词条补证、地区确认和审核结果会出现在这里。
-        </text>
-      </view>
-      <view
-        v-for="item in notifications"
-        :key="item.id"
-        :class="['notification-card', { unread: item.unread }]"
-        hover-class="notification-card--pressed"
-        @tap="openNotification(item)"
-      >
-        <image
-          :src="item.from.avatar"
-          class="avatar"
-          mode="aspectFill"
-        />
-        <view class="notification-body">
-          <view class="notification-head">
-            <text class="title">
-              {{ item.title }}
-            </text>
-            <text
-              class="status-badge"
-              :class="{ unread: item.unread }"
-            >
-              {{ item.unread ? '未读' : '已读' }}
-            </text>
+      <view class="mailbox-layout">
+        <view class="mailbox-intro">
+          <view class="eyebrow">
+            与你有关
           </view>
-          <view class="actor">
-            {{ item.from.nickname }}
+          <view class="intro-title">
+            {{ introTitle }}
           </view>
-          <view
-            v-if="item.content"
-            class="description"
-          >
-            {{ item.content }}
-          </view>
-          <view class="time">
-            {{ item.time }}
+          <view class="intro-copy">
+            补证、审核和同乡来信都会汇总在这里。
           </view>
         </view>
+
+        <view
+          class="filters"
+          role="tablist"
+          aria-label="消息筛选"
+        >
+          <button
+            :class="['filter', { active: filter === 'all' }]"
+            role="tab"
+            :aria-selected="filter === 'all'"
+            :disabled="loading"
+            hover-class="filter--pressed"
+            @tap="setFilter('all')"
+          >
+            全部
+          </button>
+          <button
+            :class="['filter', { active: filter === 'unread' }]"
+            role="tab"
+            :aria-selected="filter === 'unread'"
+            :disabled="loading"
+            hover-class="filter--pressed"
+            @tap="setFilter('unread')"
+          >
+            未读
+            <text
+              v-if="unreadCount"
+              class="filter-count"
+            >
+              {{ unreadCount }}
+            </text>
+          </button>
+        </view>
+
+        <BaseLoading
+          v-if="loading && !notifications.length"
+          text="正在整理消息…"
+        />
+        <EmptyState
+          v-else-if="error && !notifications.length"
+          title="消息暂时没有加载出来"
+          :description="error"
+          action-text="重新加载"
+          @action="refresh"
+        />
+        <EmptyState
+          v-else-if="!notifications.length"
+          :title="filter === 'unread' ? '未读消息已经清空' : '还没有消息'"
+          :description="filter === 'unread'
+            ? '新的提醒会继续出现在这里。'
+            : '词条补证、地区确认和审核结果会出现在这里。'"
+        />
+        <view
+          v-else
+          class="notification-list"
+        >
+          <view
+            v-for="item in notifications"
+            :key="item.id"
+            :class="['notification-card', { unread: item.unread }]"
+            role="button"
+            :aria-label="`${item.unread ? '未读消息' : '消息'}：${item.title}`"
+            hover-class="notification-card--pressed"
+            @tap="openNotification(item)"
+          >
+            <view class="notification-leading">
+              <image
+                v-if="item.from.avatar"
+                :src="item.from.avatar"
+                class="avatar"
+                mode="aspectFill"
+              />
+              <view
+                v-else
+                class="avatar avatar-fallback"
+                aria-hidden="true"
+              >
+                {{ senderInitial(item) }}
+              </view>
+              <view
+                v-if="item.unread"
+                class="unread-dot"
+                aria-hidden="true"
+              />
+            </view>
+
+            <view class="notification-body">
+              <view class="notification-meta">
+                <text class="actor">
+                  {{ item.from.nickname || '乡声集盒' }}
+                </text>
+                <text class="time">
+                  {{ item.time }}
+                </text>
+              </view>
+              <view class="title">
+                {{ item.title }}
+              </view>
+              <view
+                v-if="item.content"
+                class="description"
+              >
+                {{ item.content }}
+              </view>
+              <view class="notification-next">
+                <text>{{ item.target?.url ? '查看相关内容' : '阅读消息' }}</text>
+                <text aria-hidden="true">
+                  ›
+                </text>
+              </view>
+            </view>
+          </view>
+
+          <view
+            v-if="error"
+            class="load-error"
+          >
+            <text>{{ error }}</text>
+            <BaseButton
+              size="small"
+              variant="ghost"
+              text="重试"
+              @click="loadMore"
+            />
+          </view>
+          <uni-load-more
+            v-else
+            :status="loadStatus"
+          />
+        </view>
       </view>
-      <uni-load-more
-        v-if="notifications.length"
-        :status="loadStatus"
-      />
     </scroll-view>
   </PageShell>
 </template>
 
 <script>
+import BaseButton from '@/components/BaseButton.vue';
+import BaseLoading from '@/components/BaseLoading.vue';
+import EmptyState from '@/components/EmptyState.vue';
 import PageShell from '@/components/PageShell.vue';
 import { openPage } from '@/services/navigation';
 import { toMailDetailsPage } from '@/routers/mail';
 import { listNotifications, markNotificationsRead } from '@/services/mail';
 
 export default {
-  components: { PageShell },
+  components: {
+    BaseButton, BaseLoading, EmptyState, PageShell,
+  },
   data() {
     return {
       error: '',
       filter: 'all',
       loadStatus: 'more',
       loading: false,
+      markingAll: false,
       notifications: [],
       page: 1,
       refreshing: false,
     };
   },
+  computed: {
+    unreadCount() {
+      return this.notifications.filter((item) => item.unread).length;
+    },
+    headerActionText() {
+      if (!this.unreadCount) return '';
+      return this.markingAll ? '处理中…' : '全部已读';
+    },
+    introTitle() {
+      if (this.loading && !this.notifications.length) return '正在整理你的消息';
+      if (this.filter === 'unread') {
+        return this.notifications.length
+          ? `${this.notifications.length} 条未读消息`
+          : '未读消息已清空';
+      }
+      if (this.unreadCount) return `${this.unreadCount} 条消息待查看`;
+      if (this.notifications.length) return '消息都看过了';
+      return '重要进展，不错过';
+    },
+  },
   onLoad() {
     this.refresh();
   },
   methods: {
+    senderInitial(item) {
+      return String(item?.from?.nickname || '乡').trim().slice(0, 1) || '乡';
+    },
     setFilter(filter) {
-      if (this.filter === filter) return;
+      if (this.filter === filter || this.loading) return;
       this.filter = filter;
       this.refresh();
     },
     async refresh() {
+      if (this.loading) return;
       this.page = 1;
       this.notifications = [];
       this.error = '';
@@ -158,7 +242,7 @@ export default {
         this.page = page;
         this.loadStatus = page < response.pages ? 'more' : 'noMore';
       } catch (error) {
-        this.error = error.message || '通知加载失败';
+        this.error = error.message || '消息加载失败';
         this.loadStatus = 'more';
       } finally {
         this.loading = false;
@@ -168,17 +252,29 @@ export default {
       if (this.loadStatus === 'more') this.fetchPage(this.page + 1);
     },
     async markAllRead() {
-      await markNotificationsRead();
-      this.notifications = this.notifications.map((item) => ({ ...item, unread: false }));
-      if (this.filter === 'unread') this.notifications = [];
-      uni.showToast({ title: '已全部标为已读', icon: 'success' });
+      if (!this.unreadCount || this.markingAll) return;
+      this.markingAll = true;
+      try {
+        await markNotificationsRead();
+        this.notifications = this.notifications.map((item) => ({ ...item, unread: false }));
+        if (this.filter === 'unread') this.notifications = [];
+        uni.showToast({ title: '消息已全部读过', icon: 'success' });
+      } catch {
+        // The request layer owns the visible failure feedback. Keep local state unchanged.
+      } finally {
+        this.markingAll = false;
+      }
     },
     async openNotification(item) {
       if (item.unread) {
-        await markNotificationsRead([item.id]);
-        this.notifications = this.notifications.map((existing) => (existing.id === item.id
-          ? { ...existing, unread: false }
-          : existing));
+        try {
+          await markNotificationsRead([item.id]);
+          this.notifications = this.notifications.map((existing) => (existing.id === item.id
+            ? { ...existing, unread: false }
+            : existing));
+        } catch {
+          // Reading the message is still useful when the read-state request fails.
+        }
       }
       if (item.target?.url) {
         openPage(item.target.url);
@@ -191,28 +287,78 @@ export default {
 </script>
 
 <style scoped>
+:deep(.mailbox-content) {
+  height: calc(100vh - 104rpx - env(safe-area-inset-top));
+  min-height: 0;
+  padding: 0;
+}
+
+.mailbox-scroll {
+  height: 100%;
+}
+
+.mailbox-layout {
+  padding: var(--space-3) 28rpx 60rpx;
+}
+
+.mailbox-intro {
+  padding: var(--space-4);
+  border: 1px solid var(--accent-color);
+  border-radius: var(--radius-md);
+  background: var(--accent-subtle-color);
+}
+
+.eyebrow {
+  color: var(--accent-color);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.intro-title {
+  margin-top: var(--space-1);
+  color: var(--text-color);
+  font-family: STSong, SimSun, serif;
+  font-size: var(--font-size-xl);
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.intro-copy {
+  margin-top: var(--space-1);
+  color: var(--text-secondary-color);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+}
+
 .filters {
   display: flex;
   gap: var(--space-2);
-  padding: var(--space-2) 28rpx;
-  background: var(--surface-subtle-color);
+  margin: var(--space-3) 0;
 }
 
 .filter {
   width: auto;
+  min-width: 112rpx;
   margin: 0;
-  padding: 0 var(--space-4);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-pill);
   background: var(--surface-color);
   color: var(--text-secondary-color);
   font-size: var(--font-size-sm);
-  line-height: 62rpx;
+  line-height: 60rpx;
   transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
 .filter.active {
+  border-color: var(--accent-color);
   background: var(--accent-color);
   color: var(--on-accent-color);
+}
+
+.filter[disabled] {
+  opacity: 0.58;
 }
 
 .filter::after {
@@ -224,14 +370,20 @@ export default {
   opacity: 0.85;
 }
 
-.notification-scroll {
-  height: 100%;
+.filter-count {
+  margin-left: 6rpx;
+  font-size: var(--font-size-xs);
+}
+
+.notification-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
 .notification-card {
   display: flex;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
+  gap: var(--space-3);
   padding: var(--space-3);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -241,7 +393,7 @@ export default {
 
 .notification-card.unread {
   border-color: var(--accent-color);
-  background: var(--accent-subtle-color);
+  box-shadow: inset 6rpx 0 0 var(--accent-color);
 }
 
 .notification-card--pressed {
@@ -249,11 +401,37 @@ export default {
   opacity: 0.85;
 }
 
+.notification-leading {
+  position: relative;
+  flex: 0 0 auto;
+}
+
 .avatar {
-  width: 68rpx;
-  height: 68rpx;
+  display: flex;
+  width: 72rpx;
+  height: 72rpx;
+  align-items: center;
+  justify-content: center;
   border-radius: 50%;
   background: var(--surface-subtle-color);
+}
+
+.avatar-fallback {
+  color: var(--accent-color);
+  font-family: STSong, SimSun, serif;
+  font-size: var(--font-size-lg);
+  font-weight: 900;
+}
+
+.unread-dot {
+  position: absolute;
+  top: -2rpx;
+  right: -2rpx;
+  width: 16rpx;
+  height: 16rpx;
+  border: 4rpx solid var(--surface-color);
+  border-radius: 50%;
+  background: var(--danger-color);
 }
 
 .notification-body {
@@ -261,86 +439,74 @@ export default {
   flex: 1;
 }
 
-.notification-head {
+.notification-meta {
   display: flex;
-  align-items: center;
+  align-items: baseline;
+  justify-content: space-between;
   gap: var(--space-2);
+}
+
+.actor {
+  min-width: 0;
+  color: var(--text-secondary-color);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.time {
+  flex: 0 0 auto;
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
 }
 
 .title {
-  min-width: 0;
-  flex: 1;
+  margin-top: 6rpx;
   color: var(--text-color);
   font-size: var(--font-size-base);
   font-weight: 800;
-}
-
-.status-badge {
-  flex: 0 0 auto;
-  padding: 2rpx var(--space-2);
-  border-radius: var(--radius-pill);
-  background: var(--surface-subtle-color);
-  color: var(--muted-color);
-  font-size: var(--font-size-xs);
-  line-height: 1.6;
-}
-
-.status-badge.unread {
-  background: var(--danger-subtle-color);
-  color: var(--danger-color);
-}
-
-.actor,
-.time {
-  margin-top: 6rpx;
-  color: var(--muted-color);
-  font-size: var(--font-size-xs);
-}
-
-.description {
-  margin-top: var(--space-1);
-  color: var(--text-secondary-color);
-  font-size: var(--font-size-sm);
   line-height: 1.45;
 }
 
-.state {
+.description {
+  display: -webkit-box;
+  margin-top: var(--space-1);
+  color: var(--text-secondary-color);
+  font-size: var(--font-size-sm);
+  line-height: 1.55;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.notification-next {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-color);
+  color: var(--accent-color);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
+.load-error {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-2);
-  padding: 100rpx var(--space-4);
-  color: var(--muted-color);
-  text-align: center;
-}
-
-.state-copy {
-  color: var(--muted-color);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--danger-subtle-color);
+  color: var(--danger-color);
   font-size: var(--font-size-xs);
-}
-
-.retry-button {
-  border-radius: var(--radius-pill);
-  background: var(--accent-color);
-  color: var(--on-accent-color);
-  font-size: var(--font-size-xs);
-  transition: transform 0.15s ease, opacity 0.15s ease;
-}
-
-.retry-button::after {
-  border: 0;
-}
-
-:deep(.notification-content) {
-  height: calc(100vh - 154rpx);
-  min-height: 0;
-  padding: var(--space-2) 28rpx 60rpx;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .filter,
-  .notification-card,
-  .retry-button {
+  .notification-card {
     transition: none;
   }
 }

@@ -18,7 +18,7 @@
 | `pages/users/settings/username` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：共享账户设置面板与单字段表单 |
 | `pages/users/settings/nickname` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：共享账户设置面板与单字段表单 |
 | `pages/users/settings/telephone` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：共享账户设置面板与单字段表单 |
-| `pages/mails/send` | done | [#195](https://github.com/e-dialect/guantou/issues/195) / [PR #216](https://github.com/e-dialect/guantou/pull/216)：标准表单、字段错误与 payload 回归测试 |
+| `pages/mails/send` | done | [#195](https://github.com/e-dialect/guantou/issues/195) / [PR #216](https://github.com/e-dialect/guantou/pull/216)：标准表单、字段错误与 payload 回归测试；[#356](https://github.com/e-dialect/guantou/issues/356)：统一“消息”术语、收件人上下文与发送反馈 |
 | `pages/login/login` | done | [#238](https://github.com/e-dialect/guantou/issues/238) / [PR #309](https://github.com/e-dialect/guantou/pull/309)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：BaseField/BaseButton、双登录模式独立校验、字段错误与提交状态；保留登录恢复 |
 | `pages/nameplates/create` | done | [#237](https://github.com/e-dialect/guantou/issues/237)：BaseForm/BaseField/BaseButton、与装罐页一致的 Cascader/Picker、联合校验、加载重试与防重复提交；H5 浅暗主题已验收，小程序构建通过，真机验收待补 |
 | `pages/users/settings/information` | done | [#225](https://github.com/e-dialect/guantou/issues/225) / [#344](https://github.com/e-dialect/guantou/issues/344)：头像开放能力、无头像回退、日期与方言 Picker |
@@ -52,7 +52,15 @@
 | `pages/users/theme-acquire` | done | 装扮获取聚合：会员、活动、创作任务与方言主题福利 |
 | `pages/users/theme-member` | done | 开通会员，权益 H5/小程序同步 |
 | `pages/users/theme-event` | done | 活动领取与已绝版提示 |
-| `pages/mails/index` / `details` | queued | Cell、加载和通用操作 |
+| `pages/mails/index` / `details` | done | [#356](https://github.com/e-dialect/guantou/issues/356)：消息概览与未读层级、加载/空白/失败状态、关联内容与回复闭环 |
+
+## 站内消息体验 #356
+
+- 收件箱、详情和发送页统一使用“消息”术语。收件箱先说明当前未读情况，再提供“全部 / 未读”筛选；列表以发送者、时间、标题、正文摘要和下一步为固定扫读顺序，缺失头像显示稳定的文字回退。
+- 首屏加载、加载失败、筛选后空白和分页失败分别提供可辨认状态。批量已读和单条已读失败不会误改本地状态；打开单条消息时，即使标记已读失败也不阻断原本的内容跳转。
+- 详情页按发送者、状态与时间、标题、正文排列；有关联对象时给出内容类型对应的动作，来自普通用户的消息可直接回复并自动带入收件人与原标题，系统消息不显示回复动作。发送页关闭根节点属性透传，避免 `title` 查询参数覆盖页面顶栏。
+- 从同乡主页进入发送页时，收件人改为已确认的上下文卡片，不再要求用户理解或重复编辑内部 ID；直接打开页面时仍保留收件人编号输入，以兼容既有入口与管理员收件人 `-1`。提交 payload、字段级 API 错误和成功返回消息中心的行为保持不变。
+- 回归覆盖收件箱筛选与已读状态、已读失败、详情重试、关联内容、回复预填、系统消息限制和收件人锁定；H5 以 390×844 浅暗主题检查三页层级及加载/失败/空白状态，并继续执行完整 lint、单元测试、H5 与微信小程序构建。
 
 ## 账户身份旅程（#344 / PR #348）
 
