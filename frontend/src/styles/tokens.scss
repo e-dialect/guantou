@@ -1,3 +1,5 @@
+@use 'sass:map';
+
 /**
  * 全局 Design Tokens（M1·设计系统）
  *
@@ -387,12 +389,12 @@ $accent-immersive: (
 
 @each $name, $modes in $accent-palettes {
   .accent-#{$name} {
-    @include apply-token-map(map-get($modes, light));
-    @include apply-token-map(map-get($accent-immersive, $name));
+    @include apply-token-map(map.get($modes, light));
+    @include apply-token-map(map.get($accent-immersive, $name));
   }
 
   .theme-dark.accent-#{$name} {
-    @include apply-token-map(map-get($modes, dark));
+    @include apply-token-map(map.get($modes, dark));
   }
 }
 
@@ -400,13 +402,13 @@ $accent-immersive: (
 @each $name, $modes in $accent-palettes {
   html[data-accent='#{$name}'],
   html[data-accent='#{$name}'] page {
-    @include apply-token-map(map-get($modes, light));
-    @include apply-token-map(map-get($accent-immersive, $name));
+    @include apply-token-map(map.get($modes, light));
+    @include apply-token-map(map.get($accent-immersive, $name));
   }
 
   html[data-theme='dark'][data-accent='#{$name}'],
   html[data-theme='dark'][data-accent='#{$name}'] page {
-    @include apply-token-map(map-get($modes, dark));
+    @include apply-token-map(map.get($modes, dark));
   }
 }
 /* #endif */

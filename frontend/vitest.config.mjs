@@ -3,6 +3,14 @@ import { resolve } from 'path';
 import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
+  css: {
+    preprocessorOptions: {
+      scss: {
+        api: 'modern-compiler',
+        silenceDeprecations: ['legacy-js-api'],
+      },
+    },
+  },
   plugins: [vue()],
   resolve: {
     alias: [

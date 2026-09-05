@@ -113,7 +113,7 @@ export default {
 </script>
 <style lang="scss">
 /* 全局 Design Tokens：全站颜色/间距/圆角/字号唯一来源（M1·设计系统） */
-@import '@/styles/tokens.scss';
+@use '@/styles/tokens.scss';
 </style>
 
 <style>
