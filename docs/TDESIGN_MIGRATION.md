@@ -46,7 +46,7 @@ V2 全站聚合验收由 [#346](https://github.com/e-dialect/guantou/issues/346)
 | `pages/packages/index` / `details` | queued | 搜索、加载与详情操作 |
 | `pages/circles/index` / `details` | done | [#355](https://github.com/e-dialect/guantou/issues/355)：地区社群说明、单列搜索、低干扰加入/查看动作及圈内录音加载、空、局部失败和正常态；录音失败不再抹掉已加载的圈子资料 |
 | `pages/discovery/index` | queued | 操作按钮与加载状态 |
-| `pages/users/me` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：完整账户中心与游客身份入口 |
+| `pages/users/me` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：完整账户中心与游客身份入口；[#373](https://github.com/e-dialect/guantou/issues/373) 消除 TDesign `.page` 品牌色覆盖；[#376](https://github.com/e-dialect/guantou/issues/376) 补齐无头像文字回退 |
 | `pages/users/details` | done | [#355](https://github.com/e-dialect/guantou/issues/355)：他人主页使用统一档案面、无头像回退、主次关注/私信操作和具备 tab 语义的公开贡献状态 |
 | `pages/curation/index` / `apply` | done | [#360](https://github.com/e-dialect/guantou/issues/360)：整理权限申请、授权公开记录与审核待办统一为范围 → 资料 → 判断 → 依据的可信工作流 |
 | `pages/users/contributions` / `bookmarks` | done | [#361](https://github.com/e-dialect/guantou/issues/361)：贡献概览、地区足迹、最近参与与私人词条书签统一为可浏览的个人资料档案 |
@@ -71,7 +71,7 @@ V2 全站聚合验收由 [#346](https://github.com/e-dialect/guantou/issues/346)
 
 - 游客“我”、登录、注册、找回、新用户称呼与主方言设置使用同一套深松绿身份区与温润表单面；注册的四段进度对应真实提交步骤，不制造装饰性假进度。
 - 推荐关注页延续身份旅程，但明确标成“身份设置已完成”，不把可跳过的关注推荐伪装成第五个必填步骤。主方言、关注地区与真实贡献者保留原服务契约。
-- 用户名、昵称、邮箱、密码、手机号共用账户设置页级面板；编辑资料页为空头像与推荐作者补可辨识的文字回退，不改变头像上传、生日或方言选择能力。
+- 用户名、昵称、邮箱、密码、手机号共用账户设置页级面板；编辑资料页、推荐作者和账户首页为空头像补可辨识的文字回退，不改变头像上传、生日、方言选择、头像框或编辑资料入口。
 - 390×844 H5 截图：推荐关注[浅色](assets/ui-v2/issue-344/recommend-follow-after-light-390x844.png) / [暗色](assets/ui-v2/issue-344/recommend-follow-after-dark-390x844.png)，账户安全[浅色](assets/ui-v2/issue-344/account-settings-after-light-390x844.png) / [暗色](assets/ui-v2/issue-344/account-settings-after-dark-390x844.png)，[编辑资料](assets/ui-v2/issue-344/profile-settings-after-light-390x844.png)。
 - 自动化验证覆盖 lint、完整单元测试、H5/微信小程序构建，以及账户设置和方言引导 H5 E2E。运行期 H5 原生 API 噪声、SQLite 审计锁争用与构建弃用告警分别由 #350、#351、#352 跟踪；主题模块 chunk 告警沿用 #328。
 

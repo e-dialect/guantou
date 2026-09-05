@@ -500,6 +500,42 @@ describe('mine page logout', () => {
     };
   });
 
+  it('uses a stable avatar fallback and keeps both avatar branches editable', async () => {
+    getUserInfo.mockResolvedValueOnce({
+      user: {
+        id: 7,
+        avatar: '',
+        nickname: '采集者',
+        username: 'collector',
+        email: '',
+        wechat: false,
+      },
+      contribution: { recordings_total: 0, entries_total: 0, senses_total: 0 },
+      notification: { statistics: { unread: 0 } },
+    });
+    const wrapper = mountForm(MePage);
+    await flushPromises();
+
+    expect(wrapper.find('.avatar--fallback').text()).toBe('采');
+    expect(wrapper.find('.avatar--image').exists()).toBe(false);
+    await wrapper.find('.avatar--fallback').trigger('tap');
+    expect(goUserInformation).toHaveBeenCalledTimes(1);
+
+    wrapper.vm.nickname = '  ';
+    wrapper.vm.username = 'collector';
+    expect(wrapper.vm.avatarFallback).toBe('c');
+    wrapper.vm.username = '  ';
+    expect(wrapper.vm.avatarFallback).toBe('乡');
+
+    wrapper.vm.avatar = '/avatar.png';
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.avatar--fallback').exists()).toBe(false);
+    expect(wrapper.find('.avatar--image').attributes('src')).toBe('/avatar.png');
+    expect(wrapper.find('.avatar--image').attributes('mode')).toBe('aspectFill');
+    await wrapper.find('.avatar--image').trigger('tap');
+    expect(goUserInformation).toHaveBeenCalledTimes(2);
+  });
+
   it('confirms before leaving the account', async () => {
     const wrapper = mountForm(MePage);
     await wrapper.vm.exit();

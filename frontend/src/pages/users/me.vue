@@ -27,11 +27,23 @@
         <template v-else>
           <view class="hero">
             <image
+              v-if="avatar"
               :src="avatar"
-              class="avatar pressable"
+              class="avatar avatar--image pressable"
               mode="aspectFill"
+              role="button"
+              aria-label="编辑头像"
               @tap="toUserInfoPage"
             />
+            <view
+              v-else
+              class="avatar avatar--fallback pressable"
+              role="button"
+              aria-label="编辑头像"
+              @tap="toUserInfoPage"
+            >
+              {{ avatarFallback }}
+            </view>
             <view class="hero-copy">
               <view class="name">
                 {{ nickname || '未填写昵称' }}
@@ -502,6 +514,11 @@ export default {
     };
   },
   computed: {
+    avatarFallback() {
+      const displayName = String(this.nickname || '').trim()
+        || String(this.username || '').trim();
+      return displayName.slice(0, 1) || '乡';
+    },
     locationText() {
       return dialectCardLabel(this.primaryDialect);
     },
@@ -932,6 +949,16 @@ export default {
     solid var(--dress-avatar-frame-border-color, transparent);
   box-sizing: border-box;
   flex-shrink: 0;
+}
+
+.avatar--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dress-avatar-frame-color, var(--accent-color));
+  font-family: STSong, SimSun, serif;
+  font-size: 62rpx;
+  font-weight: 900;
 }
 
 .hero-copy {
