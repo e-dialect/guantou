@@ -9,9 +9,7 @@ class UserSearchApiTests(TestCase):
     def setUp(self):
         self.client = Client()
         self.viewer = self.create_user("viewer", "查看者")
-        self.auth = {
-            "HTTP_AUTHORIZATION": f"Bearer {generate_token(self.viewer)}"
-        }
+        self.auth = {"HTTP_AUTHORIZATION": f"Bearer {generate_token(self.viewer)}"}
 
     @staticmethod
     def create_user(username, nickname, **user_fields):
@@ -51,9 +49,7 @@ class UserSearchApiTests(TestCase):
         admin = self.create_user("admin", "管理员", is_superuser=True)
         inactive = self.create_user("inactive", "停用用户", is_active=False)
 
-        target_response = self.client.get(
-            f"/users?search={target.id}", **self.auth
-        )
+        target_response = self.client.get(f"/users?search={target.id}", **self.auth)
         self.assertEqual(
             [item["id"] for item in target_response.json()["users"]],
             [target.id],
@@ -73,9 +69,7 @@ class UserSearchApiTests(TestCase):
         anonymous = self.client.get("/users?search=safe-name")
         self.assertEqual(anonymous.status_code, 401)
 
-        private = self.client.get(
-            "/users?search=private%40example.com", **self.auth
-        )
+        private = self.client.get("/users?search=private%40example.com", **self.auth)
         self.assertEqual(private.status_code, 200)
         self.assertEqual(private.json()["users"], [])
 
@@ -87,9 +81,7 @@ class UserSearchApiTests(TestCase):
         self.assertEqual(blank.status_code, 200)
         self.assertEqual(blank.json()["users"], [])
 
-        oversized_id = self.client.get(
-            f"/users?search={'9' * 100}", **self.auth
-        )
+        oversized_id = self.client.get(f"/users?search={'9' * 100}", **self.auth)
         self.assertEqual(oversized_id.status_code, 200)
         self.assertEqual(oversized_id.json()["users"], [])
 
