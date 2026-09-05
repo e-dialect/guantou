@@ -102,9 +102,18 @@ test('PageShell and AppShell mount the shared feedback host', async ({ page }) =
   await expect(page.locator('.feedback-host')).toHaveCount(1);
 });
 
-test('the migrated not-found empty state renders its copy once', async ({ page }) => {
-  await page.goto('/pages/error/not-found');
+test('the not-found page explains the attempted path and offers one recovery route', async ({ page }) => {
+  const attemptedPath = '/shared/dialect/entry/a-very-long-and-unavailable-route';
+  await page.goto(`${attemptedPath}?token=private-value`);
 
-  await expect(page.getByText('您访问的页面不存在，请检查链接是否正确。')).toHaveCount(1);
-  await expect(page.locator('[aria-label="返回首页"]')).toBeVisible();
+  await expect(page).toHaveURL(/pages\/error\/not-found/);
+  await expect(page.getByText('这条路没有找到页面')).toHaveCount(1);
+  await expect(page.getByText(attemptedPath, { exact: true })).toBeVisible();
+  await expect(page.getByText('private-value')).toHaveCount(0);
+
+  const recoveryAction = page.locator('[aria-label="返回首页"]');
+  await expect(recoveryAction).toBeVisible();
+  await expect(page.getByRole('button')).toHaveCount(1);
+  await recoveryAction.click();
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/');
 });

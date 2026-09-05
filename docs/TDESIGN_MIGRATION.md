@@ -14,7 +14,7 @@
 | `components/EmptyState` | done | 所有现有消费者自动迁移 |
 | `components/PageShell` / `components/AppShell` / `components/home/HomeTabBar` | done | 已接入按钮原语与反馈 Host；[#340](https://github.com/e-dialect/guantou/issues/340) 收敛主入口标题区、普通页面顶栏与底部导航层级，底栏始终只有一个选中态，“录”在未选中时保留独立行动入口语义 |
 | `components/CommentThread` | done | 表单、按钮、加载与空态使用项目原语 |
-| `pages/error/not-found` | done | TDesign 空态 |
+| `pages/error/not-found` | done | [#362](https://github.com/e-dialect/guantou/issues/362)：低饱和 404 说明、脱敏的长路径回显与唯一首页恢复动作 |
 | `pages/users/settings/username` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：共享账户设置面板与单字段表单 |
 | `pages/users/settings/nickname` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：共享账户设置面板与单字段表单 |
 | `pages/users/settings/telephone` | done | [#344](https://github.com/e-dialect/guantou/issues/344) / [PR #348](https://github.com/e-dialect/guantou/pull/348)：共享账户设置面板与单字段表单 |
@@ -129,6 +129,12 @@
 - 词条收藏补齐私人书签说明和收藏数量；每张卡按状态、标题、大意、地区/录音/依据、动作排列，长词条不再被右侧按钮挤成窄列。“查看词条”是卡片主动作，“移出收藏”为次要操作。
 - 两页均使用 BaseLoading 与 EmptyState 区分加载、失败和真实空白。移出收藏增加逐项 busy 状态；请求失败时保留词条并给出反馈，不再产生未处理拒绝。
 - 页面只使用项目 Token 和既有项目原语，不增加积分、排名、权威等级、收藏类型、接口或后端统计。回归覆盖正常/失败/空白、长标题、详情导航、移出成功与失败；H5 以 390×844 检查浅色/暗色和浏览器控制台，H5/微信小程序构建作为合入门禁。
+
+## 未知路由恢复（#362）
+
+- 404 页延续 PageShell 与项目 Token，用低饱和状态卡解释“链接打不开”而不是制造错误警报；页面只保留一个“回到首页”主动作，避免用户继续在无效路径里选择。
+- H5 尽可能从导航历史恢复刚才访问的 pathname；显式 `path` / `from` 参数可供其它平台使用。展示前会解码并剥离 query/hash，避免把 token 等敏感参数回显到页面。
+- 长路径允许逐字符换行；直接访问兜底页时不伪造来源路径。单测覆盖脱敏与唯一可访问动作，H5 回归从真实未知长路径进入并验证返回首页。
 
 ## Completion
 
