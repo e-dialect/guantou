@@ -44,7 +44,13 @@ vi.mock('@/services/theme', async (importOriginal) => {
   };
 });
 
-import { goLogin } from '@/services/navigation';
+import {
+  goLogin,
+  goUserEmail,
+  goUserNickname,
+  goUserPhone,
+  goUserUsername,
+} from '@/services/navigation';
 import { notify, notifySuccess } from '@/services/feedback';
 import { uploadFile } from '@/services/file';
 import { listAllDialects } from '@/services/guantou';
@@ -97,6 +103,29 @@ function mountPage() {
         },
         'scroll-view': { template: '<div><slot /></div>' },
         SectionBlock: { template: '<section><slot /></section>' },
+        TCell: {
+          props: {
+            ariaLabel: { type: String, default: '' },
+            arrow: { type: Boolean, default: false },
+            bordered: { type: Boolean, default: true },
+            hover: { type: Boolean, default: false },
+            note: { type: String, default: '' },
+            title: { type: String, default: '' },
+          },
+          emits: ['click'],
+          template: `
+            <button
+              class="profile-cell-stub"
+              :aria-label="ariaLabel"
+              :data-arrow="String(arrow)"
+              :data-note="note"
+              :data-title="title"
+              @click="$emit('click')"
+            >
+              {{ title }} {{ note }}
+            </button>
+          `,
+        },
       },
     },
   });
@@ -132,6 +161,7 @@ describe('information settings page', () => {
     expect(source).toContain('PageShell');
     expect(source).toContain('BaseButton');
     expect(source).toContain('TDateTimePicker');
+    expect(source).toContain('TCell');
     expect(source).toContain('DialectSelector');
     expect(source).toContain('open-type="chooseAvatar"');
     expect(source).toContain('从相册选择');
@@ -145,8 +175,44 @@ describe('information settings page', () => {
     expect(source).not.toMatch(/<picker[\s>]/);
     expect(source).not.toContain('cu-form-group');
     expect(source).not.toContain('uni-forms');
+    expect(source.match(/<t-cell\b/g)).toHaveLength(6);
+    expect(source.match(/role="button"/g)).toHaveLength(6);
+    expect(source.match(/tabindex="0"/g)).toHaveLength(6);
+    expect(source.match(/@keydown\.enter=/g)).toHaveLength(6);
+    expect(source.match(/@keydown\.space\.prevent=/g)).toHaveLength(6);
+    expect(source).not.toContain('class="row pressable"');
     expect(source).not.toContain('将会默认公开');
     expect(source).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+  });
+
+  it('exposes six discoverable setting cells and preserves their actions', async () => {
+    const wrapper = await showPage();
+    const cells = wrapper.findAll('.profile-cell-stub');
+
+    expect(cells.map((cell) => cell.attributes('data-title'))).toEqual([
+      '用户名',
+      '昵称',
+      '邮箱',
+      '手机',
+      '生日',
+      '发音默认地点',
+    ]);
+    expect(cells.every((cell) => cell.attributes('data-arrow') === 'true')).toBe(true);
+    expect(cells.at(-1).attributes('data-note')).toBe('西南官话 › 四川话');
+
+    await cells[0].trigger('click');
+    await cells[1].trigger('click');
+    await cells[2].trigger('click');
+    await cells[3].trigger('click');
+    expect(goUserUsername).toHaveBeenCalledOnce();
+    expect(goUserNickname).toHaveBeenCalledOnce();
+    expect(goUserEmail).toHaveBeenCalledOnce();
+    expect(goUserPhone).toHaveBeenCalledOnce();
+
+    await cells[4].trigger('click');
+    await cells[5].trigger('click');
+    expect(wrapper.vm.birthdayPickerOpen).toBe(true);
+    expect(wrapper.vm.dialectPickerOpen).toBe(true);
   });
 
   it('loads the profile payload and selected dialect id', async () => {
