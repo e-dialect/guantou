@@ -223,12 +223,15 @@
         class="zoom-sheet"
         @tap.stop
       >
-        <view
-          class="preview-close pressable"
-          @tap="$emit('close-zoom')"
+        <BaseButton
+          class="preview-close"
+          size="small"
+          variant="ghost"
+          aria-label="关闭主题大图"
+          @click="$emit('close-zoom')"
         >
           关闭
-        </view>
+        </BaseButton>
         <view class="muted">
           {{ zoomHint }}
         </view>

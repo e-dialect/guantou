@@ -394,7 +394,11 @@ describe('theme center independent views', () => {
 
     await wrapper.setProps({ theme, zoomOpen: true });
     expect(wrapper.find('.zoom-mask').exists()).toBe(true);
-    await wrapper.find('.preview-close').trigger('tap');
+    const closeZoom = wrapper.get('[aria-label="关闭主题大图"]');
+    expect(closeZoom.attributes()).toMatchObject({
+      'data-size': 'small',
+    });
+    await closeZoom.trigger('click');
     expect(wrapper.emitted('close-zoom')).toHaveLength(1);
   });
 

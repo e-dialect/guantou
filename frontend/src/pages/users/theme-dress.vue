@@ -388,12 +388,15 @@
         class="zoom-sheet"
         @tap.stop
       >
-        <view
-          class="preview-close pressable"
-          @tap="closeZoom"
+        <BaseButton
+          class="preview-close"
+          size="small"
+          variant="ghost"
+          aria-label="关闭装扮大图"
+          @click="closeZoom"
         >
           关闭
-        </view>
+        </BaseButton>
         <view class="muted">
           {{ zoomHint }}
         </view>
@@ -1178,11 +1181,7 @@ export default {
 
 .preview-close {
   align-self: flex-end;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-pill);
-  background: var(--surface-subtle-color);
-  color: var(--text-secondary-color);
-  font-size: var(--font-size-xs);
+  margin: 0;
 }
 
 .thumb.blurred {

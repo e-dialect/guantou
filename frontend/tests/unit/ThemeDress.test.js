@@ -119,6 +119,16 @@ describe('Theme dress page', () => {
     await wrapper.vm.$nextTick();
     expect(wrapper.vm.zoomOpen).toBe(true);
     expect(wrapper.text()).toContain('双指缩放查看细节，点空白关闭');
+    const closeZoom = wrapper.findAllComponents(BaseButton)
+      .find((button) => button.props('ariaLabel') === '关闭装扮大图');
+    expect(closeZoom?.props()).toMatchObject({
+      size: 'small',
+      variant: 'ghost',
+    });
+    closeZoom.vm.$emit('click');
+    await wrapper.vm.$nextTick();
+    expect(wrapper.vm.zoomOpen).toBe(false);
+    wrapper.vm.zoomOpen = true;
     wrapper.vm.closeDetail();
     expect(wrapper.vm.zoomOpen).toBe(false);
 
