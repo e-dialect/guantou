@@ -24,6 +24,7 @@ class RuntimeConfigurationTests(SimpleTestCase):
             "APP_ID",
             "APP_SECRET",
             "APP_SECRECT",
+            "PRODUCT_EVENT_RETENTION_DAYS",
         ):
             environment.pop(key, None)
         environment.update(overrides)
@@ -58,6 +59,18 @@ class RuntimeConfigurationTests(SimpleTestCase):
             )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("cannot both be true", result.stderr)
+
+    def test_product_event_retention_cannot_exceed_ninety_days(self):
+        with tempfile.NamedTemporaryFile() as env_file:
+            result = self._run_settings_import(
+                {
+                    "ENVIRONMENT": "test",
+                    "PRODUCT_EVENT_RETENTION_DAYS": "91",
+                },
+                env_file.name,
+            )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("must be between 1 and 90", result.stderr)
 
     def test_legacy_app_secrect_spelling_remains_a_fallback(self):
         with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8") as env_file:

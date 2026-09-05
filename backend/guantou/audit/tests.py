@@ -31,10 +31,25 @@ class VisitorTrackingTests(TestCase):
         self.assertEqual(response["X-Visitor-ID"], visitor_id)
         self.assertEqual(AnonymousVisitor.objects.count(), 1)
 
-    def test_static_admin_and_media_requests_are_not_recorded_as_events(self):
+    def test_infrastructure_and_privacy_minimized_requests_are_not_visitor_tracked(
+        self,
+    ):
         self.client.get("/static/missing.js")
         self.client.get("/media/missing.png")
         self.client.get("/admin/login/")
+        self.client.get("/site-settings/capabilities")
+        self.client.post(
+            "/product-events/",
+            {
+                "session_id": "session-test-12345678",
+                "event_name": "listen_feed_view",
+                "platform": "h5",
+                "surface": "listen",
+                "result": "view",
+                "metadata": {"tab": "today"},
+            },
+            content_type="application/json",
+        )
         self.client.options("/search/")
 
         self.assertEqual(VisitorEvent.objects.count(), 0)

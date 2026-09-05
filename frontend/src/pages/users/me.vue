@@ -261,6 +261,15 @@
 
           <view class="account-section">
             <view class="section-kicker">
+              产品改进统计
+            </view>
+            <view class="account-section__copy">
+              只统计听、查、录、补证和整理任务是否成功；不记录搜索原词、录音内容、账号编号或设备位置。原始事件最长保留 90 天，之后只留日汇总。
+            </view>
+          </view>
+
+          <view class="account-section">
+            <view class="section-kicker">
               {{ curationSummary ? '管理与审核' : '申请成为整理员' }}
             </view>
             <view class="account-section__copy">
@@ -405,6 +414,7 @@ import { notify, notifySuccess } from '@/services/feedback';
 import { openLoginFromMine } from '@/services/authJourney';
 import { listCanDrafts } from '@/services/canDrafts';
 import { getCurationSummary } from '@/services/entryRecording';
+import { CAPABILITIES, isCapabilityEnabled } from '@/services/capabilities';
 import {
   goCanLibrary,
   goContributionHistory,
@@ -419,7 +429,6 @@ import {
   goUserInformation,
   goUserPassword,
 } from '@/services/navigation';
-import canUseWechatMiniProgramAuth from '@/services/platform';
 import { resolveSessionUserId } from '@/services/session';
 import { getActiveTheme } from '@/services/themeCenter';
 import { dialectCardLabel } from '@/utils/dialectTree';
@@ -449,7 +458,7 @@ export default {
       followedDialects: [],
       email: '',
       wechatBound: false,
-      canUseWechatAuth: canUseWechatMiniProgramAuth(),
+      canUseWechatAuth: isCapabilityEnabled(CAPABILITIES.WECHAT_AUTH),
       isBinding: false,
       loading: Boolean(uni.getStorageSync('token')),
       loadError: '',
@@ -530,6 +539,7 @@ export default {
     this.getInfo();
   },
   onShow() {
+    this.canUseWechatAuth = isCapabilityEnabled(CAPABILITIES.WECHAT_AUTH);
     this.loggedIn = Boolean(uni.getStorageSync('token'));
     this.refreshDraftsCount();
     if (this.loggedIn) this.getInfo();

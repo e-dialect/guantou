@@ -11,6 +11,7 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         "featured_announcements",
         "featured_cans",
         "carousel",
+        "remote_capabilities",
     )
 
     def has_add_permission(self, request):

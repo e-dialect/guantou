@@ -2,6 +2,7 @@
 import { goNotFound } from '@/services/navigation';
 // app.js
 import { getLoginStatus } from '@/services/login';
+import { hydrateCapabilities } from '@/services/capabilities';
 import {
   ensureDialectOnboarding,
   ONBOARDING_REASONS,
@@ -19,6 +20,7 @@ export default {
     bindThemeAdapters();
     applyTheme();
     hydrateOutfitStyle();
+    this.globalData.capabilities = await hydrateCapabilities();
     if (!this.globalData.id) {
       const token = uni.getStorageSync('token');
       const storedId = uni.getStorageSync('id');
@@ -75,6 +77,7 @@ export default {
     contribution: 0,
     id: null,
     showRedirectTips: false,
+    capabilities: {},
     comment: null,
     watch(method) {
       const obj = this;

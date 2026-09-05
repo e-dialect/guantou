@@ -74,14 +74,9 @@
             "minified" : false
         },
         "usingComponents" : true,
-        "permission" : {
-            "scope.userLocation" : {
-                "desc" : "你的位置信息将用于小程序位置接口的效果展示"
-            }
-        },
         "plugins" : {},
         "cloudfunctionRoot" : "cloudfunctions/",
-        "requiredBackgroundModes" : [ "audio", "location" ],
+        "requiredBackgroundModes" : [ "audio" ],
         "embeddedAppIdList" : [ "wx8abaf00ee8c3202e" ],
         "uniStatistics" : {
             "enable" : false

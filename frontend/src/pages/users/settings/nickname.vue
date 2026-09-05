@@ -57,8 +57,8 @@ import BaseField from '@/components/BaseField.vue';
 import BaseForm from '@/components/BaseForm.vue';
 import PageShell from '@/components/PageShell.vue';
 import { notify, notifySuccess } from '@/services/feedback';
+import { CAPABILITIES, isCapabilityEnabled } from '@/services/capabilities';
 import { goBack, goLogin, ROUTES } from '@/services/navigation';
-import canUseWechatMiniProgramAuth from '@/services/platform';
 import { resolveSessionUserId } from '@/services/session';
 import { changeUserInfo } from '@/services/user';
 
@@ -88,7 +88,7 @@ export default {
       },
       error: '',
       saving: false,
-      canUseWechatAuth: canUseWechatMiniProgramAuth(),
+      canUseWechatAuth: isCapabilityEnabled(CAPABILITIES.WECHAT_AUTH),
     };
   },
   computed: {
@@ -97,6 +97,7 @@ export default {
     },
   },
   onShow() {
+    this.canUseWechatAuth = isCapabilityEnabled(CAPABILITIES.WECHAT_AUTH);
     if (!resolveSessionUserId()) {
       goLogin({}, { reset: true });
       return;

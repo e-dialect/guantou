@@ -13,7 +13,15 @@
         </text>
       </view>
 
+      <view
+        v-if="!capabilityAvailable"
+        class="record-section"
+      >
+        录音提交正在维护。你可以稍后再试；应用不会读取或保存设备位置。
+      </view>
+
       <BaseForm
+        v-else
         ref="form"
         :data="form"
         :rules="rules"
@@ -196,6 +204,7 @@
       </BaseForm>
 
       <DialectSelector
+        v-if="capabilityAvailable"
         v-model:visible="dialectPickerVisible"
         :value="form.usage_dialect_id"
         :dialects="dialects"
@@ -232,6 +241,8 @@ import { notify, notifySuccess } from '@/services/feedback';
 import { listAllDialects } from '@/services/guantou';
 import { goEntryDetail, goHome } from '@/services/navigation';
 import { dialectBreadcrumb } from '@/utils/dialectTree';
+import { CAPABILITIES, ensureCapability } from '@/services/capabilities';
+import { PRODUCT_EVENTS, trackProductEvent } from '@/services/productAnalytics';
 
 function emptyAudio() {
   return {
@@ -274,6 +285,7 @@ export default {
       entrySearching: false,
       selectedEntry: null,
       submitting: false,
+      capabilityAvailable: true,
     };
   },
   computed: {
@@ -291,6 +303,8 @@ export default {
     },
   },
   async onLoad(options = {}) {
+    this.capabilityAvailable = ensureCapability(CAPABILITIES.RECORDING, 'record');
+    if (!this.capabilityAvailable) return;
     await this.loadDialects();
     if (options.entry_id) await this.loadEntry(options.entry_id);
   },
@@ -387,11 +401,21 @@ export default {
         };
         if (this.selectedEntry?.id) payload.primary_entry_id = this.selectedEntry.id;
         const recording = await createRecording(payload);
+        trackProductEvent(PRODUCT_EVENTS.RECORDING_SUBMIT, {
+          surface: 'record',
+          result: 'success',
+          metadata: { has_linked_entry: Boolean(this.selectedEntry?.id) },
+        });
         notifySuccess({ title: '乡音已保存为可追溯初稿' });
         const entryId = primaryEntryLink(recording)?.entry?.id;
         if (entryId) goEntryDetail(entryId, { replace: true });
         else goHome(true);
       } catch (error) {
+        trackProductEvent(PRODUCT_EVENTS.RECORDING_SUBMIT, {
+          surface: 'record',
+          result: 'error',
+          metadata: { has_linked_entry: Boolean(this.selectedEntry?.id) },
+        });
         this.fieldErrors = {
           ...this.fieldErrors,
           ...(error?.data || {}),

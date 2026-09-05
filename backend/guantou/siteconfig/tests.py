@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
+from django.core.exceptions import ValidationError
 
 from announcements.models import Announcement
 from guantou.models import Can
@@ -144,3 +145,25 @@ class SiteSettingsTests(TestCase):
                 self.assertEqual(response.status_code, 400)
                 settings.refresh_from_db()
                 self.assertEqual(settings.featured_cans, [visible.id])
+
+    def test_public_capabilities_return_complete_boolean_switches(self):
+        settings = SiteSettings.get_solo()
+        settings.remote_capabilities = {"recording": False}
+        settings.save(update_fields=["remote_capabilities"])
+
+        response = self.client.get("/site-settings/capabilities")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["version"], 1)
+        self.assertFalse(payload["capabilities"]["recording"])
+        self.assertTrue(payload["capabilities"]["listen_feed"])
+        self.assertTrue(payload["capabilities"]["wechat_auth"])
+        self.assertEqual(payload["cache_seconds"], 300)
+
+    def test_remote_capability_validator_rejects_unknown_and_non_boolean_values(self):
+        settings = SiteSettings.get_solo()
+        for switches in ({"unknown": True}, {"recording": 1}):
+            with self.subTest(switches=switches), self.assertRaises(ValidationError):
+                settings.remote_capabilities = switches
+                settings.full_clean()

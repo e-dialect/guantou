@@ -187,6 +187,8 @@ import {
 } from '@/services/entryRecording';
 import { notifySuccess } from '@/services/feedback';
 import { goRecord } from '@/services/navigation';
+import { CAPABILITIES, ensureCapability } from '@/services/capabilities';
+import { PRODUCT_EVENTS, trackProductEvent } from '@/services/productAnalytics';
 
 export default {
   components: {
@@ -262,12 +264,21 @@ export default {
     async attest({ dialectId }) {
       if (!dialectId) return;
       if (!requireAuth('attest_usage', { page: 'entry_detail', entryId: this.id })) return;
+      if (!ensureCapability(CAPABILITIES.USAGE_ATTESTATION, 'entry_detail')) return;
       try {
         await createUsageAttestation(this.id, dialectId);
         this.attestedDialects = new Set([...this.attestedDialects, dialectId]);
         this.entry.attestation_count = Number(this.entry.attestation_count || 0) + 1;
         notifySuccess({ title: '已记下你这里也这么说' });
+        trackProductEvent(PRODUCT_EVENTS.EVIDENCE_SUBMIT, {
+          surface: 'entry_detail',
+          result: 'success',
+        });
       } catch (error) {
+        trackProductEvent(PRODUCT_EVENTS.EVIDENCE_SUBMIT, {
+          surface: 'entry_detail',
+          result: 'error',
+        });
         uni.showToast({ title: error.message || '确认失败，请稍后再试', icon: 'none' });
       }
     },

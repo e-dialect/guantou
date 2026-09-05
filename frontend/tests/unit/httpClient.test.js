@@ -75,6 +75,26 @@ describe('httpClient compatibility wrappers', () => {
     expect(uni.showLoading).not.toHaveBeenCalled();
   });
 
+  it('privacy-sensitive requests can omit and avoid persisting visitor ids', async () => {
+    uni.request.mockResolvedValue({
+      statusCode: 202,
+      data: { accepted: 1 },
+      header: { 'X-Visitor-ID': 'response-visitor' },
+    });
+
+    await expect(httpClient.request('POST', '/product-events/', {}, {
+      auth: false,
+      visitor: false,
+      silent: true,
+      loading: false,
+    })).resolves.toEqual({ accepted: 1 });
+
+    expect(uni.request).toHaveBeenCalledWith(expect.objectContaining({
+      header: { 'content-type': 'application/json' },
+    }));
+    expect(uni.setStorageSync).not.toHaveBeenCalled();
+  });
+
   it('forwards a request timeout to uni.request', async () => {
     uni.request.mockResolvedValue({
       statusCode: 200,

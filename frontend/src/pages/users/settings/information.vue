@@ -223,6 +223,7 @@ import DialectSelector from '@/components/DialectSelector.vue';
 import PageShell from '@/components/PageShell.vue';
 import SectionBlock from '@/components/SectionBlock.vue';
 import { notify, notifySuccess } from '@/services/feedback';
+import { CAPABILITIES, isCapabilityEnabled } from '@/services/capabilities';
 import { uploadFile } from '@/services/file';
 import { listAllDialects } from '@/services/guantou';
 import {
@@ -234,7 +235,6 @@ import {
   ROUTES,
 } from '@/services/navigation';
 import { resolveSessionUserId } from '@/services/session';
-import canUseWechatMiniProgramAuth from '@/services/platform';
 import { changeUserInfo, getUserInfo } from '@/services/user';
 import { dialectBreadcrumb } from '@/utils/dialectTree';
 
@@ -290,7 +290,7 @@ export default {
       avatarPreview: '',
       birthdayPickerOpen: false,
       dialectPickerOpen: false,
-      canUseWechatAuth: canUseWechatMiniProgramAuth(),
+      canUseWechatAuth: isCapabilityEnabled(CAPABILITIES.WECHAT_AUTH),
     };
   },
   computed: {
@@ -322,6 +322,7 @@ export default {
     },
   },
   onShow() {
+    this.canUseWechatAuth = isCapabilityEnabled(CAPABILITIES.WECHAT_AUTH);
     if (!resolveSessionUserId()) {
       goLogin({}, { reset: true });
       return;

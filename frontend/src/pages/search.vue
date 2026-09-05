@@ -262,6 +262,8 @@ import {
 import { listAllDialects } from '@/services/guantou';
 import { goEntryDetail, goRecord } from '@/services/navigation';
 import { dialectBreadcrumb } from '@/utils/dialectTree';
+import { CAPABILITIES, ensureCapability } from '@/services/capabilities';
+import { PRODUCT_EVENTS, trackProductEvent } from '@/services/productAnalytics';
 
 const WRITING_TYPES = [
   { label: '不限', value: '' },
@@ -300,6 +302,30 @@ function defaultFilters() {
     concept: '',
     hasRecording: '',
   };
+}
+
+function resultBucket(count) {
+  if (count <= 0) return '0';
+  if (count <= 5) return '1-5';
+  if (count <= 20) return '6-20';
+  return '21+';
+}
+
+function activeFilterCount(filters) {
+  const advancedKeys = [
+    'dialectId',
+    'writingType',
+    'sourceType',
+    'status',
+    'ipa',
+    'romanization',
+    'source',
+    'concept',
+    'hasRecording',
+  ];
+  return advancedKeys.filter((key) => (
+    filters[key] !== '' && filters[key] !== null && filters[key] !== undefined
+  )).length;
 }
 
 export default {
@@ -394,6 +420,12 @@ export default {
       return buildEntrySearchParams({ ...this.filters, page, pageSize: 20 });
     },
     async search() {
+      if (!ensureCapability(CAPABILITIES.ENTRY_SEARCH, 'search')) {
+        this.searched = true;
+        this.entries = [];
+        this.errorMessage = '词条查询正在维护，请稍后再试';
+        return;
+      }
       const requestId = this.searchRequestId + 1;
       this.searchRequestId = requestId;
       this.loading = true;
@@ -406,12 +438,28 @@ export default {
         this.total = Number(response?.count ?? this.entries.length);
         this.next = response?.next || null;
         this.page = 1;
+        trackProductEvent(PRODUCT_EVENTS.ENTRY_SEARCH, {
+          surface: 'search',
+          result: this.total ? 'success' : 'empty',
+          metadata: {
+            result_bucket: resultBucket(this.total),
+            filter_count: activeFilterCount(this.filters),
+          },
+        });
       } catch (error) {
         if (requestId !== this.searchRequestId) return;
         this.entries = [];
         this.total = 0;
         this.next = null;
         this.errorMessage = '词条查询失败，请稍后重试';
+        trackProductEvent(PRODUCT_EVENTS.ENTRY_SEARCH, {
+          surface: 'search',
+          result: 'error',
+          metadata: {
+            result_bucket: '0',
+            filter_count: activeFilterCount(this.filters),
+          },
+        });
       } finally {
         if (requestId === this.searchRequestId) this.loading = false;
       }

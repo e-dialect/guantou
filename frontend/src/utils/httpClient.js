@@ -8,6 +8,7 @@ import {
 
 const DEFAULT_OPTIONS = {
   auth: true,
+  visitor: true,
   silent: false,
   redirectOnUnauthorized: true,
   loading: true,
@@ -45,7 +46,7 @@ function visitorHeaders() {
 function buildHeaders(options) {
   return {
     'content-type': 'application/json',
-    ...visitorHeaders(),
+    ...(options.visitor ? visitorHeaders() : {}),
     ...authHeaders(options.auth),
   };
 }
@@ -114,7 +115,7 @@ export function request(method = 'GET', url = '', data = {}, options = {}) {
     const timeout = Number(resolvedOptions.timeout) || 0;
     if (timeout > 0) payload.timeout = timeout;
     uni.request(payload).then((res) => {
-      persistVisitorId(res);
+      if (resolvedOptions.visitor) persistVisitorId(res);
       hideLoading(resolvedOptions);
       if (res.statusCode >= 200 && res.statusCode < 300) {
         resolve(res.data);

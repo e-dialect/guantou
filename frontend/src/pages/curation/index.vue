@@ -111,6 +111,8 @@ import {
   pageResults,
 } from '@/services/entryRecording';
 import { notify, notifySuccess } from '@/services/feedback';
+import { CAPABILITIES, ensureCapability } from '@/services/capabilities';
+import { PRODUCT_EVENTS, trackProductEvent } from '@/services/productAnalytics';
 
 const LABELS = {
   accepted: '采纳', published: '发布', reviewed: '核对通过', disputed: '保留争议', rejected: '退回',
@@ -172,6 +174,11 @@ export default {
       this.reason = '';
     },
     async load() {
+      if (!ensureCapability(CAPABILITIES.CURATION_WORKBENCH, 'curation')) {
+        this.loading = false;
+        this.error = '整理工作台正在维护，请稍后再试';
+        return;
+      }
       this.loading = true;
       this.error = '';
       try {
@@ -206,10 +213,20 @@ export default {
       this.submittingKey = `${this.taskKey(task)}-${this.selectedAction}`;
       try {
         await createCurationAction(this.payloadFor(task));
+        trackProductEvent(PRODUCT_EVENTS.CURATION_TASK_COMPLETE, {
+          surface: 'curation',
+          result: 'success',
+          metadata: { task_kind: task.kind },
+        });
         notifySuccess('审核记录已保存');
         this.cancel();
         await this.load();
       } catch (error) {
+        trackProductEvent(PRODUCT_EVENTS.CURATION_TASK_COMPLETE, {
+          surface: 'curation',
+          result: 'error',
+          metadata: { task_kind: task.kind },
+        });
         notify({ title: error?.message || '审核保存失败' });
       } finally {
         this.submittingKey = '';
