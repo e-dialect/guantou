@@ -40,5 +40,5 @@ test('main navigation pages are reachable', async ({ page }) => {
 
   await page.goto('/pages/recordings/create');
   await expect(page).toHaveURL(/\/pages\/login\/login/);
-  await expect(page.locator('body')).toContainText('登录后可以确认地区用法、补充词条、发表评论和录下乡音');
+  await expect(page.locator('body')).toContainText('你刚才想录制乡音，验证身份后会回到原来的位置。');
 });
