@@ -163,6 +163,11 @@ export default {
   --td-button-border-radius: var(--dress-button-border-radius, var(--radius-pill));
 }
 
+.base-button--ghost {
+  --td-button-primary-outline-active-bg-color: var(--accent-subtle-color);
+  --td-button-primary-outline-active-border-color: var(--accent-color);
+}
+
 .base-button--look-soft {
   --td-brand-color: var(--accent-subtle-color);
   --td-brand-color-active: var(--accent-subtle-color);

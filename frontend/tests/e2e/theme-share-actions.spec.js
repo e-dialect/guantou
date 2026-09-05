@@ -7,6 +7,29 @@ import {
   openVisualRoute,
 } from './helpers/visualReviewFixture';
 
+function colorChannels(color) {
+  const normalized = color.trim();
+  if (/^#[0-9a-f]{6}$/i.test(normalized)) {
+    return normalized.slice(1).match(/.{2}/g).map((value) => Number.parseInt(value, 16));
+  }
+  return normalized.match(/[\d.]+/g).slice(0, 3).map(Number);
+}
+
+function relativeLuminance(color) {
+  const channels = colorChannels(color).map((value) => value / 255);
+  const linear = channels.map((value) => (
+    value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+  ));
+  return (0.2126 * linear[0]) + (0.7152 * linear[1]) + (0.0722 * linear[2]);
+}
+
+function contrastRatio(foreground, background) {
+  const foregroundLuminance = relativeLuminance(foreground);
+  const backgroundLuminance = relativeLuminance(background);
+  return (Math.max(foregroundLuminance, backgroundLuminance) + 0.05)
+    / (Math.min(foregroundLuminance, backgroundLuminance) + 0.05);
+}
+
 ['light', 'dark'].forEach((appearance) => {
   test(`theme share sheet ${appearance} uses one button language`, async ({ page }) => {
     const runtimeIssues = observeRuntime(page);
@@ -34,6 +57,19 @@ import {
     await actions.at(-1).click();
     await expect(page.locator('.poster')).toBeVisible();
     await expect(page.getByRole('button', { name: '保存到相册' })).toBeVisible();
+    const activeStyle = await actions.at(-1).evaluate((element) => {
+      const style = getComputedStyle(element);
+      const overlay = getComputedStyle(element, '::after');
+      return {
+        accent: getComputedStyle(document.documentElement)
+          .getPropertyValue('--accent-color').trim(),
+        background: overlay.backgroundColor,
+        border: overlay.borderTopColor,
+        color: style.color,
+      };
+    });
+    expect(colorChannels(activeStyle.border)).toEqual(colorChannels(activeStyle.accent));
+    expect(contrastRatio(activeStyle.color, activeStyle.background)).toBeGreaterThanOrEqual(4.5);
     await expect(horizontalOverflow(page)).resolves.toBeLessThanOrEqual(2);
     await stableScreenshot(page, {
       path: `test-results/theme-share-actions-${appearance}-390x844.png`,

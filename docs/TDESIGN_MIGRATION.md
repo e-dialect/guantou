@@ -10,6 +10,8 @@
 
 V2 全站聚合验收由 [#346](https://github.com/e-dialect/guantou/issues/346) 跟踪；33 个当前注册页面、核心界面明暗/身份组合、四种数据状态以及微信真机待验项见 [`V2_VISUAL_REGRESSION.md`](V2_VISUAL_REGRESSION.md)。
 
+共享 `BaseButton` 的 ghost / outline 按压态由 [#381](https://github.com/e-dialect/guantou/issues/381) 固定为当前强调色边界与文字、强调浅色背景；避免 TDesign 固定深色 active token 在暗色主题中形成伪禁用，同时不改变 primary、danger、disabled 或 loading 状态。
+
 | 页面/共享区域 | 状态 | 后续工作或 Issue |
 | --- | --- | --- |
 | `components/BaseButton/BaseForm/BaseField/BaseLoading` | done | 项目级原语 |

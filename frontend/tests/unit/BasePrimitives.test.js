@@ -1,4 +1,6 @@
 import { mount } from '@vue/test-utils';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   beforeEach, describe, expect, it, vi,
 } from 'vitest';
@@ -76,6 +78,19 @@ describe('BaseButton', () => {
       theme: 'danger',
       variant: 'outline',
     });
+  });
+
+  it('keeps ghost active feedback on readable semantic colors', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/components/BaseButton.vue'),
+      'utf8',
+    );
+    expect(source).toContain(
+      '--td-button-primary-outline-active-bg-color: var(--accent-subtle-color);',
+    );
+    expect(source).toContain(
+      '--td-button-primary-outline-active-border-color: var(--accent-color);',
+    );
   });
 
   it('emits click on tap but not when disabled or loading', async () => {
