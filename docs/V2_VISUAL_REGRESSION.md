@@ -1,6 +1,6 @@
 # V2 全站视觉回归清单
 
-本清单对应 [#346](https://github.com/e-dialect/guantou/issues/346)，用于在 V2 界面分支聚合后进行可重复的人工视觉巡检。当前 `frontend/src/pages.json` 注册 **33 个页面**；测试固定使用 390×844 视口，生成 **53 张截图**：33 个注册路由、4 个核心界面的 16 种主题/身份组合，以及“听”页的 4 种数据状态。
+本清单对应 [#346](https://github.com/e-dialect/guantou/issues/346)，用于在 V2 界面分支聚合后进行可重复的人工视觉巡检。当前 `frontend/src/pages.json` 注册 **33 个页面**；测试固定使用 390×844 视口，生成 **59 张截图**：33 个注册路由、4 个核心界面的 16 种主题/身份组合、“听”页的 4 种数据状态，以及 6 个主题次级旅程。
 
 ## 一键生成
 
@@ -20,7 +20,7 @@ VISUAL_REVIEW_BASE_URL=http://localhost:8012 npm run review:visual:h5
 
 - `output/playwright/v2-visual-review/index.html`
 - `output/playwright/v2-visual-review/manifest.json`
-- `output/playwright/v2-visual-review/{routes,core,states}/`
+- `output/playwright/v2-visual-review/{routes,core,states,themes}/`
 
 这些均是本地验收产物，已加入 `.gitignore`。若 H5 已由外部服务启动，可显式复用：
 
@@ -52,7 +52,9 @@ npm run review:visual:h5
 | 主题中心、装扮、获取、会员与活动 | 5 | #262 / #264 |
 | **注册页面合计** | **33** | — |
 
-核心矩阵额外覆盖“听 / 查 / 录 / 我”在浅色、暗色与访客、登录用户组合下的 16 个首屏；访客进入“录”时以登录恢复页为预期结果。状态矩阵固定覆盖“听”页录音列表的 loading、empty、error、success 四态。
+核心矩阵额外覆盖“听 / 查 / 录 / 我”在浅色、暗色与访客、登录用户组合下的 16 个首屏；访客进入“录”时以登录恢复页为预期结果。状态矩阵固定覆盖“听”页录音列表的 loading、empty、error、success 四态，主题旅程补充局部装扮、获取、会员与活动的暗色或边界状态。
+
+成功夹具使用离线内嵌的 96×96 松绿色 SVG 头像，避免网络波动和透明占位图掩盖身份布局。“我的”注册路由样本则显式返回空头像并检查姓名首字回退；core mine 的登录用户变体继续检查正常图片分支。每张产物会在 `manifest.json` 记录 `avatarState`，便于区分这两种视觉责任。
 
 ## 审阅方法
 

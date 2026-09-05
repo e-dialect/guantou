@@ -34,6 +34,7 @@ function relativeScreenshot(group, filename) {
 
 async function capture(page, {
   actualPathExpected = '',
+  avatarState = 'image',
   filename,
   focus = '',
   group,
@@ -48,7 +49,7 @@ async function capture(page, {
 }) {
   const runtimeIssues = observeRuntime(page);
   await installVisualFixture(page, {
-    focus, persona, state, theme,
+    avatarState, focus, persona, state, theme,
   });
   await openVisualRoute(page, target, { persona });
   await page.waitForTimeout(waitMs);
@@ -62,6 +63,7 @@ async function capture(page, {
   await stableScreenshot(page, { path: screenshot });
   artifacts.push({
     actualPath,
+    avatarState,
     group,
     name,
     persona,
@@ -95,6 +97,7 @@ ROUTE_VISUAL_MATRIX.forEach((entry, index) => {
   test(`route ${String(index + 1).padStart(2, '0')} ${entry.route} · ${issueLabel(entry.issues)}`, async ({ page }) => {
     await capture(page, {
       actualPathExpected: entry.expectedPath || entry.route,
+      avatarState: entry.avatarState,
       filename: `${String(index + 1).padStart(2, '0')}-${entry.slug}-light-${entry.persona}`,
       group: 'routes',
       issues: entry.issues,
@@ -102,6 +105,11 @@ ROUTE_VISUAL_MATRIX.forEach((entry, index) => {
       persona: entry.persona,
       target: entry.target,
     });
+
+    if (entry.avatarState === 'missing') {
+      await expect(page.locator('.avatar--fallback')).toHaveText('视');
+      await expect(page.locator('.avatar--image')).toHaveCount(0);
+    }
   });
 });
 
@@ -120,6 +128,17 @@ CORE_VISUAL_MATRIX.forEach((entry) => {
           target: entry.target,
           theme,
         });
+
+        if (entry.surface === 'mine' && persona === 'member') {
+          const avatar = page.locator('.avatar--image');
+          await expect(avatar).toBeVisible();
+          const image = avatar.locator('img');
+          await expect(image).toHaveAttribute('src', /width=%2296%22/);
+          await expect.poll(() => image.evaluate((element) => ({
+            height: element.naturalHeight,
+            width: element.naturalWidth,
+          }))).toEqual({ height: 96, width: 96 });
+        }
       });
     });
   });

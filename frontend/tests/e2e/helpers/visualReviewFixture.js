@@ -1,5 +1,5 @@
 const TINY_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
-const TINY_AVATAR = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%221%22 height=%221%22/%3E';
+const FIXTURE_AVATAR = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2296%22 height=%2296%22 viewBox=%220 0 96 96%22%3E%3Crect width=%2296%22 height=%2296%22 rx=%2248%22 fill=%22%23e8f3ed%22/%3E%3Ccircle cx=%2248%22 cy=%2237%22 r=%2217%22 fill=%22%23216a4d%22/%3E%3Cpath d=%22M19 86c3-19 14-30 29-30s26 11 29 30%22 fill=%22%23216a4d%22/%3E%3Cpath d=%22M34 38c6-4 11-9 14-16 5 7 10 12 16 15%22 fill=%22none%22 stroke=%22%23a8dfc2%22 stroke-width=%225%22 stroke-linecap=%22round%22/%3E%3C/svg%3E';
 
 const DIALECTS = [
   {
@@ -81,7 +81,7 @@ const RECORDING = {
     id: 12,
     username: 'speaker',
     nickname: '乡音记录者',
-    avatar: TINY_AVATAR,
+    avatar: FIXTURE_AVATAR,
   },
   entry_links: [{
     id: 61,
@@ -96,7 +96,7 @@ const USER = {
   id: 7,
   username: 'visual-reviewer',
   nickname: '视觉巡检员',
-  avatar: TINY_AVATAR,
+  avatar: FIXTURE_AVATAR,
   email: 'review@example.com',
   telephone: '13900000001',
   birthday: '1991-02-03',
@@ -156,8 +156,8 @@ const NOTIFICATION = {
   content: '整理员已核对这份地区读音依据。',
   time: '2026-09-05 10:20',
   unread: true,
-  from: { id: 12, nickname: '莆仙整理员', avatar: TINY_AVATAR },
-  to: { id: 7, nickname: '视觉巡检员', avatar: TINY_AVATAR },
+  from: { id: 12, nickname: '莆仙整理员', avatar: FIXTURE_AVATAR },
+  to: { id: 7, nickname: '视觉巡检员', avatar: FIXTURE_AVATAR },
   target: { url: '/pages/entries/details?id=21' },
 };
 
@@ -189,7 +189,21 @@ function focused(pathname, focus) {
   return Boolean(focus && checks[focus]);
 }
 
-function successPayload(pathname, method, { empty = false } = {}) {
+function profileFixture(response, avatarState) {
+  if (avatarState !== 'missing') return response;
+  return {
+    ...response,
+    user: {
+      ...response.user,
+      avatar: '',
+    },
+  };
+}
+
+function successPayload(pathname, method, {
+  avatarState = 'image',
+  empty = false,
+} = {}) {
   if (pathname === '/site-settings/capabilities') {
     return { version: 1, capabilities: enabledCapabilities, updated_at: '2026-09-05T00:00:00Z' };
   }
@@ -202,7 +216,7 @@ function successPayload(pathname, method, { empty = false } = {}) {
   if (pathname === '/login' && method === 'PUT') {
     return { token: 'visual-review-token', id: 7 };
   }
-  if (pathname === '/users/7') return USER_RESPONSE;
+  if (pathname === '/users/7') return profileFixture(USER_RESPONSE, avatarState);
   if (pathname === '/users/12') return PUBLIC_USER_RESPONSE;
   if (pathname === '/users/recommendations') {
     return paged(empty ? [] : [{
@@ -303,6 +317,7 @@ export function observeRuntime(page) {
 }
 
 export async function installVisualFixture(page, {
+  avatarState = 'image',
   persona = 'guest',
   theme = 'light',
   state = 'success',
@@ -336,6 +351,7 @@ export async function installVisualFixture(page, {
     await route.fulfill({
       status: 200,
       json: successPayload(pathname, request.method(), {
+        avatarState,
         empty: isFocus && state === 'empty',
       }),
     });

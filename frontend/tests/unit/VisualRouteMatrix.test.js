@@ -38,6 +38,13 @@ describe('V2 visual review matrix', () => {
     expect(CORE_VISUAL_MATRIX.length * 2 * 2).toBe(16);
   });
 
+  it('uses one registered route to review the missing-avatar fallback', () => {
+    expect(ROUTE_VISUAL_MATRIX
+      .filter((entry) => entry.avatarState === 'missing')
+      .map((entry) => entry.route))
+      .toEqual(['/pages/users/me']);
+  });
+
   it('keeps loading, empty, error and success as explicit state samples', () => {
     expect(STATE_VISUAL_MATRIX.map((entry) => entry.state).sort()).toEqual([
       'empty', 'error', 'loading', 'success',
