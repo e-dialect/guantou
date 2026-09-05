@@ -10,6 +10,12 @@
 npm run review:visual:h5
 ```
 
+默认使用 8011；若端口被其它任务占用，指定另一端口仍可保持单命令运行，服务和浏览器会自动使用同一地址：
+
+```bash
+VISUAL_REVIEW_BASE_URL=http://localhost:8012 npm run review:visual:h5
+```
+
 命令会自行启动 H5 服务，并将截图、机器可读清单和浏览用联系表写入：
 
 - `output/playwright/v2-visual-review/index.html`
