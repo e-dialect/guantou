@@ -188,7 +188,7 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
 test('account settings stay behind login and use PageShell titles', async ({ page }) => {
   await openMine(page);
   await tap(page.locator('.login-button'));
-  await expect(page.getByText('登录后可以确认地区用法')).toBeVisible();
+  await expect(page.getByText('验证身份后返回「我的」。')).toBeVisible();
 
   await page.goto('/pages/users/settings/information');
   await expect(page).toHaveURL(/\/pages\/login\/login/);
