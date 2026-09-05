@@ -14,6 +14,8 @@ vi.mock('@/services/navigation', async (importOriginal) => {
     goHome: vi.fn(),
     goLogin: vi.fn(),
     goMailSend: vi.fn(),
+    goSearch: vi.fn(),
+    goThemeCenter: vi.fn(),
     goUserEmail: vi.fn(),
     goUserInformation: vi.fn(),
   };
@@ -122,6 +124,8 @@ import {
   goHome,
   goLogin,
   goMailSend,
+  goSearch,
+  goThemeCenter,
   goUserEmail,
   goUserInformation,
 } from '@/services/navigation';
@@ -177,7 +181,10 @@ function mountForm(Page) {
         AppShell: { template: '<main><slot /></main>' },
         TCell: {
           name: 'TCell',
-          props: ['title', 'note', 'arrow', 'hover', 'bordered', 'customStyle', 'ariaLabel'],
+          props: [
+            'title', 'description', 'note', 'arrow', 'hover', 'bordered',
+            'customStyle', 'ariaLabel',
+          ],
           emits: ['click'],
           template: '<button class="t-cell-stub" @click="$emit(\'click\')">{{ title }} {{ note }}</button>',
         },
@@ -517,6 +524,41 @@ describe('mine page logout', () => {
       $off: vi.fn(),
       $emit: vi.fn(),
     };
+  });
+
+  it('uses three TDesign cells for the guest destinations', async () => {
+    app.globalData.id = null;
+    globalThis.uni.getStorageSync = vi.fn(() => '');
+    const wrapper = mountForm(MePage);
+    await flushPromises();
+
+    expect(wrapper.find('.guest-profile').exists()).toBe(true);
+    const shortcuts = wrapper.get('.guest-shortcuts').findAllComponents({ name: 'TCell' });
+    expect(shortcuts).toHaveLength(2);
+    expect(shortcuts[0].props()).toMatchObject({
+      title: '听乡音',
+      description: '先逛逛',
+      ariaLabel: '先去听乡音',
+    });
+    expect(shortcuts[1].props()).toMatchObject({
+      title: '查词条',
+      description: '找一找',
+      ariaLabel: '先去查词条',
+    });
+    const theme = wrapper.get('.guest-theme').getComponent({ name: 'TCell' });
+    expect(theme.props()).toMatchObject({
+      title: '主题中心',
+      note: '默认方言主题',
+      ariaLabel: '打开主题中心，当前 默认方言主题',
+    });
+
+    await shortcuts[0].trigger('click');
+    await shortcuts[1].trigger('click');
+    await theme.trigger('click');
+    expect(goHome).toHaveBeenCalledTimes(1);
+    expect(goSearch).toHaveBeenCalledTimes(1);
+    expect(goThemeCenter).toHaveBeenCalledTimes(1);
+    app.globalData.id = 7;
   });
 
   it('uses a stable avatar fallback and keeps both avatar branches editable', async () => {

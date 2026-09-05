@@ -18,7 +18,7 @@ export const ROUTE_VISUAL_MATRIX = Object.freeze([
     route: '/pages/circles/details', target: '/pages/circles/details?id=3', slug: 'circle-detail', issues: [355], persona: 'guest',
   },
   {
-    route: '/pages/users/me', target: '/pages/users/me', slug: 'mine', issues: [344, 376, 379, 393], persona: 'member', avatarState: 'missing',
+    route: '/pages/users/me', target: '/pages/users/me', slug: 'mine', issues: [344, 376, 379, 393, 394], persona: 'member', avatarState: 'missing',
   },
   {
     route: '/pages/users/onboarding', target: '/pages/users/onboarding?reason=new_user', slug: 'onboarding', issues: [344], persona: 'member',

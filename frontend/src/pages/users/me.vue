@@ -399,49 +399,54 @@
             登录或创建账户
           </BaseButton>
           <view class="guest-shortcuts">
-            <view
+            <t-cell
               class="guest-shortcut pressable"
-              @tap="toHome"
-            >
-              <text class="guest-shortcut__kicker">
-                先逛逛
-              </text>
-              <text class="guest-shortcut__title">
-                听乡音
-              </text>
-              <text class="guest-shortcut__arrow">
-                ↗
-              </text>
-            </view>
-            <view
+              title="听乡音"
+              description="先逛逛"
+              arrow
+              hover
+              :bordered="false"
+              custom-style="min-height: 56px; padding: var(--space-3);"
+              aria-label="先去听乡音"
+              role="button"
+              tabindex="0"
+              @click="toHome"
+              @keydown.enter.space.prevent="toHome"
+            />
+            <t-cell
               class="guest-shortcut pressable"
-              @tap="toSearch"
-            >
-              <text class="guest-shortcut__kicker">
-                找一找
-              </text>
-              <text class="guest-shortcut__title">
-                查词条
-              </text>
-              <text class="guest-shortcut__arrow">
-                ↗
-              </text>
-            </view>
+              title="查词条"
+              description="找一找"
+              arrow
+              hover
+              :bordered="false"
+              custom-style="min-height: 56px; padding: var(--space-3);"
+              aria-label="先去查词条"
+              role="button"
+              tabindex="0"
+              @click="toSearch"
+              @keydown.enter.space.prevent="toSearch"
+            />
           </view>
         </view>
         <view class="menu guest-theme">
           <view class="section-kicker menu-kicker">
             主题
           </view>
-          <view
-            class="menu-item pressable"
-            @tap="toThemeCenter"
-          >
-            <view>主题中心</view>
-            <view class="menu-value">
-              {{ themeLabel }}
-            </view>
-          </view>
+          <t-cell
+            class="guest-theme__action"
+            title="主题中心"
+            :note="themeLabel"
+            arrow
+            hover
+            :bordered="false"
+            custom-style="min-height: 48px; padding: var(--space-3) 0 0; background: transparent;"
+            :aria-label="`打开主题中心，当前 ${themeLabel}`"
+            role="button"
+            tabindex="0"
+            @click="toThemeCenter"
+            @keydown.enter.space.prevent="toThemeCenter"
+          />
         </view>
       </template>
     </view>
@@ -895,34 +900,17 @@ export default {
 }
 
 .guest-shortcut {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 4rpx;
+  --td-cell-bg-color: var(--immersive-surface-color);
+  --td-cell-border-color: transparent;
+  --td-cell-description-color: var(--on-immersive-muted-color);
+  --td-cell-hover-color: var(--immersive-veil-color);
+  --td-cell-right-icon-color: var(--immersive-accent-color);
+  --td-cell-title-color: var(--on-immersive-color);
+
   min-width: 0;
-  padding: 18rpx 20rpx;
   border: 1rpx solid var(--immersive-border-color);
   border-radius: var(--radius-md);
-  background: var(--immersive-surface-color);
-  color: var(--on-immersive-color);
-}
-
-.guest-shortcut__kicker {
-  color: var(--on-immersive-muted-color);
-  font-size: 19rpx;
-}
-
-.guest-shortcut__title {
-  font-size: var(--font-size-sm);
-  font-weight: 800;
-}
-
-.guest-shortcut__arrow {
-  position: absolute;
-  top: 20rpx;
-  right: 18rpx;
-  color: var(--immersive-accent-color);
-  font-size: var(--font-size-sm);
+  overflow: hidden;
 }
 
 .guest-theme {
@@ -930,6 +918,14 @@ export default {
   margin-right: auto;
   margin-left: auto;
   text-align: left;
+}
+
+.guest-theme__action {
+  --td-cell-bg-color: transparent;
+  --td-cell-hover-color: var(--surface-subtle-color);
+  --td-cell-note-color: var(--text-secondary-color);
+  --td-cell-right-icon-color: var(--muted-color);
+  --td-cell-title-color: var(--text-color);
 }
 
 .hero {
