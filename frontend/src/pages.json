@@ -20,87 +20,11 @@
       "style": {}
     },
     {
-      "path": "pages/discovery/index",
-      "style": {}
-    },
-    {
       "path": "pages/circles/index",
       "style": {}
     },
     {
       "path": "pages/circles/details",
-      "style": {}
-    },
-    {
-      "path": "pages/cans/index",
-      "style": {}
-    },
-    {
-      "path": "pages/cans/create",
-      "style": {}
-    },
-    {
-      "path": "pages/cans/drafts",
-      "style": {}
-    },
-    {
-      "path": "pages/cans/library",
-      "style": {}
-    },
-    {
-      "path": "pages/cans/details",
-      "style": {}
-    },
-    {
-      "path": "pages/cans/comments",
-      "style": {}
-    },
-    {
-      "path": "pages/nameplates/details",
-      "style": {}
-    },
-    {
-      "path": "pages/nameplates/comments",
-      "style": {}
-    },
-    {
-      "path": "pages/nameplates/create",
-      "style": {}
-    },
-    {
-      "path": "pages/posts/compose",
-      "style": {}
-    },
-    {
-      "path": "pages/posts/details",
-      "style": {}
-    },
-    {
-      "path": "pages/flavors/index",
-      "style": {}
-    },
-    {
-      "path": "pages/flavors/details",
-      "style": {}
-    },
-    {
-      "path": "pages/packages/details",
-      "style": {}
-    },
-    {
-      "path": "pages/packages/index",
-      "style": {}
-    },
-    {
-      "path": "pages/pronunciations/create",
-      "style": {}
-    },
-    {
-      "path": "pages/shelves/index",
-      "style": {}
-    },
-    {
-      "path": "pages/shelves/details",
       "style": {}
     },
     {
@@ -123,6 +47,10 @@
     },
     {
       "path": "pages/users/contributions",
+      "style": {}
+    },
+    {
+      "path": "pages/users/bookmarks",
       "style": {}
     },
     {

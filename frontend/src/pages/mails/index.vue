@@ -58,7 +58,7 @@
       >
         <text>{{ filter === 'unread' ? '没有未读消息' : '还没有通知' }}</text>
         <text class="state-copy">
-          铭牌支持、评论互动和审核结果会出现在这里。
+          词条补证、地区确认和审核结果会出现在这里。
         </text>
       </view>
       <view

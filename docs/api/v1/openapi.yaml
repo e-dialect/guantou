@@ -1,4719 +1,566 @@
-openapi: 3.1.0
+openapi: 3.0.3
 info:
-  title: 乡声集盒 API
+  title: 乡声集盒 Entry / Recording API
   version: 1.0.0
-  summary: 乡声集盒预期 API v1 契约
   description: |
-    本文件是预期 API v1 的规范性来源，不表示当前实现已经完成。
-    Package 表示规范化写法，Flavor 表示标准化义项，Pronunciation
-    表示某写法在某义项、某方言下的一种读音，Can 表示实际录音证据。
+    当前公开领域契约。Entry 是同一个词及其读音身份，EntrySense 是编号义，
+    Recording 是一次录音；二者通过带角色的 RecordingEntryLink 多对多关联。
+    已退役的 Can、Nameplate、Flavor、Package 与自动选主接口不属于本契约。
   license:
-    name: GNU Affero General Public License v3.0
-    identifier: AGPL-3.0-only
-  x-lifecycle: proposed
+    name: AGPL-3.0-only
+    url: https://www.gnu.org/licenses/agpl-3.0.html
 servers:
   - url: /
-    description: 当前站点根路径
-x-visitor-tracking:
-  request-header: X-Visitor-ID
-  response-header: X-Visitor-ID
-  description: 客户端可传入；缺失时由服务端生成并回写。只用于访问追踪和审计归因，不授予写权限。
 tags:
-  - name: Auth
-    description: 登录与令牌刷新。
-  - name: Users
-    description: 注册、公开资料与本人账号设置。
-  - name: Dialects
-    description: 按需展开的方言关系树与限定名解析。
-  - name: Packages
-    description: 规范化写法资源。
-  - name: Flavors
-    description: 标准化义项及其写法关联。
-  - name: Pronunciations
-    description: 写法、义项和方言三元组上的抽象读音。
-  - name: Cans
-    description: 读音或义项的实际录音证据。
-  - name: Nameplates
-    description: 用户或资料来源对录音提出的、可查询且可追溯的结构化著录主张。
-  - name: Shelves
-    description: 用户维护的收藏集盒。
-  - name: Search
-    description: 聚合搜索、建议词和热门搜索。
-  - name: Files
-    description: 受控文件上传与删除。
-  - name: Announcements
-    description: 公开公告与管理操作。
-  - name: SiteSettings
-    description: 公开站点配置与管理操作。
-  - name: Notifications
-    description: 本人的站内通知与管理员发送操作。
-  - name: Comments
-    description: 录音证据与资料铭牌上的讨论评论（二级评论层级）。
-  - name: Themes
-    description: 公开主题目录，以及当前用户的装扮配置、收藏、搭配与权益。
-  - name: EntriesV2
-    description: 以同一词及读音身份为边界的词条、义项、写法、概念与地区读音。
-  - name: RecordingsV2
-    description: 可独立存在并通过多角色关系关联词条的录音证据。
-  - name: CurationV2
-    description: 整理员权限、旧库待审核候选与争议待办。
-  - name: ProductAnalytics
-    description: 客户端能力降级与不含内容、账号和位置的第一方产品事件。
-
+  - name: Entries
+    description: 词条、编号义和地区读音。
+  - name: Recordings
+    description: 录音及其与词条的多对多关系。
+  - name: Reference
+    description: 写法、概念和不可覆写依据。
+  - name: Curation
+    description: 整理授权、申请、待办和可追溯操作。
+  - name: Platform
+    description: 客户端能力与隐私最小化的产品事件。
+security:
+  - bearerAuth: []
 paths:
-  /login/:
-    post:
-      tags: [Auth]
-      operationId: login
-      summary: 密码登录
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/LoginRequest"
-      responses:
-        "200":
-          description: 登录成功
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AuthToken"
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-
-  /login/refresh/:
-    post:
-      tags: [Auth]
-      operationId: refreshLogin
-      summary: 刷新访问令牌
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: 刷新成功
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AuthToken"
-        "401": { $ref: "#/components/responses/Unauthorized" }
-
-  /login/forget/:
-    get:
-      tags: [Auth]
-      operationId: lookupPasswordResetAccount
-      summary: 按用户名查询找回密码用的脱敏邮箱
-      security: []
-      parameters:
-        - in: query
-          name: username
-          required: true
-          schema: { type: string }
-      responses:
-        "200":
-          description: 账号已绑定邮箱
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  email_masked: { type: string }
-        "404": { $ref: "#/components/responses/NotFound" }
-    post:
-      tags: [Auth]
-      operationId: sendPasswordResetCode
-      summary: 向账号绑定邮箱发送重置验证码
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [username]
-              properties:
-                username: { type: string }
-      responses:
-        "200":
-          description: 请求已受理。未配置 SMTP 的演示环境会额外返回 demo_code。
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  email_masked: { type: string }
-                  retry_after: { type: integer, minimum: 0 }
-                  delivery: { type: string, enum: [demo] }
-                  demo_code: { type: string }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-    put:
-      tags: [Auth]
-      operationId: resetPassword
-      summary: 用邮箱验证码重置密码
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [username, password, code]
-              properties:
-                username: { type: string }
-                password: { type: string }
-                code: { type: string }
-      responses:
-        "200":
-          description: 重置成功
-        "400": { $ref: "#/components/responses/BadRequest" }
-
-  /users/email-code/:
-    post:
-      tags: [Users]
-      operationId: sendEmailCode
-      summary: 发送邮箱验证码
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email, purpose]
-              properties:
-                email: { type: string, format: email }
-                purpose:
-                  type: string
-                  enum: [register, bind, reset_password]
-                  description: register 注册；bind 绑定或更换邮箱；reset_password 找回密码
-      responses:
-        "200":
-          description: 请求已受理。绑定用途下，邮箱已被占用时返回 409。未配置 SMTP 的演示环境会额外返回 demo_code。
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  retry_after: { type: integer, minimum: 0 }
-                  delivery: { type: string, enum: [demo] }
-                  demo_code: { type: string, description: 仅演示环境返回，生产环境不会出现 }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-
-  /users/:
-    get:
-      tags: [Users]
-      operationId: listUsers
-      summary: 搜索公开用户资料
-      security: []
-      parameters:
-        - $ref: "#/components/parameters/Search"
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
-      responses:
-        "200":
-          description: 用户列表
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserPage"
-        "400": { $ref: "#/components/responses/BadRequest" }
-    post:
-      tags: [Users]
-      operationId: registerUser
-      summary: 邮箱注册
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/RegisterRequest"
-      responses:
-        "201":
-          description: 注册成功
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AuthToken"
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "409": { $ref: "#/components/responses/Conflict" }
-
-  /users/me/:
-    get:
-      tags: [Users]
-      operationId: getCurrentUser
-      summary: 获取本人完整资料
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: 本人资料
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserPrivateProfile"
-        "401": { $ref: "#/components/responses/Unauthorized" }
-    patch:
-      tags: [Users]
-      operationId: updateCurrentUser
-      summary: 修改本人资料
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UserUpdate"
-      responses:
-        "200":
-          description: 修改后的资料；若修改了 username，响应会带新 token
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserUpdateResult"
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "409": { $ref: "#/components/responses/Conflict" }
-
-  /users/{user_id}/:
-    parameters:
-      - $ref: "#/components/parameters/UserId"
-    get:
-      tags: [Users]
-      operationId: getUser
-      summary: 获取用户资料与贡献计数
-      security: []
-      responses:
-        "200":
-          description: |
-            `{ user, contribution }`。访客只收到公开计数；
-            登录且路径 id 为本人时，`user` 含私有字段，`contribution` 额外含 `*_uploaded`，
-            并可能返回 `notification`。
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserProfileResponse"
-        "404": { $ref: "#/components/responses/NotFound" }
-    put:
-      tags: [Users]
-      operationId: updateUser
-      summary: 修改本人资料
-      description: |
-        路径 id 必须是当前登录用户。请求体为 `{ user: UserUpdate }`。
-        修改 username 后旧 token 失效，响应返回新 token。
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UserUpdateRequest"
-      responses:
-        "200":
-          description: 修改后的资料与新 token
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserUpdateResult"
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "409":
-          description: 用户名或手机号已被占用
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Error" }
-
-  /users/{user_id}/password/:
-    parameters:
-      - $ref: "#/components/parameters/UserId"
-    put:
-      tags: [Users]
-      operationId: updateUserPassword
-      summary: 修改本人密码
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [oldpassword, newpassword]
-              properties:
-                oldpassword: { type: string, minLength: 1, maxLength: 32 }
-                newpassword: { type: string, minLength: 6, maxLength: 32 }
-      responses:
-        "200":
-          description: 修改成功，返回新 token
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserUpdateResult"
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
-  /users/{user_id}/email/:
-    parameters:
-      - $ref: "#/components/parameters/UserId"
-    put:
-      tags: [Users]
-      operationId: updateUserEmail
-      summary: 绑定或更换邮箱
-      description: 需先用 purpose=bind 领取验证码。
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email, code]
-              properties:
-                email: { type: string, format: email }
-                code: { type: string, minLength: 6, maxLength: 6 }
-      responses:
-        "200":
-          description: 绑定成功
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [user]
-                properties:
-                  user: { $ref: "#/components/schemas/UserPrivateProfile" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
-
-  /dialects/:
-    get:
-      tags: [Dialects]
-      operationId: listDialects
-      summary: 查询方言节点
-      security: []
-      parameters:
-        - name: flat
-          in: query
-          schema: { type: boolean, default: false }
-          description: 为 true 时忽略 parent_id，分页返回全部节点的轻量引用，供选择器按需使用。
-        - name: parent_id
-          in: query
-          schema: { type: integer }
-          description: 只返回指定节点的直接子节点；省略时返回根节点
-        - $ref: "#/components/parameters/Search"
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
-      responses:
-        "200":
-          description: 方言节点列表
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DialectPage"
-        "400": { $ref: "#/components/responses/BadRequest" }
-    post:
-      tags: [Dialects]
-      operationId: createDialect
-      summary: 创建方言节点
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/DialectWrite"
-      responses:
-        "201":
-          description: 已创建
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DialectDetail"
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
-
-  /dialects/resolve/:
-    get:
-      tags: [Dialects]
-      operationId: resolveDialect
-      summary: 解析规范限定名或历史 alias
-      security: []
-      parameters:
-        - name: qualified_code
-          in: query
-          required: true
-          schema: { type: string, example: 闽.莆仙.仙游.游洋 }
-      responses:
-        "200":
-          description: 解析后的稳定节点
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DialectDetail"
-        "404": { $ref: "#/components/responses/NotFound" }
-
-  /dialects/{dialect_id}/:
-    parameters:
-      - $ref: "#/components/parameters/DialectId"
-    get:
-      tags: [Dialects]
-      operationId: getDialect
-      summary: 获取方言节点
-      security: []
-      parameters:
-        - name: expand
-          in: query
-          schema:
-            type: array
-            items: { type: string, enum: [ancestors, children] }
-          style: form
-          explode: false
-      responses:
-        "200":
-          description: 方言节点详情
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DialectDetail"
-        "404": { $ref: "#/components/responses/NotFound" }
-    patch:
-      tags: [Dialects]
-      operationId: updateDialect
-      summary: 修改或重新归类方言节点
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/DialectWrite"
-      responses:
-        "200":
-          description: 修改后的节点
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DialectDetail"
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
-
-  /packages/:
-    get:
-      tags: [Packages]
-      operationId: listPackages
-      summary: 查询写法
-      security: []
-      parameters:
-        - $ref: "#/components/parameters/Search"
-        - name: package_type
-          in: query
-          schema: { $ref: "#/components/schemas/PackageType" }
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
-      responses:
-        "200":
-          description: 写法列表
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PackagePage"
-        "400": { $ref: "#/components/responses/BadRequest" }
-    post:
-      tags: [Packages]
-      operationId: createPackage
-      summary: 提交写法
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/PackageWrite" }
-      responses:
-        "201":
-          description: 已创建
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/PackageDetail" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "409": { $ref: "#/components/responses/Conflict" }
-
-  /packages/{package_id}/:
-    parameters:
-      - $ref: "#/components/parameters/PackageId"
-    get:
-      tags: [Packages]
-      operationId: getPackage
-      summary: 获取写法详情
-      security: []
-      responses:
-        "200":
-          description: 写法详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/PackageDetail" }
-        "404": { $ref: "#/components/responses/NotFound" }
-    patch:
-      tags: [Packages]
-      operationId: updatePackage
-      summary: 修改写法
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/PackageWrite" }
-      responses:
-        "200":
-          description: 修改后的写法
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/PackageDetail" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
-  /flavors/:
-    get:
-      tags: [Flavors]
-      operationId: listFlavors
-      summary: 查询义项
-      security: []
-      parameters:
-        - $ref: "#/components/parameters/Search"
-        - name: package_id
-          in: query
-          schema: { type: integer }
-        - $ref: "#/components/parameters/DialectFilter"
-        - $ref: "#/components/parameters/DialectScope"
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
-      responses:
-        "200":
-          description: 义项列表
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/FlavorPage" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-    post:
-      tags: [Flavors]
-      operationId: createFlavor
-      summary: 提交义项
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/FlavorWrite" }
-      responses:
-        "201":
-          description: 已创建
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/FlavorDetail" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "409": { $ref: "#/components/responses/Conflict" }
-
-  /flavors/{flavor_id}/:
-    parameters:
-      - $ref: "#/components/parameters/FlavorId"
-    get:
-      tags: [Flavors]
-      operationId: getFlavor
-      summary: 获取义项详情
-      security: []
-      responses:
-        "200":
-          description: 义项详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/FlavorDetail" }
-        "404": { $ref: "#/components/responses/NotFound" }
-    patch:
-      tags: [Flavors]
-      operationId: updateFlavor
-      summary: 修改义项
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/FlavorWrite" }
-      responses:
-        "200":
-          description: 修改后的义项
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/FlavorDetail" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
-  /pronunciations/:
-    get:
-      tags: [Pronunciations]
-      operationId: listPronunciations
-      summary: 查询读音
-      security: []
-      parameters:
-        - name: package_id
-          in: query
-          schema: { type: integer }
-        - name: flavor_id
-          in: query
-          schema: { type: integer }
-        - $ref: "#/components/parameters/DialectFilter"
-        - $ref: "#/components/parameters/DialectScope"
-        - name: reading_type
-          in: query
-          schema: { $ref: "#/components/schemas/ReadingType" }
-        - name: status
-          in: query
-          schema: { $ref: "#/components/schemas/PronunciationStatus" }
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
-      responses:
-        "200":
-          description: 读音列表
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/PronunciationPage" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-    post:
-      tags: [Pronunciations]
-      operationId: createPronunciation
-      summary: 提交读音
-      description: package_id 与 flavor_id 必须已建立关联；相同三元组允许多条不同读音。
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/PronunciationWrite" }
-      responses:
-        "201":
-          description: 已创建
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/PronunciationDetail" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "409": { $ref: "#/components/responses/Conflict" }
-
-  /pronunciations/{pronunciation_id}/:
-    parameters:
-      - $ref: "#/components/parameters/PronunciationId"
-    get:
-      tags: [Pronunciations]
-      operationId: getPronunciation
-      summary: 获取读音详情与录音证据
-      security: []
-      responses:
-        "200":
-          description: 读音详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/PronunciationDetail" }
-        "404": { $ref: "#/components/responses/NotFound" }
-    patch:
-      tags: [Pronunciations]
-      operationId: updatePronunciation
-      summary: 修改读音
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/PronunciationWrite" }
-      responses:
-        "200":
-          description: 修改后的读音
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/PronunciationDetail" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
-    delete:
-      tags: [Pronunciations]
-      operationId: deletePronunciation
-      summary: 删除未认证且无引用的读音
-      security:
-        - bearerAuth: []
-      responses:
-        "204": { description: 已删除 }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
-
-  /pronunciations/{pronunciation_id}/transition/:
-    parameters:
-      - $ref: "#/components/parameters/PronunciationId"
-    post:
-      tags: [Pronunciations]
-      operationId: transitionPronunciation
-      summary: 流转读音审核状态
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/PronunciationTransitionRequest" }
-      responses:
-        "200":
-          description: 流转后的读音
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/PronunciationDetail" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
-
-  /cans/:
-    get:
-      tags: [Cans]
-      operationId: listCans
-      summary: 查询罐头
-      security: []
-      parameters:
-        - name: status
-          in: query
-          schema: { $ref: "#/components/schemas/CanStatus" }
-        - name: pronunciation_id
-          in: query
-          schema: { type: integer }
-          description: 通过 active Nameplate 关联的规范读音筛选。
-        - name: flavor_id
-          in: query
-          schema: { type: integer }
-          description: 通过 active Nameplate 的义项主张筛选。
-        - $ref: "#/components/parameters/DialectFilter"
-        - $ref: "#/components/parameters/DialectScope"
-        - name: submitted_dialect_id
-          in: query
-          schema: { type: integer }
-          description: 只筛选装罐时的初始方言提示，不代表规范分类。
-        - name: feed
-          in: query
-          schema:
-            type: string
-            enum: [dialect, following, recommended]
-          description: 首页流式列表场景；recommended 按推荐分值排序并附带推荐理由。
-        - name: mine
-          in: query
-          schema: { type: boolean, default: false }
-        - name: needs_label
-          in: query
-          schema: { type: boolean, default: false }
-        - $ref: "#/components/parameters/Search"
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
-      responses:
-        "200":
-          description: 罐头列表
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CanPage" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-    post:
-      tags: [Cans]
-      operationId: createCan
-      summary: 创建罐头
-      description: initial_nameplate 与罐头必须在同一事务内创建。
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/CanWrite" }
-      responses:
-        "201":
-          description: 已创建
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CanDetail" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-
-  /cans/random/:
-    get:
-      tags: [Cans]
-      operationId: getRandomCan
-      summary: 获取随机公开罐头
-      security: []
-      parameters:
-        - $ref: "#/components/parameters/DialectFilter"
-        - $ref: "#/components/parameters/DialectScope"
-      responses:
-        "200":
-          description: 随机罐头
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CanDetail" }
-        "404": { $ref: "#/components/responses/NotFound" }
-
-  /cans/{can_id}/:
-    parameters:
-      - $ref: "#/components/parameters/CanId"
-    get:
-      tags: [Cans]
-      operationId: getCan
-      summary: 获取罐头详情
-      security: []
-      responses:
-        "200":
-          description: 罐头详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CanDetail" }
-        "404": { $ref: "#/components/responses/NotFound" }
-    patch:
-      tags: [Cans]
-      operationId: updateCan
-      summary: 修改本人罐头
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/CanUpdate" }
-      responses:
-        "200":
-          description: 修改后的罐头
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CanDetail" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-    delete:
-      tags: [Cans]
-      operationId: deleteCan
-      summary: 删除本人罐头
-      security:
-        - bearerAuth: []
-      responses:
-        "204": { description: 已删除 }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
-  /cans/{can_id}/transition/:
-    parameters:
-      - $ref: "#/components/parameters/CanId"
-    post:
-      tags: [Cans]
-      operationId: transitionCan
-      summary: 流转罐头状态
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/CanTransitionRequest" }
-      responses:
-        "200":
-          description: 流转后的罐头
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CanDetail" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
-
-  /cans/{can_id}/nameplates/:
-    parameters:
-      - $ref: "#/components/parameters/CanId"
-    get:
-      tags: [Nameplates]
-      operationId: listCanNameplates
-      summary: 获取罐头的全部铭牌
-      security: []
-      parameters:
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
-      responses:
-        "200":
-          description: 该罐头的铭牌分页列表
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/NameplatePage" }
-        "404": { $ref: "#/components/responses/NotFound" }
-
-  /nameplates/:
-    get:
-      tags: [Nameplates]
-      operationId: listNameplates
-      summary: 查询资料铭牌
-      security: []
-      parameters:
-        - name: can_id
-          in: query
-          schema: { type: integer }
-        - name: package_id
-          in: query
-          schema: { type: integer }
-        - name: flavor_id
-          in: query
-          schema: { type: integer }
-        - $ref: "#/components/parameters/DialectFilter"
-        - $ref: "#/components/parameters/DialectScope"
-        - name: pronunciation_id
-          in: query
-          schema: { type: integer }
-        - name: creator_id
-          in: query
-          schema: { type: integer }
-        - name: source_type
-          in: query
-          schema: { $ref: "#/components/schemas/NameplateSourceType" }
-        - name: status
-          in: query
-          schema: { $ref: "#/components/schemas/NameplateStatus" }
-        - name: is_primary
-          in: query
-          schema: { type: boolean }
-        - $ref: "#/components/parameters/Search"
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
-      responses:
-        "200":
-          description: 铭牌分页列表
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/NameplatePage" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-    post:
-      tags: [Nameplates]
-      operationId: createNameplate
-      summary: 创建一条带来源的资料主张
-      description: can_id 必填；至少提交一个规范外键或原样内容字段。若 pronunciation_id 与其他外键矛盾，返回 409。
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/NameplateWrite" }
-      responses:
-        "201":
-          description: 已创建
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/NameplateDetail" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "409": { $ref: "#/components/responses/Conflict" }
-
-  /nameplates/{nameplate_id}/:
-    parameters:
-      - $ref: "#/components/parameters/NameplateId"
-    get:
-      tags: [Nameplates]
-      operationId: getNameplate
-      summary: 获取铭牌详情
-      security: []
-      responses:
-        "200":
-          description: 铭牌详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/NameplateDetail" }
-        "404": { $ref: "#/components/responses/NotFound" }
-    patch:
-      tags: [Nameplates]
-      operationId: updateNameplate
-      summary: 修改尚未被引用的本人铭牌
-      description: 已获支持、已成为主铭牌或已被引用的语义内容不可原地修改；使用 supersedes_id 创建修订记录。
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/NameplateUpdate" }
-      responses:
-        "200":
-          description: 修改后的铭牌
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/NameplateDetail" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
-    delete:
-      tags: [Nameplates]
-      operationId: deleteNameplate
-      summary: 撤回本人铭牌
-      description: 对已公开或被引用的铭牌执行软撤回并保留来源 tombstone；只有未公开且无引用的草稿可物理删除。
-      security:
-        - bearerAuth: []
-      responses:
-        "204": { description: 已撤回；历史来源和引用关系继续保留 }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
-
-  /nameplates/{nameplate_id}/support/:
-    parameters:
-      - $ref: "#/components/parameters/NameplateId"
-    put:
-      tags: [Nameplates]
-      operationId: supportNameplate
-      summary: 支持铭牌
-      description: 仅 active 铭牌可被支持；幂等操作，重复调用不会重复增加权重。
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: 当前铭牌及支持状态
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/NameplateDetail" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-    delete:
-      tags: [Nameplates]
-      operationId: unsupportNameplate
-      summary: 取消支持铭牌
-      security:
-        - bearerAuth: []
-      responses:
-        "204": { description: 已取消；此前未支持时结果相同 }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-
-  /comments/:
-    get:
-      tags: [Comments]
-      operationId: listComments
-      summary: 列出顶层评论或某条一级评论下的回复
-      description: >-
-        二级评论层级：不带 parent_id 时返回顶层评论（parent 为空）并按时间倒序，
-        附带 reply_count；带 parent_id 时返回该一级评论下的全部回复（二层平铺、时间正序）。
-        仅在不带 parent_id 的顶层列表，can_id 与 nameplate_id 才必须且只能提供一个；
-        带 parent_id 时无需提供目标。游客可浏览公开罐头的评论（见 #202）。
-      security: []
-      parameters:
-        - name: can_id
-          in: query
-          schema: { type: integer }
-          description: 罐头 id；不带 parent_id 的顶层列表时与 nameplate_id 二选一。
-        - name: nameplate_id
-          in: query
-          schema: { type: integer }
-          description: 铭牌 id；不带 parent_id 的顶层列表时与 can_id 二选一。
-        - name: parent_id
-          in: query
-          schema: { type: integer }
-          description: 一级评论 id；提供时返回其下的回复列表，且无需 can_id/nameplate_id。
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
-      responses:
-        "200":
-          description: 评论分页列表
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CommentPage" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-    post:
-      tags: [Comments]
-      operationId: createComment
-      summary: 发表评论或回复
-      description: >-
-        顶层评论提交 can_id 或 nameplate_id 与 content；回复提交 reply_to_id（被直接
-        回复的评论 id，可为一级评论或另一条回复）与 content，后端据此推导所属一级评论
-        parent 与展示用 reply_to。
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/CommentWrite" }
-      responses:
-        "201":
-          description: 已创建
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Comment" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-
-  /comments/{comment_id}/:
-    parameters:
-      - name: comment_id
-        in: path
-        required: true
-        schema: { type: integer }
-    get:
-      tags: [Comments]
-      operationId: getComment
-      summary: 获取单条评论
-      security: []
-      responses:
-        "200":
-          description: 评论详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Comment" }
-        "404": { $ref: "#/components/responses/NotFound" }
-    put:
-      tags: [Comments]
-      operationId: updateComment
-      summary: 修改本人评论正文
-      description: 目标（can/nameplate/parent/reply_to）创建后不可修改；仅本人可改正文，故只接受 content。
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/CommentUpdate" }
-      responses:
-        "200":
-          description: 修改后的评论
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Comment" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-    delete:
-      tags: [Comments]
-      operationId: deleteComment
-      summary: 删除本人评论
-      description: 删除顶层评论会级联移除其下回复；删除回复仅移除该条。
-      security:
-        - bearerAuth: []
-      responses:
-        "204": { description: 已删除 }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-
-  /comments/{comment_id}/like/:
-    parameters:
-      - name: comment_id
-        in: path
-        required: true
-        schema: { type: integer }
-    put:
-      tags: [Comments]
-      operationId: likeComment
-      summary: 点赞评论
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: 当前点赞状态
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CommentLike" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-    delete:
-      tags: [Comments]
-      operationId: unlikeComment
-      summary: 取消点赞评论
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: 当前点赞状态
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CommentLike" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-
-  /shelves/:
-    get:
-      tags: [Shelves]
-      operationId: listShelves
-      summary: 查询集盒
-      security: []
-      parameters:
-        - $ref: "#/components/parameters/Search"
-        - name: shelf_type
-          in: query
-          schema: { type: string, enum: [official, user, campaign] }
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
-      responses:
-        "200":
-          description: 集盒列表
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ShelfPage" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-    post:
-      tags: [Shelves]
-      operationId: createShelf
-      summary: 创建集盒
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/ShelfWrite" }
-      responses:
-        "201":
-          description: 已创建
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ShelfDetail" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-
-  /shelves/{shelf_id}/:
-    parameters:
-      - $ref: "#/components/parameters/ShelfId"
-    get:
-      tags: [Shelves]
-      operationId: getShelf
-      summary: 获取集盒详情
-      security: []
-      responses:
-        "200":
-          description: 集盒详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ShelfDetail" }
-        "404": { $ref: "#/components/responses/NotFound" }
-    patch:
-      tags: [Shelves]
-      operationId: updateShelf
-      summary: 修改本人集盒
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/ShelfWrite" }
-      responses:
-        "200":
-          description: 修改后的集盒
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ShelfDetail" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-    delete:
-      tags: [Shelves]
-      operationId: deleteShelf
-      summary: 删除本人集盒
-      security:
-        - bearerAuth: []
-      responses:
-        "204": { description: 已删除 }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
-  /search/:
-    get:
-      tags: [Search]
-      operationId: aggregateSearch
-      summary: 聚合搜索
-      security: []
-      parameters:
-        - name: q
-          in: query
-          required: true
-          schema: { type: string, minLength: 1 }
-        - $ref: "#/components/parameters/Limit"
-      responses:
-        "200":
-          description: 分组搜索结果
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/SearchResponse" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-
-  /search/suggest/:
-    get:
-      tags: [Search]
-      operationId: suggestSearch
-      summary: 搜索联想
-      security: []
-      parameters:
-        - name: q
-          in: query
-          schema: { type: string }
-          description: trim 后为空返回空列表；超过 50 个字符时截断到 50。
-        - name: limit
-          in: query
-          schema: { type: string, default: "5" }
-          description: 每类结果上限；解析后 clamp 到 1～10，非数字回退为 5。
-      responses:
-        "200":
-          description: 联想结果
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/SearchSuggestionResponse" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-
-  /search/hot/:
-    get:
-      tags: [Search]
-      operationId: listHotSearches
-      summary: 获取热词
-      description: 同一登录用户或匿名 visitor 对同一关键词每日只计一次；统计失败不影响聚合搜索。
-      security: []
-      parameters:
-        - $ref: "#/components/parameters/Limit"
-      responses:
-        "200":
-          description: 热词列表
-          content:
-            application/json:
-              schema:
-                type: array
-                items: { $ref: "#/components/schemas/HotSearch" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-
-  /files/:
-    post:
-      tags: [Files]
-      operationId: uploadFile
-      summary: 上传音频、图片或视频
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              required: [file]
-              properties:
-                file: { type: string, format: binary }
-      responses:
-        "201":
-          description: 文件资源
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/FileResource" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "413": { $ref: "#/components/responses/PayloadTooLarge" }
-        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
-
-  /files/{file_id}/:
-    parameters:
-      - name: file_id
-        in: path
-        required: true
-        schema: { type: integer }
-    delete:
-      tags: [Files]
-      operationId: deleteFile
-      summary: 删除本人上传且未被引用的文件
-      security:
-        - bearerAuth: []
-      responses:
-        "204": { description: 已删除 }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
-
-  /announcements/:
-    get:
-      tags: [Announcements]
-      operationId: listAnnouncements
-      summary: 查询公开公告
-      security: []
-      parameters:
-        - $ref: "#/components/parameters/Search"
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
-      responses:
-        "200":
-          description: 公告列表
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/AnnouncementPage" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-    post:
-      tags: [Announcements]
-      operationId: createAnnouncement
-      summary: 创建公告
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/AnnouncementWrite" }
-      responses:
-        "201":
-          description: 已创建
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Announcement" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
-  /announcements/{announcement_id}/:
-    parameters:
-      - name: announcement_id
-        in: path
-        required: true
-        schema: { type: integer }
-    get:
-      tags: [Announcements]
-      operationId: getAnnouncement
-      summary: 获取公告
-      security: []
-      responses:
-        "200":
-          description: 公告详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Announcement" }
-        "404": { $ref: "#/components/responses/NotFound" }
-    patch:
-      tags: [Announcements]
-      operationId: updateAnnouncement
-      summary: 修改公告（包括可见性）
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/AnnouncementWrite" }
-      responses:
-        "200":
-          description: 修改后的公告
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Announcement" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-    delete:
-      tags: [Announcements]
-      operationId: deleteAnnouncement
-      summary: 删除公告
-      security:
-        - bearerAuth: []
-      responses:
-        "204": { description: 已删除 }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
-  /site-settings/{setting_key}/:
-    parameters:
-      - name: setting_key
-        in: path
-        required: true
-        schema:
-          type: string
-          enum: [announcements, featured-announcements, carousel]
-    get:
-      tags: [SiteSettings]
-      operationId: getSiteSetting
-      summary: 获取公开站点配置
-      security: []
-      responses:
-        "200":
-          description: 配置值
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/SiteSetting" }
-        "404": { $ref: "#/components/responses/NotFound" }
-    put:
-      tags: [SiteSettings]
-      operationId: replaceSiteSetting
-      summary: 替换站点配置
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/SiteSetting" }
-      responses:
-        "200":
-          description: 保存后的配置
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/SiteSetting" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
-  /site-settings/capabilities:
-    get:
-      tags: [SiteSettings]
-      operationId: getClientCapabilities
-      summary: 获取服务端远程能力开关
-      description: 客户端必须与自身编译能力取交集；服务端 true 不能启用构建中不存在的能力。
-      security: []
-      responses:
-        "200":
-          description: 完整能力开关及短缓存建议
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CapabilityConfig" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-
-  /product-events/:
-    post:
-      tags: [ProductAnalytics]
-      operationId: recordProductEvents
-      summary: 记录隐私最小化的核心产品事件
-      description: |
-        可匿名调用。禁止提交搜索原文、内容 ID、账号资料、方言限定码、录音内容、经纬度或设备位置。
-        session_id 只用于生成按日变化的服务端散列，不原样落库；单批最多 50 条。
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              oneOf:
-                - $ref: "#/components/schemas/ProductEventWrite"
-                - $ref: "#/components/schemas/ProductEventBatchWrite"
-      responses:
-        "202":
-          description: 事件已受理
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [accepted]
-                properties:
-                  accepted: { type: integer, minimum: 1, maximum: 50 }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-
-  /notifications/:
-    get:
-      tags: [Notifications]
-      operationId: listNotifications
-      summary: 获取本人的通知
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: unread
-          in: query
-          schema: { type: boolean }
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
-      responses:
-        "200":
-          description: 通知列表
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/NotificationPage" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-    post:
-      tags: [Notifications]
-      operationId: sendNotification
-      summary: 发送通知
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/NotificationWrite" }
-      responses:
-        "201":
-          description: 已发送
-          content:
-            application/json:
-              schema:
-                type: array
-                items: { $ref: "#/components/schemas/Notification" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
-  /notifications/{notification_id}/:
-    parameters:
-      - name: notification_id
-        in: path
-        required: true
-        schema: { type: integer }
-    get:
-      tags: [Notifications]
-      operationId: getNotification
-      summary: 获取通知详情
-      description: GET 不产生标记已读等副作用。
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: 通知详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Notification" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-
-  /notifications/read/:
-    put:
-      tags: [Notifications]
-      operationId: markNotificationsRead
-      summary: 幂等地标记通知已读
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [notification_ids]
-              properties:
-                notification_ids:
-                  type: array
-                  minItems: 1
-                  uniqueItems: true
-                  items: { type: integer }
-      responses:
-        "204": { description: 已标记 }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-
-  /themes/:
-    get:
-      tags: [Themes]
-      operationId: listThemes
-      summary: 获取全局主题目录
-      security: []
-      parameters:
-        - { $ref: "#/components/parameters/ThemeKeyword" }
-        - { $ref: "#/components/parameters/ThemePrivilege" }
-        - { $ref: "#/components/parameters/ThemeStyleTag" }
-        - { $ref: "#/components/parameters/ThemeDialectTag" }
-        - { $ref: "#/components/parameters/ThemeStatus" }
-        - { $ref: "#/components/parameters/ThemeSort" }
-        - { $ref: "#/components/parameters/ThemeTerminal" }
-        - { $ref: "#/components/parameters/ThemePage" }
-        - { $ref: "#/components/parameters/ThemePageSize" }
-      responses:
-        "200":
-          description: 不含 style_json 的分页主题目录
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ThemeCatalogPage" }
-
-  /themes/{theme_id}/:
-    parameters:
-      - { $ref: "#/components/parameters/ThemeId" }
-    get:
-      tags: [Themes]
-      operationId: getTheme
-      summary: 获取全局主题详情
-      security: []
-      responses:
-        "200":
-          description: 包含 style_json 的主题详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ThemeItemDetail" }
-        "404": { $ref: "#/components/responses/NotFound" }
-
-  /decorations/:
-    get:
-      tags: [Themes]
-      operationId: listDecorations
-      summary: 获取局部装扮目录
-      security: []
-      parameters:
-        - { $ref: "#/components/parameters/ThemeKeyword" }
-        - { $ref: "#/components/parameters/ThemePrivilege" }
-        - { $ref: "#/components/parameters/ThemeStyleTag" }
-        - { $ref: "#/components/parameters/ThemeDialectTag" }
-        - { $ref: "#/components/parameters/ThemeStatus" }
-        - { $ref: "#/components/parameters/ThemeSort" }
-        - { $ref: "#/components/parameters/ThemeTerminal" }
-        - { $ref: "#/components/parameters/ThemeComponentType" }
-        - { $ref: "#/components/parameters/ThemePage" }
-        - { $ref: "#/components/parameters/ThemePageSize" }
-      responses:
-        "200":
-          description: 不含 style_json 的分页装扮目录
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/DecorationCatalogPage" }
-
-  /decorations/{decoration_id}/:
-    parameters:
-      - { $ref: "#/components/parameters/DecorationId" }
-    get:
-      tags: [Themes]
-      operationId: getDecoration
-      summary: 获取局部装扮详情
-      security: []
-      responses:
-        "200":
-          description: 包含 style_json 的装扮详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/DecorationItemDetail" }
-        "404": { $ref: "#/components/responses/NotFound" }
-
-  /users/theme/config/:
-    get:
-      tags: [Themes]
-      operationId: getUserThemeConfig
-      summary: 获取当前用户的生效装扮配置
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: 当前配置
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/UserThemeConfig" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-    put:
-      tags: [Themes]
-      operationId: replaceUserThemeConfig
-      summary: 全量更新当前用户的装扮配置
-      security:
-        - bearerAuth: []
-      parameters:
-        - { $ref: "#/components/parameters/ThemePlatform" }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/UserThemeConfigWrite" }
-      responses:
-        "200":
-          description: 服务端按目录、终端与权益清洗后的配置
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/UserThemeConfig" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-
-  /users/theme/apply/:
-    post:
-      tags: [Themes]
-      operationId: applyThemeItem
-      summary: 应用一件全局主题或局部装扮
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              allOf:
-                - { $ref: "#/components/schemas/ThemeItemSelection" }
-                - type: object
-                  properties:
-                    platform: { $ref: "#/components/schemas/ThemePlatform" }
-      responses:
-        "200":
-          description: 应用后的完整配置
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/UserThemeConfig" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-
-  /users/theme/collects/:
-    get:
-      tags: [Themes]
-      operationId: listThemeCollects
-      summary: 获取当前用户的装扮收藏
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: 收藏列表
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [collect_list]
-                properties:
-                  collect_list:
-                    type: array
-                    items: { $ref: "#/components/schemas/UserThemeCollect" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-    post:
-      tags: [Themes]
-      operationId: createThemeCollect
-      summary: 收藏一件主题或装扮
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/ThemeItemSelection" }
-      responses:
-        "201":
-          description: 收藏已存在或已创建
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/UserThemeCollect" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-
-  /users/theme/collects/{item_id}/:
-    parameters:
-      - { $ref: "#/components/parameters/ThemeItemId" }
-    delete:
-      tags: [Themes]
-      operationId: deleteThemeCollect
-      summary: 取消收藏
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: item_type
-          in: query
-          required: true
-          schema: { $ref: "#/components/schemas/ThemeItemType" }
-      responses:
-        "204": { description: 收藏已取消；不存在时同样幂等返回 }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-
-  /users/theme/mixes/:
-    get:
-      tags: [Themes]
-      operationId: listThemeMixes
-      summary: 获取当前用户保存的搭配
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: 搭配列表，最多十套
-          content:
-            application/json:
-              schema:
-                type: array
-                maxItems: 10
-                items: { $ref: "#/components/schemas/UserThemeMix" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-    post:
-      tags: [Themes]
-      operationId: createThemeMix
-      summary: 保存一套搭配
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/UserThemeMixWrite" }
-      responses:
-        "201":
-          description: 搭配已创建
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/UserThemeMix" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-
-  /users/theme/mixes/{mix_id}/:
-    parameters:
-      - { $ref: "#/components/parameters/ThemeMixId" }
-    patch:
-      tags: [Themes]
-      operationId: renameThemeMix
-      summary: 重命名保存的搭配
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [mix_name]
-              properties:
-                mix_name: { type: string, minLength: 1, maxLength: 20 }
-      responses:
-        "200":
-          description: 已重命名的搭配
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/UserThemeMix" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-    delete:
-      tags: [Themes]
-      operationId: deleteThemeMix
-      summary: 删除保存的搭配
-      security:
-        - bearerAuth: []
-      responses:
-        "204": { description: 搭配已删除 }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-
-  /users/theme/events/:
-    post:
-      tags: [Themes]
-      operationId: recordThemeEvent
-      summary: 记录主题中心服务端事件
-      description: 可匿名调用；服务端从 token 或 X-Visitor-ID 归因，客户端不得提交用户标识。
-      security: []
-      parameters:
-        - name: X-Visitor-ID
-          in: header
-          required: false
-          schema: { type: string, maxLength: 64 }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [event]
-              properties:
-                event: { type: string, minLength: 1, maxLength: 64 }
-                item_id: { type: string, maxLength: 64 }
-      responses:
-        "202":
-          description: 事件已受理
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [ok]
-                properties:
-                  ok: { type: boolean, const: true }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-
-  /users/theme/entitlement/:
-    get:
-      tags: [Themes]
-      operationId: getThemeEntitlement
-      summary: 获取当前用户的主题权益
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: 当前权益
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/UserThemeEntitlement" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-    post:
-      tags: [Themes]
-      operationId: claimThemeEntitlement
-      summary: 领取活动或创作者装扮
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/ThemeItemSelection" }
-      responses:
-        "200":
-          description: 更新后的权益
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/UserThemeEntitlement" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-
   /entries/:
     get:
-      tags: [EntriesV2]
-      operationId: listEntriesV2
-      summary: 以词条为主结果检索写法、意义、概念和读音
+      tags: [Entries]
+      operationId: listEntries
+      summary: 按词条优先查询
       security: []
       parameters:
-        - $ref: "#/components/parameters/Search"
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
-        - { name: writing, in: query, schema: { type: string }, description: 精确写法 }
-        - { name: writing_type, in: query, schema: { type: string } }
-        - { name: source_type, in: query, schema: { type: string } }
-        - { name: source, in: query, schema: { type: string }, description: 出处关键词 }
-        - { name: status, in: query, schema: { type: string } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: dialect_id, in: query, schema: { type: integer } }
+        - { name: dialect_scope, in: query, schema: { type: string, enum: [exact, subtree] } }
+        - { name: has_recording, in: query, schema: { type: boolean } }
         - { name: ipa, in: query, schema: { type: string } }
         - { name: romanization, in: query, schema: { type: string } }
-        - { name: concept, in: query, schema: { type: string }, description: 概念 ID 或代码 }
-        - { name: has_recording, in: query, schema: { type: boolean } }
-        - { name: dialect_id, in: query, schema: { type: integer } }
-        - { name: dialect_scope, in: query, schema: { type: string, enum: [exact, subtree], default: exact } }
       responses:
-        "200":
-          description: 独立词条分页；同形不同音义不会被合并
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/EntryV2Page" }
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "200": { description: 词条列表, content: { application/json: { schema: { $ref: "#/components/schemas/EntryPage" } } } }
     post:
-      tags: [EntriesV2]
-      operationId: createEntryV2
-      summary: 提交初稿词条
-      security: [{ bearerAuth: [] }]
+      tags: [Entries]
+      operationId: createEntry
+      summary: 创建词条初稿
       requestBody:
         required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/EntryV2Write" }
+        content: { application/json: { schema: { $ref: "#/components/schemas/EntryV2" } } }
       responses:
-        "201":
-          description: 初稿词条及不可覆写的原始证据
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/EntryV2" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-
+        "201": { description: 已创建, content: { application/json: { schema: { $ref: "#/components/schemas/EntryV2" } } } }
+  /entries/bookmarks/:
+    get:
+      tags: [Entries]
+      operationId: listEntryBookmarks
+      summary: 获取我的词条收藏
+      responses:
+        "200": { description: 收藏的词条, content: { application/json: { schema: { $ref: "#/components/schemas/EntryPage" } } } }
   /entries/{entry_id}/:
     parameters:
-      - { name: entry_id, in: path, required: true, schema: { type: integer } }
+      - { $ref: "#/components/parameters/EntryId" }
     get:
-      tags: [EntriesV2]
-      operationId: getEntryV2
-      summary: 获取词条、分义、写法、概念、地区读音与录音概况
+      tags: [Entries]
+      operationId: getEntry
+      summary: 获取词条详情
       security: []
       responses:
-        "200":
-          description: 词条详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/EntryV2" }
-        "404": { $ref: "#/components/responses/NotFound" }
+        "200": { description: 词条详情, content: { application/json: { schema: { $ref: "#/components/schemas/EntryV2" } } } }
     patch:
-      tags: [EntriesV2]
-      operationId: updateEntryV2
-      summary: 由贡献者或词条整理员修订词条
-      security: [{ bearerAuth: [] }]
+      tags: [Entries]
+      operationId: updateEntry
+      summary: 修订词条
       requestBody:
         required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/EntryV2Write" }
+        content: { application/json: { schema: { $ref: "#/components/schemas/EntryV2" } } }
       responses:
-        "200":
-          description: 修订后的词条；新的原始材料追加为证据
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/EntryV2" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-
+        "200": { description: 已更新, content: { application/json: { schema: { $ref: "#/components/schemas/EntryV2" } } } }
+  /entries/{entry_id}/bookmark/:
+    parameters:
+      - { $ref: "#/components/parameters/EntryId" }
+    put:
+      tags: [Entries]
+      operationId: bookmarkEntry
+      summary: 收藏词条
+      responses:
+        "200": { description: 收藏状态, content: { application/json: { schema: { $ref: "#/components/schemas/BookmarkResult" } } } }
+    delete:
+      tags: [Entries]
+      operationId: unbookmarkEntry
+      summary: 取消收藏词条
+      responses:
+        "200": { description: 收藏状态, content: { application/json: { schema: { $ref: "#/components/schemas/BookmarkResult" } } } }
   /entry-senses/:
     get:
-      tags: [EntriesV2]
-      operationId: listEntrySensesV2
-      summary: 查询词条编号义项
+      tags: [Entries]
+      operationId: listEntrySenses
+      summary: 查询编号义
       security: []
-      parameters:
-        - { name: entry_id, in: query, schema: { type: integer } }
-        - { name: concept, in: query, schema: { type: string } }
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
       responses:
-        "200":
-          description: 义项分页
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/EntrySenseV2Page" }
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "200": { description: 编号义列表, content: { application/json: { schema: { $ref: "#/components/schemas/EntrySensePage" } } } }
     post:
-      tags: [EntriesV2]
-      operationId: createEntrySenseV2
-      summary: 为词条补充分义
-      security: [{ bearerAuth: [] }]
+      tags: [Entries]
+      operationId: createEntrySense
+      summary: 补充编号义
       requestBody:
         required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/EntrySenseV2Write" }
+        content: { application/json: { schema: { $ref: "#/components/schemas/EntrySenseV2" } } }
       responses:
-        "201":
-          description: 新义项
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/EntrySenseV2" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
+        "201": { description: 已创建, content: { application/json: { schema: { $ref: "#/components/schemas/EntrySenseV2" } } } }
   /entry-senses/{sense_id}/:
     parameters:
-      - { name: sense_id, in: path, required: true, schema: { type: integer } }
+      - { $ref: "#/components/parameters/SenseId" }
     get:
-      tags: [EntriesV2]
-      operationId: getEntrySenseV2
-      summary: 获取词条义项
+      tags: [Entries]
+      operationId: getEntrySense
+      summary: 获取编号义
       security: []
       responses:
-        "200":
-          description: 义项详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/EntrySenseV2" }
-        "404": { $ref: "#/components/responses/NotFound" }
+        "200": { description: 编号义, content: { application/json: { schema: { $ref: "#/components/schemas/EntrySenseV2" } } } }
     patch:
-      tags: [EntriesV2]
-      operationId: updateEntrySenseV2
-      summary: 修订词条义项或追加概念关系
-      security: [{ bearerAuth: [] }]
+      tags: [Entries]
+      operationId: updateEntrySense
+      summary: 修订编号义
       requestBody:
         required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/EntrySenseV2Write" }
+        content: { application/json: { schema: { $ref: "#/components/schemas/EntrySenseV2" } } }
       responses:
-        "200":
-          description: 修订后的义项
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/EntrySenseV2" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
+        "200": { description: 已更新, content: { application/json: { schema: { $ref: "#/components/schemas/EntrySenseV2" } } } }
   /writing-forms/:
     get:
-      tags: [EntriesV2]
-      operationId: listWritingFormsV2
-      summary: 查询可见词条的写法
-      security: []
-      parameters:
-        - $ref: "#/components/parameters/Search"
-        - { name: form_type, in: query, schema: { type: string } }
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
-      responses:
-        "200":
-          description: 写法分页
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/WritingFormV2Page" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-
-  /writing-forms/{writing_id}/:
-    parameters:
-      - { name: writing_id, in: path, required: true, schema: { type: integer } }
-    get:
-      tags: [EntriesV2]
-      operationId: getWritingFormV2
-      summary: 获取写法
+      tags: [Reference]
+      operationId: listWritingForms
+      summary: 查询写法
       security: []
       responses:
-        "200":
-          description: 写法详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/WritingFormV2" }
-        "404": { $ref: "#/components/responses/NotFound" }
-
+        "200": { description: 写法列表, content: { application/json: { schema: { type: object } } } }
   /concepts/:
     get:
-      tags: [EntriesV2]
-      operationId: listConceptsV2
-      summary: 查询 WALK、RUN 等跨词条抽象概念
-      security: []
-      parameters:
-        - $ref: "#/components/parameters/Search"
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
-      responses:
-        "200":
-          description: 概念分页；概念只关联词条，不触发合并
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ConceptV2Page" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-
-  /concepts/{concept_id}/:
-    parameters:
-      - { name: concept_id, in: path, required: true, schema: { type: integer } }
-    get:
-      tags: [EntriesV2]
-      operationId: getConceptV2
-      summary: 获取抽象概念
+      tags: [Reference]
+      operationId: listConcepts
+      summary: 查询抽象概念
       security: []
       responses:
-        "200":
-          description: 概念详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ConceptV2" }
-        "404": { $ref: "#/components/responses/NotFound" }
-
+        "200": { description: 概念列表, content: { application/json: { schema: { type: object } } } }
   /pronunciation-variants/:
     get:
-      tags: [EntriesV2]
-      operationId: listPronunciationVariantsV2
-      summary: 查询词条在不同地区的读音变化
+      tags: [Entries]
+      operationId: listPronunciationVariants
+      summary: 查询地区读音
       security: []
-      parameters:
-        - { name: entry_id, in: query, schema: { type: integer } }
-        - { name: dialect_id, in: query, schema: { type: integer } }
-        - { name: dialect_scope, in: query, schema: { type: string, enum: [exact, subtree], default: exact } }
-        - { name: ipa, in: query, schema: { type: string } }
-        - { name: romanization, in: query, schema: { type: string } }
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
       responses:
-        "200":
-          description: 地区读音分页
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/PronunciationVariantV2Page" }
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "200": { description: 地区读音列表, content: { application/json: { schema: { $ref: "#/components/schemas/PronunciationVariantPage" } } } }
     post:
-      tags: [EntriesV2]
-      operationId: createPronunciationVariantV2
-      summary: 补充词条地区读音
-      security: [{ bearerAuth: [] }]
+      tags: [Entries]
+      operationId: createPronunciationVariant
+      summary: 补充地区读音
       requestBody:
         required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/PronunciationVariantV2Write" }
+        content: { application/json: { schema: { $ref: "#/components/schemas/PronunciationVariantV2" } } }
       responses:
-        "201":
-          description: 地区读音
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/PronunciationVariantV2" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
+        "201": { description: 已创建, content: { application/json: { schema: { $ref: "#/components/schemas/PronunciationVariantV2" } } } }
   /pronunciation-variants/{variant_id}/:
     parameters:
-      - { name: variant_id, in: path, required: true, schema: { type: integer } }
+      - { $ref: "#/components/parameters/VariantId" }
     get:
-      tags: [EntriesV2]
-      operationId: getPronunciationVariantV2
+      tags: [Entries]
+      operationId: getPronunciationVariant
       summary: 获取地区读音
       security: []
       responses:
-        "200":
-          description: 地区读音详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/PronunciationVariantV2" }
-        "404": { $ref: "#/components/responses/NotFound" }
+        "200": { description: 地区读音, content: { application/json: { schema: { $ref: "#/components/schemas/PronunciationVariantV2" } } } }
     patch:
-      tags: [EntriesV2]
-      operationId: updatePronunciationVariantV2
+      tags: [Entries]
+      operationId: updatePronunciationVariant
       summary: 修订地区读音
-      security: [{ bearerAuth: [] }]
       requestBody:
         required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/PronunciationVariantV2Write" }
+        content: { application/json: { schema: { $ref: "#/components/schemas/PronunciationVariantV2" } } }
       responses:
-        "200":
-          description: 修订后的地区读音
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/PronunciationVariantV2" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
+        "200": { description: 已更新, content: { application/json: { schema: { $ref: "#/components/schemas/PronunciationVariantV2" } } } }
   /recordings/:
     get:
-      tags: [RecordingsV2]
-      operationId: listRecordingsV2
-      summary: 查询录音及其词条关系
+      tags: [Recordings]
+      operationId: listRecordings
+      summary: 浏览录音流
       security: []
-      parameters:
-        - $ref: "#/components/parameters/Search"
-        - { name: entry_id, in: query, schema: { type: integer } }
-        - { name: role, in: query, schema: { type: string, enum: [primary, mention, competing] } }
-        - { name: status, in: query, schema: { type: string } }
-        - { name: has_entry, in: query, schema: { type: boolean } }
-        - { name: dialect_id, in: query, schema: { type: integer } }
-        - { name: dialect_scope, in: query, schema: { type: string, enum: [exact, subtree], default: exact } }
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
       responses:
-        "200":
-          description: 录音分页
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/RecordingV2Page" }
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "200": { description: 录音列表, content: { application/json: { schema: { $ref: "#/components/schemas/RecordingPage" } } } }
     post:
-      tags: [RecordingsV2]
-      operationId: createRecordingV2
-      summary: 按录音、使用地区和大意提交；没有现成词条时自动建立初稿词条
-      security: [{ bearerAuth: [] }]
+      tags: [Recordings]
+      operationId: createRecording
+      summary: 提交录音及原始大意
       requestBody:
         required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/RecordingV2Write" }
+        content: { application/json: { schema: { $ref: "#/components/schemas/RecordingV2" } } }
       responses:
-        "201":
-          description: 录音、初始主词条关系和不可覆写证据
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/RecordingV2" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-
+        "201": { description: 已创建, content: { application/json: { schema: { $ref: "#/components/schemas/RecordingV2" } } } }
   /recordings/{recording_id}/:
     parameters:
-      - { name: recording_id, in: path, required: true, schema: { type: integer } }
+      - { $ref: "#/components/parameters/RecordingId" }
     get:
-      tags: [RecordingsV2]
-      operationId: getRecordingV2
-      summary: 获取录音及主要、句中和竞争词条关系
+      tags: [Recordings]
+      operationId: getRecording
+      summary: 获取录音详情
       security: []
       responses:
-        "200":
-          description: 录音详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/RecordingV2" }
-        "404": { $ref: "#/components/responses/NotFound" }
+        "200": { description: 录音详情, content: { application/json: { schema: { $ref: "#/components/schemas/RecordingV2" } } } }
     patch:
-      tags: [RecordingsV2]
-      operationId: updateRecordingV2
-      summary: 由录制者或地区整理员修订录音资料
-      security: [{ bearerAuth: [] }]
+      tags: [Recordings]
+      operationId: updateRecording
+      summary: 修订本人录音元数据
       requestBody:
         required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/RecordingV2Write" }
+        content: { application/json: { schema: { $ref: "#/components/schemas/RecordingV2" } } }
       responses:
-        "200":
-          description: 修订后的录音；原始材料作为新证据追加
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/RecordingV2" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
+        "200": { description: 已更新, content: { application/json: { schema: { $ref: "#/components/schemas/RecordingV2" } } } }
   /recording-entry-links/:
     get:
-      tags: [RecordingsV2]
-      operationId: listRecordingEntryLinksV2
-      summary: 查询录音与词条的当前或历史关系
+      tags: [Recordings]
+      operationId: listRecordingEntryLinks
+      summary: 查询录音与词条关系
       security: []
-      parameters:
-        - { name: recording_id, in: query, schema: { type: integer } }
-        - { name: entry_id, in: query, schema: { type: integer } }
-        - { name: role, in: query, schema: { type: string, enum: [primary, mention, competing] } }
-        - { name: status, in: query, schema: { type: string } }
-        - { name: is_current, in: query, schema: { type: boolean } }
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
       responses:
-        "200":
-          description: 关系分页
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/RecordingEntryLinkV2Page" }
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "200": { description: 关系列表, content: { application/json: { schema: { $ref: "#/components/schemas/RecordingEntryLinkPage" } } } }
     post:
-      tags: [RecordingsV2]
-      operationId: createRecordingEntryLinkV2
-      summary: 提出句中词或竞争解释；已有主词条不会被自动替换
-      security: [{ bearerAuth: [] }]
+      tags: [Recordings]
+      operationId: createRecordingEntryLink
+      summary: 提出录音与词条关系
       requestBody:
         required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/RecordingEntryLinkV2Write" }
+        content: { application/json: { schema: { $ref: "#/components/schemas/RecordingEntryLinkV2" } } }
       responses:
-        "201":
-          description: 新关系
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/RecordingEntryLinkV2" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
+        "201": { description: 已创建, content: { application/json: { schema: { $ref: "#/components/schemas/RecordingEntryLinkV2" } } } }
   /recording-entry-links/{link_id}/:
     parameters:
-      - { name: link_id, in: path, required: true, schema: { type: integer } }
+      - { $ref: "#/components/parameters/LinkId" }
     get:
-      tags: [RecordingsV2]
-      operationId: getRecordingEntryLinkV2
-      summary: 获取录音词条关系
+      tags: [Recordings]
+      operationId: getRecordingEntryLink
+      summary: 获取录音与词条关系
       security: []
       responses:
-        "200":
-          description: 关系详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/RecordingEntryLinkV2" }
-        "404": { $ref: "#/components/responses/NotFound" }
-
+        "200": { description: 关系详情, content: { application/json: { schema: { $ref: "#/components/schemas/RecordingEntryLinkV2" } } } }
   /usage-attestations/:
     get:
-      tags: [RecordingsV2]
-      operationId: listUsageAttestationsV2
-      summary: 查询“我这里也这么说”的地区范围确认
+      tags: [Entries]
+      operationId: listUsageAttestations
+      summary: 查询地区使用补证
       security: []
-      parameters:
-        - { name: entry_id, in: query, schema: { type: integer } }
-        - { name: dialect_id, in: query, schema: { type: integer } }
-        - { name: active, in: query, schema: { type: boolean } }
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
       responses:
-        "200":
-          description: 使用确认分页；父节点确认不推断所有子节点
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/UsageAttestationV2Page" }
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "200": { description: 补证列表, content: { application/json: { schema: { $ref: "#/components/schemas/UsageAttestationPage" } } } }
     post:
-      tags: [RecordingsV2]
-      operationId: createUsageAttestationV2
-      summary: 在用户明确选择的地区范围确认词条使用
-      security: [{ bearerAuth: [] }]
+      tags: [Entries]
+      operationId: createUsageAttestation
+      summary: 确认我这里也这么说
       requestBody:
         required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/UsageAttestationV2Write" }
+        content: { application/json: { schema: { $ref: "#/components/schemas/UsageAttestationV2" } } }
       responses:
-        "201":
-          description: 使用确认
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/UsageAttestationV2" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-
+        "201": { description: 已创建, content: { application/json: { schema: { $ref: "#/components/schemas/UsageAttestationV2" } } } }
   /usage-attestations/{attestation_id}/:
     parameters:
-      - { name: attestation_id, in: path, required: true, schema: { type: integer } }
+      - { $ref: "#/components/parameters/AttestationId" }
     get:
-      tags: [RecordingsV2]
-      operationId: getUsageAttestationV2
-      summary: 获取使用确认
+      tags: [Entries]
+      operationId: getUsageAttestation
+      summary: 获取地区使用补证
       security: []
       responses:
-        "200":
-          description: 使用确认详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/UsageAttestationV2" }
-        "404": { $ref: "#/components/responses/NotFound" }
+        "200": { description: 补证详情, content: { application/json: { schema: { $ref: "#/components/schemas/UsageAttestationV2" } } } }
     delete:
-      tags: [RecordingsV2]
-      operationId: deactivateUsageAttestationV2
-      summary: 撤回本人的使用确认并保留历史记录
-      security: [{ bearerAuth: [] }]
+      tags: [Entries]
+      operationId: retractUsageAttestation
+      summary: 撤回本人的地区使用补证
       responses:
         "204": { description: 已撤回 }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
   /evidence-records/:
     get:
-      tags: [CurationV2]
-      operationId: listEvidenceRecordsV2
-      summary: 查询与可见词条或录音有关的不可覆写证据
+      tags: [Reference]
+      operationId: listEvidenceRecords
+      summary: 查询不可覆写的原始依据
       security: []
-      parameters:
-        - { name: source_type, in: query, schema: { type: string } }
-        - { name: entry_id, in: query, schema: { type: integer } }
-        - { name: recording_id, in: query, schema: { type: integer } }
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
       responses:
-        "200":
-          description: 证据分页；敏感来源元数据仅向贡献者和整理员展开
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/EvidenceRecordV2Page" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-
+        "200": { description: 依据列表, content: { application/json: { schema: { $ref: "#/components/schemas/EvidenceRecordPage" } } } }
   /evidence-records/{evidence_id}/:
     parameters:
-      - { name: evidence_id, in: path, required: true, schema: { type: integer } }
+      - { $ref: "#/components/parameters/EvidenceId" }
     get:
-      tags: [CurationV2]
-      operationId: getEvidenceRecordV2
-      summary: 获取不可覆写证据
+      tags: [Reference]
+      operationId: getEvidenceRecord
+      summary: 获取原始依据
       security: []
       responses:
-        "200":
-          description: 证据详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/EvidenceRecordV2" }
-        "404": { $ref: "#/components/responses/NotFound" }
-
-  /curation/:
-    get:
-      tags: [CurationV2]
-      operationId: getCurationSummaryV2
-      summary: 获取当前整理员授权范围和待办计数
-      security: [{ bearerAuth: [] }]
-      responses:
-        "200":
-          description: 整理工作概况
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CurationSummaryV2" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
+        "200": { description: 原始依据, content: { application/json: { schema: { $ref: "#/components/schemas/EvidenceRecordV2" } } } }
   /curator-grants/:
     get:
-      tags: [CurationV2]
-      operationId: listCuratorGrantsV2
-      summary: 公开查询整理员授权账号、范围、理由与期限
+      tags: [Curation]
+      operationId: listCuratorGrants
+      summary: 查询公开整理授权
       security: []
-      parameters:
-        - { name: role, in: query, schema: { type: string, enum: [lexical_curator, regional_curator] } }
-        - { name: user_id, in: query, schema: { type: integer } }
-        - { name: active, in: query, schema: { type: boolean } }
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
       responses:
-        "200":
-          description: 整理员授权分页
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CuratorGrantV2Page" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-
+        "200": { description: 授权列表, content: { application/json: { schema: { $ref: "#/components/schemas/CuratorGrantPage" } } } }
   /curator-grants/{grant_id}/:
     parameters:
-      - { name: grant_id, in: path, required: true, schema: { type: integer } }
+      - { $ref: "#/components/parameters/GrantId" }
     get:
-      tags: [CurationV2]
-      operationId: getCuratorGrantV2
-      summary: 公开查询一条整理员授权记录
+      tags: [Curation]
+      operationId: getCuratorGrant
+      summary: 获取整理授权
       security: []
       responses:
-        "200":
-          description: 授权记录
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CuratorGrantV2" }
-        "404": { $ref: "#/components/responses/NotFound" }
-
+        "200": { description: 授权详情, content: { application/json: { schema: { $ref: "#/components/schemas/CuratorGrantV2" } } } }
   /curator-applications/:
     get:
-      tags: [CurationV2]
-      operationId: listOwnCuratorApplicationsV2
-      summary: 查询本人整理员申请；管理员可查询全部申请
-      security: [{ bearerAuth: [] }]
+      tags: [Curation]
+      operationId: listCuratorApplications
+      summary: 查询本人或管理员可见的整理申请
       responses:
-        "200":
-          description: 申请分页
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CuratorApplicationV2Page" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
+        "200": { description: 申请列表, content: { application/json: { schema: { $ref: "#/components/schemas/CuratorApplicationPage" } } } }
     post:
-      tags: [CurationV2]
-      operationId: createCuratorApplicationV2
-      summary: 申请一年期词条或地区整理权限
-      security: [{ bearerAuth: [] }]
+      tags: [Curation]
+      operationId: createCuratorApplication
+      summary: 申请成为整理员
       requestBody:
         required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/CuratorApplicationV2Write" }
+        content: { application/json: { schema: { $ref: "#/components/schemas/CuratorApplicationV2" } } }
       responses:
-        "201":
-          description: 待审核申请
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CuratorApplicationV2" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-
+        "201": { description: 已提交, content: { application/json: { schema: { $ref: "#/components/schemas/CuratorApplicationV2" } } } }
   /curator-applications/{application_id}/:
     parameters:
-      - { name: application_id, in: path, required: true, schema: { type: integer } }
+      - { $ref: "#/components/parameters/ApplicationId" }
     get:
-      tags: [CurationV2]
-      operationId: getCuratorApplicationV2
-      summary: 查询本人申请详情；管理员可查询任意申请
-      security: [{ bearerAuth: [] }]
+      tags: [Curation]
+      operationId: getCuratorApplication
+      summary: 获取整理申请
       responses:
-        "200":
-          description: 申请详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CuratorApplicationV2" }
-        "404": { $ref: "#/components/responses/NotFound" }
+        "200": { description: 申请详情, content: { application/json: { schema: { $ref: "#/components/schemas/CuratorApplicationV2" } } } }
     delete:
-      tags: [CurationV2]
-      operationId: withdrawCuratorApplicationV2
-      summary: 撤回本人的待审核申请并保留申请记录
-      security: [{ bearerAuth: [] }]
+      tags: [Curation]
+      operationId: withdrawCuratorApplication
+      summary: 撤回待审申请
       responses:
         "204": { description: 已撤回 }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
   /curator-applications/{application_id}/review/:
     parameters:
-      - { name: application_id, in: path, required: true, schema: { type: integer } }
+      - { $ref: "#/components/parameters/ApplicationId" }
     post:
-      tags: [CurationV2]
-      operationId: reviewCuratorApplicationV2
-      summary: 管理员审核申请并在通过时签发有期限的授权
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/CuratorApplicationReviewV2" }
+      tags: [Curation]
+      operationId: reviewCuratorApplication
+      summary: 审核整理申请
       responses:
-        "200":
-          description: 审核后的申请及可选授权
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CuratorApplicationV2" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
-  /curation/tasks/:
-    get:
-      tags: [CurationV2]
-      operationId: listCurationTasksV2
-      summary: 按当前整理员授权范围查询统一待办
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - { name: kind, in: query, schema: { type: string } }
-        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 40 } }
-      responses:
-        "200":
-          description: 范围内待办
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CurationTaskListV2" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
+        "200": { description: 已审核, content: { application/json: { schema: { $ref: "#/components/schemas/CuratorApplicationV2" } } } }
   /curation/actions/:
     get:
-      tags: [CurationV2]
-      operationId: listCurationActionsV2
-      summary: 查询本人不可覆写的整理操作；管理员可查询全部
-      security: [{ bearerAuth: [] }]
+      tags: [Curation]
+      operationId: listCurationActions
+      summary: 查询公开整理履历
+      security: []
       responses:
-        "200":
-          description: 整理操作分页
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CurationActionV2Page" }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "200": { description: 整理操作列表, content: { application/json: { schema: { $ref: "#/components/schemas/CurationActionPage" } } } }
     post:
-      tags: [CurationV2]
-      operationId: createCurationActionV2
-      summary: 在授权范围内执行审核、拆合、缩小范围或保留竞争解释
-      description: 拆分、合并、缩小地区范围和保留竞争解释必须关联不可覆写证据。
-      security: [{ bearerAuth: [] }]
+      tags: [Curation]
+      operationId: createCurationAction
+      summary: 提交可追溯整理操作
       requestBody:
         required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/CurationActionV2Write" }
+        content: { application/json: { schema: { $ref: "#/components/schemas/CurationActionV2" } } }
       responses:
-        "201":
-          description: 含操作前后快照的追加式审计记录
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CurationActionV2" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
+        "201": { description: 已执行, content: { application/json: { schema: { $ref: "#/components/schemas/CurationActionV2" } } } }
   /curation/actions/{action_id}/:
     parameters:
-      - { name: action_id, in: path, required: true, schema: { type: integer } }
+      - { $ref: "#/components/parameters/ActionId" }
     get:
-      tags: [CurationV2]
-      operationId: getCurationActionV2
-      summary: 查询一条不可覆写的整理操作记录
-      security: [{ bearerAuth: [] }]
+      tags: [Curation]
+      operationId: getCurationAction
+      summary: 获取整理操作
+      security: []
       responses:
-        "200":
-          description: 整理操作详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CurationActionV2" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-
+        "200": { description: 整理操作, content: { application/json: { schema: { $ref: "#/components/schemas/CurationActionV2" } } } }
+  /curation/:
+    get:
+      tags: [Curation]
+      operationId: getCurationWorkbench
+      summary: 获取当前整理权限和待办数
+      responses:
+        "200": { description: 整理工作台摘要, content: { application/json: { schema: { type: object } } } }
+  /curation/tasks/:
+    get:
+      tags: [Curation]
+      operationId: listCurationTasks
+      summary: 获取整理待办
+      responses:
+        "200": { description: 整理待办, content: { application/json: { schema: { type: object } } } }
   /contributions/me/:
     get:
-      tags: [CurationV2]
-      operationId: getOwnContributionHistoryV2
-      summary: 查询本人录音、补证、修订与地区足迹
-      description: 返回可追溯活动数量，不生成权威积分或等级。
-      security: [{ bearerAuth: [] }]
+      tags: [Curation]
+      operationId: getMyContributionHistory
+      summary: 获取我的录音、补证、修订与地区足迹
       responses:
-        "200":
-          description: 本人贡献履历
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ContributionHistoryV2" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-
-  /curation/legacy-candidates/:
+        "200": { description: 贡献履历, content: { application/json: { schema: { type: object } } } }
+  /site-settings/capabilities:
     get:
-      tags: [CurationV2]
-      operationId: listLegacyReviewCandidatesV2
-      summary: 查询旧库分义、拆分、读音差异和可能重复候选
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - { name: candidate_type, in: query, schema: { type: string } }
-        - { name: status, in: query, schema: { type: string } }
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
+      tags: [Platform]
+      operationId: getCapabilities
+      summary: 获取编译能力与远程开关的交集
+      security: []
       responses:
-        "200":
-          description: 只读审核候选分页；本阶段不自动执行裁决
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/LegacyReviewCandidateV2Page" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
-  /curation/legacy-candidates/{candidate_id}/:
-    parameters:
-      - { name: candidate_id, in: path, required: true, schema: { type: integer } }
-    get:
-      tags: [CurationV2]
-      operationId: getLegacyReviewCandidateV2
-      summary: 获取旧库审核候选及原始材料
-      security: [{ bearerAuth: [] }]
+        "200": { description: 能力矩阵, content: { application/json: { schema: { $ref: "#/components/schemas/CapabilitySwitches" } } } }
+  /product-events/:
+    post:
+      tags: [Platform]
+      operationId: createProductEvent
+      summary: 记录去标识化产品事件
+      security: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ProductEventWrite" } } }
       responses:
-        "200":
-          description: 审核候选详情
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/LegacyReviewCandidateV2" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-
+        "201": { description: 已记录 }
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: JWT
-
   parameters:
-    Page:
-      name: page
-      in: query
-      schema: { type: integer, minimum: 1, default: 1 }
-    PageSize:
-      name: page_size
-      in: query
-      schema: { type: integer, minimum: 1, maximum: 100, default: 15 }
-    Search:
-      name: search
-      in: query
-      schema: { type: string }
-    Limit:
-      name: limit
-      in: query
-      schema: { type: integer, minimum: 1, maximum: 20, default: 8 }
-    DialectScope:
-      name: dialect_scope
-      in: query
-      schema: { type: string, enum: [exact, subtree], default: exact }
-    DialectFilter:
-      name: dialect_id
-      in: query
-      schema: { type: integer }
-      description: 规范方言筛选；查询 Can 时通过 active Nameplate 的方言主张匹配。
-    UserId:
-      name: user_id
-      in: path
-      required: true
-      schema: { type: integer }
-    DialectId:
-      name: dialect_id
-      in: path
-      required: true
-      schema: { type: integer }
-    PackageId:
-      name: package_id
-      in: path
-      required: true
-      schema: { type: integer }
-    FlavorId:
-      name: flavor_id
-      in: path
-      required: true
-      schema: { type: integer }
-    PronunciationId:
-      name: pronunciation_id
-      in: path
-      required: true
-      schema: { type: integer }
-    CanId:
-      name: can_id
-      in: path
-      required: true
-      schema: { type: integer }
-    NameplateId:
-      name: nameplate_id
-      in: path
-      required: true
-      schema: { type: integer }
-    ShelfId:
-      name: shelf_id
-      in: path
-      required: true
-      schema: { type: integer }
-    ThemeId:
-      name: theme_id
-      in: path
-      required: true
-      schema: { type: string, maxLength: 64 }
-    DecorationId:
-      name: decoration_id
-      in: path
-      required: true
-      schema: { type: string, maxLength: 64 }
-    ThemeItemId:
-      name: item_id
-      in: path
-      required: true
-      schema: { type: string, maxLength: 64 }
-    ThemeMixId:
-      name: mix_id
-      in: path
-      required: true
-      schema: { type: string, maxLength: 64 }
-    ThemeKeyword:
-      name: keyword
-      in: query
-      schema: { type: string, maxLength: 64 }
-    ThemePrivilege:
-      name: privilege_type
-      in: query
-      schema: { $ref: "#/components/schemas/ThemePrivilegeType" }
-    ThemeStyleTag:
-      name: style_tag
-      in: query
-      schema: { type: string }
-    ThemeDialectTag:
-      name: dialect_tag
-      in: query
-      schema: { type: string }
-    ThemeStatus:
-      name: status
-      in: query
-      schema: { $ref: "#/components/schemas/ThemeItemStatus" }
-    ThemeSort:
-      name: sort
-      in: query
-      schema: { type: string, enum: [newest, heat, free, name] }
-    ThemeTerminal:
-      name: support_terminal
-      in: query
-      schema: { $ref: "#/components/schemas/ThemePlatform" }
-    ThemePlatform:
-      name: platform
-      in: query
-      schema: { $ref: "#/components/schemas/ThemePlatform" }
-    ThemeComponentType:
-      name: component_type
-      in: query
-      schema: { $ref: "#/components/schemas/ThemeComponentType" }
-    ThemePage:
-      name: page
-      in: query
-      schema: { type: integer, minimum: 1, default: 1 }
-    ThemePageSize:
-      name: page_size
-      in: query
-      schema: { type: integer, minimum: 1, maximum: 200, default: 20 }
-
-  responses:
-    BadRequest:
-      description: 请求或字段校验失败
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-    Unauthorized:
-      description: 未认证或凭证失效
-      headers:
-        WWW-Authenticate:
-          schema: { type: string, example: Bearer }
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-    Forbidden:
-      description: 无操作权限
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-    NotFound:
-      description: 资源不存在或不可见
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-    Conflict:
-      description: 当前状态、关联或唯一约束冲突
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-    PayloadTooLarge:
-      description: 文件超过允许大小
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-    UnsupportedMediaType:
-      description: 不支持的媒体类型
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-    TooManyRequests:
-      description: 请求过于频繁
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-
+    EntryId: { name: entry_id, in: path, required: true, schema: { type: integer } }
+    SenseId: { name: sense_id, in: path, required: true, schema: { type: integer } }
+    VariantId: { name: variant_id, in: path, required: true, schema: { type: integer } }
+    RecordingId: { name: recording_id, in: path, required: true, schema: { type: integer } }
+    LinkId: { name: link_id, in: path, required: true, schema: { type: integer } }
+    AttestationId: { name: attestation_id, in: path, required: true, schema: { type: integer } }
+    EvidenceId: { name: evidence_id, in: path, required: true, schema: { type: integer } }
+    GrantId: { name: grant_id, in: path, required: true, schema: { type: integer } }
+    ApplicationId: { name: application_id, in: path, required: true, schema: { type: integer } }
+    ActionId: { name: action_id, in: path, required: true, schema: { type: integer } }
   schemas:
-    Error:
-      type: object
-      required: [code, message, data, request_id]
-      properties:
-        code: { type: integer, minimum: 400, maximum: 599, example: 401 }
-        message: { type: string, example: 请先登录 }
-        data:
-          type: object
-          properties:
-            reason:
-              type: string
-              pattern: "^[a-z0-9_]+$"
-              description: 同一 HTTP 状态下需要程序区分原因时使用的稳定标识。
-              example: token_expired
-          additionalProperties:
-            oneOf:
-              - $ref: "#/components/schemas/FieldError"
-              - type: array
-                items: { $ref: "#/components/schemas/FieldError" }
-              - $ref: "#/components/schemas/FieldErrors"
-        request_id: { type: string, example: 7f2c1a90-0000-4000-8000-000000000000 }
-
-    FieldError:
-      type: object
-      required: [code, message]
-      properties:
-        code: { type: string, example: required }
-        message: { type: string, example: 该字段是必填项。 }
-    FieldErrors:
-      type: object
-      additionalProperties:
-        oneOf:
-          - $ref: "#/components/schemas/FieldError"
-          - type: array
-            items: { $ref: "#/components/schemas/FieldError" }
-          - $ref: "#/components/schemas/FieldErrors"
-
-    PageBase:
-      type: object
-      required: [count, next, previous, results]
-      properties:
-        count: { type: integer, minimum: 0 }
-        next: { type: [string, "null"], format: uri-reference }
-        previous: { type: [string, "null"], format: uri-reference }
-
-    ThemePlatform:
-      type: string
-      enum: [h5, miniprogram]
-    ThemePrivilegeType:
-      type: string
-      enum: [free, member, activity, creator]
-    ThemeItemStatus:
-      type: string
-      enum: [available, coming, deprecated]
-    ThemeItemType:
-      type: string
-      enum: [theme, decoration]
-    ThemeComponentType:
-      type: string
-      enum:
-        - nav_bar
-        - tab_bar
-        - button
-        - card
-        - home_bg
-        - avatar_frame
-        - comment_bubble
-        - topic_card
-        - input_box
-    ThemeItemSelection:
-      type: object
-      required: [item_type, item_id]
-      properties:
-        item_type: { $ref: "#/components/schemas/ThemeItemType" }
-        item_id: { type: string, minLength: 1, maxLength: 64 }
-    ThemeCatalogFields:
-      type: object
-      required:
-        - name
-        - desc
-        - cover_img
-        - detail_img
-        - poster_img
-        - style_tags
-        - dialect_tags
-        - privilege_type
-        - get_condition
-        - status
-        - support_terminal
-        - activity_start_at
-        - activity_end_at
-        - like_count
-        - collect_count
-        - share_count
-        - create_time
-      properties:
-        name: { type: string, maxLength: 80 }
-        desc: { type: string }
-        cover_img: { type: string, maxLength: 255 }
-        detail_img: { type: string, maxLength: 255 }
-        poster_img: { type: string, maxLength: 255 }
-        style_tags:
-          type: array
-          items: { type: string }
-        dialect_tags:
-          type: array
-          items: { type: string }
-        privilege_type: { $ref: "#/components/schemas/ThemePrivilegeType" }
-        get_condition: { type: string, maxLength: 200 }
-        status: { $ref: "#/components/schemas/ThemeItemStatus" }
-        support_terminal:
-          type: array
-          uniqueItems: true
-          items: { $ref: "#/components/schemas/ThemePlatform" }
-        activity_start_at: { type: [string, "null"], format: date-time }
-        activity_end_at: { type: [string, "null"], format: date-time }
-        like_count: { type: integer, minimum: 0, readOnly: true }
-        collect_count: { type: integer, minimum: 0, readOnly: true }
-        share_count: { type: integer, minimum: 0, readOnly: true }
-        create_time: { type: string, format: date-time, readOnly: true }
-    ThemeItem:
-      allOf:
-        - { $ref: "#/components/schemas/ThemeCatalogFields" }
-        - type: object
-          required: [theme_id]
-          properties:
-            theme_id: { type: string, maxLength: 64 }
-    ThemeItemDetail:
-      allOf:
-        - { $ref: "#/components/schemas/ThemeItem" }
-        - type: object
-          required: [style_json]
-          properties:
-            style_json:
-              type: object
-              additionalProperties: true
-    DecorationItem:
-      allOf:
-        - { $ref: "#/components/schemas/ThemeCatalogFields" }
-        - type: object
-          required: [decoration_id, component_type, group]
-          properties:
-            decoration_id: { type: string, maxLength: 64 }
-            component_type: { $ref: "#/components/schemas/ThemeComponentType" }
-            group: { type: string, maxLength: 64 }
-    DecorationItemDetail:
-      allOf:
-        - { $ref: "#/components/schemas/DecorationItem" }
-        - type: object
-          required: [style_json]
-          properties:
-            style_json:
-              type: object
-              additionalProperties: true
-    ThemeCatalogPage:
-      allOf:
-        - { $ref: "#/components/schemas/PageBase" }
-        - type: object
-          required: [catalog_version]
-          properties:
-            catalog_version: { type: integer, minimum: 1 }
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/ThemeItem" }
-    DecorationCatalogPage:
-      allOf:
-        - { $ref: "#/components/schemas/PageBase" }
-        - type: object
-          required: [catalog_version]
-          properties:
-            catalog_version: { type: integer, minimum: 1 }
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/DecorationItem" }
-    ThemeRecentUse:
-      type: object
-      required: [item_id, item_type, use_time]
-      properties:
-        item_id: { type: string, maxLength: 64 }
-        item_type: { $ref: "#/components/schemas/ThemeItemType" }
-        use_time: { type: integer, minimum: 0 }
-    UserThemeConfig:
-      type: object
-      required:
-        - global_theme_id
-        - decoration_map
-        - is_cover_local_decoration
-        - recent_use_list
-      properties:
-        global_theme_id: { type: string, maxLength: 64 }
-        decoration_map:
-          type: object
-          additionalProperties: { type: string, maxLength: 64 }
-        is_cover_local_decoration: { type: boolean }
-        recent_use_list:
-          type: array
-          maxItems: 8
-          items: { $ref: "#/components/schemas/ThemeRecentUse" }
-    UserThemeConfigWrite:
-      allOf:
-        - { $ref: "#/components/schemas/UserThemeConfig" }
-        - type: object
-          properties:
-            platform: { $ref: "#/components/schemas/ThemePlatform" }
-    UserThemeCollect:
-      type: object
-      required: [item_id, item_type, collect_time]
-      properties:
-        item_id: { type: string, maxLength: 64 }
-        item_type: { $ref: "#/components/schemas/ThemeItemType" }
-        collect_time: { type: string, format: date-time, readOnly: true }
-    UserThemeMix:
-      type: object
-      required:
-        - mix_id
-        - mix_name
-        - global_theme_id
-        - decoration_ids
-        - decoration_map
-        - is_cover_local_decoration
-        - create_time
-      properties:
-        mix_id: { type: string, maxLength: 64 }
-        mix_name: { type: string, minLength: 1, maxLength: 20 }
-        global_theme_id: { type: string, maxLength: 64 }
-        decoration_ids:
-          type: array
-          maxItems: 20
-          items: { type: string, maxLength: 64 }
-        decoration_map:
-          type: object
-          additionalProperties: { type: string, maxLength: 64 }
-        is_cover_local_decoration: { type: boolean }
-        create_time: { type: string, format: date-time, readOnly: true }
-    UserThemeMixWrite:
-      type: object
-      required: [mix_name, global_theme_id]
-      properties:
-        mix_id: { type: string, maxLength: 64 }
-        mix_name: { type: string, minLength: 1, maxLength: 20 }
-        global_theme_id: { type: string, maxLength: 64 }
-        decoration_ids:
-          type: array
-          maxItems: 20
-          items: { type: string, maxLength: 64 }
-        decoration_map:
-          type: object
-          additionalProperties: { type: string, maxLength: 64 }
-        is_cover_local_decoration: { type: boolean, default: true }
-    UserThemeEntitlement:
-      type: object
-      required: [is_member, creator_unlocked, activity_ids]
-      properties:
-        is_member: { type: boolean, readOnly: true }
-        creator_unlocked: { type: boolean, readOnly: true }
-        activity_ids:
-          type: array
-          uniqueItems: true
-          items: { type: string, maxLength: 64 }
-
-    UserRef:
-      type: object
-      required: [id, username, nickname, avatar]
-      properties:
-        id: { type: integer }
-        username: { type: string }
-        nickname: { type: string }
-        avatar: { type: string, format: uri-reference }
-    UserPublicProfile:
-      allOf:
-        - $ref: "#/components/schemas/UserRef"
-        - type: object
-          required: [title, level]
-          properties:
-            title: { type: string }
-            level: { type: integer, minimum: 1 }
-            primary_dialect: { oneOf: [{ $ref: "#/components/schemas/DialectRef" }, { type: "null" }] }
-    UserContribution:
-      type: object
-      required: [cans, flavors, nameplates, views]
-      properties:
-        cans: { type: integer, minimum: 0, description: 公开罐头数 }
-        flavors: { type: integer, minimum: 0, description: 公开义项数 }
-        nameplates: { type: integer, minimum: 0, description: 公开铭牌数 }
-        views:
-          type: integer
-          minimum: 0
-          description: 罐头浏览累计；访客按公开罐头，本人按全部上传罐头
-        cans_uploaded: { type: integer, minimum: 0, description: 仅本人返回，含未公开罐头 }
-        flavors_uploaded: { type: integer, minimum: 0, description: 仅本人返回，含未公开义项 }
-        nameplates_uploaded: { type: integer, minimum: 0, description: 仅本人返回，含未公开铭牌 }
-    UserProfileResponse:
-      type: object
-      required: [user, contribution]
-      properties:
-        user:
-          oneOf:
-            - $ref: "#/components/schemas/UserPublicProfile"
-            - $ref: "#/components/schemas/UserPrivateProfile"
-        contribution:
-          $ref: "#/components/schemas/UserContribution"
-        notification:
-          type: object
-          description: 仅本人返回
-          properties:
-            statistics:
-              type: object
-              properties:
-                total: { type: integer, minimum: 0 }
-                sent: { type: integer, minimum: 0 }
-                received: { type: integer, minimum: 0 }
-                unread: { type: integer, minimum: 0 }
-    UserPrivateProfile:
-      allOf:
-        - $ref: "#/components/schemas/UserPublicProfile"
-        - type: object
-          required: [email, telephone, is_staff, wechat_bound, registered_at]
-          properties:
-            email: { type: string, format: email }
-            telephone: { type: string }
-            birthday: { type: [string, "null"], format: date }
-            is_staff: { type: boolean }
-            wechat_bound: { type: boolean }
-            registered_at: { type: string, format: date-time }
-    UserUpdate:
-      type: object
-      minProperties: 1
-      properties:
-        username:
-          type: string
-          minLength: 1
-          maxLength: 20
-          description: 登录用户名；修改后旧 token 失效，响应会带新 token
-        nickname: { type: string, maxLength: 100 }
-        avatar: { type: string, format: uri-reference }
-        telephone: { type: string, maxLength: 50 }
-        birthday: { type: [string, "null"], format: date }
-        primary_dialect_id: { type: [integer, "null"] }
-    UserUpdateRequest:
-      type: object
-      required: [user]
-      properties:
-        user: { $ref: "#/components/schemas/UserUpdate" }
-    UserUpdateResult:
-      type: object
-      required: [user, token]
-      properties:
-        user: { $ref: "#/components/schemas/UserPrivateProfile" }
-        token: { type: string }
-    UserPage:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/UserRef" }
-    LoginRequest:
-      type: object
-      required: [username, password]
-      properties:
-        username: { type: string }
-        password: { type: string, format: password }
-    RegisterRequest:
-      allOf:
-        - $ref: "#/components/schemas/LoginRequest"
-        - type: object
-          required: [email, code]
-          properties:
-            email: { type: string, format: email }
-            code: { type: string }
-            nickname: { type: string }
-            avatar: { type: string, format: uri-reference }
-    AuthToken:
-      type: object
-      required: [access_token, token_type, expires_at, user]
-      properties:
-        access_token: { type: string }
-        token_type: { type: string, const: Bearer }
-        expires_at: { type: string, format: date-time }
-        user: { $ref: "#/components/schemas/UserRef" }
-
     DialectRef:
       type: object
-      required: [id, name, code, qualified_code, path_names, sort_order]
       properties:
         id: { type: integer }
         name: { type: string }
-        code:
-          type: string
-          pattern: '^[^./\s]+$'
-          example: 游洋
-          description: 同级唯一短码，默认使用社区熟悉的中文简称，不得包含点、斜杠或空白。
-        qualified_code:
-          type: string
-          example: 闽.莆仙.仙游.游洋
-          description: 从根到叶拼接的规范限定码；用于解析和前缀聚合，不作为外键。
-        path_names:
-          type: array
-          items: { type: string }
-          example: [闽语, 莆仙片（兴化方言）, 莆田, 城里]
-          description: 从根到当前节点的自然名称；客户端用它生成卡片标签和详情面包屑，避免向普通用户显示规范限定码。
-        sort_order:
-          type: integer
-          default: 0
-          description: 同级人工顺序；客户端按 sort_order、id 排列，不依赖 Unicode 字典序。
-    DialectDetail:
-      allOf:
-        - $ref: "#/components/schemas/DialectRef"
-        - type: object
-          required: [aliases, children_count, description]
-          properties:
-            parent: { oneOf: [{ $ref: "#/components/schemas/DialectRef" }, { type: "null" }] }
-            ancestors:
-              type: array
-              items: { $ref: "#/components/schemas/DialectRef" }
-            children:
-              type: array
-              items: { $ref: "#/components/schemas/DialectRef" }
-            aliases:
-              type: array
-              uniqueItems: true
-              items: { type: string }
-            children_count: { type: integer, minimum: 0 }
-            description: { type: string }
-            external_refs:
-              type: object
-              additionalProperties: true
-    DialectWrite:
+        code: { type: string }
+        qualified_code: { type: string, description: 仅供 API、历史映射和管理工具使用 }
+        path_names: { type: array, items: { type: string } }
+        sort_order: { type: integer }
+    UserRef:
       type: object
-      required: [name, code]
+      nullable: true
       properties:
-        name: { type: string, maxLength: 120 }
-        code:
-          type: string
-          pattern: '^[^./\s]+$'
-          maxLength: 32
-          example: 游洋
-        parent_id: { type: [integer, "null"] }
-        sort_order: { type: integer, default: 0 }
-        aliases:
-          type: array
-          description: 历史完整限定码；重新命名或归类后用于兼容解析。
-          uniqueItems: true
-          items: { type: string }
-        description: { type: string }
-        external_refs:
-          type: object
-          additionalProperties: true
-    DialectPage:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/DialectRef" }
-
-    PackageType:
-      type: string
-      enum: [orthodox, loan, popular, phonetic, romanization, uncertain]
-    PackageRef:
-      type: object
-      required: [id, text, package_type]
-      properties:
-        id: { type: integer }
-        text: { type: string }
-        package_type: { $ref: "#/components/schemas/PackageType" }
-    PackageDetail:
-      allOf:
-        - $ref: "#/components/schemas/PackageRef"
-        - type: object
-          required: [flavors, metadata, created_at]
-          properties:
-            unicode: { type: string }
-            metadata: { type: object, additionalProperties: true }
-            flavors:
-              type: array
-              items: { $ref: "#/components/schemas/FlavorRef" }
-            created_at: { type: string, format: date-time }
-    PackageWrite:
-      type: object
-      required: [text, package_type]
-      properties:
-        text: { type: string, maxLength: 120 }
-        package_type: { $ref: "#/components/schemas/PackageType" }
-        unicode: { type: string, maxLength: 80 }
-        metadata: { type: object, additionalProperties: true }
-    PackagePage:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/PackageRef" }
-
-    FlavorPackageMappingType:
-      type: string
-      enum: [primary, synonym, borrowed, disputed]
-    FlavorPackageLink:
-      type: object
-      required: [id, package, mapping_type, note]
-      properties:
-        id: { type: integer }
-        package: { $ref: "#/components/schemas/PackageRef" }
-        mapping_type: { $ref: "#/components/schemas/FlavorPackageMappingType" }
-        note: { type: string }
-    FlavorPackageLinkWrite:
-      type: object
-      required: [package_id, mapping_type]
-      properties:
-        package_id: { type: integer }
-        mapping_type: { $ref: "#/components/schemas/FlavorPackageMappingType" }
-        note: { type: string, maxLength: 240 }
-
-    FlavorRef:
-      type: object
-      required: [id, name, definition]
-      properties:
-        id: { type: integer }
-        name: { type: string }
-        definition: { type: string }
-        mandarin:
-          type: array
-          items: { type: string }
-    FlavorCard:
-      allOf:
-        - $ref: "#/components/schemas/FlavorRef"
-        - type: object
-          required: [packages, dialect_count, can_count]
-          properties:
-            packages:
-              type: array
-              items: { $ref: "#/components/schemas/PackageRef" }
-            dialect_count: { type: integer, minimum: 0 }
-            can_count: { type: integer, minimum: 0 }
-    FlavorDetail:
-      allOf:
-        - $ref: "#/components/schemas/FlavorCard"
-        - type: object
-          required: [tags, package_links, pronunciations, created_at, updated_at]
-          properties:
-            tags:
-              type: array
-              items: { type: string }
-            package_links:
-              type: array
-              description: 写法与义项之间带语义的关联；packages 是其精简展示。
-              items: { $ref: "#/components/schemas/FlavorPackageLink" }
-            geo_scope: { type: string }
-            concepticon_id: { type: [string, "null"] }
-            pronunciations:
-              type: array
-              items: { $ref: "#/components/schemas/PronunciationCard" }
-            created_by: { oneOf: [{ $ref: "#/components/schemas/UserRef" }, { type: "null" }] }
-            created_at: { type: string, format: date-time }
-            updated_at: { type: string, format: date-time }
-    FlavorWrite:
-      type: object
-      required: [name, definition]
-      properties:
-        name: { type: string, maxLength: 160 }
-        definition: { type: string }
-        mandarin:
-          type: array
-          items: { type: string }
-        tags:
-          type: array
-          items: { type: string }
-        geo_scope: { type: string }
-        concepticon_id: { type: [string, "null"] }
-        package_links:
-          type: array
-          uniqueItems: true
-          description: 传入时整体替换该义项的写法关联；同一 package_id 不得重复。
-          items: { $ref: "#/components/schemas/FlavorPackageLinkWrite" }
-    FlavorPage:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/FlavorCard" }
-
-    ReadingType:
-      type: string
-      enum: [general, literary, colloquial, other]
-    PronunciationStatus:
-      type: string
-      enum: [draft, verified, disputed, rejected]
-    PronunciationRef:
-      type: object
-      required: [id, ipa, reading_type, status]
-      properties:
-        id: { type: integer }
-        ipa: { type: string }
-        base_romanization:
-          type: string
-          description: 变调前或孤立读法的罗马字。
-        surface_romanization:
-          type: string
-          description: 当前语流环境中实际读出的罗马字。
-        reading_type: { $ref: "#/components/schemas/ReadingType" }
-        status: { $ref: "#/components/schemas/PronunciationStatus" }
-        is_canonical: { type: boolean }
-    PronunciationCard:
-      allOf:
-        - $ref: "#/components/schemas/PronunciationRef"
-        - type: object
-          required: [package, flavor, dialect, evidence_count]
-          properties:
-            package: { $ref: "#/components/schemas/PackageRef" }
-            flavor: { $ref: "#/components/schemas/FlavorRef" }
-            dialect: { $ref: "#/components/schemas/DialectRef" }
-            evidence_count:
-              type: integer
-              minimum: 0
-              description: 指向该读音的 active Nameplate 数；去重 Can 数可由统计接口另行提供。
-    PronunciationDetail:
-      allOf:
-        - $ref: "#/components/schemas/PronunciationCard"
-        - type: object
-          required: [sandhi_info, source_citation, attestations, created_at, updated_at]
-          properties:
-            usage_note: { type: string }
-            sandhi_info: { type: object, additionalProperties: true }
-            source_citation: { type: string }
-            attestations:
-              type: array
-              description: 通过铭牌关联的录音证据；铭牌保留是谁、依据什么作出该关联。
-              items: { $ref: "#/components/schemas/NameplateCard" }
-            created_by: { oneOf: [{ $ref: "#/components/schemas/UserRef" }, { type: "null" }] }
-            created_at: { type: string, format: date-time }
-            updated_at: { type: string, format: date-time }
-    PronunciationWrite:
-      type: object
-      required: [package_id, flavor_id, dialect_id, ipa, reading_type]
-      properties:
-        package_id: { type: integer }
-        flavor_id: { type: integer }
-        dialect_id: { type: integer }
-        ipa: { type: string, maxLength: 120 }
-        base_romanization: { type: string, maxLength: 120 }
-        surface_romanization: { type: string, maxLength: 120 }
-        reading_type: { $ref: "#/components/schemas/ReadingType" }
-        usage_note: { type: string }
-        sandhi_info: { type: object, additionalProperties: true }
-        source_citation: { type: string, maxLength: 300 }
-    PronunciationPage:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/PronunciationCard" }
-
-    CanStatus:
-      type: string
-      enum: [unlabeled, pending, tentative, verified, disputed, rejected]
-    CanRef:
-      type: object
-      required: [id, audio_url, concept_text]
-      properties:
-        id: { type: integer }
-        audio_url: { type: string, format: uri }
-        concept_text: { type: string }
-    NameplateStatus:
-      type: string
-      enum: [active, withdrawn, superseded]
-    NameplateSourceType:
-      type: string
-      enum: [creator, oral, fieldwork, book, article, archive, web, other]
-    NameplateSource:
-      type: object
-      required: [type]
-      properties:
-        type: { $ref: "#/components/schemas/NameplateSourceType" }
-        title: { type: string, maxLength: 240 }
-        attributed_to:
-          type: string
-          maxLength: 200
-          description: 资料原作者、讲述人、编者或采集者；不同于系统 creator。
-        locator:
-          type: string
-          maxLength: 160
-          description: 页码、条目号、录音编号或其他可复查位置。
-        url: { type: string, format: uri }
-        note: { type: string, maxLength: 300 }
-    NameplateRef:
-      type: object
-      required: [id, display_text, status, weight, is_primary, is_complete]
-      properties:
-        id: { type: integer }
-        display_text:
-          type: string
-          description: 由原样写法或所关联规范实体生成的展示文本。
-        status: { $ref: "#/components/schemas/NameplateStatus" }
-        weight: { type: integer }
-        is_primary: { type: boolean }
-        is_complete:
-          type: boolean
-          description: 是否已具备成为主铭牌所需的 Package、Flavor 与 Dialect 主张。
-    NameplatePreview:
-      type: object
-      required: [id, is_primary, display_text, text_content, definition, pronunciation_text, package, flavor, dialect, pronunciation, source, source_type, evidence_level, weight, support_count, comment_count, supported_by_current_user]
-      properties:
-        id: { type: integer }
-        is_primary: { type: boolean }
-        display_text:
-          type: string
-          description: 由原样写法或所关联规范实体生成的展示文本。
-        text_content: { type: string }
-        definition: { type: string }
-        pronunciation_text: { type: string }
-        package: { oneOf: [{ $ref: "#/components/schemas/PackageRef" }, { type: "null" }] }
-        flavor: { oneOf: [{ $ref: "#/components/schemas/FlavorRef" }, { type: "null" }] }
-        dialect: { oneOf: [{ $ref: "#/components/schemas/DialectRef" }, { type: "null" }] }
-        pronunciation: { oneOf: [{ $ref: "#/components/schemas/PronunciationRef" }, { type: "null" }] }
-        source: { $ref: "#/components/schemas/NameplateSource" }
-        source_type: { $ref: "#/components/schemas/NameplateSourceType" }
-        evidence_level: { type: integer, minimum: 1, maximum: 4 }
-        weight: { type: integer }
-        support_count:
-          type: integer
-          minimum: 0
-          description: 该铭牌当前获得的背书总数。
-        comment_count: { type: integer, minimum: 0 }
-        supported_by_current_user:
-          type: boolean
-          description: 当前用户是否已背书该铭牌；游客恒为 false。
-    CanCard:
-      allOf:
-        - $ref: "#/components/schemas/CanRef"
-        - type: object
-          required: [submitted_dialect, status, visibility, views, nameplate_count, nameplate_total, nameplate_previews, created_at]
-          properties:
-            submitted_dialect: { oneOf: [{ $ref: "#/components/schemas/DialectRef" }, { type: "null" }] }
-            primary_nameplate: { oneOf: [{ $ref: "#/components/schemas/NameplateRef" }, { type: "null" }] }
-            status: { $ref: "#/components/schemas/CanStatus" }
-            visibility: { type: boolean }
-            views: { type: integer, minimum: 0 }
-            recorder_followed_by_me:
-              type: boolean
-              description: 当前用户是否已关注该罐的录制者；游客恒为 false。
-            recommend_reasons:
-              type: array
-              items:
-                type: string
-                enum: [hot, same_dialect, following, search_match]
-              description: 推荐理由标签；仅 feed=recommended 有值（游客或未命中个性化时为 ["hot"]），其余场景恒为空数组。
-            nameplate_count: { type: integer, minimum: 0 }
-            nameplate_total:
-              type: integer
-              minimum: 0
-              description: 该罐 active 铭牌总数。
-            nameplate_previews:
-              type: array
-              maxItems: 3
-              items: { $ref: "#/components/schemas/NameplatePreview" }
-              description: 该罐 active 铭牌按 weight 降序排列的前 3 条预览。
-            duration_ms: { type: integer, minimum: 0 }
-            created_at: { type: string, format: date-time }
-    CanDetail:
-      allOf:
-        - $ref: "#/components/schemas/CanCard"
-        - type: object
-          required: [recorder, source_note, nameplates, transition_log, updated_at]
-          properties:
-            recorder:
-              oneOf:
-                - $ref: "#/components/schemas/UserRef"
-                - type: "null"
-              description: 账号已删除时为 null，罐头本身继续保留。
-            source_note: { type: string }
-            nameplates:
-              type: array
-              items: { $ref: "#/components/schemas/NameplateDetail" }
-            transition_log:
-              type: array
-              items: { $ref: "#/components/schemas/TransitionLog" }
-            verifier: { oneOf: [{ $ref: "#/components/schemas/UserRef" }, { type: "null" }] }
-            metadata: { type: object, additionalProperties: true }
-            updated_at: { type: string, format: date-time }
-    InitialNameplate:
-      type: object
-      required: [source]
-      anyOf:
-        - required: [package_id]
-        - required: [flavor_id]
-        - required: [dialect_id]
-        - required: [pronunciation_id]
-        - required: [text_content]
-        - required: [pronunciation_text]
-      properties:
-        package_id: { type: integer }
-        flavor_id: { type: integer }
-        dialect_id:
-          type: integer
-          description: 省略时继承 Can.submitted_dialect_id。
-        pronunciation_id: { type: integer }
-        text_content: { type: string, maxLength: 160 }
-        definition: { type: string }
-        pronunciation_text:
-          type: string
-          maxLength: 160
-          description: 来源中的原样 IPA、罗马字或其他读音转写。
-        package_type: { $ref: "#/components/schemas/PackageType" }
-        evidence_level: { type: integer, minimum: 1, maximum: 4, default: 1 }
-        source: { $ref: "#/components/schemas/NameplateSource" }
-    CanWrite:
-      type: object
-      required: [audio_url, submitted_dialect_id]
-      properties:
-        audio_url: { type: string, format: uri }
-        submitted_dialect_id:
-          type: integer
-          description: 装罐时的采集提示，不是最终规范分类；主铭牌可提出不同 Dialect。
-        concept_text:
-          type: string
-          maxLength: 200
-          description: >-
-            普通话概念。自由装罐必填；补录音模式可省略，后端按
-            initial_nameplate.flavor_id 对应义项名称回填；两者均缺失时返回 400。
-        source_note: { type: string, maxLength: 300 }
-        duration_ms: { type: integer, minimum: 0 }
-        initial_nameplate: { $ref: "#/components/schemas/InitialNameplate" }
-    CanUpdate:
-      type: object
-      minProperties: 1
-      properties:
-        submitted_dialect_id: { type: [integer, "null"] }
-        concept_text: { type: string, maxLength: 200 }
-        source_note: { type: string, maxLength: 300 }
-        metadata: { type: object, additionalProperties: true }
-    CanPage:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/CanCard" }
-
-    NameplateCard:
-      allOf:
-        - $ref: "#/components/schemas/NameplateRef"
-        - type: object
-          required: [can, package, flavor, dialect, pronunciation, source_type, created_at]
-          properties:
-            can: { $ref: "#/components/schemas/CanRef" }
-            package: { oneOf: [{ $ref: "#/components/schemas/PackageRef" }, { type: "null" }] }
-            flavor: { oneOf: [{ $ref: "#/components/schemas/FlavorRef" }, { type: "null" }] }
-            dialect: { oneOf: [{ $ref: "#/components/schemas/DialectRef" }, { type: "null" }] }
-            pronunciation: { oneOf: [{ $ref: "#/components/schemas/PronunciationRef" }, { type: "null" }] }
-            source_type: { $ref: "#/components/schemas/NameplateSourceType" }
-            created_at: { type: string, format: date-time }
-    NameplateDetail:
-      allOf:
-        - $ref: "#/components/schemas/NameplateCard"
-        - type: object
-          required: [creator, source, definition, pronunciation_text, evidence_level, supported_by_current_user, updated_at]
-          properties:
-            creator: { $ref: "#/components/schemas/UserRef" }
-            text_content: { type: string }
-            definition: { type: string }
-            pronunciation_text: { type: string }
-            source: { $ref: "#/components/schemas/NameplateSource" }
-            evidence_level: { type: integer, minimum: 1, maximum: 4 }
-            supported_by_current_user: { type: boolean }
-            supersedes: { oneOf: [{ $ref: "#/components/schemas/NameplateRef" }, { type: "null" }] }
-            updated_at: { type: string, format: date-time }
-    NameplateWrite:
-      type: object
-      required: [can_id, source]
-      anyOf:
-        - required: [package_id]
-        - required: [flavor_id]
-        - required: [dialect_id]
-        - required: [pronunciation_id]
-        - required: [text_content]
-        - required: [pronunciation_text]
-      properties:
-        can_id: { type: integer }
-        package_id: { type: integer }
-        flavor_id: { type: integer }
-        dialect_id: { type: integer }
-        pronunciation_id: { type: integer }
-        text_content: { type: string, maxLength: 160 }
-        definition: { type: string }
-        pronunciation_text: { type: string, maxLength: 160 }
-        evidence_level: { type: integer, minimum: 1, maximum: 4, default: 1 }
-        source: { $ref: "#/components/schemas/NameplateSource" }
-        supersedes_id:
-          type: integer
-          description: 修订已有主张时指向旧铭牌；服务端把旧铭牌标记为 superseded。
-    NameplateUpdate:
-      type: object
-      minProperties: 1
-      description: 仅用于尚未获得支持、未成为主铭牌且未被引用的记录；语义修订应新建 superseding Nameplate。
-      properties:
-        package_id: { type: [integer, "null"] }
-        flavor_id: { type: [integer, "null"] }
-        dialect_id: { type: [integer, "null"] }
-        pronunciation_id: { type: [integer, "null"] }
-        text_content: { type: string, maxLength: 160 }
-        definition: { type: string }
-        pronunciation_text: { type: string, maxLength: 160 }
-        evidence_level: { type: integer, minimum: 1, maximum: 4 }
-        source: { $ref: "#/components/schemas/NameplateSource" }
-    NameplatePage:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/NameplateCard" }
-    Comment:
-      type: object
-      required: [id, parent_id, reply_to, author, content, like_count, liked_by_me, reply_count, created_at]
-      properties:
-        id: { type: integer }
-        can_id: { oneOf: [{ type: integer }, { type: "null" }] }
-        nameplate_id: { oneOf: [{ type: integer }, { type: "null" }] }
-        parent_id:
-          oneOf:
-            - { type: integer }
-            - { type: "null" }
-          description: 所属一级评论 id；顶层评论为 null。
-        reply_to:
-          oneOf:
-            - $ref: "#/components/schemas/UserRef"
-            - { type: "null" }
-          description: 直接回复对象的作者信息；回复顶层评论时为 null。
-        author: { $ref: "#/components/schemas/UserRef" }
-        content: { type: string, maxLength: 500 }
-        like_count: { type: integer, minimum: 0 }
-        liked_by_me: { type: boolean }
-        reply_count:
-          type: integer
-          minimum: 0
-          description: 该顶层评论下的回复总数。
-        created_at: { type: string, format: date-time }
-    CommentWrite:
-      type: object
-      minProperties: 1
-      oneOf:
-        - required: [content, can_id]
-        - required: [content, nameplate_id]
-        - required: [content, reply_to_id]
-      properties:
-        can_id: { type: integer }
-        nameplate_id: { type: integer }
-        reply_to_id:
-          type: integer
-          description: 被直接回复的评论 id；回复时使用，后端据此推导 parent 与 reply_to。
-        content: { type: string, maxLength: 500 }
-    CommentUpdate:
-      type: object
-      required: [content]
-      properties:
-        content: { type: string, maxLength: 500 }
-    CommentPage:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/Comment" }
-    CommentLike:
-      type: object
-      required: [comment_id, liked, like_count]
-      properties:
-        comment_id: { type: integer }
-        liked: { type: boolean }
-        changed: { type: boolean }
-        like_count: { type: integer, minimum: 0 }
-
-    CanTransitionRequest:
-      type: object
-      required: [action]
-      properties:
-        action:
-          type: string
-          enum: [submit, verify, dispute, reject, restore]
-        reason: { type: string, maxLength: 300 }
-    PronunciationTransitionRequest:
-      type: object
-      required: [action]
-      properties:
-        action:
-          type: string
-          enum: [verify, dispute, reject, restore]
-        is_canonical:
-          type: boolean
-          description: 仅在 verify 时有效；设为 true 会取消同三元组、同 reading_type 的旧推荐记录。
-        reason: { type: string, maxLength: 300 }
-    TransitionLog:
-      type: object
-      description: 只读规范化审计事件；旧数据缺失字段以空值补齐，非对象条目不输出。
-      required: [action, from, to, by, at, reason]
-      properties:
-        action: { type: string, enum: [submit, verify, dispute, reject, restore] }
-        from: { type: string }
-        to: { type: string }
-        by: { $ref: "#/components/schemas/TransitionActor" }
-        at: { type: string, format: date-time }
-        reason: { type: string }
-    TransitionActor:
-      type: object
-      required: [id, username, nickname, avatar]
-      properties:
-        id: { type: [integer, "null"] }
+        id: { type: integer, nullable: true }
         username: { type: string }
         nickname: { type: string }
-        avatar: { type: string, format: uri-reference }
-
-    ShelfCard:
+    EntryV2:
       type: object
-      required: [id, title, slug, description, shelf_type, creator, item_count]
       properties:
-        id: { type: integer }
-        title: { type: string }
-        slug: { type: string }
-        description: { type: string }
-        shelf_type: { type: string, enum: [official, user, campaign] }
-        creator: { oneOf: [{ $ref: "#/components/schemas/UserRef" }, { type: "null" }] }
-        item_count: { type: integer, minimum: 0 }
-    ShelfDetail:
-      allOf:
-        - $ref: "#/components/schemas/ShelfCard"
-        - type: object
-          required: [flavors, cans, created_at, updated_at]
-          properties:
-            flavors:
-              type: array
-              items: { $ref: "#/components/schemas/FlavorRef" }
-            cans:
-              type: array
-              items: { $ref: "#/components/schemas/CanCard" }
-            created_at: { type: string, format: date-time }
-            updated_at: { type: string, format: date-time }
-    ShelfWrite:
-      type: object
-      description: flavor_ids 与 can_ids 是有序的全量替换列表，重复 ID 会返回 400。
-      required: [title, slug, shelf_type]
-      properties:
-        title: { type: string, maxLength: 160 }
-        slug: { type: string }
-        description: { type: string }
-        shelf_type: { type: string, enum: [official, user, campaign] }
-        flavor_ids:
-          type: array
-          uniqueItems: true
-          items: { type: integer }
-        can_ids:
-          type: array
-          uniqueItems: true
-          items: { type: integer }
-    ShelfPage:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/ShelfCard" }
-
-    SearchResponse:
-      type: object
-      required: [keyword, flavors, packages, nameplates, cans]
-      properties:
-        keyword: { type: string, maxLength: 20 }
-        flavors:
-          type: array
-          items: { $ref: "#/components/schemas/FlavorCard" }
-        packages:
-          type: array
-          items: { $ref: "#/components/schemas/PackageRef" }
-        nameplates:
-          type: array
-          items: { $ref: "#/components/schemas/NameplatePreview" }
-        cans:
-          type: array
-          items: { $ref: "#/components/schemas/CanCard" }
-    SearchSuggestion:
-      type: object
-      required: [type, id, text, sub]
-      properties:
-        type: { type: string, enum: [flavor, package, nameplate] }
-        id: { type: integer }
-        text: { type: string }
-        sub: { type: string }
-    SearchSuggestionResponse:
-      type: object
-      required: [keyword, suggestions]
-      properties:
-        keyword: { type: string, maxLength: 50 }
-        suggestions:
-          type: array
-          description: 同文本按 Flavor、Package、Nameplate 优先级去重；各类前缀匹配优先于包含匹配。
-          items: { $ref: "#/components/schemas/SearchSuggestion" }
-    HotSearch:
-      type: object
-      required: [keyword, rank]
-      properties:
-        keyword: { type: string }
-        rank: { type: integer, minimum: 1 }
-
-    FileResource:
-      type: object
-      required: [id, url, media_type, size, created_at]
-      properties:
-        id: { type: integer }
-        url: { type: string, format: uri }
-        media_type: { type: string }
-        size: { type: integer, minimum: 0 }
-        duration_ms: { type: [integer, "null"], minimum: 0 }
-        created_at: { type: string, format: date-time }
-
-    Announcement:
-      type: object
-      required: [id, title, description, content, visibility, author, created_at, updated_at]
-      properties:
-        id: { type: integer }
-        title: { type: string }
-        description: { type: string }
-        content: { type: string }
-        cover: { type: string, format: uri-reference }
-        visibility: { type: boolean }
-        author: { $ref: "#/components/schemas/UserRef" }
-        created_at: { type: string, format: date-time }
-        updated_at: { type: string, format: date-time }
-    AnnouncementWrite:
-      type: object
-      required: [title, description, content]
-      properties:
-        title: { type: string }
-        description: { type: string }
-        content: { type: string }
-        cover: { type: string, format: uri-reference }
-        visibility: { type: boolean }
-    AnnouncementPage:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/Announcement" }
-
-    SiteSetting:
-      type: object
-      required: [value]
-      properties:
-        value: {}
-
-    Notification:
-      type: object
-      required: [id, actor, recipient, title, content, unread, public, created_at]
-      properties:
-        id: { type: integer }
-        actor: { $ref: "#/components/schemas/UserRef" }
-        recipient: { oneOf: [{ $ref: "#/components/schemas/UserRef" }, { type: "null" }] }
-        title: { type: string }
-        content: { type: string }
-        unread: { type: boolean }
-        public: { type: boolean }
-        created_at: { type: string, format: date-time }
-    NotificationWrite:
-      type: object
-      required: [content]
-      properties:
-        recipient_ids:
-          type: array
-          uniqueItems: true
-          items: { type: integer }
-        audience:
-          type: string
-          enum: [all]
-        title: { type: string }
-        content: { type: string }
-      description: recipient_ids 与 audience 必须且只能提供一个；audience=all 仅 admin 可用。
-    NotificationPage:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/Notification" }
-
-    ConceptRefV2:
-      type: object
-      required: [id, code, label]
-      properties:
-        id: { type: integer }
-        code: { type: string }
-        label: { type: string }
-
-    ConceptV2:
-      allOf:
-        - $ref: "#/components/schemas/ConceptRefV2"
-        - type: object
-          properties:
-            definition: { type: string }
-            external_refs: { type: object, additionalProperties: true }
-    ConceptV2Page:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/ConceptV2" }
-
-    WritingFormV2:
-      type: object
-      required: [id, text, normalized_text, form_type, language_tag]
-      properties:
-        id: { type: integer }
-        text: { type: string }
-        normalized_text: { type: string }
-        form_type:
-          type: string
-          enum: [orthographic, popular, loan, phonetic, romanization, uncertain]
-        language_tag: { type: string }
-        created_at: { type: string, format: date-time }
-        updated_at: { type: string, format: date-time }
-    WritingFormV2Page:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/WritingFormV2" }
-
-    EntryRefV2:
-      type: object
-      required: [id, display_writing, summary, identity_note, status]
-      properties:
-        id: { type: integer }
-        display_writing: { type: string }
+        id: { type: integer, readOnly: true }
+        display_writing: { type: string, readOnly: true }
         summary: { type: string }
         identity_note: { type: string }
-        status: { type: string, enum: [draft, reviewed, disputed, redirected] }
-
-    EntryWritingV2:
-      type: object
-      required: [id, writing, relation_type, status, is_current]
-      properties:
-        id: { type: integer }
-        writing: { $ref: "#/components/schemas/WritingFormV2" }
-        relation_type: { type: string, enum: [primary, alternate, disputed] }
+        usage_dialect: { $ref: "#/components/schemas/DialectRef" }
         status: { type: string, enum: [draft, reviewed, disputed, rejected] }
-        is_current: { type: boolean }
-        note: { type: string }
-        created_at: { type: string, format: date-time }
-
+        visibility: { type: boolean }
+        recording_count: { type: integer, readOnly: true }
+        needs_audio: { type: boolean, readOnly: true }
+        is_bookmarked: { type: boolean, readOnly: true }
+        senses: { type: array, items: { $ref: "#/components/schemas/EntrySenseV2" }, readOnly: true }
+        pronunciation_variants: { type: array, items: { $ref: "#/components/schemas/PronunciationVariantV2" }, readOnly: true }
+        recording_links: { type: array, items: { $ref: "#/components/schemas/RecordingEntryLinkV2" }, readOnly: true }
     EntrySenseV2:
       type: object
-      required: [id, entry, sense_number, gloss, status, concepts]
       properties:
-        id: { type: integer }
-        entry: { $ref: "#/components/schemas/EntryRefV2" }
-        sense_number: { type: integer, minimum: 1 }
+        id: { type: integer, readOnly: true }
+        entry: { type: integer }
+        sense_number: { type: integer }
         gloss: { type: string }
         usage_note: { type: string }
-        examples: { type: array, items: {} }
-        status: { type: string, enum: [draft, reviewed, disputed] }
-        concepts:
-          type: array
-          items:
-            allOf:
-              - $ref: "#/components/schemas/ConceptRefV2"
-              - type: object
-                properties:
-                  relation_type: { type: string, enum: [exact, broader, narrower, related] }
-                  note: { type: string }
-        created_by: { $ref: "#/components/schemas/UserRef" }
-        created_at: { type: string, format: date-time }
-        updated_at: { type: string, format: date-time }
-    EntrySenseV2Write:
-      type: object
-      required: [entry_id, gloss]
-      properties:
-        entry_id: { type: integer }
-        sense_number: { type: integer, minimum: 1 }
-        gloss: { type: string, minLength: 1 }
-        usage_note: { type: string }
-        examples: { type: array, items: {} }
-        concept_ids: { type: array, uniqueItems: true, items: { type: integer } }
-    EntrySenseV2Page:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/EntrySenseV2" }
-
+        status: { type: string, enum: [draft, reviewed, disputed, rejected] }
+        concepts: { type: array, items: { type: object }, readOnly: true }
     PronunciationVariantV2:
       type: object
-      required: [id, entry, dialect, ipa, base_romanization, surface_romanization, status]
       properties:
-        id: { type: integer }
-        entry: { $ref: "#/components/schemas/EntryRefV2" }
+        id: { type: integer, readOnly: true }
+        entry: { type: integer }
         dialect: { $ref: "#/components/schemas/DialectRef" }
         ipa: { type: string }
         base_romanization: { type: string }
         surface_romanization: { type: string }
-        reading_type: { type: string, enum: [general, literary, colloquial, other] }
-        usage_note: { type: string }
+        reading_type: { type: string }
         status: { type: string, enum: [draft, reviewed, disputed, rejected] }
-        created_by: { $ref: "#/components/schemas/UserRef" }
-        created_at: { type: string, format: date-time }
-        updated_at: { type: string, format: date-time }
-    PronunciationVariantV2Write:
-      type: object
-      required: [entry_id, dialect_id]
-      anyOf:
-        - required: [ipa]
-        - required: [base_romanization]
-        - required: [surface_romanization]
-      properties:
-        entry_id: { type: integer }
-        dialect_id: { type: integer }
-        ipa: { type: string }
-        base_romanization: { type: string }
-        surface_romanization: { type: string }
-        reading_type: { type: string, enum: [general, literary, colloquial, other] }
-        usage_note: { type: string }
-    PronunciationVariantV2Page:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/PronunciationVariantV2" }
-
-    EntryV2:
-      allOf:
-        - $ref: "#/components/schemas/EntryRefV2"
-        - type: object
-          required: [recording_count, needs_audio, evidence_count, attestation_count]
-          properties:
-            usage_dialect:
-              oneOf:
-                - $ref: "#/components/schemas/DialectRef"
-                - type: "null"
-            pronunciation_variants:
-              type: array
-              items: { $ref: "#/components/schemas/PronunciationVariantV2" }
-            concepts:
-              type: array
-              items: { $ref: "#/components/schemas/ConceptRefV2" }
-            recording_count: { type: integer, minimum: 0 }
-            needs_audio: { type: boolean }
-            evidence_count: { type: integer, minimum: 0 }
-            attestation_count: { type: integer, minimum: 0 }
-            writings:
-              type: array
-              items: { $ref: "#/components/schemas/EntryWritingV2" }
-            senses:
-              type: array
-              items: { $ref: "#/components/schemas/EntrySenseV2" }
-            created_by: { $ref: "#/components/schemas/UserRef" }
-            visibility: { type: boolean }
-            created_at: { type: string, format: date-time }
-            updated_at: { type: string, format: date-time }
-    EntryV2Write:
-      type: object
-      description: summary 与 initial_writing 至少提供一个；原始输入另存为不可覆写证据。
-      anyOf:
-        - required: [summary]
-        - required: [initial_writing]
-      properties:
-        summary: { type: string }
-        identity_note: { type: string }
-        usage_dialect_id: { type: [integer, "null"] }
-        initial_writing: { type: string }
-        writing_type:
-          type: string
-          enum: [orthographic, popular, loan, phonetic, romanization, uncertain]
-        evidence_text: { type: string }
-        citation: { type: string }
-        visibility: { type: boolean }
-    EntryV2Page:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/EntryV2" }
-
-    RecordingEntryLinkV2:
-      type: object
-      required: [id, entry, role, status, is_current]
-      properties:
-        id: { type: integer }
-        entry: { $ref: "#/components/schemas/EntryRefV2" }
-        sense_id: { type: [integer, "null"] }
-        role: { type: string, enum: [primary, mention, competing] }
-        status: { type: string, enum: [suggested, accepted, rejected, disputed] }
-        is_current: { type: boolean }
-        review_reason: { type: string }
-        created_at: { type: string, format: date-time }
-    RecordingEntryLinkV2Write:
-      type: object
-      required: [recording_id, entry_id, role]
-      properties:
-        recording_id: { type: integer }
-        entry_id: { type: integer }
-        sense_id: { type: [integer, "null"] }
-        role: { type: string, enum: [primary, mention, competing] }
-    RecordingEntryLinkV2Page:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/RecordingEntryLinkV2" }
-
     RecordingV2:
       type: object
-      required: [id, audio_url, usage_dialect, original_gloss, status, entry_links]
       properties:
-        id: { type: integer }
+        id: { type: integer, readOnly: true }
         audio_url: { type: string, format: uri }
         usage_dialect: { $ref: "#/components/schemas/DialectRef" }
-        recorder: { $ref: "#/components/schemas/UserRef" }
-        recording_type: { type: string, enum: [word, phrase, example, other] }
         original_gloss: { type: string }
-        duration_ms: { type: integer, minimum: 0 }
-        rights_statement: { type: string }
+        recording_type: { type: string, enum: [word, phrase, sentence, narrative] }
         status: { type: string, enum: [draft, published, disputed, rejected] }
         visibility: { type: boolean }
-        entry_links:
-          type: array
-          items: { $ref: "#/components/schemas/RecordingEntryLinkV2" }
-        evidence_count: { type: integer, minimum: 0 }
-        created_at: { type: string, format: date-time }
-        updated_at: { type: string, format: date-time }
-    RecordingV2Write:
+        entry_links: { type: array, items: { $ref: "#/components/schemas/RecordingEntryLinkV2" }, readOnly: true }
+    RecordingEntryLinkV2:
       type: object
-      required: [audio_url, usage_dialect_id, original_gloss]
       properties:
-        audio_url: { type: string, format: uri }
-        usage_dialect_id: { type: integer }
-        original_gloss: { type: string, minLength: 1 }
-        recording_type: { type: string, enum: [word, phrase, example, other] }
-        duration_ms: { type: integer, minimum: 0 }
-        rights_statement: { type: string }
-        visibility: { type: boolean }
-        primary_entry_id: { type: [integer, "null"] }
-        primary_sense_id: { type: [integer, "null"] }
-        original_writing: { type: string }
-        original_pronunciation: { type: string }
-        citation: { type: string }
-    RecordingV2Page:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/RecordingV2" }
-
+        id: { type: integer, readOnly: true }
+        recording: { type: integer }
+        entry: { type: integer }
+        role: { type: string, enum: [primary, mention, competing] }
+        status: { type: string, enum: [suggested, accepted, disputed, rejected] }
+        is_current: { type: boolean }
     UsageAttestationV2:
       type: object
-      required: [id, entry, dialect, attester, active]
       properties:
-        id: { type: integer }
-        entry: { $ref: "#/components/schemas/EntryRefV2" }
+        id: { type: integer, readOnly: true }
+        entry: { type: integer }
         dialect: { $ref: "#/components/schemas/DialectRef" }
         attester: { $ref: "#/components/schemas/UserRef" }
         active: { type: boolean }
-        note: { type: string }
-        attested_at: { type: string, format: date-time }
-        updated_at: { type: string, format: date-time }
-    UsageAttestationV2Write:
-      type: object
-      required: [entry_id, dialect_id]
-      properties:
-        entry_id: { type: integer }
-        dialect_id: { type: integer }
-        note: { type: string }
-    UsageAttestationV2Page:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/UsageAttestationV2" }
-
     EvidenceRecordV2:
       type: object
-      required: [id, source_type, original_text, original_writing, original_gloss, citation]
       properties:
-        id: { type: integer }
+        id: { type: integer, readOnly: true }
         source_type: { type: string }
         original_text: { type: string }
         original_writing: { type: string }
         original_gloss: { type: string }
         original_pronunciation: { type: string }
         citation: { type: string }
-        source_metadata: { type: object, additionalProperties: true }
-        contributor: { oneOf: [{ $ref: "#/components/schemas/UserRef" }, { type: "null" }] }
-        created_at: { type: string, format: date-time }
-    EvidenceRecordV2Page:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/EvidenceRecordV2" }
-
     CuratorGrantV2:
       type: object
-      required: [id, user, role, valid_from, valid_until, reason, is_active]
       properties:
-        id: { type: integer }
+        id: { type: integer, readOnly: true }
         user: { $ref: "#/components/schemas/UserRef" }
-        role: { type: string, enum: [lexical_curator, regional_curator] }
-        dialect: { oneOf: [{ $ref: "#/components/schemas/DialectRef" }, { type: "null" }] }
+        role: { type: string, enum: [lexical, regional] }
+        dialect: { $ref: "#/components/schemas/DialectRef" }
         valid_from: { type: string, format: date-time }
         valid_until: { type: string, format: date-time }
-        granted_by: { oneOf: [{ $ref: "#/components/schemas/UserRef" }, { type: "null" }] }
         reason: { type: string }
-        revoked_at: { type: [string, "null"], format: date-time }
-        revocation_reason: { type: string }
-        is_active: { type: boolean }
-    CuratorGrantV2Page:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/CuratorGrantV2" }
-    CuratorApplicationV2Write:
-      type: object
-      required: [role, statement]
-      properties:
-        role: { type: string, enum: [lexical_curator, regional_curator] }
-        dialect_id:
-          type: [integer, "null"]
-          description: 地区整理员必填；词条整理员不得填写
-        statement: { type: string, minLength: 20, maxLength: 500 }
-        experience: { type: string, maxLength: 500 }
+        is_active: { type: boolean, readOnly: true }
     CuratorApplicationV2:
-      allOf:
-        - $ref: "#/components/schemas/CuratorApplicationV2Write"
-        - type: object
-          required: [id, applicant, status, created_at, updated_at]
-          properties:
-            id: { type: integer }
-            applicant: { $ref: "#/components/schemas/UserRef" }
-            dialect:
-              oneOf:
-                - $ref: "#/components/schemas/DialectRef"
-                - { type: "null" }
-            status: { type: string, enum: [pending, approved, rejected, withdrawn] }
-            reviewed_by:
-              oneOf:
-                - $ref: "#/components/schemas/UserRef"
-                - { type: "null" }
-            review_reason: { type: string }
-            reviewed_at: { type: [string, "null"], format: date-time }
-            created_at: { type: string, format: date-time }
-            updated_at: { type: string, format: date-time }
-            grant:
-              oneOf:
-                - $ref: "#/components/schemas/CuratorGrantV2"
-                - { type: "null" }
-    CuratorApplicationV2Page:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/CuratorApplicationV2" }
-    CuratorApplicationReviewV2:
       type: object
-      required: [decision, reason]
       properties:
-        decision: { type: string, enum: [approved, rejected] }
-        reason: { type: string, minLength: 4, maxLength: 1000 }
-        valid_days: { type: integer, minimum: 1, maximum: 730, default: 365 }
-    CurationTaskV2:
-      type: object
-      required: [kind, id, title, summary, target_type, actions]
-      properties:
-        kind: { type: string }
-        id: { type: integer }
-        title: { type: string }
-        summary: { type: string }
-        target_type: { type: string }
-        dialect:
-          oneOf:
-            - $ref: "#/components/schemas/DialectRef"
-            - { type: "null" }
-        actions: { type: array, items: { type: string } }
-    CurationTaskListV2:
-      type: object
-      required: [count, results]
-      properties:
-        count: { type: integer, minimum: 0 }
-        results: { type: array, items: { $ref: "#/components/schemas/CurationTaskV2" } }
-    CurationActionV2Write:
-      type: object
-      required: [action_type, target_type, target_id, reason]
-      properties:
-        action_type:
-          type: string
-          enum: [review, split_entry, merge_entries, narrow_scope, link_concept, preserve_competing, resolve_legacy]
-        target_type:
-          type: string
-          enum: [entry, sense, writing, pronunciation, recording, recording_link, legacy_candidate]
-        target_id: { type: integer, minimum: 1 }
-        reason: { type: string, minLength: 4, maxLength: 2000 }
-        evidence_ids: { type: array, items: { type: integer, minimum: 1 } }
-        changes: { type: object, additionalProperties: true }
+        id: { type: integer, readOnly: true }
+        applicant: { $ref: "#/components/schemas/UserRef" }
+        role: { type: string, enum: [lexical, regional] }
+        dialect: { $ref: "#/components/schemas/DialectRef" }
+        statement: { type: string }
+        experience: { type: string }
+        status: { type: string, enum: [pending, approved, rejected, withdrawn] }
+        review_reason: { type: string }
     CurationActionV2:
-      allOf:
-        - $ref: "#/components/schemas/CurationActionV2Write"
-        - type: object
-          required: [id, actor, before_snapshot, after_snapshot, created_at]
-          properties:
-            id: { type: integer }
-            actor: { $ref: "#/components/schemas/UserRef" }
-            grant:
-              oneOf:
-                - $ref: "#/components/schemas/CuratorGrantV2"
-                - { type: "null" }
-            target_label: { type: string }
-            before_snapshot: { type: object, additionalProperties: true }
-            after_snapshot: { type: object, additionalProperties: true }
-            created_at: { type: string, format: date-time }
-    CurationActionV2Page:
-      allOf:
-        - $ref: "#/components/schemas/PageBase"
-        - type: object
-          properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/CurationActionV2" }
-    ContributionHistoryV2:
       type: object
-      required: [summary, dialect_footprint, recent_activity]
       properties:
-        summary:
-          type: object
-          required: [recordings, evidence, revisions, dialects]
-          properties:
-            recordings: { type: integer, minimum: 0 }
-            evidence: { type: integer, minimum: 0 }
-            revisions: { type: integer, minimum: 0 }
-            dialects: { type: integer, minimum: 0 }
-        dialect_footprint:
-          type: array
-          items:
-            type: object
-            required: [dialect, contribution_count]
-            properties:
-              dialect: { $ref: "#/components/schemas/DialectRef" }
-              contribution_count: { type: integer, minimum: 0 }
-        recent_activity:
-          type: array
-          items:
-            type: object
-            required: [kind, label, created_at, target_id]
-            properties:
-              kind: { type: string, enum: [recording, evidence, revision, attestation] }
-              label: { type: string }
-              created_at: { type: string, format: date-time }
-              target_id: { type: integer }
-    CurationSummaryV2:
-      type: object
-      required: [grants, pending]
-      properties:
-        grants:
-          type: array
-          items: { $ref: "#/components/schemas/CuratorGrantV2" }
-        pending:
-          type: object
-          required: [legacy_candidates, entries, senses, recordings, pronunciations, recording_links]
-          properties:
-            legacy_candidates: { type: integer, minimum: 0 }
-            entries: { type: integer, minimum: 0 }
-            senses: { type: integer, minimum: 0 }
-            recordings: { type: integer, minimum: 0 }
-            pronunciations: { type: integer, minimum: 0 }
-            recording_links: { type: integer, minimum: 0 }
-            disputed_entries:
-              type: integer
-              minimum: 0
-              deprecated: true
-            disputed_recordings:
-              type: integer
-              minimum: 0
-              deprecated: true
-            disputed_recording_links:
-              type: integer
-              minimum: 0
-              deprecated: true
-
+        id: { type: integer, readOnly: true }
+        actor: { $ref: "#/components/schemas/UserRef" }
+        action_type: { type: string }
+        target_type: { type: string }
+        target_id: { type: integer }
+        before_snapshot: { type: object, readOnly: true }
+        after_snapshot: { type: object, readOnly: true }
+        reason: { type: string }
+        evidence_ids: { type: array, items: { type: integer } }
     CapabilitySwitches:
       type: object
-      additionalProperties: false
-      required: [listen_feed, entry_search, recording, usage_attestation, curation_workbench, wechat_auth]
       properties:
         listen_feed: { type: boolean }
         entry_search: { type: boolean }
@@ -4721,82 +568,85 @@ components:
         usage_attestation: { type: boolean }
         curation_workbench: { type: boolean }
         wechat_auth: { type: boolean }
-    CapabilityConfig:
-      type: object
-      additionalProperties: false
-      required: [version, capabilities, updated_at, cache_seconds]
-      properties:
-        version: { type: integer, const: 1 }
-        capabilities: { $ref: "#/components/schemas/CapabilitySwitches" }
-        updated_at: { type: string, format: date-time }
-        cache_seconds: { type: integer, minimum: 0, maximum: 86400 }
-    ProductEventMetadata:
-      type: object
-      additionalProperties: false
-      properties:
-        tab: { type: string, enum: [today, dialect, following, recommended] }
-        result_bucket: { type: string, enum: ["0", "1-5", "6-20", "21+"] }
-        filter_count: { type: integer, minimum: 0, maximum: 10 }
-        has_linked_entry: { type: boolean }
-        dialect_depth: { type: integer, minimum: 0, maximum: 10 }
-        task_kind:
-          type: string
-          enum: [legacy_candidate, entry, sense, recording, pronunciation, recording_link]
-        capability:
-          type: string
-          enum: [listen_feed, entry_search, recording, usage_attestation, curation_workbench, wechat_auth]
-        reason: { type: string, enum: [not_compiled, disabled_remotely, config_unavailable] }
     ProductEventWrite:
       type: object
-      additionalProperties: false
-      required: [session_id, event_name, platform]
+      required: [session_id, event_name, platform, surface, result]
       properties:
-        session_id:
-          type: string
-          minLength: 8
-          maxLength: 128
-          writeOnly: true
-          description: 仅用于生成按日变化的散列，不原样保存。
-        event_name:
-          type: string
-          enum: [listen_feed_view, entry_search, recording_submit, evidence_submit, curation_task_complete, capability_degraded]
-        platform: { type: string, enum: [h5, mp-weixin, app, unknown] }
-        surface: { type: string, enum: [listen, search, record, entry_detail, curation, ""] }
-        result: { type: string, enum: [view, success, empty, error, unavailable, cancelled] }
-        metadata: { $ref: "#/components/schemas/ProductEventMetadata" }
-    ProductEventBatchWrite:
+        session_id: { type: string }
+        event_name: { type: string }
+        platform: { type: string }
+        surface: { type: string }
+        result: { type: string }
+        metadata: { type: object }
+    BookmarkResult:
       type: object
-      additionalProperties: false
-      required: [events]
       properties:
-        events:
-          type: array
-          minItems: 1
-          maxItems: 50
-          items: { $ref: "#/components/schemas/ProductEventWrite" }
-
-    LegacyReviewCandidateV2:
+        entry_id: { type: integer }
+        bookmarked: { type: boolean }
+        changed: { type: boolean }
+    Page:
       type: object
-      required: [id, source_system, candidate_key, candidate_type, entries, source_ids, payload, status]
       properties:
-        id: { type: integer }
-        source_system: { type: string }
-        candidate_key: { type: string }
-        candidate_type:
-          type: string
-          enum: [sense_segmentation, numbering_anomaly, pronunciation_variation, entry_split, possible_duplicate]
-        primary_entry: { oneOf: [{ $ref: "#/components/schemas/EntryRefV2" }, { type: "null" }] }
-        entries: { type: array, items: { $ref: "#/components/schemas/EntryRefV2" } }
-        source_ids: { type: array, items: { type: integer } }
-        payload: { type: object, additionalProperties: true }
-        status: { type: string, enum: [pending, accepted, rejected] }
-        created_at: { type: string, format: date-time }
-        updated_at: { type: string, format: date-time }
-    LegacyReviewCandidateV2Page:
+        count: { type: integer }
+        next: { type: string, format: uri, nullable: true }
+        previous: { type: string, format: uri, nullable: true }
+    EntryPage:
       allOf:
-        - $ref: "#/components/schemas/PageBase"
+        - $ref: "#/components/schemas/Page"
         - type: object
           properties:
-            results:
-              type: array
-              items: { $ref: "#/components/schemas/LegacyReviewCandidateV2" }
+            results: { type: array, items: { $ref: "#/components/schemas/EntryV2" } }
+    EntrySensePage:
+      allOf:
+        - $ref: "#/components/schemas/Page"
+        - type: object
+          properties:
+            results: { type: array, items: { $ref: "#/components/schemas/EntrySenseV2" } }
+    PronunciationVariantPage:
+      allOf:
+        - $ref: "#/components/schemas/Page"
+        - type: object
+          properties:
+            results: { type: array, items: { $ref: "#/components/schemas/PronunciationVariantV2" } }
+    RecordingPage:
+      allOf:
+        - $ref: "#/components/schemas/Page"
+        - type: object
+          properties:
+            results: { type: array, items: { $ref: "#/components/schemas/RecordingV2" } }
+    RecordingEntryLinkPage:
+      allOf:
+        - $ref: "#/components/schemas/Page"
+        - type: object
+          properties:
+            results: { type: array, items: { $ref: "#/components/schemas/RecordingEntryLinkV2" } }
+    UsageAttestationPage:
+      allOf:
+        - $ref: "#/components/schemas/Page"
+        - type: object
+          properties:
+            results: { type: array, items: { $ref: "#/components/schemas/UsageAttestationV2" } }
+    EvidenceRecordPage:
+      allOf:
+        - $ref: "#/components/schemas/Page"
+        - type: object
+          properties:
+            results: { type: array, items: { $ref: "#/components/schemas/EvidenceRecordV2" } }
+    CuratorGrantPage:
+      allOf:
+        - $ref: "#/components/schemas/Page"
+        - type: object
+          properties:
+            results: { type: array, items: { $ref: "#/components/schemas/CuratorGrantV2" } }
+    CuratorApplicationPage:
+      allOf:
+        - $ref: "#/components/schemas/Page"
+        - type: object
+          properties:
+            results: { type: array, items: { $ref: "#/components/schemas/CuratorApplicationV2" } }
+    CurationActionPage:
+      allOf:
+        - $ref: "#/components/schemas/Page"
+        - type: object
+          properties:
+            results: { type: array, items: { $ref: "#/components/schemas/CurationActionV2" } }

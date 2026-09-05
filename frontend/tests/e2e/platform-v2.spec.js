@@ -23,6 +23,10 @@ async function routeCapabilities(page, overrides = {}) {
 }
 
 test('a remotely disabled recording flow explains the degradation', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('token', 'e2e-capability-token');
+    localStorage.setItem('id', '1');
+  });
   await routeCapabilities(page, { recording: false });
   await page.route('**/product-events/', async (route) => {
     await route.fulfill({ status: 202, json: { accepted: 1 } });

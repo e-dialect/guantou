@@ -6,7 +6,7 @@
  * 用法：
  *   import confirmDialog from '@/components/ConfirmDialog';
  *   const confirmed = await confirmDialog({
- *     title: '删除这个罐头？',
+ *     title: '删除这段录音？',
  *     content: '删除后无法恢复',
  *     danger: true,
  *   });

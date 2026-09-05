@@ -7,7 +7,7 @@ from django.db import IntegrityError, transaction
 from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
-from guantou.models import Can, Dialect, Flavor, Nameplate
+from guantou.models import Dialect, Entry, EntrySense, EvidenceRecord, Recording
 from user.models import EmailVerification, UserInfo
 from user.view.wechat import OpenId
 from utils.exceptions.types.not_found import NotFoundException
@@ -592,41 +592,43 @@ class UserManageProfileTests(TestCase):
         self.user = User.objects.create_user(username="collector", password="pw")
         UserInfo.objects.create(user=self.user, nickname="采集者")
         self.auth = {"HTTP_AUTHORIZATION": f"Bearer {generate_token(self.user)}"}
-        self.public_can = Can.objects.create(
+        self.dialect = Dialect.objects.create(name="莆仙方言", code="莆仙")
+        self.public_recording = Recording.objects.create(
             recorder=self.user,
             audio_url="https://example.com/public.mp3",
+            usage_dialect=self.dialect,
             visibility=True,
         )
-        self.hidden_can = Can.objects.create(
+        self.hidden_recording = Recording.objects.create(
             recorder=self.user,
             audio_url="https://example.com/hidden.mp3",
+            usage_dialect=self.dialect,
             visibility=False,
         )
-        Flavor.objects.create(
-            name="公开义项",
-            definition="公开",
+        self.public_entry = Entry.objects.create(
+            summary="公开词条",
             created_by=self.user,
             visibility=True,
         )
-        Flavor.objects.create(
-            name="隐藏义项",
-            definition="隐藏",
+        self.hidden_entry = Entry.objects.create(
+            summary="隐藏词条",
             created_by=self.user,
             visibility=False,
         )
-        Nameplate.objects.create(
-            can=self.public_can,
-            creator=self.user,
-            text_content="公开铭牌",
-            definition="公开",
-            source={"type": "creator"},
+        EntrySense.objects.create(
+            entry=self.public_entry,
+            gloss="公开义项",
+            created_by=self.user,
         )
-        Nameplate.objects.create(
-            can=self.hidden_can,
-            creator=self.user,
-            text_content="隐藏铭牌",
-            definition="隐藏",
-            source={"type": "creator"},
+        EntrySense.objects.create(
+            entry=self.hidden_entry,
+            gloss="隐藏义项",
+            created_by=self.user,
+        )
+        EvidenceRecord.objects.create(
+            source_type=EvidenceRecord.SourceType.USER_STATEMENT,
+            original_gloss="用户原话",
+            contributor=self.user,
         )
 
     def test_owner_can_update_username_and_receives_a_new_token(self):
@@ -669,29 +671,40 @@ class UserManageProfileTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         contribution = response.json()["contribution"]
-        self.assertEqual(contribution["cans"], 1)
-        self.assertEqual(contribution["flavors"], 1)
-        self.assertEqual(contribution["nameplates"], 1)
-        self.assertNotIn("cans_uploaded", contribution)
-        self.assertNotIn("flavors_uploaded", contribution)
-        self.assertNotIn("nameplates_uploaded", contribution)
+        self.assertEqual(contribution["recordings"], 1)
+        self.assertEqual(contribution["entries"], 1)
+        self.assertEqual(contribution["senses"], 1)
+        self.assertEqual(contribution["evidence"], 1)
+        self.assertNotIn("recordings_total", contribution)
+        self.assertNotIn("entries_total", contribution)
+        self.assertNotIn("senses_total", contribution)
+        profile = response.json()["user"]
+        self.assertNotIn("points_sum", profile)
+        self.assertNotIn("title", profile)
+        self.assertNotIn("level", profile)
 
     def test_owner_profile_includes_uploaded_counts(self):
         response = self.client.get(f"/users/{self.user.id}", **self.auth)
 
         self.assertEqual(response.status_code, 200)
         contribution = response.json()["contribution"]
-        self.assertEqual(contribution["cans"], 1)
-        self.assertEqual(contribution["cans_uploaded"], 2)
-        self.assertEqual(contribution["flavors"], 1)
-        self.assertEqual(contribution["flavors_uploaded"], 2)
-        self.assertEqual(contribution["nameplates"], 1)
-        self.assertEqual(contribution["nameplates_uploaded"], 2)
+        self.assertEqual(contribution["recordings"], 1)
+        self.assertEqual(contribution["recordings_total"], 2)
+        self.assertEqual(contribution["entries"], 1)
+        self.assertEqual(contribution["entries_total"], 2)
+        self.assertEqual(contribution["senses"], 1)
+        self.assertEqual(contribution["senses_total"], 2)
+        self.assertEqual(contribution["evidence"], 1)
 
     def test_owner_profile_includes_password_flag(self):
         response = self.client.get(f"/users/{self.user.id}", **self.auth)
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["user"]["has_password"])
+        self.assertNotIn("points_now", response.json()["user"])
+
+    def test_legacy_points_endpoint_is_retired(self):
+        response = self.client.get(f"/users/{self.user.id}/points", **self.auth)
+        self.assertEqual(response.status_code, 404)
 
     def test_passwordless_owner_can_set_a_password_without_the_old_one(self):
         self.user.set_unusable_password()

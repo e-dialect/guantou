@@ -4,10 +4,6 @@ vi.mock('@/routers', () => ({
   toIndexPage: vi.fn(),
 }));
 
-vi.mock('@/routers/user', () => ({
-  toMePage: vi.fn(),
-}));
-
 vi.mock('@/routers/login', () => ({
   toLoginPage: vi.fn(),
 }));
@@ -15,11 +11,6 @@ vi.mock('@/routers/login', () => ({
 vi.mock('@/services/authGuard', () => ({
   clearInterceptIntent: vi.fn(),
   peekInterceptIntent: vi.fn(() => null),
-}));
-
-vi.mock('@/services/canDrafts', () => ({
-  claimAnonymousCanDrafts: vi.fn(),
-  getCanDraftOwnerScope: vi.fn(() => 'anonymous:session-1'),
 }));
 
 vi.mock('@/services/dialectOnboarding', () => ({

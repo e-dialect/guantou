@@ -34,14 +34,14 @@ describe('BaseButton', () => {
 
   it('renders the primary variant with slot text by default', () => {
     const wrapper = mount(BaseButton, {
-      slots: { default: '提交铭牌' },
+      slots: { default: '提交词条' },
     });
 
     const button = wrapper.getComponent({ name: 'TDesignStub' });
     expect(button.props('theme')).toBe('primary');
     expect(button.props('variant')).toBe('base');
     expect(button.props('size')).toBe('medium');
-    expect(wrapper.text()).toContain('提交铭牌');
+    expect(wrapper.text()).toContain('提交词条');
   });
 
   it('supports ghost and danger variants with block sizing', () => {
@@ -198,10 +198,10 @@ describe('BaseField', () => {
     });
 
     const textarea = wrapper.findAllComponents({ name: 'TDesignStub' })[1];
-    textarea.vm.$emit('change', { detail: { value: '罐头释义' } });
+    textarea.vm.$emit('change', { detail: { value: '词条释义' } });
     await wrapper.vm.$nextTick();
-    expect(wrapper.emitted('update:modelValue')[0]).toEqual(['罐头释义']);
-    expect(wrapper.emitted('input')[0]).toEqual(['罐头释义']);
+    expect(wrapper.emitted('update:modelValue')[0]).toEqual(['词条释义']);
+    expect(wrapper.emitted('input')[0]).toEqual(['词条释义']);
   });
 
   it('forwards confirm from the text input', async () => {
@@ -274,8 +274,8 @@ describe('confirmDialog', () => {
 
   it('resolves true when the user confirms', async () => {
     uni.showModal.mockImplementation(({ success }) => success({ confirm: true }));
-    await expect(confirmDialog({ title: '删除罐头？' })).resolves.toBe(true);
-    expect(uni.showModal.mock.calls[0][0].title).toBe('删除罐头？');
+    await expect(confirmDialog({ title: '删除录音？' })).resolves.toBe(true);
+    expect(uni.showModal.mock.calls[0][0].title).toBe('删除录音？');
     expect(uni.showModal.mock.calls[0][0].confirmColor).toBeUndefined();
   });
 

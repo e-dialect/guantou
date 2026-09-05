@@ -11,12 +11,12 @@ import { listNotifications, markNotificationsRead } from '@/services/mail';
 
 const notification = {
   id: 12,
-  title: '罐头有新评论',
+  title: '词条有新补证',
   content: '很有意思',
   unread: true,
   time: '2026-08-11 10:00:00',
   from: { avatar: '/avatar.png', nickname: '乡音朋友' },
-  target: { type: 'can', id: 9, url: '/pages/cans/details?id=9' },
+  target: { type: 'entry', id: 9, url: '/pages/entries/details?id=9' },
 };
 
 function mountCenter() {
@@ -54,7 +54,7 @@ describe('notification center', () => {
       pageSize: 20,
       unread: true,
     });
-    expect(wrapper.text()).toContain('罐头有新评论');
+    expect(wrapper.text()).toContain('词条有新补证');
   });
 
   it('marks one notification read before opening its target', async () => {
@@ -67,7 +67,7 @@ describe('notification center', () => {
     expect(wrapper.vm.notifications[0].unread).toBe(false);
     expect(notification.unread).toBe(true);
     expect(uni.navigateTo).toHaveBeenCalledWith({
-      url: '/pages/cans/details?id=9',
+      url: '/pages/entries/details?id=9',
     });
   });
 

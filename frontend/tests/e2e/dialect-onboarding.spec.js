@@ -61,7 +61,7 @@ test('new user selects a primary dialect and reaches home', async ({ page }) => 
       },
     });
   });
-  await page.route('**/cans/**', async (route) => {
+  await page.route('**/recordings/**', async (route) => {
     await route.fulfill({
       json: {
         count: 1,
@@ -70,8 +70,13 @@ test('new user selects a primary dialect and reaches home', async ({ page }) => 
         results: [{
           id: 11,
           audio_url: 'https://example.com/sample.mp3',
-          concept_text: '舒服',
-          primary_nameplate: { display_text: '巴适' },
+          original_gloss: '舒服',
+          entry_links: [{
+            role: 'primary',
+            status: 'accepted',
+            is_current: true,
+            entry: { id: 12, display_writing: '巴适', summary: '舒服' },
+          }],
           duration_ms: 3200,
         }],
       },
@@ -105,6 +110,6 @@ test('new user selects a primary dialect and reaches home', async ({ page }) => 
   await page.locator('.base-button').filter({ hasText: '暂时跳过' }).click();
 
   await expect(page).toHaveURL(/\/$/);
-  /* 新首页品牌小标：「乡声集盒 · 把乡音装进罐头」 */
+  /* 新首页品牌小标 */
   await expect(page.locator('.home-top-bar__brand')).toContainText('乡声集盒');
 });

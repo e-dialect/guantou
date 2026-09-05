@@ -82,7 +82,7 @@ describe('entry-first search page orchestration', () => {
 
     expect(page.requestParams(3)).toMatchObject({
       dialect_id: 23,
-      dialect_match: 'exact',
+      dialect_scope: 'exact',
       has_recording: false,
       ipa: 'hiŋ',
       page: 3,

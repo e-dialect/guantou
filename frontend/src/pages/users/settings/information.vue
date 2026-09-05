@@ -174,7 +174,7 @@
         </view>
       </SectionBlock>
 
-      <SectionBlock title="装罐默认">
+      <SectionBlock title="录音默认地区">
         <view
           class="row pressable"
           @tap="openDialectPicker"

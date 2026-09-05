@@ -62,10 +62,10 @@
           <view class="social-stats">
             <view
               class="social-stat pressable"
-              @tap="toCanLibrary"
+              @tap="toContributionHistory"
             >
               <view class="number">
-                {{ cansCount }}
+                {{ recordingsCount }}
               </view>
               <view class="label">
                 录音
@@ -143,24 +143,24 @@
             <view class="works-tabs">
               <view
                 class="works-tab pressable"
-                :class="{ active: worksTab === 'cans' }"
-                @tap="worksTab = 'cans'"
+                :class="{ active: worksTab === 'recordings' }"
+                @tap="worksTab = 'recordings'"
               >
-                录音 {{ cansCount }}
+                录音 {{ recordingsCount }}
               </view>
               <view
                 class="works-tab pressable"
-                :class="{ active: worksTab === 'nameplates' }"
-                @tap="worksTab = 'nameplates'"
+                :class="{ active: worksTab === 'entries' }"
+                @tap="worksTab = 'entries'"
               >
-                词条 {{ nameplatesCount }}
+                词条 {{ entriesCount }}
               </view>
               <view
                 class="works-tab pressable"
-                :class="{ active: worksTab === 'flavors' }"
-                @tap="worksTab = 'flavors'"
+                :class="{ active: worksTab === 'senses' }"
+                @tap="worksTab = 'senses'"
               >
-                义项 {{ flavorsCount }}
+                义项 {{ sensesCount }}
               </view>
             </view>
             <view class="works-empty">
@@ -171,7 +171,7 @@
                 {{ worksPanelCopy }}
               </view>
               <BaseButton
-                v-if="worksCount === 0 && worksTab === 'cans'"
+                v-if="worksCount === 0 && worksTab === 'recordings'"
                 class="works-empty-action"
                 block
                 @click="toCreate"
@@ -183,7 +183,7 @@
                 class="works-empty-action"
                 variant="ghost"
                 block
-                @click="toCanLibrary"
+                @click="toContributionHistory"
               >
                 查看既有贡献
               </BaseButton>
@@ -193,10 +193,10 @@
           <view class="tool-grid">
             <view
               class="tool-item pressable"
-              @tap="toCanLibrary"
+              @tap="toContributionHistory"
             >
               <view class="tool-count">
-                {{ cansCount }}
+                {{ recordingsCount }}
               </view>
               <view class="tool-label">
                 既有录音
@@ -204,24 +204,24 @@
             </view>
             <view
               class="tool-item pressable"
-              @tap="toLikes"
+              @tap="toBookmarks"
             >
               <view class="tool-count">
                 ·
               </view>
               <view class="tool-label">
-                收藏
+                词条收藏
               </view>
             </view>
             <view
               class="tool-item pressable"
-              @tap="toDrafts"
+              @tap="toCircleList"
             >
               <view class="tool-count">
-                {{ draftsCount }}
+                {{ followedDialects.length }}
               </view>
               <view class="tool-label">
-                草稿箱
+                关注方言
               </view>
             </view>
           </view>
@@ -231,8 +231,8 @@
               贡献履历
             </view>
             <view class="account-section__copy">
-              你已留下 {{ cansCount }} 段录音、参与 {{ nameplatesCount }} 个词条、
-              补充 {{ flavorsCount }} 个义项。后续补证、修订和地区足迹也会形成可追溯记录。
+              你已留下 {{ recordingsCount }} 段录音、参与 {{ entriesCount }} 个词条、
+              补充 {{ sensesCount }} 个义项与 {{ evidenceCount }} 条原始证据。修订和地区足迹也会形成可追溯记录。
             </view>
             <BaseButton
               class="account-section__action"
@@ -361,7 +361,7 @@
             还没有登录
           </view>
           <view class="guest-copy">
-            登录后可以录乡音、看草稿和自己的贡献。公开乡音不用登录，先听也可以。
+            登录后可以录乡音、收藏词条和查看自己的贡献。公开乡音不用登录，先听也可以。
           </view>
           <BaseButton
             class="guest-action login-button"
@@ -412,11 +412,10 @@ import BaseButton from '@/components/BaseButton.vue';
 import confirmDialog from '@/components/ConfirmDialog';
 import { notify, notifySuccess } from '@/services/feedback';
 import { openLoginFromMine } from '@/services/authJourney';
-import { listCanDrafts } from '@/services/canDrafts';
 import { getCurationSummary } from '@/services/entryRecording';
 import { CAPABILITIES, isCapabilityEnabled } from '@/services/capabilities';
 import {
-  goCanLibrary,
+  goCircleList,
   goContributionHistory,
   goCurationWorkbench,
   goCuratorApplication,
@@ -424,6 +423,7 @@ import {
   goMails,
   goRecord,
   goSearch,
+  goEntryBookmarks,
   goThemeCenter,
   goUserEmail,
   goUserInformation,
@@ -448,12 +448,12 @@ export default {
       nickname: '',
       username: '',
       primaryDialect: null,
-      cansCount: 0,
-      flavorsCount: 0,
-      nameplatesCount: 0,
+      recordingsCount: 0,
+      sensesCount: 0,
+      entriesCount: 0,
+      evidenceCount: 0,
       followerCount: 0,
       followingCount: 0,
-      draftsCount: 0,
       unreadMailsCount: 0,
       followedDialects: [],
       email: '',
@@ -463,7 +463,7 @@ export default {
       loading: Boolean(uni.getStorageSync('token')),
       loadError: '',
       loggedIn: Boolean(uni.getStorageSync('token')),
-      worksTab: 'cans',
+      worksTab: 'recordings',
       curationSummary: null,
     };
   },
@@ -476,28 +476,28 @@ export default {
       return `在「${dialect}」记录乡音`;
     },
     worksCount() {
-      if (this.worksTab === 'nameplates') return this.nameplatesCount;
-      if (this.worksTab === 'flavors') return this.flavorsCount;
-      return this.cansCount;
+      if (this.worksTab === 'entries') return this.entriesCount;
+      if (this.worksTab === 'senses') return this.sensesCount;
+      return this.recordingsCount;
     },
     worksPanelTitle() {
       if (this.worksCount > 0) {
-        if (this.worksTab === 'nameplates') return `参与 ${this.worksCount} 个词条`;
-        if (this.worksTab === 'flavors') return `补充 ${this.worksCount} 个义项`;
+        if (this.worksTab === 'entries') return `参与 ${this.worksCount} 个词条`;
+        if (this.worksTab === 'senses') return `补充 ${this.worksCount} 个义项`;
         return `留下 ${this.worksCount} 段录音`;
       }
-      if (this.worksTab === 'nameplates') return '还没有参与词条整理';
-      if (this.worksTab === 'flavors') return '还没有补充义项';
+      if (this.worksTab === 'entries') return '还没有参与词条整理';
+      if (this.worksTab === 'senses') return '还没有补充义项';
       return '还没有录音贡献';
     },
     worksPanelCopy() {
       if (this.worksCount > 0) {
         return '既有贡献仍可查看；新录音会按词条和地区建立可追溯关联。';
       }
-      if (this.worksTab === 'nameplates') {
+      if (this.worksTab === 'entries') {
         return '不会写汉字也没关系，先录音和说明大意，之后再逐步完善词条。';
       }
-      if (this.worksTab === 'flavors') {
+      if (this.worksTab === 'senses') {
         return '义项记录同一个词条下相关的编号义、用法和例句。';
       }
       return '录下一个你会说的词或短语，只需标明地区并说明大意。';
@@ -541,7 +541,6 @@ export default {
   onShow() {
     this.canUseWechatAuth = isCapabilityEnabled(CAPABILITIES.WECHAT_AUTH);
     this.loggedIn = Boolean(uni.getStorageSync('token'));
-    this.refreshDraftsCount();
     if (this.loggedIn) this.getInfo();
   },
   methods: {
@@ -571,18 +570,8 @@ export default {
     toCreate() {
       goRecord();
     },
-    toDrafts() {
-      goCanLibrary({ tab: 'drafts' });
-    },
-    toLikes() {
-      goCanLibrary({ tab: 'liked' });
-    },
-    refreshDraftsCount() {
-      this.draftsCount = listCanDrafts().length;
-    },
-    toCanLibrary() {
-      goCanLibrary();
-    },
+    toBookmarks() { goEntryBookmarks(); },
+    toCircleList() { goCircleList(); },
     toContributionHistory() {
       goContributionHistory();
     },
@@ -606,15 +595,13 @@ export default {
         this.username = userInfo.user.username || '';
         this.nickname = userInfo.user.nickname || userInfo.user.username;
         this.primaryDialect = userInfo.user.primary_dialect;
-        this.cansCount = userInfo.contribution.cans_uploaded
-          ?? userInfo.contribution.cans
-          ?? 0;
-        this.flavorsCount = userInfo.contribution.flavors_uploaded
-          ?? userInfo.contribution.flavors
-          ?? 0;
-        this.nameplatesCount = userInfo.contribution.nameplates_uploaded
-          ?? userInfo.contribution.nameplates
-          ?? 0;
+        this.recordingsCount = userInfo.contribution.recordings_total
+          ?? userInfo.contribution.recordings ?? 0;
+        this.entriesCount = userInfo.contribution.entries_total
+          ?? userInfo.contribution.entries ?? 0;
+        this.sensesCount = userInfo.contribution.senses_total
+          ?? userInfo.contribution.senses ?? 0;
+        this.evidenceCount = userInfo.contribution.evidence ?? 0;
         this.followerCount = userInfo.user.follower_count || 0;
         this.followingCount = userInfo.user.following_count || 0;
         this.followedDialects = userInfo.user.followed_dialects || [];

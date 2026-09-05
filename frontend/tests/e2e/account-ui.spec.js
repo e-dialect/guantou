@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { stableScreenshot } from './helpers/stableScreenshot';
 
 async function tap(locator) {
   await locator.click();
@@ -40,9 +41,8 @@ test('mine page keeps contrast in light and dark themes', async ({ page }) => {
   expect(light.page).toBe('#f6f7f3');
   expect(light.text).toBe('#1d2a24');
   expect(light.page).not.toBe(light.text);
-  await page.screenshot({
+  await stableScreenshot(page, {
     path: 'test-results/account-me-light.png',
-    fullPage: true,
   });
 
   await tap(page.locator('.filters.appearance .chip', { hasText: '深色' }));
@@ -53,9 +53,8 @@ test('mine page keeps contrast in light and dark themes', async ({ page }) => {
   expect(dark.text).toBe('#edf4ef');
   expect(dark.surface).toBe('#1d2822');
   expect(dark.page).not.toBe(light.page);
-  await page.screenshot({
+  await stableScreenshot(page, {
     path: 'test-results/account-me-dark.png',
-    fullPage: true,
   });
 });
 
@@ -82,7 +81,7 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
   await expect(page.getByText('地域方言风', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('国风', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('全局主题将统一改变导航栏、按钮、卡片、背景、文字色彩')).toBeVisible();
-  await expect(page.getByText('全局主题会带轻微地域纹理，不会改变罐头播放内容；部分组件在微信小程序存在限制。')).toBeVisible();
+  await expect(page.getByText('全局主题会带轻微地域纹理，不会改变录音播放内容；部分组件在微信小程序存在限制。')).toBeVisible();
   await expect(page.getByText('提示：部分限定装扮为限时活动产出，活动结束后将绝版；')).toBeVisible();
   await expect(page.getByText('会员装扮权益在H5、小程序两端同步；')).toBeVisible();
   await expect(page.getByText('最新上架').first()).toBeVisible();
@@ -113,7 +112,8 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
 
   await page.getByText('装扮获取').click();
   await expect(page.getByText('开通会员即可解锁全部会员全局主题、会员局部装扮。')).toBeVisible();
-  await expect(page.getByText('去装一罐').first()).toBeVisible();
+  await expect(page.getByText('去录乡音').first()).toBeVisible();
+  await expect(page.getByText('录音数从贡献履历自动核验；徽章与挑战资格由活动审核发放，不能在本页自行增加。')).toBeVisible();
   await page.goBack();
 
   await page.locator('.theme-card', { hasText: '松风会员' }).click();
@@ -128,7 +128,7 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
   await expect(page.getByText('H5网页版：该主题全部样式完整生效')).toBeVisible();
   await expect(page.locator('.sheet').getByText('实时预览')).toBeVisible();
   await expect(page.getByText('预览仅为模拟效果，不会修改你的界面')).toBeVisible();
-  await expect(page.getByText('首页罐头流').first()).toBeVisible();
+  await expect(page.getByText('首页录音流').first()).toBeVisible();
   await expect(page.getByText('会修改的元素')).toBeVisible();
   await expect(page.getByText('该主题暂未开放，敬请期待')).toBeVisible();
   await expect(page.locator('.sheet').getByText('取消')).toBeVisible();
@@ -140,7 +140,7 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
   await page.locator('.sheet').getByText('实时预览').click({ force: true });
   await expect(page.locator('.preview-sheet').getByText('实时预览').first()).toBeVisible();
   await expect(page.getByText('立即应用').first()).toBeVisible();
-  await expect(page.getByText('示例罐头占位').first()).toBeVisible();
+  await expect(page.getByText('示例录音占位').first()).toBeVisible();
   await page.locator('.preview-close').click({ force: true });
   await page.locator('.sheet-actions .base-button').first().click({ force: true });
 
@@ -148,7 +148,7 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
   await expect(page.getByText('局部装扮可单独修改界面组件，不会强制替换整套全局主题')).toBeVisible();
   await expect(page.getByText('小程序部分原生组件暂不支持自定义装扮。')).toBeVisible();
   await expect(page.getByText('导航栏底色与图标')).toBeVisible();
-  await expect(page.getByText('罐头卡片').first()).toBeVisible();
+  await expect(page.getByText('录音卡片').first()).toBeVisible();
   await expect(page.getByText('江南吴语头像框')).toBeVisible();
   await expect(page.getByText('去设置').first()).toBeVisible();
 
@@ -297,9 +297,8 @@ test('password settings use design-system fields, visibility, and loading', asyn
   await expect(oldInput).toHaveAttribute('type', 'password');
 
   if (process.env.E2E_SCREENSHOT_DIR) {
-    await page.screenshot({
+    await stableScreenshot(page, {
       path: `${process.env.E2E_SCREENSHOT_DIR}/account-password-light.png`,
-      fullPage: true,
     });
   }
 
@@ -346,9 +345,8 @@ test('information settings replace native pickers and open the avatar sheet', as
   await expect(page.getByText('微信头像和聊天记录需要在小程序里使用')).toHaveCount(0);
 
   if (process.env.E2E_SCREENSHOT_DIR) {
-    await page.screenshot({
+    await stableScreenshot(page, {
       path: `${process.env.E2E_SCREENSHOT_DIR}/account-information-light.png`,
-      fullPage: true,
     });
   }
 
@@ -379,9 +377,8 @@ test('email settings send a bind code without native form controls', async ({ pa
   await expect(page.locator('.base-button', { hasText: /后重发/ })).toBeDisabled();
 
   if (process.env.E2E_SCREENSHOT_DIR) {
-    await page.screenshot({
+    await stableScreenshot(page, {
       path: `${process.env.E2E_SCREENSHOT_DIR}/account-email-light.png`,
-      fullPage: true,
     });
   }
 });

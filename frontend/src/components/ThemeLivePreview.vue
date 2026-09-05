@@ -36,7 +36,7 @@
       </view>
 
       <view class="preview-label">
-        首页罐头流
+        首页录音流
       </view>
       <view
         class="mock-phone"
@@ -54,19 +54,19 @@
           {{ model.nativeLocked ? '系统默认顶栏' : '乡声集盒' }}
         </view>
         <view
-          v-for="can in model.sample.cans"
-          :key="can.title"
-          class="mock-can"
+          v-for="recording in model.sample.recordings"
+          :key="recording.title"
+          class="mock-recording"
         >
           <view class="mock-video">
             <view class="mock-play" />
           </view>
-          <view class="mock-can-copy">
-            <view class="mock-can-title">
-              {{ can.title }}
+          <view class="mock-recording-copy">
+            <view class="mock-recording-title">
+              {{ recording.title }}
             </view>
             <view class="muted">
-              {{ can.caption }}
+              {{ recording.caption }}
             </view>
           </view>
           <view class="mock-actions">
@@ -114,11 +114,11 @@
         </view>
         <view class="mock-grid">
           <view
-            v-for="can in model.sample.cans"
-            :key="`grid-${can.title}`"
+            v-for="recording in model.sample.recordings"
+            :key="`grid-${recording.title}`"
             class="mock-tile"
           >
-            {{ can.title }}
+            {{ recording.title }}
           </view>
         </view>
       </view>
@@ -359,7 +359,7 @@ export default {
   color: var(--muted-color);
 }
 
-.mock-can {
+.mock-recording {
   position: relative;
   z-index: 1;
   padding: var(--dress-card-padding, var(--space-2));
@@ -388,7 +388,7 @@ export default {
   border-color: transparent transparent transparent var(--accent-color);
 }
 
-.mock-can-title,
+.mock-recording-title,
 .mock-name {
   font-weight: 700;
   font-size: var(--font-size-sm);
@@ -557,7 +557,7 @@ export default {
   border-radius: var(--radius-sm);
 }
 
-.dress-cards .mock-can,
+.dress-cards .mock-recording,
 .dress-cards .mock-tile {
   box-shadow: inset 0 0 0 1px var(--border-color);
 }

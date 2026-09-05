@@ -58,6 +58,7 @@ vi.mock('@/services/navigation', () => ({
 }));
 
 const entryRecording = await import('@/services/entryRecording');
+const { requireAuth } = await import('@/services/authGuard');
 const { uploadFile } = await import('@/services/file');
 const { notifySuccess } = await import('@/services/feedback');
 const { goEntryDetail, goRecord } = await import('@/services/navigation');
@@ -148,6 +149,15 @@ describe('low-threshold recording flow', () => {
       result: 'success',
       metadata: { has_linked_entry: false },
     });
+  });
+
+  it('intercepts a direct guest deep link before loading or uploading', async () => {
+    requireAuth.mockReturnValueOnce(false);
+
+    await RecordingCreate.onLoad.call(context(RecordingCreate), {});
+
+    expect(requireAuth).toHaveBeenCalledWith('record_recording', { page: 'record' });
+    expect(entryRecording.createRecording).not.toHaveBeenCalled();
   });
 
   it('does not require a writing or IPA before validation succeeds', async () => {

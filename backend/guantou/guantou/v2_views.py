@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from django.db import transaction
-from django.db.models import Count, Exists, OuterRef, Prefetch, Q
+from django.db.models import BooleanField, Count, Exists, OuterRef, Prefetch, Q, Value
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -12,11 +12,14 @@ from utils.exceptions.types.bad_request import BadRequestException
 
 from .models import (
     Concept,
+    CircleMembership,
     CurationAction,
     CuratorApplication,
     CuratorGrant,
     Dialect,
+    DialectCircle,
     Entry,
+    EntryBookmark,
     EntrySense,
     EntrySenseConcept,
     EntryWriting,
@@ -28,7 +31,7 @@ from .models import (
     UsageAttestation,
     WritingForm,
 )
-from .serializers import DialectRefSerializer
+from .shared_serializers import DialectRefSerializer, DialectSerializer
 from .v2_permissions import (
     IsActiveCurator,
     IsLexicalCurator,
@@ -47,6 +50,7 @@ from .v2_serializers import (
     CuratorApplicationReviewSerializer,
     CuratorApplicationSerializer,
     CuratorGrantSerializer,
+    DialectCircleSerializer,
     EntryCardSerializer,
     EntrySenseSerializer,
     EntrySerializer,
@@ -130,6 +134,186 @@ def available_recording_links_for_user(user):
     return queryset.filter(recording__visibility=True)
 
 
+class DialectWritePermission(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        return bool(request.user and request.user.is_staff)
+
+
+class DialectViewSet(viewsets.ModelViewSet):
+    http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
+    queryset = Dialect.objects.select_related("parent").prefetch_related("children")
+    serializer_class = DialectSerializer
+    permission_classes = [DialectWritePermission]
+
+    def get_serializer_class(self):
+        if self.action == "list" and parse_boolean(
+            self.request.query_params.get("flat"), "flat"
+        ):
+            return DialectRefSerializer
+        return DialectSerializer
+
+    def perform_create(self, serializer):
+        dialect = serializer.save()
+        DialectCircle.objects.get_or_create(
+            dialect=dialect,
+            defaults={
+                "name": f"{dialect.name}圈",
+                "description": dialect.description
+                or f"一起听、录和整理{dialect.name}乡音。",
+            },
+        )
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.action == "list":
+            parent_id = self.request.query_params.get("parent_id")
+            if not parse_boolean(self.request.query_params.get("flat"), "flat"):
+                queryset = (
+                    queryset.filter(parent__isnull=True)
+                    if parent_id is None
+                    else queryset.filter(parent_id=parent_id)
+                )
+        search = self.request.query_params.get("search", "").strip()
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) | Q(code__icontains=search)
+            )
+        return queryset.order_by("sort_order", "id")
+
+    @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny])
+    def resolve(self, request):
+        qualified_code = request.query_params.get("qualified_code", "").strip()
+        if not qualified_code:
+            raise BadRequestException("qualified_code 不能为空")
+        segments = qualified_code.split(".")
+        node = Dialect.objects.filter(parent__isnull=True, code=segments[0]).first()
+        for segment in segments[1:]:
+            if node is None:
+                break
+            node = Dialect.objects.filter(parent=node, code=segment).first()
+        if node is None:
+            node = next(
+                (
+                    candidate
+                    for candidate in Dialect.objects.all().iterator()
+                    if qualified_code in (candidate.aliases or [])
+                ),
+                None,
+            )
+        if node is None:
+            from rest_framework.exceptions import NotFound
+
+            raise NotFound("方言限定码不存在")
+        return Response(self.get_serializer(node).data)
+
+    @action(
+        detail=True,
+        methods=["put", "delete"],
+        permission_classes=[permissions.IsAuthenticated],
+    )
+    def follow(self, request, pk=None):
+        dialect = self.get_object()
+        info = request.user.user_info
+        if request.method == "PUT":
+            info.followed_dialects.add(dialect)
+            following = True
+        elif info.primary_dialect_id == dialect.id:
+            info.followed_dialects.add(dialect)
+            following = True
+        else:
+            info.followed_dialects.remove(dialect)
+            following = False
+        return Response({"dialect_id": dialect.id, "following": following})
+
+
+class DialectCircleViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = DialectCircleSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        queryset = (
+            DialectCircle.objects.filter(is_active=True)
+            .select_related("dialect", "dialect__parent")
+            .annotate(member_count=Count("members", distinct=True))
+        )
+        user = self.request.user
+        if user and user.is_authenticated:
+            queryset = queryset.annotate(
+                is_member=Exists(
+                    CircleMembership.objects.filter(circle_id=OuterRef("pk"), user=user)
+                )
+            )
+        else:
+            queryset = queryset.annotate(
+                is_member=Value(False, output_field=BooleanField())
+            )
+        search = self.request.query_params.get("search", "").strip()
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search)
+                | Q(description__icontains=search)
+                | Q(dialect__name__icontains=search)
+            )
+        return queryset.order_by("dialect__sort_order", "id")
+
+    @action(
+        detail=True,
+        methods=["post", "delete"],
+        permission_classes=[permissions.IsAuthenticated],
+    )
+    def membership(self, request, pk=None):
+        circle = self.get_object()
+        if request.method == "POST":
+            _, changed = CircleMembership.objects.get_or_create(
+                circle=circle, user=request.user
+            )
+            request.user.user_info.followed_dialects.add(circle.dialect)
+            is_member = True
+        else:
+            deleted, _ = CircleMembership.objects.filter(
+                circle=circle, user=request.user
+            ).delete()
+            changed = bool(deleted)
+            if request.user.user_info.primary_dialect_id != circle.dialect_id:
+                request.user.user_info.followed_dialects.remove(circle.dialect)
+            is_member = False
+        return Response(
+            {
+                "changed": changed,
+                "is_member": is_member,
+                "member_count": CircleMembership.objects.filter(circle=circle).count(),
+            }
+        )
+
+    @action(detail=True, methods=["get"], permission_classes=[permissions.AllowAny])
+    def recordings(self, request, pk=None):
+        circle = self.get_object()
+        queryset = (
+            visible_recordings_for_user(request.user)
+            .filter(usage_dialect_id__in=circle.dialect.descendant_ids())
+            .select_related("usage_dialect", "usage_dialect__parent", "recorder")
+            .prefetch_related(
+                "entry_links__sense",
+                "entry_links__entry__entry_writings__writing",
+            )
+            .annotate(evidence_count=Count("evidence_links", distinct=True))
+            .order_by("-created_at", "-id")
+        )
+        page = self.paginate_queryset(queryset)
+        serializer = RecordingSerializer(
+            page if page is not None else queryset,
+            many=True,
+            context=self.get_serializer_context(),
+        )
+        return (
+            self.get_paginated_response(serializer.data)
+            if page is not None
+            else Response(serializer.data)
+        )
+
+
 def entry_api_queryset(user):
     links = available_recording_links_for_user(user).select_related(
         "recording", "sense"
@@ -172,12 +356,25 @@ def entry_api_queryset(user):
                 filter=Q(usage_attestations__active=True),
                 distinct=True,
             ),
+            is_bookmarked=(
+                Exists(EntryBookmark.objects.filter(entry_id=OuterRef("pk"), user=user))
+                if user and user.is_authenticated
+                else Value(False, output_field=BooleanField())
+            ),
         )
     )
 
 
 class EntryViewSet(viewsets.ModelViewSet):
-    http_method_names = ["get", "post", "patch", "head", "options"]
+    http_method_names = [
+        "get",
+        "post",
+        "put",
+        "patch",
+        "delete",
+        "head",
+        "options",
+    ]
     permission_classes = [V2ResourcePermission]
 
     def get_serializer_class(self):
@@ -204,6 +401,55 @@ class EntryViewSet(viewsets.ModelViewSet):
         refreshed = entry_api_queryset(request.user).get(pk=instance.pk)
         return Response(
             EntrySerializer(refreshed, context=self.get_serializer_context()).data
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        return Response(
+            {"detail": "词条不可通过公开接口删除；请由整理员保留修订记录。"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    @action(
+        detail=True,
+        methods=["put", "delete"],
+        permission_classes=[permissions.IsAuthenticated],
+    )
+    def bookmark(self, request, pk=None):
+        entry = self.get_object()
+        if request.method == "PUT":
+            _, changed = EntryBookmark.objects.get_or_create(
+                entry=entry, user=request.user
+            )
+            bookmarked = True
+        else:
+            deleted, _ = EntryBookmark.objects.filter(
+                entry=entry, user=request.user
+            ).delete()
+            changed = bool(deleted)
+            bookmarked = False
+        return Response(
+            {"entry_id": entry.id, "bookmarked": bookmarked, "changed": changed}
+        )
+
+    @action(
+        detail=False,
+        methods=["get"],
+        permission_classes=[permissions.IsAuthenticated],
+    )
+    def bookmarks(self, request):
+        queryset = self.filter_queryset(
+            self.get_queryset().filter(bookmarks__user=request.user)
+        )
+        page = self.paginate_queryset(queryset)
+        serializer = EntryCardSerializer(
+            page if page is not None else queryset,
+            many=True,
+            context=self.get_serializer_context(),
+        )
+        return (
+            self.get_paginated_response(serializer.data)
+            if page is not None
+            else Response(serializer.data)
         )
 
     def get_queryset(self):

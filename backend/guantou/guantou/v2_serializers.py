@@ -7,6 +7,7 @@ from .models import (
     CuratorApplication,
     CuratorGrant,
     Dialect,
+    DialectCircle,
     Entry,
     EntrySense,
     EntrySenseConcept,
@@ -20,7 +21,7 @@ from .models import (
     UsageAttestation,
     WritingForm,
 )
-from .serializers import DialectRefSerializer, UserLiteSerializer
+from .shared_serializers import DialectRefSerializer, UserLiteSerializer
 from .v2_permissions import (
     active_curator_grants,
     can_curate_entry,
@@ -56,6 +57,34 @@ class WritingFormSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = fields
+
+
+class DialectCircleSerializer(serializers.ModelSerializer):
+    dialect = DialectRefSerializer(read_only=True)
+    member_count = serializers.IntegerField(read_only=True)
+    recording_count = serializers.SerializerMethodField()
+    is_member = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = DialectCircle
+        fields = [
+            "id",
+            "name",
+            "description",
+            "dialect",
+            "member_count",
+            "recording_count",
+            "is_member",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+    def get_recording_count(self, obj):
+        return Recording.objects.filter(
+            visibility=True,
+            usage_dialect_id__in=obj.dialect.descendant_ids(),
+        ).count()
 
 
 class EntryWritingSerializer(serializers.ModelSerializer):
@@ -230,6 +259,7 @@ class EntryCardSerializer(serializers.ModelSerializer):
     needs_audio = serializers.SerializerMethodField()
     evidence_count = serializers.IntegerField(read_only=True, default=0)
     attestation_count = serializers.IntegerField(read_only=True, default=0)
+    is_bookmarked = serializers.BooleanField(read_only=True, default=False)
 
     class Meta:
         model = Entry
@@ -246,6 +276,7 @@ class EntryCardSerializer(serializers.ModelSerializer):
             "needs_audio",
             "evidence_count",
             "attestation_count",
+            "is_bookmarked",
             "created_at",
             "updated_at",
         ]

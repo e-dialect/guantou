@@ -16,11 +16,11 @@ function mailResponse(id) {
     from: { id: 2, nickname: '同乡小李', avatar: '' },
     to: { id: 1, nickname: '演示用户', avatar: '' },
     time: '2026-08-31 10:00:00',
-    title: '你的铭牌获支持',
-    content: '同乡小李支持了你的铭牌',
+    title: '你的词条获补证',
+    content: '同乡小李补充了词条证据',
     unread: true,
     public: true,
-    target: { type: 'can', id: 1, url: '/pages/cans/details?id=1' },
+    target: { type: 'entry', id: 1, url: '/pages/entries/details?id=1' },
   };
 }
 

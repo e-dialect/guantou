@@ -98,7 +98,7 @@ export const STYLE_TAG_VALUES = {
   nav: '导航栏',
   tabbar: '底部Tab',
   buttons: '交互按钮',
-  cards: '罐头卡片',
+  cards: '录音卡片',
   profile: '个人主页',
   avatar: '头像挂件',
   comment: '评论区',

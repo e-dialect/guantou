@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { stableScreenshot } from './helpers/stableScreenshot';
 
 const rect = (locator) => locator.evaluate((element) => {
   const { width, height } = element.getBoundingClientRect();
@@ -28,7 +29,7 @@ test('BaseField stays readable and full width on a 390px mobile viewport', async
   await expect(page.locator('.t-form__item-extra')).toHaveCount(3);
 
   await testInfo.attach('mail-form-light-390x844', {
-    body: await page.screenshot({ fullPage: true }),
+    body: await stableScreenshot(page, { fullPage: true }),
     contentType: 'image/png',
   });
 });
@@ -50,7 +51,7 @@ test('TDesign theme bridge supplies readable dark form colors', async ({ page },
   expect(colors.text).not.toBe(colors.background);
 
   await testInfo.attach('mail-form-dark-390x844', {
-    body: await page.screenshot({ fullPage: true }),
+    body: await stableScreenshot(page, { fullPage: true }),
     contentType: 'image/png',
   });
 });
@@ -79,8 +80,12 @@ test('component-level theme-dark recomputes TDesign tokens', async ({ page }) =>
   expect(colors.text).toBe('rgb(237, 244, 239)');
 });
 
-test('can creation uses a BaseField with a non-zero text area', async ({ page }) => {
-  await page.goto('/pages/cans/create');
+test('recording creation uses a BaseField with a non-zero text area', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('token', 'e2e-layout-token');
+    localStorage.setItem('id', '1');
+  });
+  await page.goto('/pages/recordings/create');
 
   const conceptInput = page.locator('.base-field input').first();
   await expect(conceptInput).toBeVisible();
@@ -93,7 +98,7 @@ test('PageShell and AppShell mount the shared feedback host', async ({ page }) =
   await page.goto('/pages/mails/send');
   await expect(page.locator('.feedback-host')).toHaveCount(1);
 
-  await page.goto('/pages/shelves/index');
+  await page.goto('/pages/users/bookmarks');
   await expect(page.locator('.feedback-host')).toHaveCount(1);
 });
 

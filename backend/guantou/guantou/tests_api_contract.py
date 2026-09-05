@@ -9,5 +9,5 @@ from tools.api_contract.check_contract import contract_errors
 
 
 class ApiContractDriftTests(SimpleTestCase):
-    def test_old_core_and_v2_resources_match_openapi(self):
+    def test_retired_core_is_absent_and_v2_resources_match_openapi(self):
         self.assertEqual(contract_errors(), [])

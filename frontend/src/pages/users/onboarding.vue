@@ -181,6 +181,7 @@ import {
   saveDialectProfile,
 } from '@/services/dialectOnboarding';
 import { listAllDialects } from '@/services/guantou';
+import { entryTitle, primaryEntryLink } from '@/services/entryRecording';
 import { resumeInterruptedPageAfterLogin } from '@/services/login';
 import { clearUserInfo } from '@/services/user';
 import { playAudio } from '@/utils/audio';
@@ -245,8 +246,8 @@ export default {
         : '';
     },
     sampleTitle() {
-      return this.sample?.primary_nameplate?.display_text
-        || this.sample?.concept_text
+      return entryTitle(primaryEntryLink(this.sample || {})?.entry || {})
+        || this.sample?.original_gloss
         || '未命名乡音';
     },
     sampleDuration() {

@@ -52,12 +52,6 @@
             >
               未填写方言点
             </view>
-            <view
-              v-if="titleLabel"
-              class="title-badge"
-            >
-              {{ titleLabel }}
-            </view>
           </view>
         </view>
       </view>
@@ -65,10 +59,10 @@
       <view class="social-stats">
         <view class="social-stat">
           <view class="number">
-            {{ displayCansCount }}
+            {{ displayRecordingsCount }}
           </view>
           <view class="label">
-            罐头
+            录音
           </view>
         </view>
         <view class="social-stat">
@@ -117,9 +111,9 @@
           <BaseButton
             size="small"
             block
-            @click="goCreateCan"
+            @click="goRecord"
           >
-            装一罐
+            录乡音
           </BaseButton>
         </view>
       </view>
@@ -155,24 +149,24 @@
         <view class="works-tabs">
           <view
             class="works-tab pressable"
-            :class="{ active: worksTab === 'cans' }"
-            @tap="worksTab = 'cans'"
+            :class="{ active: worksTab === 'recordings' }"
+            @tap="worksTab = 'recordings'"
           >
-            罐头 {{ displayCansCount }}
+            录音 {{ displayRecordingsCount }}
           </view>
           <view
             class="works-tab pressable"
-            :class="{ active: worksTab === 'nameplates' }"
-            @tap="worksTab = 'nameplates'"
+            :class="{ active: worksTab === 'entries' }"
+            @tap="worksTab = 'entries'"
           >
-            铭牌 {{ displayNameplatesCount }}
+            词条 {{ displayEntriesCount }}
           </view>
           <view
             class="works-tab pressable"
-            :class="{ active: worksTab === 'flavors' }"
-            @tap="worksTab = 'flavors'"
+            :class="{ active: worksTab === 'senses' }"
+            @tap="worksTab = 'senses'"
           >
-            义项 {{ displayFlavorsCount }}
+            义项 {{ displaySensesCount }}
           </view>
         </view>
         <view class="works-empty">
@@ -183,21 +177,21 @@
             {{ worksPanelCopy }}
           </view>
           <BaseButton
-            v-if="isSelf && worksCount === 0 && worksTab === 'cans'"
+            v-if="isSelf && worksCount === 0 && worksTab === 'recordings'"
             class="works-empty-action"
             block
-            @click="goCreateCan"
+            @click="goRecord"
           >
-            去装一罐
+            去录乡音
           </BaseButton>
           <BaseButton
             v-else-if="isSelf"
             class="works-empty-action"
             variant="ghost"
             block
-            @click="goCanLibrary"
+            @click="goContributionHistory"
           >
-            打开罐头库
+            查看贡献履历
           </BaseButton>
           <BaseButton
             v-else
@@ -206,7 +200,7 @@
             block
             @click="goHome"
           >
-            先去听罐头
+            先去听乡音
           </BaseButton>
         </view>
       </view>
@@ -221,11 +215,11 @@ import { APP_NAME } from '@/const/branding';
 import { requireAuth } from '@/services/authGuard';
 import { followUser, unfollowUser } from '@/services/following';
 import {
-  goCanLibrary,
-  goCreateCan,
+  goContributionHistory,
   goHome,
   goMailSend,
   goMails,
+  goRecord,
   goUserInformation,
   ROUTES,
 } from '@/services/navigation';
@@ -250,16 +244,15 @@ export default {
           follower_count: 0,
           following_count: 0,
           is_following: false,
-          title: { title: '' },
         },
         contribution: {
-          cans: 0,
-          flavors: 0,
-          nameplates: 0,
+          recordings: 0,
+          senses: 0,
+          entries: 0,
         },
       },
       followingBusy: false,
-      worksTab: 'cans',
+      worksTab: 'recordings',
     };
   },
   computed: {
@@ -271,64 +264,60 @@ export default {
         || this.userInfo.user.username
         || '用户档案';
     },
-    titleLabel() {
-      return this.userInfo.user.title?.title || '';
-    },
     bioText() {
       const dialect = this.locationText;
-      if (this.titleLabel) return `${this.titleLabel} · ${dialect}`;
-      return `在「${dialect}」装罐`;
+      return `在「${dialect}」记录乡音`;
     },
     isSelf() {
       const mine = Number(uni.getStorageSync('id'));
       const theirs = Number(this.id);
       return Boolean(mine) && mine === theirs;
     },
-    displayCansCount() {
-      return this.contributionCount('cans');
+    displayRecordingsCount() {
+      return this.contributionCount('recordings');
     },
-    displayFlavorsCount() {
-      return this.contributionCount('flavors');
+    displaySensesCount() {
+      return this.contributionCount('senses');
     },
-    displayNameplatesCount() {
-      return this.contributionCount('nameplates');
+    displayEntriesCount() {
+      return this.contributionCount('entries');
     },
     worksCount() {
       return this.contributionCount(this.worksTab);
     },
     worksPanelTitle() {
       if (this.worksCount > 0) {
-        if (this.worksTab === 'nameplates') return `已有 ${this.worksCount} 张铭牌`;
-        if (this.worksTab === 'flavors') return `已有 ${this.worksCount} 个义项`;
-        return `已有 ${this.worksCount} 罐`;
+        if (this.worksTab === 'entries') return `参与 ${this.worksCount} 个词条`;
+        if (this.worksTab === 'senses') return `补充 ${this.worksCount} 个义项`;
+        return `留下 ${this.worksCount} 段录音`;
       }
-      if (this.worksTab === 'nameplates') {
-        return this.isSelf ? '还没有贴铭牌' : '还没有公开铭牌';
+      if (this.worksTab === 'entries') {
+        return this.isSelf ? '还没有参与词条整理' : '还没有公开词条贡献';
       }
-      if (this.worksTab === 'flavors') {
+      if (this.worksTab === 'senses') {
         return this.isSelf ? '还没有提交义项' : '还没有公开义项';
       }
-      return this.isSelf ? '还没有装罐' : '还没有公开罐头';
+      return this.isSelf ? '还没有录音' : '还没有公开录音';
     },
     worksPanelCopy() {
       if (this.worksCount > 0) {
         return this.isSelf
-          ? '完整列表在罐头库，可按录制、收藏和草稿查看。'
-          : '主页展示贡献数量。他们装过的罐头会出现在罐头详情和搜索结果里。';
+          ? '完整记录在贡献履历中，可按录音、补证、修订和地区足迹查看。'
+          : '这里只展示公开贡献数量；具体词条和录音可从听、查页面发现。';
       }
-      if (this.worksTab === 'nameplates') {
+      if (this.worksTab === 'entries') {
         return this.isSelf
-          ? '铭牌是对某条罐头的写法、释义和出处主张。先听一罐再去贴。'
-          : 'TA 还没有公开铭牌。先去听推荐，或者稍后再来看看。';
+          ? '词条承载同一个词及其读音身份；不会写字也可以先录音。'
+          : 'TA 还没有公开词条贡献。先去听乡音，或者稍后再来看看。';
       }
-      if (this.worksTab === 'flavors') {
+      if (this.worksTab === 'senses') {
         return this.isSelf
-          ? '义项用来收纳“同一个意思在各地怎么说”。去罐头库看看别人怎么装。'
+          ? '义项记录同一词条下相关的编号义、用法和例句。'
           : 'TA 还没有公开义项。先去听推荐，或者稍后再来看看。';
       }
       return this.isSelf
-        ? '罐头是一段乡音录音。装罐后会出现在主页数量和罐头库里。'
-        : 'TA 还没有公开罐头。先去听推荐，或者稍后再来看看。';
+        ? '每段录音独立保存地区、大意和授权，并可关联多个词条。'
+        : 'TA 还没有公开录音。先去听推荐，或者稍后再来看看。';
     },
   },
   async onLoad(options) {
@@ -344,10 +333,10 @@ export default {
   },
   methods: {
     goUserInformation,
-    goCreateCan,
+    goRecord,
     goMails,
     goHome,
-    goCanLibrary,
+    goContributionHistory,
     openMail() {
       if (!requireAuth('dm', { page: 'user_detail', userId: this.id })) return;
       goMailSend(this.id);
@@ -355,17 +344,9 @@ export default {
     contributionCount(kind) {
       const contribution = this.userInfo.contribution || {};
       if (this.isSelf) {
-        if (kind === 'nameplates') {
-          return contribution.nameplates_uploaded ?? contribution.nameplates ?? 0;
-        }
-        if (kind === 'flavors') {
-          return contribution.flavors_uploaded ?? contribution.flavors ?? 0;
-        }
-        return contribution.cans_uploaded ?? contribution.cans ?? 0;
+        return contribution[`${kind}_total`] ?? contribution[kind] ?? 0;
       }
-      if (kind === 'nameplates') return contribution.nameplates ?? 0;
-      if (kind === 'flavors') return contribution.flavors ?? 0;
-      return contribution.cans ?? 0;
+      return contribution[kind] ?? 0;
     },
     async getInfo() {
       if (!this.id) {

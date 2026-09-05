@@ -64,7 +64,7 @@ export default {
   position: relative;
   display: flex;
   align-items: center;
-  /* 首页 3 张铭牌（含副铭牌操作条）布局预算下收紧一档（Issue #218） */
+  /* 紧凑录音卡布局预算下收紧一档。 */
   height: 84rpx;
   width: 100%;
 }

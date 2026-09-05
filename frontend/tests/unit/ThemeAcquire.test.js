@@ -55,19 +55,16 @@ describe('theme acquire, member, and event pages', () => {
     expect(wrapper.text()).toContain('开通会员即可解锁全部会员全局主题、会员局部装扮');
     expect(wrapper.text()).toContain('同乡灯会');
     expect(wrapper.text()).toContain('去参与活动');
-    expect(wrapper.text()).toContain('去装一罐');
+    expect(wrapper.text()).toContain('去录乡音');
     expect(wrapper.text()).toContain('方言达人徽章');
-    expect(wrapper.text()).toContain('每日装一罐可领取少量装扮碎片');
+    expect(wrapper.text()).toContain('每日录一段乡音可领取少量装扮碎片');
     expect(wrapper.text()).toContain('同乡、同方言圈子用户');
     expect(wrapper.text()).toContain(THEME_ACCESS_FOOTER[0]);
     expect(wrapper.text()).not.toContain('短视频');
     expect(wrapper.text()).not.toContain('作品');
 
-    wrapper.vm.claimBadge();
-    wrapper.vm.finishChallenge();
-    expect(wrapper.vm.creatorReady).toBe(false);
-    for (let i = 0; i < 10; i += 1) wrapper.vm.recordCan();
-    expect(wrapper.vm.creatorReady).toBe(true);
+    expect(wrapper.text()).toContain('录音数从贡献履历自动核验');
+    expect(wrapper.text()).not.toContain('记录一次录音贡献');
     wrapper.vm.claimDailyShards();
     expect(notifySuccess).toHaveBeenCalled();
   });

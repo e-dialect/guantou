@@ -39,11 +39,11 @@ describe('httpClient compatibility wrappers', () => {
       data: { ok: true },
     });
 
-    await expect(request.get('/cans/', { page: 1 })).resolves.toEqual({ ok: true });
+    await expect(request.get('/recordings/', { page: 1 })).resolves.toEqual({ ok: true });
 
     expect(uni.request).toHaveBeenCalledWith(expect.objectContaining({
       method: 'GET',
-      url: 'http://localhost:8000/cans/',
+      url: 'http://localhost:8000/recordings/',
       data: { page: 1 },
       header: expect.objectContaining({
         'content-type': 'application/json',

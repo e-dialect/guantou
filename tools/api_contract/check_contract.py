@@ -170,10 +170,31 @@ RESOURCE_CONTRACTS = (
     },
 )
 
-OLD_CORE_PATHS = {
-    "/flavors/": {"get", "post"},
-    "/cans/": {"get", "post"},
-    "/nameplates/": {"get", "post"},
+RETIRED_CORE_PREFIXES = {
+    "packages",
+    "flavors",
+    "pronunciations",
+    "cans",
+    "nameplates",
+    "shelves",
+    "posts",
+    "comments",
+}
+
+RETIRED_CORE_PATHS = {
+    "/packages/",
+    "/flavors/",
+    "/pronunciations/",
+    "/cans/",
+    "/nameplates/",
+    "/shelves/",
+    "/posts/",
+    "/comments/",
+    "/daily/",
+    "/discovery/",
+    "/search/",
+    "/search/suggest/",
+    "/search/hot/",
 }
 
 AUXILIARY_V2_PATHS = {
@@ -287,22 +308,10 @@ def contract_errors():
     registered = {prefix: viewset for prefix, viewset, _ in router.registry}
     errors = []
 
-    for path, methods in OLD_CORE_PATHS.items():
-        missing = methods - paths.get(path, set())
-        if missing:
-            errors.append(f"OpenAPI 旧核心路径 {path} 缺少方法: {sorted(missing)}")
-        prefix = path.strip("/")
-        viewset = registered.get(prefix)
-        if viewset is None:
-            errors.append(f"DRF router 缺少旧核心资源: {prefix}")
-        else:
-            missing_implementation = methods - set(
-                getattr(viewset, "http_method_names", [])
-            )
-            if missing_implementation:
-                errors.append(
-                    f"旧核心实现 {prefix} 缺少方法: {sorted(missing_implementation)}"
-                )
+    for prefix in sorted(RETIRED_CORE_PREFIXES & registered.keys()):
+        errors.append(f"DRF router 仍公开旧核心资源: {prefix}")
+    for path in sorted(RETIRED_CORE_PATHS & paths.keys()):
+        errors.append(f"OpenAPI 仍记录已退役路径: {path}")
 
     for spec in RESOURCE_CONTRACTS:
         viewset = registered.get(spec["prefix"])
@@ -367,9 +376,9 @@ def main():
             print(f"- {error}")
         return 1
     print(
-        "API contract check passed: old core routes and Entry/Recording v2 "
-        "governance, capability, and analytics routes, methods, and core "
-        "serializer fields are aligned."
+        "API contract check passed: retired core routes are absent and "
+        "Entry/Recording V2 governance, capability, and analytics routes, "
+        "methods, and core serializer fields are aligned."
     )
     return 0
 

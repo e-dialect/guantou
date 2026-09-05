@@ -54,12 +54,12 @@ class InboxApiTests(TestCase):
         notification = send_event_notification(
             actor=self.sender,
             recipient=self.recipient,
-            verb=Notification.Verb.CAN_LIKE,
-            description="收藏了你的罐头",
+            verb=Notification.Verb.USAGE_ATTESTATION,
+            description="为你的词条补充了地区使用证据",
             metadata={
-                "target_type": "can",
+                "target_type": "entry",
                 "target_id": 42,
-                "target_url": "/pages/cans/details?id=42",
+                "target_url": "/pages/entries/details?id=42",
             },
         )
 
@@ -71,17 +71,17 @@ class InboxApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         item = response.json()["notifications"][0]
         self.assertEqual(item["id"], notification.id)
-        self.assertEqual(item["verb"], Notification.Verb.CAN_LIKE)
+        self.assertEqual(item["verb"], Notification.Verb.USAGE_ATTESTATION)
         self.assertEqual(
             item["target"],
-            {"type": "can", "id": 42, "url": "/pages/cans/details?id=42"},
+            {"type": "entry", "id": 42, "url": "/pages/entries/details?id=42"},
         )
 
     def test_event_notification_suppresses_self_notifications(self):
         result = send_event_notification(
             actor=self.sender,
             recipient=self.sender,
-            verb=Notification.Verb.CAN_LIKE,
+            verb=Notification.Verb.ENTRY_BOOKMARK,
         )
 
         self.assertIsNone(result)

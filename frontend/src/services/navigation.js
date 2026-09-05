@@ -3,32 +3,15 @@ export const ROUTES = Object.freeze({
   search: '/pages/search',
   record: '/pages/recordings/create',
   entryDetail: '/pages/entries/details',
-  atlas: '/pages/flavors/index',
-  shelves: '/pages/shelves/index',
   mine: '/pages/users/me',
   login: '/pages/login/login',
-  canCreate: '/pages/cans/create',
-  canDetail: '/pages/cans/details',
-  canComments: '/pages/cans/comments',
-  nameplateDetail: '/pages/nameplates/details',
-  nameplateComments: '/pages/nameplates/comments',
-  nameplateCreate: '/pages/nameplates/create',
-  canLibrary: '/pages/cans/library',
-  canList: '/pages/cans/index',
   circleList: '/pages/circles/index',
   circleDetail: '/pages/circles/details',
-  discovery: '/pages/discovery/index',
-  flavorDetail: '/pages/flavors/details',
-  packageList: '/pages/packages/index',
-  packageDetail: '/pages/packages/details',
-  postCompose: '/pages/posts/compose',
-  postDetail: '/pages/posts/details',
-  pronunciationCreate: '/pages/pronunciations/create',
-  shelfDetail: '/pages/shelves/details',
   userDetail: '/pages/users/details',
   onboarding: '/pages/users/onboarding',
   recommendFollow: '/pages/users/recommend-follow',
   contributionHistory: '/pages/users/contributions',
+  entryBookmarks: '/pages/users/bookmarks',
   curationWorkbench: '/pages/curation/index',
   curatorApplication: '/pages/curation/apply',
   loginRegister: '/pages/login/register',
@@ -126,30 +109,12 @@ export const goEntryDetail = (id, options = {}) => openPage(
   { id },
   options,
 );
-export const goAtlas = (reset = false) => openPage(ROUTES.atlas, {}, { reset });
-export const goShelves = (reset = false) => openPage(ROUTES.shelves, {}, { reset });
 export const goMine = (reset = false) => openPage(ROUTES.mine, {}, { reset });
 export const goLogin = (params = {}, options = {}) => {
   if (currentRoute() !== ROUTES.login.slice(1)) openPage(ROUTES.login, params, options);
 };
-export const goCanDetail = (id, options = {}) => openPage(ROUTES.canDetail, { id }, options);
-export const goCanComments = (id) => openPage(ROUTES.canComments, { id });
-export const goCreateCan = (params = {}) => openPage(ROUTES.canCreate, params);
-export const goCanLibrary = (params = {}) => openPage(ROUTES.canLibrary, params);
-export const goCanList = () => openPage(ROUTES.canList);
 export const goCircleList = () => openPage(ROUTES.circleList);
 export const goCircleDetail = (id) => openPage(ROUTES.circleDetail, { id });
-export const goDiscovery = () => openPage(ROUTES.discovery);
-export const goFlavorDetail = (id) => openPage(ROUTES.flavorDetail, { id });
-export const goPackageList = () => openPage(ROUTES.packageList);
-export const goPackageDetail = (id) => openPage(ROUTES.packageDetail, { id });
-export const goPostDetail = (id, options = {}) => openPage(ROUTES.postDetail, { id }, options);
-export const goPostCompose = (canId) => openPage(ROUTES.postCompose, { can_id: canId });
-export const goPronunciationCreate = (flavorId) => openPage(
-  ROUTES.pronunciationCreate,
-  { flavor_id: flavorId },
-);
-export const goShelfDetail = (id) => openPage(ROUTES.shelfDetail, { id });
 export const goUserDetail = (id) => openPage(ROUTES.userDetail, { id });
 export const goOnboarding = (params = {}, options = {}) => openPage(
   ROUTES.onboarding,
@@ -162,6 +127,7 @@ export const goRecommendFollow = (reset = false) => openPage(
   { reset },
 );
 export const goContributionHistory = () => openPage(ROUTES.contributionHistory);
+export const goEntryBookmarks = () => openPage(ROUTES.entryBookmarks);
 export const goCurationWorkbench = () => openPage(ROUTES.curationWorkbench);
 export const goCuratorApplication = () => openPage(ROUTES.curatorApplication);
 export const goLoginRegister = () => openPage(ROUTES.loginRegister);
@@ -199,37 +165,17 @@ export const goThemeSearch = (keyword = '') => openPage(ROUTES.themeCenter, {
 export const goThemeAcquire = (params = {}) => openPage(ROUTES.themeAcquire, params);
 export const goThemeMember = (params = {}) => openPage(ROUTES.themeMember, params);
 export const goThemeEvent = (params = {}) => openPage(ROUTES.themeEvent, params);
-export const goNameplateDetail = (id, params = {}, options = {}) => openPage(
-  ROUTES.nameplateDetail,
-  { id, ...params },
-  options,
-);
-export const goNameplateComments = (id) => openPage(ROUTES.nameplateComments, { id });
-export const goCreateNameplate = (canId, referenceId = null, options = {}) => openPage(
-  ROUTES.nameplateCreate,
-  { can_id: canId, reference_id: referenceId },
-  options,
-);
-
 export default {
   ROUTES,
   currentRoute,
-  goAtlas,
   goBack,
-  goCanLibrary,
-  goCanList,
-  goCanComments,
-  goCanDetail,
   goCircleDetail,
   goCircleList,
-  goCreateCan,
-  goCreateNameplate,
   goContributionHistory,
   goCurationWorkbench,
   goCuratorApplication,
-  goDiscovery,
   goEntryDetail,
-  goFlavorDetail,
+  goEntryBookmarks,
   goHome,
   goLogin,
   goLoginForget,
@@ -239,20 +185,11 @@ export default {
   goMailSend,
   goMails,
   goMine,
-  goNameplateComments,
-  goNameplateDetail,
   goNotFound,
   goOnboarding,
-  goPackageDetail,
-  goPackageList,
-  goPostCompose,
-  goPostDetail,
-  goPronunciationCreate,
   goRecord,
   goRecommendFollow,
   goSearch,
-  goShelfDetail,
-  goShelves,
   goUserDetail,
   goUserEmail,
   goUserInformation,

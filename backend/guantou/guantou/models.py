@@ -1256,6 +1256,34 @@ class Entry(models.Model):
         verbose_name_plural = "词条"
 
 
+class EntryBookmark(models.Model):
+    """A private reading-list marker; it never affects curation rank or status."""
+
+    entry = models.ForeignKey(
+        Entry,
+        on_delete=models.CASCADE,
+        related_name="bookmarks",
+        verbose_name="词条",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="entry_bookmarks",
+        verbose_name="收藏者",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="收藏时间")
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["entry", "user"], name="unique_entry_bookmark"
+            )
+        ]
+        verbose_name = "词条收藏"
+        verbose_name_plural = "词条收藏"
+
+
 class EntrySense(models.Model):
     """A numbered, related sense inside one Entry."""
 

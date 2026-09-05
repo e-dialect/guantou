@@ -8,7 +8,7 @@ from inbox.dto import notification_normal
 from inbox.models import Notification
 from user.models import UserInfo
 
-from .models import Can, Dialect, Nameplate
+from .models import Dialect, Entry, Recording, RecordingEntryLink
 
 
 class UserContentDeletionPolicyTests(TestCase):
@@ -30,18 +30,25 @@ class UserContentDeletionPolicyTests(TestCase):
             content="demo 已更新",
             visibility=True,
         )
-        can = Can.objects.create(
-            recorder=self.author,
-            submitted_dialect=self.dialect,
-            audio_url="https://example.com/preserved.mp3",
-            concept_text="保留乡音",
+        entry = Entry.objects.create(
+            created_by=self.author,
+            usage_dialect=self.dialect,
+            summary="保留乡音",
             visibility=True,
         )
-        nameplate = Nameplate.objects.create(
-            can=can,
-            creator=self.author,
-            text_content="乡音",
-            source={"type": "creator"},
+        recording = Recording.objects.create(
+            recorder=self.author,
+            usage_dialect=self.dialect,
+            audio_url="https://example.com/preserved.mp3",
+            original_gloss="保留乡音",
+            visibility=True,
+        )
+        link = RecordingEntryLink.objects.create(
+            recording=recording,
+            entry=entry,
+            created_by=self.author,
+            role=RecordingEntryLink.Role.PRIMARY,
+            status=RecordingEntryLink.Status.ACCEPTED,
         )
         notification = Notification.objects.create(
             actor=self.author,
@@ -51,13 +58,15 @@ class UserContentDeletionPolicyTests(TestCase):
 
         self.author.delete()
         announcement.refresh_from_db()
-        can.refresh_from_db()
-        nameplate.refresh_from_db()
+        entry.refresh_from_db()
+        recording.refresh_from_db()
+        link.refresh_from_db()
         notification.refresh_from_db()
 
         self.assertIsNone(announcement.author_id)
-        self.assertIsNone(can.recorder_id)
-        self.assertIsNone(nameplate.creator_id)
+        self.assertIsNone(entry.created_by_id)
+        self.assertIsNone(recording.recorder_id)
+        self.assertIsNone(link.created_by_id)
         self.assertIsNone(notification.actor_id)
         self.assertEqual(announcement_all(announcement)["author"]["id"], None)
         self.assertEqual(
@@ -65,19 +74,22 @@ class UserContentDeletionPolicyTests(TestCase):
         )
 
         self.client.force_authenticate(None)
-        public = self.client.get(f"/cans/{can.id}/")
+        public = self.client.get(f"/recordings/{recording.id}/")
         self.assertEqual(public.status_code, 200)
         self.assertIsNone(public.data["recorder"])
 
         self.client.force_authenticate(self.viewer)
         self.assertEqual(
-            self.client.patch(f"/cans/{can.id}/", {"source_note": "越权"}).status_code,
+            self.client.patch(
+                f"/recordings/{recording.id}/", {"rights_statement": "越权"}
+            ).status_code,
             403,
         )
         self.client.force_authenticate(self.staff)
         self.assertEqual(
             self.client.patch(
-                f"/cans/{can.id}/", {"source_note": "管理员维护"}
+                f"/recordings/{recording.id}/",
+                {"rights_statement": "管理员维护"},
             ).status_code,
             200,
         )

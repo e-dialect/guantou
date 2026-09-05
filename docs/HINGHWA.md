@@ -2,8 +2,9 @@
 
 管理命令 `import_hinghwa_legacy` 只读打开兴化语记旧库 SQLite，并用
 `source_system + source_table + source_id + target_model` 台账保证断点续跑和幂等重跑。
-过渡期会同时保留当前 V1 对象，并为每个旧词建立独立的 `Entry`、为每条旧录音建立唯一的
-`Recording` 及其主词条关系；因此已经完成 V1 导入的数据库也可以安全重跑以补建 V2。
+活动导入器只写 Entry / Recording V2：为每个旧词建立独立的 `Entry`、为每条旧录音建立
+唯一的 `Recording` 及其主词条关系。旧 Can/Nameplate/Flavor/Package 表只读归档；既有
+V1 归档不会阻断 V2 导入，也不会被活动导入器继续补写。
 命令不会复制 COS 音频对象，只保留原 HTTPS URL。
 
 ## 正式导入前
@@ -62,9 +63,10 @@ python manage.py import_hinghwa_legacy \
 
 ## 脱敏 demo fixture
 
-仓库内的 `guantou/fixtures/hinghwa_demo.json` 使用逻辑键而非数据库主键，包含城里、
+仓库内的 `guantou/fixtures/hinghwa_demo.json` 使用 schema v2 和逻辑键而非数据库主键，包含城里、
 江口、湄洲、城关和枫亭各一条公开录音。它不含真实用户名、邮箱、手机号、微信标识、
-密码哈希、头像或管理员权限，可重复导入空库或已有库：
+密码哈希、头像或管理员权限，只包含 Entry、Recording 及其写法、编号义、地区读音、
+关联与证据，可重复导入空库或已有库：
 
 ```bash
 python manage.py import_hinghwa_legacy \

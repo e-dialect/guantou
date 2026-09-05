@@ -1,47 +1,34 @@
 # API 文档
 
-本目录描述乡声集盒的**预期 API v1 契约**。它是产品与接口设计目标，不表示当前代码已经全部实现。
+乡声集盒当前只公开 Entry / Recording V2 领域接口。字段、方法和状态码以
+[`api/v1/openapi.yaml`](api/v1/openapi.yaml) 为准；这里的 `v1` 是公开契约目录版本，
+不代表已退役的 Can/Nameplate V1 领域。
 
 ## 权威顺序
 
-1. [`api/v1/openapi.yaml`](api/v1/openapi.yaml)：字段、类型、必填项、路径、状态码与鉴权的规范性来源。
-2. [`api/v1/README.md`](api/v1/README.md)：中文语义、典型流程与使用示例。
-3. [`ARCHITECTURE.md`](ARCHITECTURE.md)：系统边界和领域模型。
-4. [`adr/0001-dialect-pronunciation-model.md`](adr/0001-dialect-pronunciation-model.md)：方言层级与读音模型的设计依据。
-5. [`adr/0002-nameplate-as-attestation.md`](adr/0002-nameplate-as-attestation.md)：铭牌、录音与词典资料的边界和来源规则。
+1. [`api/v1/openapi.yaml`](api/v1/openapi.yaml)：公开路径和字段契约。
+2. [`api/v1/README.md`](api/v1/README.md)：中文语义与典型流程。
+3. [`ARCHITECTURE.md`](ARCHITECTURE.md)：运行时边界。
+4. [`adr/0006-entry-sense-recording-domain.md`](adr/0006-entry-sense-recording-domain.md)：V2 领域决策。
+5. [`adr/0007-retire-legacy-can-nameplate-runtime.md`](adr/0007-retire-legacy-can-nameplate-runtime.md)：旧运行时退役决策。
 
-发生冲突时以前一项为准。实现代码、测试或旧讨论稿不能反向覆盖已经确认的 v1 契约；如需改变契约，应同时修改 OpenAPI、中文说明和相关 ADR。
+## 核心约定
 
-## 版本管理
-
-- v1 使用根路径，例如 `/cans/`、`/flavors/`、`/pronunciations/`，不在 URL 中增加 `/api/v1/`。
-- v1 正式冻结前可以继续完善；冻结后的兼容性补充仍更新 `v1/`。
-- 冻结后的破坏性变更新建 `docs/api/v2/`，不得静默改变 v1 的字段或语义。
-- 只维护 YAML 契约，不提交内容相同的 JSON 副本。Apifox 等工具直接导入 `openapi.yaml`。
-- 不在契约中记录 PR、issue 或实现进度；这些信息由 Git 与项目管理工具维护。
-
-## 核心约定摘要
-
-- 写接口使用 `Authorization: Bearer <token>`。
-- 客户端可传 `X-Visitor-ID`；服务端在缺失时生成并通过同名响应头返回。匿名访客只用于访问追踪和审计归因，不具备写权限。
-- 错误响应使用 `{ code, message, data, request_id }`，其中数字 `code` 与 HTTP 状态码一致。
-- V2 以 `Entry` 为搜索主结果；同形不同读音或核心意义是不同 Entry，写法相同不会触发自动合并。
-- `EntrySense` 保存相关的编号义，`Concept` 只连接 WALK、RUN 等跨词条概念，`PronunciationVariant` 保存地区读音。
-- `Recording` 与 `Entry` 通过 primary、mention、competing 多对多关联；录音最低只需音频、使用地区和大意，没有现成词条时创建可继续整理的初稿 Entry。
-- 过渡期保留 `Package`、`Flavor`、`Pronunciation`、`Can` 和 `Nameplate` 接口，直到前后端完成切换。
-- `Dialect` 是按需建立的方言关系树；限定码从根到叶书写，如 `闽.莆仙.仙游.游洋`，同级人工顺序使用 `sort_order`。
-- 列表统一使用 `{ count, next, previous, results }` 分页结构，时间统一使用 RFC 3339。
-- `/search/suggest/` 的已实现容错、可见性、去重和排序规则已经纳入 v1 契约，详见 OpenAPI 与中文说明。
-- `/search/` 按 `flavors`、`packages`、`nameplates`、`cans` 分组，每组使用同一个 `limit`（默认 8，范围 1～20）；它不是资源列表分页接口。`/search/hot/` 返回按热度排序的 `[{ keyword, rank }]`。
-- 评论的顶层列表与顶层创建必须且只能指定 `can_id` 或 `nameplate_id`：前者表示罐头公共评论（数据库中 `nameplate=NULL`），后者表示具体铭牌的独立讨论。回复列表按 `parent_id` 拉取、回复创建用 `reply_to_id` 推导目标，均不需 `can_id`/`nameplate_id`。
+- 业务资源直接挂在根路径并保留尾斜杠，如 `/entries/`、`/recordings/`。
+- 写接口使用 `Authorization: Bearer <token>`；公开资料默认允许匿名读取。
+- 列表统一返回 `{ count, next, previous, results }`。
+- 同形不同读音或核心意义返回不同 Entry；Concept 关联不会自动合并词条。
+- Recording 与 Entry 通过 `primary / mention / competing` 多对多关联。
+- 地区默认精确匹配；只有 `dialect_scope=subtree` 才包含后代。
+- Can、Nameplate、Flavor、Package、Pronunciation、Shelf、Post、Comment 旧领域路径已退役，
+  旧数据库表仅用于历史归档和可追溯迁移。
 
 ## 维护检查
 
-修改 API 设计时至少检查：
+修改公开契约时同步更新 OpenAPI、中文说明和 ADR，并运行：
 
-1. OpenAPI 中的路径、schema 和示例是否一致。
-2. 中文说明是否仍与 OpenAPI 和 ADR 一致。
-3. 新的嵌套响应是否只使用 Ref/Card，避免递归嵌套 Detail。
-4. `npx --yes @redocly/cli@1.34.5 lint --config docs/api/redocly.yaml docs/api/v1/openapi.yaml` 是否通过。
-5. `make api-contract-check` 是否证明旧核心接口与 V2 路由、方法和核心字段没有漂移。
-6. `git diff --check` 是否通过。
+```bash
+make api-contract-check
+```
+
+检查会同时确认 V2 serializer/route 与 OpenAPI 对齐，以及旧核心路由没有重新出现。

@@ -463,6 +463,74 @@ class EntryFirstApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 401)
 
+    def test_entry_bookmarks_are_private_idempotent_and_do_not_rank_entries(self):
+        first, _ = self.make_entry("步行", "行")
+        second, _ = self.make_entry("奔跑", "走")
+
+        saved = self.client.put(f"/entries/{first.id}/bookmark/")
+        repeated = self.client.put(f"/entries/{first.id}/bookmark/")
+        bookmarks = self.client.get("/entries/bookmarks/")
+
+        self.assertEqual(saved.status_code, 200)
+        self.assertTrue(saved.data["changed"])
+        self.assertFalse(repeated.data["changed"])
+        self.assertEqual(bookmarks.data["count"], 1)
+        self.assertEqual(bookmarks.data["results"][0]["id"], first.id)
+        self.assertTrue(bookmarks.data["results"][0]["is_bookmarked"])
+
+        anonymous = APIClient()
+        anonymous_list = anonymous.get("/entries/")
+        self.assertEqual(anonymous_list.status_code, 200)
+        self.assertEqual(
+            {item["id"] for item in anonymous_list.data["results"]},
+            {first.id, second.id},
+        )
+        self.assertTrue(
+            all(not item["is_bookmarked"] for item in anonymous_list.data["results"])
+        )
+
+        removed = self.client.delete(f"/entries/{first.id}/bookmark/")
+        self.assertTrue(removed.data["changed"])
+        self.assertEqual(self.client.get("/entries/bookmarks/").data["count"], 0)
+
+    def test_v2_circle_lists_recordings_and_legacy_public_routes_are_retired(self):
+        entry, _ = self.make_entry("步行", "行", dialect=self.city)
+        recording = Recording.objects.create(
+            audio_url="https://example.test/circle.mp3",
+            usage_dialect=self.city,
+            recorder=self.owner,
+            original_gloss="走路",
+            visibility=True,
+        )
+        RecordingEntryLink.objects.create(
+            recording=recording,
+            entry=entry,
+            role=RecordingEntryLink.Role.PRIMARY,
+            status=RecordingEntryLink.Status.ACCEPTED,
+        )
+        circle = DialectCircle.objects.create(name="莆仙方言圈", dialect=self.group)
+
+        response = self.client.get(f"/circles/{circle.id}/recordings/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["results"][0]["id"], recording.id)
+
+        retired = (
+            "/cans/",
+            "/nameplates/",
+            "/flavors/",
+            "/packages/",
+            "/pronunciations/",
+            "/posts/",
+            "/comments/",
+            "/shelves/",
+            "/search/",
+            "/discovery/",
+            f"/circles/{circle.id}/cans/",
+        )
+        for path in retired:
+            with self.subTest(path=path):
+                self.assertEqual(self.client.get(path).status_code, 404)
+
     def test_invalid_scope_and_boolean_use_standard_error_contract(self):
         response = self.client.get(
             "/entries/",

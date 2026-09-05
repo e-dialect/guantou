@@ -412,7 +412,7 @@ $accent-immersive: (
 /* #endif */
 
 /*
- * 沉浸式场景 Token（首页罐头流 Issue #192）
+ * 沉浸式场景 Token（首页录音流）
  *
  * 以当前配色为中心的固定深色渐变系，永远保持深色，不随明暗主题翻转；
  * 色相由上方 $accent-immersive 覆盖。只由 .immersive-shell 子树消费，
@@ -442,7 +442,7 @@ $accent-immersive: (
   --immersive-wave-color: rgba(238, 246, 240, 0.3);
   --immersive-wave-active-color: #9fe0bd;
   /* 情感互动暖色（点赞等情绪表达）：与品牌深绿形成情绪分层 ——
-   * 绿 = 品牌结构（tab 指示、装罐键），暖色 = 情感互动；
+   * 绿 = 品牌结构（tab 指示、录音键），暖色 = 情感互动；
    * strong 为按下/激活加深态，glow 供爆发光环/粒子复用 */
   --immersive-like-color: #ff7d8f;
   --immersive-like-strong-color: #f85570;

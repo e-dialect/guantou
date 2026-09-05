@@ -105,10 +105,10 @@ export default {
       const app = typeof getApp === 'function' ? getApp() : null;
       const primaryDialect = app?.globalData?.userInfo?.primary_dialect;
       if (this.tab === 'today') params.page_size = 1;
-      if (this.tab === 'following') params.recording_type = 'phrase';
+      if (this.tab === 'phrase') params.recording_type = 'phrase';
       if (this.tab === 'dialect' && primaryDialect?.id) {
         params.dialect_id = primaryDialect.id;
-        params.dialect_match = 'subtree';
+        params.dialect_scope = 'subtree';
       }
       return params;
     },

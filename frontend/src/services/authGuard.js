@@ -4,26 +4,11 @@ import { notify } from '@/services/feedback';
 export const PROTECTED_ACTIONS = {
   record_recording: '录制乡音',
   attest_usage: '确认本地使用',
-  record_can: '录一罐',
-  publish_post: '发布',
-  use_same: '用同款',
-  like: '点赞',
-  comment: '评论',
-  comment_like: '支持评论',
   follow: '关注',
   circle_join: '加入方言圈',
   dm: '私信',
-  tab_publish: '发布',
-  tab_like: '点赞',
-  tab_follow: '关注流',
-  nameplate_support: '支持铭牌',
-  nameplate_create: '贴铭牌',
-  nameplate_comment: '评论铭牌',
-  pronunciation_create: '添加读音',
-  shelf_create: '创建集盒',
-  shelf_edit: '编辑集盒',
   open_mine: '查看我的',
-  open_can_library: '查看罐头库',
+  bookmark_entry: '收藏词条',
 };
 
 const STORAGE_KEY = 'auth_intercept_intent';

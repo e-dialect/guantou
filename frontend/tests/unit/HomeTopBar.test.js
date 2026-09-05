@@ -6,12 +6,12 @@ import {
 } from 'vitest';
 import HomeTopBar from '@/components/home/HomeTopBar.vue';
 
-vi.mock('@/services/homeFeed', () => ({
-  HOME_FEED_TABS: [
-    { key: 'today', label: '今日罐' },
-    { key: 'dialect', label: '同方言' },
-    { key: 'following', label: '关注' },
-    { key: 'recommended', label: '推荐' },
+vi.mock('@/services/listenFeed', () => ({
+  LISTEN_FEED_TABS: [
+    { key: 'today', label: '新近' },
+    { key: 'dialect', label: '本地' },
+    { key: 'phrase', label: '短语' },
+    { key: 'recommended', label: '全部' },
   ],
 }));
 
@@ -38,14 +38,6 @@ describe('HomeTopBar', () => {
     await wrapper.find('[aria-label="方言圈"]').trigger('tap');
 
     expect(uni.navigateTo).toHaveBeenCalledWith({ url: '/pages/circles/index' });
-  });
-
-  it('navigates to the discovery page', async () => {
-    const wrapper = mountTopBar();
-
-    await wrapper.find('[aria-label="发现"]').trigger('tap');
-
-    expect(uni.navigateTo).toHaveBeenCalledWith({ url: '/pages/discovery/index' });
   });
 
   it('navigates to the search page', async () => {
@@ -88,7 +80,7 @@ describe('HomeTopBar', () => {
     expect(indicator.exists()).toBe(true);
     expect(indicator.attributes('style')).toContain('translateX(0%)');
 
-    await wrapper.setProps({ activeTab: 'following' });
+    await wrapper.setProps({ activeTab: 'phrase' });
 
     expect(indicator.attributes('style')).toContain('translateX(200%)');
   });

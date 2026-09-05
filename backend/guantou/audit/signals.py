@@ -4,14 +4,22 @@ from django.db.models.signals import post_delete, post_save, pre_delete, pre_sav
 from django.dispatch import receiver
 
 from guantou.models import (
-    Can,
+    Concept,
+    CurationAction,
+    CuratorApplication,
+    CuratorGrant,
     Dialect,
-    Flavor,
-    Pronunciation,
-    Nameplate,
-    NameplateSupport,
-    Package,
-    Shelf,
+    Entry,
+    EntrySense,
+    EntrySenseConcept,
+    EntryWriting,
+    EvidenceLink,
+    EvidenceRecord,
+    PronunciationVariant,
+    Recording,
+    RecordingEntryLink,
+    UsageAttestation,
+    WritingForm,
 )
 from themes.models import DecorationItem, ThemeItem
 from utils.exceptions.payload import request_id
@@ -20,22 +28,27 @@ from .context import get_current_request
 from .models import ObjectChangeLog
 
 TRACKED_MODELS = (
-    Can,
-    Nameplate,
-    Flavor,
-    Pronunciation,
-    Package,
+    Entry,
+    EntrySense,
+    WritingForm,
+    EntryWriting,
+    Concept,
+    EntrySenseConcept,
+    PronunciationVariant,
+    Recording,
+    RecordingEntryLink,
+    EvidenceRecord,
+    EvidenceLink,
+    UsageAttestation,
+    CuratorGrant,
+    CuratorApplication,
+    CurationAction,
     Dialect,
-    Shelf,
-    NameplateSupport,
     ThemeItem,
     DecorationItem,
 )
 
-# Can status transitions are audited by guantou.CanTransition; skip the
-# redundant generic ObjectChangeLog snapshot for the transition-only save.
 IGNORED_UPDATE_FIELDS = {
-    Can: {"views", "updated_at", "transition_log", "status", "verifier"},
     ThemeItem: {"like_count", "collect_count", "share_count"},
     DecorationItem: {"like_count", "collect_count", "share_count"},
 }

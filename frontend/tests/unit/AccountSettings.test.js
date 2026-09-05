@@ -28,7 +28,7 @@ vi.mock('@/utils/request', () => ({
         following_count: 0,
         followed_dialects: [],
       },
-      contribution: { cans_uploaded: 0, flavors_uploaded: 0, nameplates: 0 },
+      contribution: { recordings_total: 0, entries_total: 0, senses_total: 0 },
       notification: { statistics: { unread: 0 } },
     })),
     put: vi.fn(),
@@ -45,7 +45,7 @@ vi.mock('@/services/user', () => ({
       email: '',
       wechat: false,
     },
-    contribution: { cans_uploaded: 0, flavors_uploaded: 0, nameplates: 0 },
+    contribution: { recordings_total: 0, entries_total: 0, senses_total: 0 },
     notification: { statistics: { unread: 0 } },
   })),
   changeUserInfo: vi.fn(async () => ({ token: 'token', user: { nickname: '新昵称' } })),
@@ -54,10 +54,6 @@ vi.mock('@/services/user', () => ({
   clearUserInfo: vi.fn(),
   bindingWechat: vi.fn(),
   cancelBindingWechat: vi.fn(),
-}));
-
-vi.mock('@/services/canDrafts', () => ({
-  listCanDrafts: vi.fn(() => []),
 }));
 
 vi.mock('@/services/authJourney', () => ({
@@ -201,7 +197,7 @@ describe('account UI tokens', () => {
     expect(source).not.toContain('titleLabel');
   });
 
-  it('maps Weibo profile extras onto dialect archive terms', () => {
+  it('keeps account utilities in domain-neutral V2 terms', () => {
     const mine = readFileSync(
       resolve(process.cwd(), 'src/pages/users/me.vue'),
       'utf8',
@@ -211,7 +207,7 @@ describe('account UI tokens', () => {
       'utf8',
     );
     expect(mine).toContain('收藏');
-    expect(mine).toContain('草稿箱');
+    expect(mine).toContain('词条收藏');
     expect(mine).toContain('关注的方言');
     expect(mine).toContain('个人资料、隐私与安全');
     expect(mine).toContain('申请成为整理员');
@@ -387,23 +383,23 @@ describe('user details page', () => {
   it('switches works tabs and treats a non-zero public count as a filled panel', () => {
     const wrapper = mountForm(UserDetailsPage);
     wrapper.vm.id = 9;
-    wrapper.vm.userInfo.contribution = { cans: 4, flavors: 0, nameplates: 0 };
-    wrapper.vm.worksTab = 'cans';
-    expect(wrapper.vm.worksPanelTitle).toBe('已有 4 罐');
-    wrapper.vm.worksTab = 'nameplates';
-    expect(wrapper.vm.worksPanelTitle).toBe('还没有公开铭牌');
+    wrapper.vm.userInfo.contribution = { recordings: 4, senses: 0, entries: 0 };
+    wrapper.vm.worksTab = 'recordings';
+    expect(wrapper.vm.worksPanelTitle).toBe('留下 4 段录音');
+    wrapper.vm.worksTab = 'entries';
+    expect(wrapper.vm.worksPanelTitle).toBe('还没有公开词条贡献');
   });
 
   it('hides uploaded contribution totals from visitors', () => {
     const wrapper = mountForm(UserDetailsPage);
     wrapper.vm.id = 9;
     wrapper.vm.userInfo.contribution = {
-      cans: 1,
-      flavors: 0,
-      nameplates: 0,
-      cans_uploaded: 4,
+      recordings: 1,
+      senses: 0,
+      entries: 0,
+      recordings_total: 4,
     };
-    expect(wrapper.vm.worksPanelTitle).toBe('已有 1 罐');
+    expect(wrapper.vm.worksPanelTitle).toBe('留下 1 段录音');
   });
 
   it('shows uploaded contribution totals on the owner profile', () => {
@@ -411,20 +407,20 @@ describe('user details page', () => {
     const wrapper = mountForm(UserDetailsPage);
     wrapper.vm.id = 9;
     wrapper.vm.userInfo.contribution = {
-      cans: 1,
-      flavors: 0,
-      nameplates: 0,
-      cans_uploaded: 4,
+      recordings: 1,
+      senses: 0,
+      entries: 0,
+      recordings_total: 4,
     };
-    expect(wrapper.vm.worksPanelTitle).toBe('已有 4 罐');
+    expect(wrapper.vm.worksPanelTitle).toBe('留下 4 段录音');
   });
 
-  it('gives visitors a next step when the public can list is empty', () => {
+  it('gives visitors a next step when the public recording list is empty', () => {
     const wrapper = mountForm(UserDetailsPage);
     wrapper.vm.id = 9;
-    wrapper.vm.userInfo.contribution = { cans: 0, flavors: 0, nameplates: 0 };
-    wrapper.vm.worksTab = 'cans';
-    expect(wrapper.vm.worksPanelCopy).toContain('TA 还没有公开罐头');
+    wrapper.vm.userInfo.contribution = { recordings: 0, senses: 0, entries: 0 };
+    wrapper.vm.worksTab = 'recordings';
+    expect(wrapper.vm.worksPanelCopy).toContain('TA 还没有公开录音');
   });
 
   it('asks guests to login before sending a private mail', () => {
@@ -502,7 +498,7 @@ describe('mine page logout', () => {
         email: 'c@example.com',
         wechat: true,
       },
-      contribution: { cans_uploaded: 0, flavors_uploaded: 0, nameplates: 0 },
+      contribution: { recordings_total: 0, senses_total: 0, entries_total: 0 },
       notification: { statistics: { unread: 0 } },
     });
     const wrapper = mountForm(MePage);
@@ -525,7 +521,7 @@ describe('mine page logout', () => {
         email: '',
         wechat: true,
       },
-      contribution: { cans_uploaded: 0, flavors_uploaded: 0, nameplates: 0 },
+      contribution: { recordings_total: 0, entries_total: 0, senses_total: 0 },
       notification: { statistics: { unread: 0 } },
     });
     const wrapper = mountForm(MePage);
@@ -538,11 +534,11 @@ describe('mine page logout', () => {
     expect(cancelBindingWechat).not.toHaveBeenCalled();
   });
 
-  it('does not treat a non-zero can count as an empty works tab', async () => {
+  it('does not treat a non-zero recording count as an empty works tab', async () => {
     const wrapper = mountForm(MePage);
     await flushPromises();
-    wrapper.vm.cansCount = 3;
-    wrapper.vm.worksTab = 'cans';
+    wrapper.vm.recordingsCount = 3;
+    wrapper.vm.worksTab = 'recordings';
     expect(wrapper.vm.worksPanelTitle).toBe('留下 3 段录音');
   });
 

@@ -33,8 +33,6 @@
         :key="`today-${feedRevision}`"
         class="home-page__feed"
         tab="today"
-        :swipe-disabled="sheetActive"
-        @share="prepareShare"
       />
       <HomeFeed
         v-if="listenAvailable && isTabAlive('dialect')"
@@ -42,17 +40,13 @@
         :key="`dialect-${feedRevision}`"
         class="home-page__feed"
         tab="dialect"
-        :swipe-disabled="sheetActive"
-        @share="prepareShare"
       />
       <HomeFeed
-        v-if="listenAvailable && isTabAlive('following')"
-        v-show="activeTab === 'following'"
-        :key="`following-${feedRevision}`"
+        v-if="listenAvailable && isTabAlive('phrase')"
+        v-show="activeTab === 'phrase'"
+        :key="`phrase-${feedRevision}`"
         class="home-page__feed"
-        tab="following"
-        :swipe-disabled="sheetActive"
-        @share="prepareShare"
+        tab="phrase"
       />
       <HomeFeed
         v-if="listenAvailable && isTabAlive('recommended')"
@@ -60,8 +54,6 @@
         :key="`recommended-${feedRevision}`"
         class="home-page__feed"
         tab="recommended"
-        :swipe-disabled="sheetActive"
-        @share="prepareShare"
       />
       <view
         v-if="!listenAvailable"
@@ -72,31 +64,20 @@
     </view>
 
     <HomeTabBar active="listen" />
-
-    <!-- 半屏评论区（见 #219）：全局浮层，包装 CommentThread，沉浸流内嵌深色主题 -->
-    <CommentSheet @active-change="onSheetActiveChange" />
   </view>
 </template>
 
 <script>
-import CommentSheet from '@/components/CommentSheet.vue';
 import HomeFeed from '@/components/home/RecordingFeed.vue';
 import HomeTabBar from '@/components/home/HomeTabBar.vue';
 import HomeTopBar from '@/components/home/HomeTopBar.vue';
 import { isLoggedIn } from '@/services/authGuard';
-import {
-  closeCommentSheet,
-  isCommentSheetActive,
-} from '@/services/commentSheet';
-import { resolveDefaultTab } from '@/services/homeFeed';
+import { resolveDefaultListenTab } from '@/services/listenFeed';
 import {
   CAPABILITIES,
   ensureCapability,
   isCapabilityEnabled,
 } from '@/services/capabilities';
-import { ROUTES } from '@/services/navigation';
-import { SHARE_TITLE } from '@/const/branding';
-import { canSharePayload } from '@/utils/shareCan';
 import { stopAudio } from '@/utils/audio';
 import {
   getAccentPreference,
@@ -113,21 +94,18 @@ const MAX_ALIVE_TABS = 2;
 
 export default {
   components: {
-    CommentSheet,
     HomeFeed,
     HomeTabBar,
     HomeTopBar,
   },
   data() {
     return {
-      activeTab: resolveDefaultTab(),
+      activeTab: resolveDefaultListenTab(),
       /* 已挂载的 feed tab：访问过即常驻，切回不重建不重请求 */
       visitedTabs: [],
       userSelectedTab: false,
-      pendingShareCan: null,
       feedRevision: 0,
       accent: getAccentPreference(),
-      sheetActive: false,
       outfitVars: {},
       listenAvailable: isCapabilityEnabled(CAPABILITIES.LISTEN_FEED),
     };
@@ -147,13 +125,6 @@ export default {
   beforeUnmount() {
     uni.$off('theme-change', this.handleThemeChange);
   },
-  onShareAppMessage() {
-    if (this.pendingShareCan) return canSharePayload(this.pendingShareCan);
-    return {
-      title: SHARE_TITLE,
-      path: ROUTES.home,
-    };
-  },
   onShow() {
     this.syncChrome();
     /*
@@ -163,7 +134,7 @@ export default {
      * 2. 主方言变化：onboarding 换主方言后返回。
      */
     if (!this.userSelectedTab) {
-      this.activeTab = resolveDefaultTab();
+      this.activeTab = resolveDefaultListenTab();
       this.ensureTabVisited(this.activeTab);
     }
     if (this.feedFingerprint() !== this.lastFeedFingerprint) {
@@ -176,16 +147,6 @@ export default {
   },
   onHide() {
     stopAudio();
-    // 半屏评论面板不随页面保留：离开首页即收起，避免从详情页/登录页返回时陈旧目标仍打开（#255）。
-    closeCommentSheet();
-  },
-  onBackPress() {
-    // 面板打开时返回键先关闭面板而非退出页面；关闭后再返回保持原有退出行为（#255）。
-    if (isCommentSheetActive()) {
-      closeCommentSheet();
-      return true;
-    }
-    return false;
   },
   onUnload() {
     uni.$off('theme-change', this.handleThemeChange);
@@ -216,9 +177,8 @@ export default {
     /*
      * feed 重建指纹：登录态（token 有无）+ 主方言。
      * 依赖的 storage / globalData 均非响应式，故用方法而非 computed，
-     * 每次调用实时取值；feed 数据中的 liked_by_me /
-     * recorder_followed_by_me / supported_by_current_user 等字段
-     * 依赖登录态，主方言决定默认 tab 与同方言流内容。
+     * 每次调用实时取值；feed 数据中的私有状态依赖登录态，
+     * 主方言决定默认 tab 与同方言流内容。
      */
     feedFingerprint() {
       const app = typeof getApp === 'function' ? getApp() : null;
@@ -247,13 +207,6 @@ export default {
       this.ensureTabVisited(tab);
       this.activeTab = tab;
       this.trackListenView(tab);
-    },
-    onSheetActiveChange(active) {
-      // 评论面板打开时锁定底层罐头流滑动，避免上下滑同时驱动 swiper 与评论列表
-      this.sheetActive = active;
-    },
-    prepareShare(can) {
-      this.pendingShareCan = can;
     },
     trackListenView(tab) {
       trackProductEvent(PRODUCT_EVENTS.LISTEN_FEED_VIEW, {

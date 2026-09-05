@@ -19,7 +19,7 @@ def user_recommendation(user, viewer):
         "nickname": user.user_info.nickname or user.username,
         "avatar": user.user_info.avatar,
         "primary_dialect": dialect_ref(user.user_info.primary_dialect),
-        "public_can_count": user.public_can_count,
+        "public_recording_count": user.public_recording_count,
         "is_following": UserFollow.objects.filter(
             follower=viewer, followed=user
         ).exists(),
@@ -85,16 +85,18 @@ class FollowRecommendations(View):
             User.objects.select_related("user_info__primary_dialect")
             .filter(
                 user_info__primary_dialect_id__in=dialect.descendant_ids(),
-                cans__visibility=True,
+                recordings__visibility=True,
             )
             .exclude(id=viewer.id)
             .exclude(id__in=followed_ids)
             .annotate(
-                public_can_count=Count(
-                    "cans", filter=Q(cans__visibility=True), distinct=True
+                public_recording_count=Count(
+                    "recordings",
+                    filter=Q(recordings__visibility=True),
+                    distinct=True,
                 )
             )
-            .order_by("-public_can_count", "id")[:limit]
+            .order_by("-public_recording_count", "id")[:limit]
         )
         return JsonResponse(
             {"results": [user_recommendation(user, viewer) for user in candidates]}

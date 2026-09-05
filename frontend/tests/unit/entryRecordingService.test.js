@@ -5,6 +5,7 @@ vi.mock('@/utils/request', () => ({
     del: vi.fn(),
     get: vi.fn(),
     post: vi.fn(),
+    put: vi.fn(),
   },
 }));
 
@@ -42,7 +43,7 @@ describe('Entry / Recording V2 service', () => {
     })).toEqual({
       search: '行',
       dialect_id: 11,
-      dialect_match: 'subtree',
+      dialect_scope: 'subtree',
       has_recording: false,
       page: 2,
     });
@@ -68,6 +69,20 @@ describe('Entry / Recording V2 service', () => {
       dialect_id: 11,
       note: '我这里常说',
     });
+  });
+
+  it('uses the private idempotent entry bookmark endpoints', async () => {
+    request.get.mockResolvedValue({ results: [] });
+    request.put.mockResolvedValue({ entry_id: 7, bookmarked: true });
+    request.del.mockResolvedValue({ entry_id: 7, bookmarked: false });
+
+    await service.listEntryBookmarks({ page: 2 });
+    await service.bookmarkEntry(7);
+    await service.unbookmarkEntry(7);
+
+    expect(request.get).toHaveBeenCalledWith('/entries/bookmarks/', { page: 2 }, true);
+    expect(request.put).toHaveBeenCalledWith('/entries/7/bookmark/', {});
+    expect(request.del).toHaveBeenCalledWith('/entries/7/bookmark/');
   });
 
   it('exposes governance and contribution endpoints', async () => {

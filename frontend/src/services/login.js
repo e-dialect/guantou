@@ -1,5 +1,4 @@
 import { toIndexPage } from '@/routers';
-import { toMePage } from '@/routers/user';
 import { toLoginPage } from '@/routers/login';
 import {
   clearInterceptIntent,
@@ -14,15 +13,11 @@ import {
   ONBOARDING_REASONS,
   toDialectOnboarding,
 } from '@/services/dialectOnboarding';
-import {
-  claimAnonymousCanDrafts,
-  getCanDraftOwnerScope,
-} from '@/services/canDrafts';
-import { openPage, ROUTES } from '@/services/navigation';
+import { openPage } from '@/services/navigation';
 import { afterThemeLogin, afterThemeLogout } from '@/services/themeApi';
 import rawRequest from '../utils/rawRequest';
 
-export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageSync('id')) {
+export function resumeInterruptedPageAfterLogin() {
   const pages = getCurrentPages();
   const previousPage = pages.length > 1 ? pages[pages.length - 2] : null;
   const previousRoute = previousPage ? previousPage.route : '';
@@ -30,26 +25,6 @@ export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageS
   const destination = resolveAuthDestination(interruptedIntent);
 
   if (destination.kind === AUTH_DESTINATION_KINDS.DEFAULT) return false;
-
-  if (destination.kind === AUTH_DESTINATION_KINDS.ADJACENT_CAN_DRAFT) {
-    const previousIsCanCreate = String(previousRoute).replace(/^\//, '')
-      === ROUTES.canCreate.slice(1);
-    if (!previousIsCanCreate) {
-      clearInterceptIntent();
-      toIndexPage(true);
-      return true;
-    }
-    const intendedOwner = destination.ownerScope;
-    if (intendedOwner.startsWith('user:') && intendedOwner !== `user:${loggedInUserId}`) {
-      clearInterceptIntent();
-      uni.showToast({ title: '该草稿属于其他账号', icon: 'none' });
-      toMePage(true);
-      return true;
-    }
-    clearInterceptIntent();
-    uni.navigateBack({ delta: 1 });
-    return true;
-  }
 
   clearInterceptIntent();
   if (destination.kind === AUTH_DESTINATION_KINDS.URL) {
@@ -90,16 +65,12 @@ export async function afterLogin(res, options = {}) {
     title: '登录成功',
     icon: 'success',
   });
-  const previousOwnerScope = getCanDraftOwnerScope();
   uni.setStorageSync('token', res.token);
   uni.setStorageSync('id', res.id);
   try {
     await afterThemeLogin(res.id);
   } catch {
     // Theme merge is handled on theme-center; login must not fail.
-  }
-  if (previousOwnerScope.startsWith('anonymous:')) {
-    await claimAnonymousCanDrafts(res.id, previousOwnerScope);
   }
   const user = await loadUserInfo();
   if (needsDialectOnboarding(user)) {

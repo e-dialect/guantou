@@ -1,4 +1,4 @@
-import { listCans } from '@/services/guantou';
+import { listRecordings, pageResults } from '@/services/entryRecording';
 import {
   goOnboarding,
   pageUrl,
@@ -48,13 +48,13 @@ export function ensureDialectOnboarding(user, reason) {
 
 export async function loadDialectSample(dialectId) {
   if (!dialectId) return null;
-  const response = await listCans({
+  const response = await listRecordings({
     dialect_id: dialectId,
     dialect_scope: 'subtree',
     page: 1,
     page_size: 1,
   });
-  return (response.results || response || [])[0] || null;
+  return pageResults(response)[0] || null;
 }
 
 export async function saveDialectProfile(userId, { nickname, primaryDialectId }) {

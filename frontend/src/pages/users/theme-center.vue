@@ -560,7 +560,7 @@
         </view>
 
         <view class="foot-note">
-          全局主题会带轻微地域纹理，不会改变罐头播放内容；部分组件在微信小程序存在限制。
+          全局主题会带轻微地域纹理，不会改变录音播放内容；部分组件在微信小程序存在限制。
         </view>
       </view>
 
@@ -715,7 +715,7 @@
         </view>
 
         <view class="foot-note">
-          你可以自由混搭不同方言风格装扮，例如：江南吴语头像框 + 川渝风格罐头卡片。
+          你可以自由混搭不同方言风格装扮，例如：江南吴语头像框 + 川渝风格录音卡片。
         </view>
         <view class="foot-note">
           注意：开启「全局主题覆盖局部装扮」会压制自定义局部装扮。
@@ -1292,7 +1292,7 @@
             </view>
           </view>
           <view class="preview-label">
-            首页罐头流
+            首页录音流
           </view>
           <view
             class="shot shot-lg pressable"
