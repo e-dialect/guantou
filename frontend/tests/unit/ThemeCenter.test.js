@@ -942,7 +942,7 @@ describe('Theme center page', () => {
           PageShell: {
             name: 'PageShell',
             props: ['title', 'actionText'],
-            template: '<main><slot /><button class="search" @click="$emit(\'action\')">搜索</button></main>',
+            template: '<main><slot /><button v-if="actionText" class="shell-action" @click="$emit(\'action\')">{{ actionText }}</button></main>',
           },
           TSwitch: {
             name: 'TSwitch',

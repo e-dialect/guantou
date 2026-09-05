@@ -42,6 +42,16 @@ describe('theme center page boundary', () => {
     viewNames.forEach((name) => expect(page).toContain(`<${name}`));
   });
 
+  it('keeps search in the discovery view without a duplicate shell action', () => {
+    const discovery = viewSources.ThemeCenterDiscoveryView;
+
+    expect(page).not.toContain('action-text="搜索"');
+    expect(page).not.toContain('@action="onSearch"');
+    expect(controller).not.toMatch(/\bonSearch\(\)/);
+    expect(discovery).toContain('@confirm="$emit(\'submit-search\')"');
+    expect(discovery).toContain('@click="$emit(\'submit-search\')"');
+  });
+
   it('keeps business effects in the controller and views out of it', () => {
     expect(controller).toContain("from '@/services/themeCenter'");
     expect(controller).toContain("from '@/services/themeFault'");

@@ -671,9 +671,6 @@ export default {
       const next = setThemePreference(preference);
       this.appearance = next.preference;
     },
-    onSearch() {
-      this.submitThemeSearch();
-    },
     onThemeNavBack() {
       if (this.searching) {
         this.exitSearch();

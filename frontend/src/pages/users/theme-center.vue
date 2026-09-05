@@ -2,10 +2,8 @@
   <PageShell
     class="theme-center-page"
     title="主题中心"
-    action-text="搜索"
     :back-fallback="ROUTES.mine"
     :intercept-back="navInterceptBack"
-    @action="onSearch"
     @back="onThemeNavBack"
     @scroll="onShellScroll"
   >
