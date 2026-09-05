@@ -15,6 +15,7 @@ const request = (await import('@/utils/request')).default;
 const dialects = await import('@/services/guantou');
 const mail = await import('@/services/mail');
 const following = await import('@/services/following');
+const users = await import('@/services/user');
 
 describe('page-owned loading feedback', () => {
   beforeEach(() => {
@@ -46,6 +47,17 @@ describe('page-owned loading feedback', () => {
       { dialect_id: 3, limit: 2 },
       false,
       localLoading,
+    );
+  });
+
+  it('keeps user profile reads inside the page loading state', async () => {
+    await users.getUserInfo(7, true);
+
+    expect(request.get).toHaveBeenCalledWith(
+      '/users/7',
+      null,
+      true,
+      { loading: false },
     );
   });
 

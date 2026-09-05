@@ -258,7 +258,7 @@ describe('email settings form', () => {
     });
     const wrapper = await showPage();
     expect(goLogin).not.toHaveBeenCalled();
-    expect(request.get).toHaveBeenCalledWith('/users/7', null, true);
+    expect(request.get).toHaveBeenCalledWith('/users/7', null, true, { loading: false });
     expect(wrapper.vm.oldEmail).toBe('old@example.com');
   });
 });

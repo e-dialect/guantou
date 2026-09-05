@@ -152,7 +152,7 @@ describe('information settings page', () => {
   it('loads the profile payload and selected dialect id', async () => {
     const wrapper = await showPage();
     expect(listAllDialects).toHaveBeenCalled();
-    expect(request.get).toHaveBeenCalledWith('/users/7', null, true);
+    expect(request.get).toHaveBeenCalledWith('/users/7', null, true, { loading: false });
     expect(wrapper.vm.date).toBe('1991-02-03');
     expect(wrapper.vm.dialectIndex).toBe(0);
     expect(wrapper.vm.selectedDialectLabel).toBe('西南官话 › 四川话');
