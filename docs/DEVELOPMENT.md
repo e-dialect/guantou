@@ -55,7 +55,7 @@ python manage.py createsuperuser
 方言点是 `guantou.Dialect` 数据库对象，可在后台新增、修改、调整父节点、排序或删除。
 方言 migration 只负责首次补齐基线，后端启动不会重复导入或覆盖人工维护的数据。
 
-后端应用按领域划分，不要求所有新代码都塞进 `guantou` app。罐头、铭牌、义项、写法、集盒等核心实体归入 `guantou`；账户归入 `user`；公告归入 `announcements`；后台可编辑运营配置归入 `siteconfig`；邮箱验证码归入 `user`；文件上传归入 `files`；站内通知归入 `inbox`。更完整的边界说明见 `docs/BACKEND_GUIDE.md`。部署环境变量仍由 `config/settings.py` 读取，不放入数据库。
+后端应用按领域划分，不要求所有新代码都塞进 `guantou` app。词条、编号义、写法、概念、地区读音、录音、证据与整理治理归入 `guantou`；账户归入 `user`；公告归入 `announcements`；后台可编辑运营配置归入 `siteconfig`；邮箱验证码归入 `user`；文件上传归入 `files`；站内通知归入 `inbox`。更完整的边界说明见 `docs/BACKEND_GUIDE.md`。部署环境变量仍由 `config/settings.py` 读取，不放入数据库。
 
 客户端能力开关、第一方产品事件白名单和 90 天保留任务见 [`PLATFORM_CAPABILITIES_ANALYTICS.md`](PLATFORM_CAPABILITIES_ANALYTICS.md)。部署环境应每日运行 `python manage.py aggregate_product_events`；请求路径也会每日机会式执行一次，确保低流量环境不因漏配定时任务无限保留明细。
 
@@ -75,7 +75,7 @@ yarn dev:h5
 VITE_BACKEND_URL=http://localhost:8000 yarn dev:h5
 ```
 
-新页面优先使用 `src/services/guantou.js` 调用根路径资源接口，不再引入词典式旧客户端流程，也不要新增 api 前缀。页面、服务层和组件约定见 `docs/FRONTEND_GUIDE.md`。
+新页面优先使用 `src/services/entryRecording.js` 调用 Entry / Recording 根路径资源接口；方言树和方言圈使用 `src/services/guantou.js`。不要恢复 Can/Nameplate 客户端流程，也不要新增 api 前缀。页面、服务层和组件约定见 `docs/FRONTEND_GUIDE.md`。
 
 ## 前端工具边界
 

@@ -1,6 +1,8 @@
 import sqlite3
 import tempfile
+import json
 from importlib import import_module
+from pathlib import Path
 
 from django.contrib.auth.models import Group, User
 from django.apps import apps
@@ -315,10 +317,11 @@ class LegacyImportTests(TestCase):
             (survivor.user_info.points_now, survivor.user_info.points_sum), (18, 33)
         )
         self.assertFalse(User.objects.filter(username="wechat_survivor").exists())
-        self.assertEqual(Flavor.objects.get(name="食").created_by, self.target)
-        self.assertEqual(Flavor.objects.get(name="行").created_by, survivor)
-        self.assertEqual(Can.objects.get().recorder, survivor)
-        self.assertEqual(Package.objects.count(), 2)
+        # The active importer writes the V2 domain only. Legacy domain tables remain
+        # readable archives and must not receive new rows.
+        self.assertEqual(Flavor.objects.count(), 0)
+        self.assertEqual(Can.objects.count(), 0)
+        self.assertEqual(Package.objects.count(), 0)
         self.assertEqual(Entry.objects.count(), 2)
         self.assertEqual(Recording.objects.count(), 1)
         self.assertEqual(RecordingEntryLink.objects.count(), 1)
@@ -345,8 +348,6 @@ class LegacyImportTests(TestCase):
 
         counts = {
             "users": User.objects.count(),
-            "flavors": Flavor.objects.count(),
-            "cans": Can.objects.count(),
             "v2_entries": Entry.objects.count(),
             "v2_recordings": Recording.objects.count(),
             "v2_links": RecordingEntryLink.objects.count(),
@@ -381,8 +382,6 @@ class LegacyImportTests(TestCase):
             counts,
             {
                 "users": User.objects.count(),
-                "flavors": Flavor.objects.count(),
-                "cans": Can.objects.count(),
                 "v2_entries": Entry.objects.count(),
                 "v2_recordings": Recording.objects.count(),
                 "v2_links": RecordingEntryLink.objects.count(),
@@ -398,7 +397,7 @@ class LegacyImportTests(TestCase):
         target_info.refresh_from_db()
         self.assertEqual((target_info.points_now, target_info.points_sum), (7, 13))
 
-    def test_existing_v1_import_can_be_backfilled_into_v2(self):
+    def test_existing_v1_archive_does_not_block_independent_v2_import(self):
         with open_legacy_database(self.source_path) as connection:
             importer = HinghwaImporter(connection, apply=True)
             importer.analyze()
@@ -415,10 +414,14 @@ class LegacyImportTests(TestCase):
             report = HinghwaImporter(connection, apply=True).run()
 
         self.assertFalse(report["failed"])
-        self.assertEqual(report["skipped"]["words"], 2)
-        self.assertEqual(report["skipped"]["recordings"], 1)
+        self.assertNotIn("words", report["created"])
+        self.assertNotIn("recordings", report["created"])
+        self.assertNotIn("words", report["skipped"])
+        self.assertNotIn("recordings", report["skipped"])
         self.assertEqual(report["created"]["v2_entries"], 2)
         self.assertEqual(report["created"]["v2_recordings"], 1)
+        self.assertEqual(Flavor.objects.count(), 2)
+        self.assertEqual(Can.objects.count(), 1)
         self.assertEqual(Entry.objects.count(), 2)
         self.assertEqual(Recording.objects.count(), 1)
 
@@ -614,63 +617,75 @@ class LegacyImportTests(TestCase):
 
     def test_sanitized_fixture_dry_run_and_idempotent_load(self):
         payload = {
-            "schema_version": 1,
-            "format": "guantou-logical-key-demo",
+            "schema_version": 2,
+            "format": "guantou-entry-recording-demo",
             "actors": [
                 {"key": "actor_1", "display_name": "示例贡献者1", "role": "contributor"}
             ],
-            "entries": [
+            "items": [
                 {
-                    "key": "entry_1",
+                    "key": "entry_recording_1",
                     "dialect": "闽.莆仙.仙游.枫亭",
-                    "package": {"text": "食", "package_type": "uncertain"},
-                    "flavor": {
-                        "name": "食",
-                        "definition": "吃",
-                        "mandarin": ["吃"],
-                        "tags": [],
+                    "entry": {
+                        "summary": "吃",
+                        "identity_note": "",
+                        "status": "reviewed",
                         "visibility": True,
+                        "creator": "actor_1",
+                        "writing": {"text": "食", "form_type": "uncertain"},
+                        "sense": {
+                            "gloss": "吃",
+                            "usage_note": "",
+                            "examples": [],
+                            "status": "reviewed",
+                        },
+                        "pronunciation": {
+                            "ipa": "sieh4",
+                            "base_romanization": "",
+                            "surface_romanization": "sih4",
+                            "reading_type": "general",
+                            "status": "reviewed",
+                        },
                     },
-                    "pronunciation": {
-                        "ipa": "sieh4",
-                        "surface_romanization": "sih4",
-                        "reading_type": "general",
-                        "status": "verified",
-                    },
-                    "can": {
+                    "recording": {
                         "audio_url": "https://example.test/fixture.mp3",
-                        "concept_text": "吃",
-                        "status": "verified",
+                        "recording_type": "word",
+                        "original_gloss": "吃",
+                        "duration_ms": 0,
+                        "rights_statement": "",
+                        "status": "published",
                         "visibility": True,
                         "recorder": "actor_1",
-                        "verifier": None,
                     },
-                    "nameplate": {
+                    "link": {
+                        "role": "primary",
+                        "status": "accepted",
                         "creator": "actor_1",
-                        "text_content": "食",
-                        "definition": "吃",
-                        "pronunciation_text": "sih4",
-                        "evidence_level": 2,
-                        "weight": 10,
+                        "reviewer": None,
+                        "review_reason": "",
                     },
                 }
             ],
         }
         dry = import_demo_fixture(payload, apply=False)
-        self.assertEqual(dry["source_counts"]["entries"], 1)
+        self.assertEqual(dry["source_counts"]["items"], 1)
         self.assertFalse(User.objects.filter(username="hinghwa_demo_actor_1").exists())
         first = import_demo_fixture(payload, apply=True)
         second = import_demo_fixture(payload, apply=True)
+        self.assertEqual(first["created"]["items"], 1)
         self.assertEqual(first["created"]["entries"], 1)
-        self.assertEqual(first["created"]["v2_entries"], 1)
-        self.assertEqual(first["created"]["v2_recordings"], 1)
-        self.assertEqual(second["skipped"]["entries"], 1)
-        self.assertEqual(second["skipped"]["v2_entries"], 1)
+        self.assertEqual(first["created"]["recordings"], 1)
+        self.assertEqual(second["skipped"]["items"], 1)
         self.assertEqual(
-            Entry.objects.filter(metadata__demo_fixture_key="entry_1").count(), 1
+            Entry.objects.filter(
+                metadata__demo_fixture_key="entry_recording_1"
+            ).count(),
+            1,
         )
         self.assertEqual(
-            Recording.objects.filter(metadata__demo_fixture_key="entry_1").count(),
+            Recording.objects.filter(
+                metadata__demo_fixture_key="entry_recording_1"
+            ).count(),
             1,
         )
         demo_user = User.objects.get(username="hinghwa_demo_actor_1")
@@ -678,3 +693,12 @@ class LegacyImportTests(TestCase):
         self.assertEqual(demo_user.email, "")
         self.assertFalse(demo_user.is_staff)
         self.assertFalse(demo_user.is_superuser)
+
+    def test_repository_demo_fixture_uses_entry_recording_v2_schema(self):
+        fixture_path = Path(__file__).parent / "fixtures" / "hinghwa_demo.json"
+        payload = json.loads(fixture_path.read_text(encoding="utf-8"))
+
+        report = import_demo_fixture(payload, apply=False)
+
+        self.assertEqual(report["format"], "guantou-entry-recording-demo")
+        self.assertEqual(report["source_counts"]["items"], 5)

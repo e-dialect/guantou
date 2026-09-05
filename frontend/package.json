@@ -42,7 +42,7 @@
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:e2e:h5": "playwright test",
-    "wait:e2e:h5": "wait-on http-get://localhost:8181 http-get://localhost:8000/site-settings/carousel http-get://localhost:8000/cans/",
+    "wait:e2e:h5": "wait-on http-get://localhost:8181 http-get://localhost:8000/site-settings/carousel http-get://localhost:8000/recordings/",
     "demo:account": "node scripts/demo-account-pages.mjs",
     "demo:iphone": "node scripts/demo-iphone-devtools.mjs",
     "build-dev:h5": "node scripts/preview-base.js run -- uni build -m development",

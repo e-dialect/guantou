@@ -14,17 +14,6 @@
             aria-hidden="true"
           />
         </view>
-        <view
-          class="home-top-bar__entry"
-          role="button"
-          aria-label="发现"
-          @tap="toDiscovery"
-        >
-          <view
-            class="home-top-bar__icon home-top-bar__icon--compass"
-            aria-hidden="true"
-          />
-        </view>
       </view>
 
       <!-- 中间内容 tab -->
@@ -33,7 +22,7 @@
         role="tablist"
       >
         <view
-          v-for="tab in HOME_FEED_TABS"
+          v-for="tab in LISTEN_FEED_TABS"
           :key="tab.key"
           class="home-top-bar__tab"
           :class="{ 'home-top-bar__tab--active': tab.key === activeTab }"
@@ -73,9 +62,9 @@
 </template>
 
 <script>
-import { HOME_FEED_TABS } from '@/services/homeFeed';
+import { LISTEN_FEED_TABS } from '@/services/listenFeed';
 import { APP_NAME } from '@/const/branding';
-import { goCircleList, goDiscovery, goSearch } from '@/services/navigation';
+import { goCircleList, goSearch } from '@/services/navigation';
 
 export default {
   name: 'HomeTopBar',
@@ -88,13 +77,13 @@ export default {
   emits: ['change'],
   data() {
     return {
-      HOME_FEED_TABS,
+      LISTEN_FEED_TABS,
       appName: APP_NAME,
     };
   },
   computed: {
     activeTabIndex() {
-      const index = HOME_FEED_TABS.findIndex((tab) => tab.key === this.activeTab);
+      const index = LISTEN_FEED_TABS.findIndex((tab) => tab.key === this.activeTab);
       return index < 0 ? 0 : index;
     },
     /* 指示器槽位宽为容器的 25%，translateX 百分比相对自身宽度，
@@ -111,9 +100,6 @@ export default {
     },
     toCircles() {
       goCircleList();
-    },
-    toDiscovery() {
-      goDiscovery();
     },
     toSearch() {
       goSearch();

@@ -8,6 +8,8 @@ class SiteSettings(models.Model):
     featured_announcements = models.JSONField(
         default=list, blank=True, verbose_name="推荐公告"
     )
+    # Kept only so historical deployments can be migrated without destroying data.
+    # No public or admin surface reads or writes this retired legacy setting.
     featured_cans = models.JSONField(default=list, blank=True, verbose_name="推荐罐头")
     carousel = models.JSONField(default=list, blank=True, verbose_name="首页轮播")
     remote_capabilities = models.JSONField(

@@ -3,7 +3,7 @@ from django.test import Client, TestCase
 from unittest.mock import patch
 from rest_framework.test import APIClient
 
-from guantou.models import Can, Dialect
+from guantou.models import Dialect, Recording
 from user.tokens import generate_token
 
 from .models import AnonymousVisitor, ObjectChangeLog, VisitorEvent
@@ -18,16 +18,18 @@ class VisitorTrackingTests(TestCase):
         self.client = Client()
 
     def test_anonymous_request_gets_and_reuses_visitor_id(self):
-        response = self.client.get("/search/", {"q": " "}, HTTP_USER_AGENT="test-agent")
+        response = self.client.get("/entries/", HTTP_USER_AGENT="test-agent")
 
         self.assertEqual(response.status_code, 200)
         visitor_id = response["X-Visitor-ID"]
         self.assertTrue(AnonymousVisitor.objects.filter(id=visitor_id).exists())
         self.assertTrue(
-            VisitorEvent.objects.filter(path="/search/", visitor_id=visitor_id).exists()
+            VisitorEvent.objects.filter(
+                path="/entries/", visitor_id=visitor_id
+            ).exists()
         )
 
-        response = self.client.get("/search/", {"q": " "}, HTTP_X_VISITOR_ID=visitor_id)
+        response = self.client.get("/entries/", HTTP_X_VISITOR_ID=visitor_id)
         self.assertEqual(response["X-Visitor-ID"], visitor_id)
         self.assertEqual(AnonymousVisitor.objects.count(), 1)
 
@@ -50,7 +52,7 @@ class VisitorTrackingTests(TestCase):
             },
             content_type="application/json",
         )
-        self.client.options("/search/")
+        self.client.options("/entries/")
 
         self.assertEqual(VisitorEvent.objects.count(), 0)
         self.assertEqual(AnonymousVisitor.objects.count(), 0)
@@ -60,7 +62,7 @@ class VisitorTrackingTests(TestCase):
             "audit.middleware.AnonymousVisitor.objects.update_or_create",
             side_effect=RuntimeError("database is locked"),
         ):
-            response = self.client.get("/search/", {"q": " "})
+            response = self.client.get("/entries/")
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response["X-Visitor-ID"])
@@ -70,7 +72,7 @@ class VisitorTrackingTests(TestCase):
             "audit.middleware.VisitorEvent.objects.create",
             side_effect=RuntimeError("database is locked"),
         ):
-            response = self.client.get("/search/", {"q": " "})
+            response = self.client.get("/entries/")
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response["X-Visitor-ID"])
@@ -83,13 +85,13 @@ class ObjectChangeLogTests(TestCase):
         self.client = APIClient()
         ObjectChangeLog.objects.all().delete()
 
-    def test_create_update_delete_can_writes_change_logs_with_actor_context(self):
+    def test_create_update_recording_writes_change_logs_with_actor_context(self):
         response = self.client.post(
-            "/cans/",
+            "/recordings/",
             data={
                 "audio_url": "https://example.com/audio.mp3",
-                "submitted_dialect_id": self.dialect.id,
-                "concept_text": "moon",
+                "usage_dialect_id": self.dialect.id,
+                "original_gloss": "moon",
             },
             format="json",
             HTTP_AUTHORIZATION=bearer(self.user),
@@ -97,15 +99,19 @@ class ObjectChangeLogTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 201)
-        can_id = response.data["id"]
-        create_log = ObjectChangeLog.objects.get(action="create", object_id=str(can_id))
+        recording_id = response.data["id"]
+        create_log = ObjectChangeLog.objects.get(
+            action="create",
+            object_id=str(recording_id),
+            content_type__model="recording",
+        )
         self.assertEqual(create_log.actor_user, self.user)
         self.assertIsNotNone(create_log.actor_visitor)
         self.assertEqual(create_log.request_id, "audit-create")
 
         response = self.client.patch(
-            f"/cans/{can_id}/",
-            data={"concept_text": "moon updated"},
+            f"/recordings/{recording_id}/",
+            data={"rights_statement": "speaker consent recorded"},
             format="json",
             HTTP_AUTHORIZATION=bearer(self.user),
             HTTP_X_VISITOR_ID=str(create_log.actor_visitor_id),
@@ -114,37 +120,43 @@ class ObjectChangeLogTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         update_log = ObjectChangeLog.objects.filter(
-            action="update", object_id=str(can_id)
+            action="update",
+            object_id=str(recording_id),
+            content_type__model="recording",
         ).latest("id")
-        self.assertIn("concept_text", update_log.changed_fields)
+        self.assertIn("rights_statement", update_log.changed_fields)
         self.assertEqual(update_log.actor_user, self.user)
         self.assertEqual(update_log.actor_visitor_id, create_log.actor_visitor_id)
         self.assertEqual(update_log.request_id, "audit-update")
 
         response = self.client.delete(
-            f"/cans/{can_id}/",
+            f"/recordings/{recording_id}/",
             HTTP_AUTHORIZATION=bearer(self.user),
             HTTP_X_VISITOR_ID=str(create_log.actor_visitor_id),
             HTTP_X_REQUEST_ID="audit-delete",
         )
 
-        self.assertEqual(response.status_code, 204)
-        delete_log = ObjectChangeLog.objects.get(action="delete", object_id=str(can_id))
-        self.assertEqual(delete_log.actor_user, self.user)
-        self.assertEqual(delete_log.actor_visitor_id, create_log.actor_visitor_id)
-        self.assertEqual(delete_log.request_id, "audit-delete")
+        self.assertEqual(response.status_code, 405)
+        self.assertTrue(Recording.objects.filter(pk=recording_id).exists())
+        self.assertFalse(
+            ObjectChangeLog.objects.filter(
+                action="delete",
+                object_id=str(recording_id),
+                content_type__model="recording",
+            ).exists()
+        )
 
-    def test_can_view_counter_update_is_not_object_change_log(self):
-        can = Can.objects.create(
+    def test_recording_read_is_not_an_object_change(self):
+        recording = Recording.objects.create(
             audio_url="https://example.com/audio.mp3",
             recorder=self.user,
-            submitted_dialect=self.dialect,
-            concept_text="moon",
+            usage_dialect=self.dialect,
+            original_gloss="moon",
             visibility=True,
         )
         ObjectChangeLog.objects.all().delete()
 
-        response = self.client.get(f"/cans/{can.id}/")
+        response = self.client.get(f"/recordings/{recording.id}/")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(ObjectChangeLog.objects.count(), 0)

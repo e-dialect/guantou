@@ -137,7 +137,7 @@
           次按钮
         </view>
         <view class="theme-copy">
-          编辑资料、消息、打开罐头库。
+          编辑资料、消息、查看贡献履历。
         </view>
       </view>
       <text class="theme-current">

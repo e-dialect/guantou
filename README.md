@@ -4,14 +4,14 @@
 
 乡声集盒是一个多方言语音采集与校验客户端。
 
-它不再把“词条”当成唯一中心，而是把一段具体录音称为“罐头”，把用户或资料来源对这段录音提出的写法、义项、方言、读音和出处判断称为“铭牌”。铭牌是可查询、可追溯的一等资料主张；多个铭牌可以竞争同一个罐头的主展示，`Flavor` 负责承载可复用的义项/概念，`Package` 负责承载正字、借字、俗写、拟音等写法入口。
+产品以“词条（Entry）—录音（Recording）”为核心：词条可以先于录音存在，录音也可以先以原始大意提交，再由整理员补充写法、编号义、地区读音和证据。词条与录音通过带角色的多对多关系连接，不以投票权重自动裁定唯一解释。
 
 ## 当前结构
 
-- 预期领域模型的核心实体为 `Can / Nameplate / Flavor / Package / Pronunciation / Dialect / Shelf`；当前实现迁移状态以代码为准。
-- 资源实体 API 使用根路径，例如 `/cans/`、`/flavors/`、`/packages/`，并由 Django REST Framework 的 `ModelViewSet` 和 router 暴露。
-- 前端第一屏改为“集盒 / 装罐 / 图鉴 / 我的”，新增装罐、罐头详情、图鉴、集盒页面。
-- 本仓库按新项目初始化处理，不保留旧词典 API；材料处理脚本按地域归档在 `tools/materials/`，少量前端迁移兼容层仅在测试保护下暂存。
+- 核心实体为 `Entry / EntrySense / WritingForm / Concept / PronunciationVariant / Recording / RecordingEntryLink / EvidenceRecord / UsageAttestation / Dialect`。
+- 资源 API 使用根路径，例如 `/entries/`、`/recordings/`、`/recording-entry-links/`；旧 Can/Nameplate/Flavor/Package 公共接口已经退役。
+- 一级导航为“听 / 查 / 录 / 我”。“我”是完整账户中心，并按授权显示整理入口。
+- 材料处理脚本按地域归档在 `tools/materials/`；旧数据库只作为可追溯归档和导入来源，不再是运行时产品模型。
 
 ## 文档
 
@@ -53,7 +53,7 @@ docker compose -f docker-compose.traefik.yml up --build
 - 前端：http://guantou.localhost
 - 后端：http://api.guantou.localhost
 
-Traefik 只按域名分流，不按 path 前缀分流。前端 nginx 已配置 SPA fallback，直接打开 `http://guantou.localhost/pages/cans/index` 这类页面路径也会返回 H5 入口。
+Traefik 只按域名分流，不按 path 前缀分流。前端 nginx 已配置 SPA fallback，直接打开 `http://guantou.localhost/pages/entries/details?id=1` 这类页面路径也会返回 H5 入口。
 
 后端容器启动时会自动执行数据库迁移，运行数据默认挂载到 `data/backend/`。
 
@@ -104,9 +104,9 @@ docker compose -f docker-compose.traefik.yml config
 
 ## 产品原则
 
-- 罐头是数据原子：一段声音先被保存下来，即使正字暂时不确定。
-- 铭牌是社区主张：不同写法、释义、证据可以共存，权重最高者成为主铭牌。
-- `Flavor` 是义项核心：多义词必须能拆成多个义项，避免一个字头混杂多个意思。
-- `Package` 是写法入口：同一个写法可以连接多个义项，同一个义项也可以有多个写法。
+- 词条就是可检索的词；没有录音、没有专业写法的初稿也合法。
+- 同形但读音或核心意义不同的内容是不同 Entry；“行走的行”和“银行的行”不会混为一条。
+- `EntrySense` 只保存同一词条下的相关编号义；`Concept` 用于发现 WALK、RUN 等跨词条关联，不触发合并。
+- 一条录音可关联主要词条、句中词和竞争解释；原始大意与来源证据不可被整理结果覆盖。
 - 方言点是按需建立的树：默认精确查询，只有显式指定 subtree 时才包含下级方言。
-- AI 可以成为后续“推荐贴纸”，但 v1 不让 AI 裁判正字。
+- AI、相似度和社区补证只能提供整理依据，不能自动裁判正字或选主。

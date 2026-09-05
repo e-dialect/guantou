@@ -6,7 +6,7 @@ from django.db import IntegrityError, transaction
 from django.http import JsonResponse
 from django.views import View
 
-from guantou.models import Can, Flavor, Nameplate
+from guantou.models import Entry, EntrySense, EvidenceRecord, Recording
 from inbox.models import Notification
 from user.dto.user_all import user_all
 from user.forms import UserInfoForm
@@ -59,26 +59,22 @@ def apply_username_change(request, user, username):
 
 
 def contribution_payload(user, is_owner):
-    public_cans = Can.objects.filter(recorder=user, visibility=True)
+    public_recordings = Recording.objects.filter(recorder=user, visibility=True)
+    public_entries = Entry.objects.filter(created_by=user, visibility=True)
+    public_senses = EntrySense.objects.filter(created_by=user, entry__visibility=True)
     payload = {
-        "cans": public_cans.count(),
-        "flavors": Flavor.objects.filter(created_by=user, visibility=True).count(),
-        "nameplates": Nameplate.objects.filter(
-            creator=user,
-            status=Nameplate.Status.ACTIVE,
-            can__visibility=True,
-        ).count(),
-        "views": sum(public_cans.values_list("views", flat=True)),
+        "recordings": public_recordings.count(),
+        "entries": public_entries.count(),
+        "senses": public_senses.count(),
+        "evidence": EvidenceRecord.objects.filter(contributor=user).count(),
     }
     if not is_owner:
         return payload
-    all_cans = Can.objects.filter(recorder=user)
     payload.update(
         {
-            "cans_uploaded": all_cans.count(),
-            "flavors_uploaded": Flavor.objects.filter(created_by=user).count(),
-            "nameplates_uploaded": Nameplate.objects.filter(creator=user).count(),
-            "views": sum(all_cans.values_list("views", flat=True)),
+            "recordings_total": Recording.objects.filter(recorder=user).count(),
+            "entries_total": Entry.objects.filter(created_by=user).count(),
+            "senses_total": EntrySense.objects.filter(created_by=user).count(),
         }
     )
     return payload
@@ -260,18 +256,3 @@ class ManageEmail(View):
         user.email = ""
         user.save()
         return JsonResponse({"user": user_all(user, private=True)}, status=200)
-
-
-class ManagePoints(View):
-    # US0204 获取用户积分信息
-    def get(self, request, id) -> JsonResponse:
-        user = get_user_by_id(id)
-        points_sum = int(user_all(user, private=True)["points_sum"])
-        points_now = int(user_all(user, private=True)["points_now"])
-        return JsonResponse(
-            {
-                "points_sum": points_sum,
-                "points_now": points_now,
-            },
-            status=200,
-        )

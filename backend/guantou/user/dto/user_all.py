@@ -15,20 +15,6 @@ def dialect_ref(dialect):
     }
 
 
-def calculate_title(points_sum) -> dict:
-    if points_sum < 100:
-        return {"title": "新手装罐员", "color": "gray"}
-    if points_sum < 500:
-        return {"title": "方言采集员", "color": "blue"}
-    if points_sum < 1500:
-        return {"title": "义项鉴定师", "color": "green"}
-    return {"title": "罐头馆长", "color": "gold"}
-
-
-def calculate_level(points_sum) -> int:
-    return max(1, int(points_sum // 100) + 1)
-
-
 # 返回用户除了 密码 以外的全部信息
 def user_all(user: User, *, private=False) -> dict:
     if user is None:
@@ -38,9 +24,6 @@ def user_all(user: User, *, private=False) -> dict:
             "nickname": "已注销用户",
             "avatar": settings.DEFAULT_AVATAR_URL,
             "primary_dialect": None,
-            "points_sum": 0,
-            "title": calculate_title(0),
-            "level": 1,
         }
     # 获取用户信息
     info = user.user_info
@@ -50,9 +33,6 @@ def user_all(user: User, *, private=False) -> dict:
         "nickname": info.nickname,
         "avatar": info.avatar or settings.DEFAULT_AVATAR_URL,
         "primary_dialect": dialect_ref(info.primary_dialect),
-        "points_sum": info.points_sum,
-        "title": calculate_title(info.points_sum),
-        "level": calculate_level(info.points_sum),
     }
 
     if private:
@@ -68,7 +48,6 @@ def user_all(user: User, *, private=False) -> dict:
                 "is_staff": user.is_staff,
                 "wechat": bool(info.wechat),
                 "has_password": user.has_usable_password(),
-                "points_now": info.points_now,
                 "followed_dialects": [
                     dialect_ref(dialect) for dialect in info.followed_dialects.all()
                 ],

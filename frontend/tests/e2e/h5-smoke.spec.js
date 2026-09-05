@@ -39,5 +39,6 @@ test('main navigation pages are reachable', async ({ page }) => {
   await expect(page.locator('body')).toContainText('我的账户');
 
   await page.goto('/pages/recordings/create');
-  await expect(page.locator('body')).toContainText('会说就能贡献');
+  await expect(page).toHaveURL(/\/pages\/login\/login/);
+  await expect(page.locator('body')).toContainText('登录后可以确认地区用法、补充词条、发表评论和录下乡音');
 });

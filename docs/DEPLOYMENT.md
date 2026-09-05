@@ -21,7 +21,7 @@ docker compose -f docker-compose.traefik.yml up --build
 - `http://guantou.localhost`：前端 H5。
 - `http://api.guantou.localhost`：后端 Django。
 
-Traefik 不按 path 前缀区分前后端，这样资源路径可以在后端域名下保持清晰，例如 `http://api.guantou.localhost/cans/`。前端 nginx 只提供静态文件，并通过 `try_files $uri $uri/ /index.html` 支持 Vue/uni-app H5 页面直达，例如 `http://guantou.localhost/pages/cans/index`。
+Traefik 不按 path 前缀区分前后端，这样资源路径可以在后端域名下保持清晰，例如 `http://api.guantou.localhost/entries/`。前端 nginx 只提供静态文件，并通过 `try_files $uri $uri/ /index.html` 支持 Vue/uni-app H5 页面直达，例如 `http://guantou.localhost/pages/entries/details?id=1`。
 
 如果本机 80 端口被占用，可以在 `.env` 中把 `TRAEFIK_PORT` 改成其他端口，例如 `8181`，访问地址也相应变成 `http://guantou.localhost:8181` 和 `http://api.guantou.localhost:8181`。
 

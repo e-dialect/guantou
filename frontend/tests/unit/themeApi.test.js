@@ -61,7 +61,7 @@ describe('themeApi', () => {
           next: null,
           results: [{
             decoration_id: 'cards-plain',
-            name: '系统默认罐头卡',
+            name: '系统默认录音卡',
             component_type: 'card',
             group: 'cards',
             privilege_type: 'free',
@@ -116,7 +116,7 @@ describe('themeApi', () => {
           next: null,
           results: [{
             decoration_id: 'cards-plain',
-            name: '系统默认罐头卡',
+            name: '系统默认录音卡',
             component_type: 'card',
             group: 'cards',
             privilege_type: 'free',
@@ -152,7 +152,7 @@ describe('themeApi', () => {
           catalog_version: 4,
           results: [{
             decoration_id: 'cards-plain',
-            name: '系统默认罐头卡',
+            name: '系统默认录音卡',
             component_type: 'card',
             group: 'cards',
             privilege_type: 'free',

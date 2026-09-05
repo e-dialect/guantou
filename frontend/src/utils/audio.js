@@ -4,7 +4,7 @@ let preloadContext = null;
 
 const MANAGED_THROTTLE_MS = 200;
 
-/* 受控句柄被外部停止/置换时的订阅者集合（CanStageCard 等用它复位本地播放态） */
+/* 受控句柄被外部停止或置换时通知订阅者复位本地播放态。 */
 const externalStopListeners = new Set();
 
 /* 广播携带被停止的句柄：订阅者据此识别停止归属，忽略不属于自己的停止 */

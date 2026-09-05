@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/services/guantou', () => ({
-  listCans: vi.fn(),
+vi.mock('@/services/entryRecording', () => ({
+  listRecordings: vi.fn(),
+  pageResults: vi.fn((response) => response.results || response || []),
 }));
 
 vi.mock('@/utils/request', () => ({
@@ -10,7 +11,7 @@ vi.mock('@/utils/request', () => ({
   },
 }));
 
-import { listCans } from '@/services/guantou';
+import { listRecordings } from '@/services/entryRecording';
 import {
   ensureDialectOnboarding,
   loadDialectSample,
@@ -47,11 +48,11 @@ describe('dialect onboarding service', () => {
     });
   });
 
-  it('loads one real public can from the selected dialect subtree', async () => {
-    listCans.mockResolvedValue({ results: [{ id: 8, audio_url: 'can.mp3' }] });
+  it('loads one real public recording from the selected dialect subtree', async () => {
+    listRecordings.mockResolvedValue({ results: [{ id: 8, audio_url: 'voice.mp3' }] });
 
     await expect(loadDialectSample(4)).resolves.toMatchObject({ id: 8 });
-    expect(listCans).toHaveBeenCalledWith({
+    expect(listRecordings).toHaveBeenCalledWith({
       dialect_id: 4,
       dialect_scope: 'subtree',
       page: 1,

@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/services/authGuard', () => ({
-  actionLabel: vi.fn((action) => ({ record_can: '录一罐' }[action] || action)),
+  actionLabel: vi.fn((action) => ({ record_recording: '录制乡音' }[action] || action)),
   peekInterceptIntent: vi.fn(),
 }));
 
@@ -61,13 +61,13 @@ describe('login page intent', () => {
 
   it('explains the intercepted action and lets the guest return to search', async () => {
     peekInterceptIntent.mockReturnValue({
-      action: 'record_can',
-      context: { page: 'can_create' },
+      action: 'record_recording',
+      context: { page: 'recording_create' },
     });
     const wrapper = mountLogin();
     await wrapper.vm.$nextTick();
 
-    expect(wrapper.text()).toContain('你刚才想录一罐');
+    expect(wrapper.text()).toContain('你刚才想录制乡音');
     await wrapper.find('.browse-first').trigger('tap');
     expect(cancelLoginToSearch).toHaveBeenCalledTimes(1);
   });

@@ -5,3 +5,6 @@ extends:
 # 并非 OpenAPI 合法性问题。其余 recommended 规则继续启用。
 rules:
   no-path-trailing-slash: off
+  # 统一异常中间件与权限测试覆盖 4xx；领域契约只列每个操作的成功响应，
+  # 避免在数十个资源操作中复制同一通用错误响应。
+  operation-4xx-response: off

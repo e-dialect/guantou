@@ -31,12 +31,12 @@ describe('authGuard', () => {
   });
 
   it('allows unprotected actions without login', () => {
-    expect(authGuard.requireAuth('read_can')).toBe(true);
+    expect(authGuard.requireAuth('read_public_entry')).toBe(true);
     expect(toLoginPage).not.toHaveBeenCalled();
   });
 
   it('stores intercept intent and redirects protected anonymous actions', () => {
-    expect(authGuard.requireAuth('record_can', { page: 'test' })).toBe(false);
+    expect(authGuard.requireAuth('record_recording', { page: 'test' })).toBe(false);
 
     expect(uni.showToast).toHaveBeenCalledWith(expect.objectContaining({
       title: '请先登录',
@@ -44,7 +44,7 @@ describe('authGuard', () => {
     }));
     expect(toLoginPage).toHaveBeenCalledTimes(1);
     expect(authGuard.peekInterceptIntent()).toMatchObject({
-      action: 'record_can',
+      action: 'record_recording',
       context: { page: 'test' },
     });
   });
@@ -52,13 +52,13 @@ describe('authGuard', () => {
   it('allows protected actions when logged in', () => {
     installUniMock('token-value');
 
-    expect(authGuard.requireAuth('record_can')).toBe(true);
+    expect(authGuard.requireAuth('record_recording')).toBe(true);
     expect(toLoginPage).not.toHaveBeenCalled();
   });
 
   it('clears expired intercept intents', () => {
     authGuard.saveInterceptIntent({
-      action: 'record_can',
+      action: 'record_recording',
       context: {},
       createdAt: Date.now() - (25 * 60 * 60 * 1000),
     });

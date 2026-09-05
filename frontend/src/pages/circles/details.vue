@@ -14,27 +14,39 @@
         {{ circle.description || `一起记录${circle.dialect.name}乡音。` }}
       </view>
       <view class="meta">
-        {{ circle.member_count }} 位成员 · {{ circle.can_count }} 个公开罐头
+        {{ circle.member_count }} 位成员 · {{ circle.recording_count }} 段公开录音
       </view>
-      <button
+      <BaseButton
         class="record-button"
-        hover-class="record-button--pressed"
-        @tap="recordHere"
-      >
-        录一罐 {{ circle.dialect.name }}
-      </button>
+        block
+        :text="`录一段${circle.dialect.name}乡音`"
+        @click="recordHere"
+      />
     </view>
-    <CanList
-      v-if="circle"
-      :fetcher="fetchCircleCans"
-      empty-title="圈里还没有公开罐头"
-      empty-description="录下第一段乡音，邀请同乡一起校验。"
-      empty-action-text="录第一罐"
-      social
-      @open="toCan"
-      @comment="toCan"
-      @empty-action="recordHere"
+    <BaseLoading
+      v-if="circle && loadingRecordings"
+      text="正在寻找圈内乡音…"
     />
+    <EmptyState
+      v-else-if="circle && !recordings.length"
+      title="圈里还没有公开录音"
+      description="录下第一段乡音，邀请同乡一起补充词条和地区差异。"
+      action-text="录第一段"
+      @action="recordHere"
+    />
+    <scroll-view
+      v-else-if="circle"
+      scroll-y
+      class="recording-list"
+    >
+      <EntryRecordingCard
+        v-for="recording in recordings"
+        :key="recording.id"
+        :recording="recording"
+        @open-entry="goEntryDetail"
+        @continue="continueChain"
+      />
+    </scroll-view>
     <view
       v-else-if="error"
       class="state error"
@@ -53,18 +65,26 @@
 </template>
 
 <script>
-import CanList from '@/components/CanList.vue';
+import BaseButton from '@/components/BaseButton.vue';
+import BaseLoading from '@/components/BaseLoading.vue';
+import EmptyState from '@/components/EmptyState.vue';
+import EntryRecordingCard from '@/components/EntryRecordingCard.vue';
 import PageShell from '@/components/PageShell.vue';
 import { requireAuth } from '@/services/authGuard';
-import { goCanDetail, goCreateCan } from '@/services/navigation';
+import { goEntryDetail, goRecord } from '@/services/navigation';
 import {
-  getCircle, joinCircle, leaveCircle, listCircleCans,
+  getCircle, joinCircle, leaveCircle, listCircleRecordings,
 } from '@/services/guantou';
+import { pageResults } from '@/services/entryRecording';
 
 export default {
-  components: { CanList, PageShell },
+  components: {
+    BaseButton, BaseLoading, EmptyState, EntryRecordingCard, PageShell,
+  },
   data() {
-    return { circle: null, circleId: null, error: '' };
+    return {
+      circle: null, circleId: null, error: '', recordings: [], loadingRecordings: false,
+    };
   },
   onLoad(options) {
     this.circleId = Number(options.id);
@@ -75,12 +95,20 @@ export default {
       this.error = '';
       try {
         this.circle = await getCircle(this.circleId);
+        await this.loadRecordings();
       } catch (error) {
         this.error = error.message || '方言圈加载失败';
       }
     },
-    fetchCircleCans(params) {
-      return listCircleCans(this.circleId, params);
+    async loadRecordings() {
+      this.loadingRecordings = true;
+      try {
+        this.recordings = pageResults(await listCircleRecordings(this.circleId, {
+          page_size: 50,
+        }));
+      } finally {
+        this.loadingRecordings = false;
+      }
     },
     async toggleMembership() {
       if (!this.circle) return;
@@ -91,15 +119,19 @@ export default {
       this.circle = { ...this.circle, ...result };
     },
     recordHere() {
-      if (!requireAuth('record_can', {
+      if (!requireAuth('record_recording', {
         page: 'circle_detail',
         circleId: this.circle.id,
         dialectId: this.circle.dialect.id,
       })) return;
-      goCreateCan({ dialect: this.circle.dialect.id });
+      goRecord({ dialect_id: this.circle.dialect.id });
     },
-    toCan(id) {
-      goCanDetail(id);
+    goEntryDetail,
+    continueChain(entryId) {
+      if (!requireAuth('record_recording', {
+        page: 'circle_detail', entryId, dialectId: this.circle.dialect.id,
+      })) return;
+      goRecord({ entry_id: entryId, dialect_id: this.circle.dialect.id });
     },
   },
 };
@@ -134,23 +166,14 @@ export default {
   font-size: var(--font-size-xs);
 }
 
-.record-button {
-  margin: var(--space-3) 0 0;
-  border-radius: var(--radius-pill);
-  background: var(--accent-color);
-  color: var(--on-accent-color);
-  font-size: var(--font-size-sm);
-  transition: transform 0.15s ease, opacity 0.15s ease;
+.record-button { margin-top: var(--space-3); }
+
+.recording-list {
+  min-height: 0;
+  flex: 1;
 }
 
-.record-button::after {
-  border: 0;
-}
-
-.record-button--pressed {
-  transform: scale(0.98);
-  opacity: 0.9;
-}
+.recording-list :deep(.recording-card) { margin-bottom: var(--space-3); }
 
 .state {
   padding: 80rpx var(--space-3);
@@ -168,7 +191,6 @@ export default {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .record-button,
   .state {
     transition: none;
   }

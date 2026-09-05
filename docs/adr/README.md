@@ -7,5 +7,7 @@
 - [0003：采用受约束的 PocketBase 风格接口边界](0003-api-response-conventions.md)
 - [0004：账号删除后保留并匿名化核心内容](0004-core-content-retention.md)
 - [0005：采用 TDesign 作为通用界面控件基础设施](0005-tdesign-ui-foundation.md)
+- [0006：词条、分义、概念、录音与证据模型](0006-entry-sense-recording-domain.md)
+- [0007：退役 Can / Nameplate 旧运行时](0007-retire-legacy-can-nameplate-runtime.md)
 
 ADR 只记录决策及其原因。字段级接口契约仍以 [`../api/v1/openapi.yaml`](../api/v1/openapi.yaml) 为准。

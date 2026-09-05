@@ -9,7 +9,6 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         "id",
         "announcements",
         "featured_announcements",
-        "featured_cans",
         "carousel",
         "remote_capabilities",
     )

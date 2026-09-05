@@ -214,7 +214,7 @@ describe('themeCenter catalog', () => {
     expect(setActiveThemeId('event-spring').reason).toBe('event');
     expect((await persistLocalDress('avatar', 'avatar-creator')).reason).toBe('creator');
     setCreatorProgress({
-      cans: 10,
+      recordings: 10,
       badge: true,
       challenge: true,
     });
@@ -253,7 +253,7 @@ describe('themeCenter catalog', () => {
   it('stops rendering a claimed creator dress after the creator progress drops', async () => {
     memoryStore({ [THEME_OVERLAY_STORAGE_KEY]: '0' });
     setCreatorProgress({
-      cans: 10,
+      recordings: 10,
       badge: true,
       challenge: true,
     });
@@ -261,7 +261,7 @@ describe('themeCenter catalog', () => {
     expect((await persistLocalDress('avatar', 'avatar-creator')).ok).toBe(true);
     expect(listAppliedDress().find((row) => row.item.id === 'avatar-creator')?.effective).toBe(true);
     setCreatorProgress({
-      cans: 0,
+      recordings: 0,
       badge: false,
       challenge: false,
     });
@@ -484,7 +484,7 @@ describe('themeCenter catalog', () => {
     expect(mpHub.some((row) => row.empty && row.group.mpBlocked)).toBe(false);
     expect(dressDisplayTags(getDressItem('cards-plain'), getDressGroup('cards'), {
       applied: true,
-    }).map((tag) => tag.label)).toEqual(expect.arrayContaining(['罐头卡片', '已启用']));
+    }).map((tag) => tag.label)).toEqual(expect.arrayContaining(['录音卡片', '已启用']));
     expect(saveCurrentOutfit('<b>巷口搭配</b>').outfit.name).toBe('巷口搭配');
   });
 
@@ -731,7 +731,7 @@ describe('themeCenter catalog', () => {
         kind: 'dress',
         id: 'gone-card',
         group: 'cards',
-        name: '旧罐头卡',
+        name: '旧录音卡',
         preview: 'cards',
         usedAt: 1,
       },
@@ -852,7 +852,7 @@ describe('themeCenter catalog', () => {
 
     const avatar = searchThemeCatalog('方言头像框');
     expect(avatar.dresses.some((row) => row.item.name.includes('头像框'))).toBe(true);
-    expect(queryThemeCatalog({ keyword: '罐头卡片' }).dresses.length).toBeGreaterThan(0);
+    expect(queryThemeCatalog({ keyword: '录音卡片' }).dresses.length).toBeGreaterThan(0);
 
     const mixed = queryThemeCatalog({ keyword: '复古国风', sort: 'name' });
     expect(mixed.themes.map((row) => row.item.category)).toEqual(
@@ -895,7 +895,7 @@ describe('themeCenter catalog', () => {
     const preview = composePreviewOutfit({ isMiniProgram: true });
     expect(preview.nativeLocked).toBe(true);
     expect(preview.skipped.some((row) => row.group?.id === 'navbar')).toBe(true);
-    expect(preview.sample.cans[0].caption).toBe('示例罐头占位');
+    expect(preview.sample.recordings[0].caption).toBe('示例录音占位');
   });
 
   it('uses remote preview images only for http paths', () => {
@@ -1014,7 +1014,7 @@ describe('Theme center page', () => {
     expect(wrapper.text()).toContain('节日风俗');
     expect(wrapper.text()).toContain('季节时令');
     expect(wrapper.text()).toContain('全局主题将统一改变导航栏、按钮、卡片、背景、文字色彩');
-    expect(wrapper.text()).toContain('全局主题会带轻微地域纹理，不会改变罐头播放内容');
+    expect(wrapper.text()).toContain('全局主题会带轻微地域纹理，不会改变录音播放内容');
     expect(wrapper.text()).not.toContain('短视频');
     expect(wrapper.text()).not.toContain('作品卡片');
     expect(wrapper.text()).not.toContain('作品');
@@ -1030,7 +1030,7 @@ describe('Theme center page', () => {
     expect(wrapper.text()).toContain('导航栏配色');
     expect(wrapper.text()).toContain('实时预览');
     expect(wrapper.text()).toContain('预览仅为模拟效果，不会修改你的界面');
-    expect(wrapper.text()).toContain('首页罐头流');
+    expect(wrapper.text()).toContain('首页录音流');
     expect(wrapper.text()).toContain('个人中心');
     expect(wrapper.vm.detailTheme.name).toBe('默认方言主题');
     expect(wrapper.vm.canLivePreviewItem(GLOBAL_THEMES[0])).toBe(true);
@@ -1048,7 +1048,7 @@ describe('Theme center page', () => {
     await wrapper.vm.$nextTick();
     expect(wrapper.vm.previewOpen).toBe(true);
     expect(wrapper.text()).toContain('立即应用');
-    expect(wrapper.text()).toContain('示例罐头占位');
+    expect(wrapper.text()).toContain('示例录音占位');
     expect(wrapper.text()).not.toContain('短视频');
     wrapper.vm.closePreview();
     expect(wrapper.vm.previewOpen).toBe(false);
@@ -1072,7 +1072,7 @@ describe('Theme center page', () => {
     await wrapper.vm.$nextTick();
     expect(wrapper.vm.zoomOpen).toBe(true);
     expect(wrapper.text()).toContain('双指缩放查看细节，点空白关闭');
-    expect(wrapper.text()).toContain('首页罐头流');
+    expect(wrapper.text()).toContain('首页录音流');
     expect(wrapper.text()).not.toContain('短视频');
     expect(wrapper.text()).not.toContain('作品');
     wrapper.vm.closeZoom();
@@ -1172,7 +1172,7 @@ describe('Theme center page', () => {
     expect(wrapper.text()).toContain('导航栏底色与图标');
     expect(wrapper.text()).toContain('底部Tab栏样式');
     expect(wrapper.text()).toContain('交互按钮样式');
-    expect(wrapper.text()).toContain('罐头卡片背景');
+    expect(wrapper.text()).toContain('录音卡片背景');
     expect(wrapper.text()).toContain('个人主页背景');
     expect(wrapper.text()).toContain('头像框&装饰挂件');
     expect(wrapper.text()).toContain('评论气泡样式');
@@ -1181,7 +1181,7 @@ describe('Theme center page', () => {
     expect(wrapper.text()).toContain('我的装扮');
     expect(wrapper.text()).toContain('导航栏');
     expect(wrapper.text()).toContain('交互按钮');
-    expect(wrapper.text()).toContain('罐头卡片');
+    expect(wrapper.text()).toContain('录音卡片');
     expect(wrapper.text()).toContain('评论区');
     expect(wrapper.text()).toContain('头像挂件');
     expect(wrapper.text()).toContain('江南吴语头像框');
@@ -1213,7 +1213,7 @@ describe('Theme center page', () => {
     const cards = wrapper.vm.dressGroups.find((group) => group.id === 'cards');
     expect(actions.blocked).toBe(false);
     expect(cards.blocked).toBe(false);
-    expect(wrapper.text()).toContain('罐头卡片');
+    expect(wrapper.text()).toContain('录音卡片');
     expect(wrapper.text()).not.toContain('小程序暂不支持该组件装扮');
     expect(wrapper.text()).not.toContain('导航栏底色与图标');
     wrapper.vm.openDetail(GLOBAL_THEMES[0]);
@@ -1241,7 +1241,7 @@ describe('Theme center page', () => {
     expect(wrapper.text()).toContain('系统默认顶栏');
     expect(wrapper.text()).toContain('系统默认按钮');
     expect(wrapper.text()).toContain('暂未设置该组件装扮');
-    expect(wrapper.text()).toContain('罐头卡片背景');
+    expect(wrapper.text()).toContain('录音卡片背景');
     expect(wrapper.text()).toContain('当前生效');
     expect(wrapper.text()).toContain('装扮冲突设置');
     expect(wrapper.text()).toContain('全局主题覆盖局部装扮');
@@ -1256,7 +1256,7 @@ describe('Theme center page', () => {
     expect(wrapper.text()).toContain('预览仅为模拟效果，不会修改你的界面');
     expect(wrapper.text()).toContain('评论区');
     expect(wrapper.text()).toContain('话题卡片');
-    expect(wrapper.text()).toContain('示例罐头占位');
+    expect(wrapper.text()).toContain('示例录音占位');
     expect(wrapper.find('.preview-sheet').exists()).toBe(true);
     expect(wrapper.text()).not.toContain('短视频');
     expect(wrapper.text()).not.toContain('作品');
@@ -1348,7 +1348,7 @@ describe('Theme center page', () => {
     expect(wrapper.text()).toContain('权限筛选');
     expect(wrapper.text()).toContain('地域方言标签');
     expect(wrapper.text()).toContain('可多选家乡风格');
-    expect(wrapper.text()).toContain('罐头卡片');
+    expect(wrapper.text()).toContain('录音卡片');
     expect(wrapper.text()).not.toContain('作品卡片');
     expect(wrapper.text()).not.toContain('短视频');
     wrapper.vm.filterDraft.status = 'ended';

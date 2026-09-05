@@ -11,7 +11,7 @@
         让关注流从乡音开始
       </view>
       <view class="intro-copy">
-        主方言已经自动关注。你也可以订阅别的方言，或认识几位真正上传过公开罐头的作者。
+        主方言已经自动关注。你也可以订阅别的方言，或认识几位真正上传过公开录音的作者。
       </view>
       <view
         v-if="primaryDialect"
@@ -99,7 +99,7 @@
           同方言作者
         </view>
         <view class="section-hint">
-          只推荐有公开罐头的真实用户，不足时不会用演示账号补位。
+          只推荐有公开录音的真实用户，不足时不会用演示账号补位。
         </view>
         <EmptyState
           v-if="!candidates.length"
@@ -125,7 +125,7 @@
             </view>
             <view class="creator-meta">
               {{ dialectCardLabel(candidate.primary_dialect, dialects) }}
-              · {{ candidate.public_can_count }} 罐公开乡音
+              · {{ candidate.public_recording_count }} 段公开乡音
             </view>
           </view>
           <view class="creator-check">

@@ -104,7 +104,7 @@ describe('Theme dress page', () => {
 
     wrapper.vm.openLivePreview(live);
     await wrapper.vm.$nextTick();
-    expect(wrapper.text()).toContain('示例罐头占位');
+    expect(wrapper.text()).toContain('示例录音占位');
     expect(wrapper.text()).not.toContain('短视频');
     expect(wrapper.text()).not.toContain('作品');
     wrapper.vm.closePreview();

@@ -227,6 +227,7 @@ import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
 import BaseForm from '@/components/BaseForm.vue';
 import DialectSelector from '@/components/DialectSelector.vue';
+import { requireAuth } from '@/services/authGuard';
 import {
   createRecording,
   dialectLabel,
@@ -303,6 +304,7 @@ export default {
     },
   },
   async onLoad(options = {}) {
+    if (!requireAuth('record_recording', { page: 'record' })) return;
     this.capabilityAvailable = ensureCapability(CAPABILITIES.RECORDING, 'record');
     if (!this.capabilityAvailable) return;
     await this.loadDialects();

@@ -67,10 +67,10 @@
         方言创作任务
       </view>
       <view class="muted">
-        完成方言创作任务即可解锁，装一罐积累创作成就。
+        完成方言创作任务即可解锁，录一段乡音积累创作成就。
       </view>
       <view class="task">
-        装一罐 {{ progress.cans }}/10
+        录音贡献 {{ progress.recordings }}/10
       </view>
       <view class="task">
         方言达人徽章 {{ progress.badge ? '已获得' : '未获得' }}
@@ -83,38 +83,18 @@
           size="small"
           @click="onGetCreator"
         >
-          去装一罐
+          去录乡音
         </BaseButton>
         <BaseButton
           size="small"
           variant="ghost"
-          @click="goDiscovery()"
+          @click="goCircleList()"
         >
           去话题挑战赛
         </BaseButton>
       </view>
-      <view class="action-row">
-        <BaseButton
-          size="small"
-          variant="ghost"
-          @click="recordCan"
-        >
-          记录一次装一罐
-        </BaseButton>
-        <BaseButton
-          size="small"
-          variant="ghost"
-          @click="claimBadge"
-        >
-          领取方言达人徽章
-        </BaseButton>
-        <BaseButton
-          size="small"
-          variant="ghost"
-          @click="finishChallenge"
-        >
-          完成话题挑战赛
-        </BaseButton>
+      <view class="muted">
+        录音数从贡献履历自动核验；徽章与挑战资格由活动审核发放，不能在本页自行增加。
       </view>
       <view
         v-if="creatorReady"
@@ -129,7 +109,7 @@
         方言主题福利
       </view>
       <view class="muted">
-        每日装一罐可领取少量装扮碎片，碎片可以兑换限定方言装扮。当前碎片 {{ shards }}。
+        每日录一段乡音可领取少量装扮碎片，碎片可以兑换限定方言装扮。当前碎片 {{ shards }}。
       </view>
       <BaseButton
         class="row-action"
@@ -168,11 +148,11 @@
 <script>
 import BaseButton from '@/components/BaseButton.vue';
 import PageShell from '@/components/PageShell.vue';
+import { getMyContributionHistory } from '@/services/entryRecording';
 import { notifySuccess } from '@/services/feedback';
 import {
   goCircleList,
-  goCreateCan,
-  goDiscovery,
+  goRecord,
   goThemeEvent,
   goThemeMember,
   ROUTES,
@@ -212,15 +192,15 @@ export default {
       return [...themes, ...dresses];
     },
     creatorReady() {
-      const { cans, badge, challenge } = this.progress;
-      return cans >= 10 && badge && challenge;
+      const { recordings, badge, challenge } = this.progress;
+      return recordings >= 10 && badge && challenge;
     },
   },
-  onShow() {
+  async onShow() {
     this.refresh();
+    await this.syncContributionCount();
   },
   methods: {
-    goDiscovery,
     goCircleList,
     onGetMember() {
       trackThemeGet('', null, 'member');
@@ -228,7 +208,7 @@ export default {
     },
     onGetCreator() {
       trackThemeGet('', null, 'creator');
-      goCreateCan();
+      goRecord();
     },
     refresh() {
       this.member = getMemberStatus();
@@ -240,20 +220,15 @@ export default {
       trackThemeGet(item.kind, item, 'event');
       goThemeEvent({ id: item.id, kind: item.kind });
     },
-    recordCan() {
-      const next = setCreatorProgress({ cans: this.progress.cans + 1 });
-      this.refresh();
-      notifySuccess(`已记录装一罐 ${next.cans}/10`);
-    },
-    claimBadge() {
-      setCreatorProgress({ badge: true });
-      this.refresh();
-      notifySuccess('已获得方言达人徽章');
-    },
-    finishChallenge() {
-      setCreatorProgress({ challenge: true });
-      this.refresh();
-      notifySuccess('已完成方言话题挑战赛');
+    async syncContributionCount() {
+      try {
+        const response = await getMyContributionHistory();
+        const recordings = Math.max(0, Number(response?.summary?.recordings || 0));
+        setCreatorProgress({ recordings });
+        this.refresh();
+      } catch (error) {
+        // 游客或离线时只保留最后一次服务端核验过的快照。
+      }
     },
     claimDailyShards() {
       const next = addShards(3);

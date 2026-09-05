@@ -14,6 +14,18 @@ export function getEntry(id) {
   return request.get(`/entries/${id}/`, {}, true);
 }
 
+export function listEntryBookmarks(params = {}) {
+  return request.get('/entries/bookmarks/', params, true);
+}
+
+export function bookmarkEntry(id) {
+  return request.put(`/entries/${id}/bookmark/`, {});
+}
+
+export function unbookmarkEntry(id) {
+  return request.del(`/entries/${id}/bookmark/`);
+}
+
 export function listRecordings(params = {}) {
   return request.get('/recordings/', params, true);
 }
@@ -86,7 +98,7 @@ export function buildEntrySearchParams(filters = {}) {
   const values = {
     search: filters.keyword,
     dialect_id: filters.dialectId,
-    dialect_match: filters.dialectMatch,
+    dialect_scope: filters.dialectMatch,
     writing_type: filters.writingType,
     source_type: filters.sourceType,
     status: filters.status,
@@ -108,6 +120,7 @@ export function buildEntrySearchParams(filters = {}) {
 
 export default {
   buildEntrySearchParams,
+  bookmarkEntry,
   createCurationAction,
   createCuratorApplication,
   createRecording,
@@ -122,8 +135,10 @@ export default {
   listCuratorApplications,
   listCuratorGrants,
   listEntries,
+  listEntryBookmarks,
   listRecordings,
   pageResults,
   primaryEntryLink,
+  unbookmarkEntry,
   withdrawCuratorApplication,
 };

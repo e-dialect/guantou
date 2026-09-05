@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
 
-from guantou.models import Can, Dialect
+from guantou.models import Dialect, Recording
 from user.models import UserFollow, UserInfo
 from user.tokens import generate_token
 
@@ -13,16 +13,16 @@ class UserFollowingApiTests(TestCase):
         self.viewer = self.create_user("viewer", self.dialect)
         self.author = self.create_user("author", self.dialect)
         self.other = self.create_user("other", self.dialect)
-        Can.objects.create(
+        Recording.objects.create(
             recorder=self.author,
             audio_url="https://example.com/author.mp3",
-            submitted_dialect=self.dialect,
+            usage_dialect=self.dialect,
             visibility=True,
         )
-        Can.objects.create(
+        Recording.objects.create(
             recorder=self.other,
             audio_url="https://example.com/other.mp3",
-            submitted_dialect=self.dialect,
+            usage_dialect=self.dialect,
             visibility=True,
         )
         self.auth = {"HTTP_AUTHORIZATION": f"Bearer {generate_token(self.viewer)}"}
@@ -69,7 +69,7 @@ class UserFollowingApiTests(TestCase):
         self.assertEqual(
             [item["id"] for item in response.json()["results"]], [self.other.id]
         )
-        self.assertEqual(response.json()["results"][0]["public_can_count"], 1)
+        self.assertEqual(response.json()["results"][0]["public_recording_count"], 1)
 
     def test_dialect_follow_and_private_subscription_list(self):
         follow = self.client.put(f"/dialects/{self.dialect.id}/follow/", **self.auth)

@@ -1,19 +1,17 @@
 <template>
   <PageShell title="方言圈广场">
     <view class="search-row">
-      <input
+      <BaseField
         v-model="search"
-        class="search"
+        name="circle-search"
+        label="方言圈"
         placeholder="搜索方言圈"
         @confirm="refresh"
-      >
-      <button
-        class="search-button"
-        hover-class="search-button--pressed"
-        @tap="refresh"
-      >
-        搜索
-      </button>
+      />
+      <BaseButton
+        text="搜索"
+        @click="refresh"
+      />
     </view>
     <view
       v-if="loading"
@@ -45,23 +43,22 @@
             {{ circle.description || `一起记录${circle.dialect.name}乡音。` }}
           </view>
           <view class="circle-meta">
-            {{ circle.member_count }} 位成员 · {{ circle.can_count }} 个公开罐头
+            {{ circle.member_count }} 位成员 · {{ circle.recording_count }} 段公开录音
           </view>
         </view>
-        <button
-          :class="['join-button', { joined: circle.is_member }]"
-          hover-class="join-button--pressed"
-          @tap.stop="toggleMembership(circle)"
-        >
-          {{ circle.is_member ? '已加入' : '加入' }}
-        </button>
+        <BaseButton
+          size="small"
+          :variant="circle.is_member ? 'ghost' : 'primary'"
+          :text="circle.is_member ? '已加入' : '加入'"
+          @click.stop="toggleMembership(circle)"
+        />
       </view>
       <EmptyState
         v-if="!circles.length"
         title="还没有匹配的方言圈"
-        description="可以换个关键词，或先去图鉴和公开罐头逛逛。"
-        action-text="去发现"
-        @action="toDiscovery"
+        description="可以换个关键词，或先去听公开乡音。"
+        action-text="去听乡音"
+        @action="toListen"
       />
     </template>
   </PageShell>
@@ -69,15 +66,19 @@
 
 <script>
 import EmptyState from '@/components/EmptyState.vue';
+import BaseButton from '@/components/BaseButton.vue';
+import BaseField from '@/components/BaseField.vue';
 import PageShell from '@/components/PageShell.vue';
 import { requireAuth } from '@/services/authGuard';
-import { goCircleDetail, goDiscovery } from '@/services/navigation';
+import { goCircleDetail, goHome } from '@/services/navigation';
 import {
   joinCircle, leaveCircle, listCircles,
 } from '@/services/guantou';
 
 export default {
-  components: { EmptyState, PageShell },
+  components: {
+    BaseButton, BaseField, EmptyState, PageShell,
+  },
   data() {
     return {
       circles: [], error: '', loading: false, search: '',
@@ -111,8 +112,8 @@ export default {
     toDetail(id) {
       goCircleDetail(id);
     },
-    toDiscovery() {
-      goDiscovery();
+    toListen() {
+      goHome(true);
     },
   },
 };
@@ -124,33 +125,6 @@ export default {
   grid-template-columns: 1fr auto;
   gap: var(--space-2);
   margin-bottom: var(--space-3);
-}
-
-.search {
-  box-sizing: border-box;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-pill);
-  padding: 18rpx var(--space-3);
-  background: var(--surface-color);
-  color: var(--text-color);
-}
-
-.search-button {
-  margin: 0;
-  border-radius: var(--radius-pill);
-  background: var(--accent-color);
-  color: var(--on-accent-color);
-  font-size: var(--font-size-sm);
-  transition: transform 0.15s ease, opacity 0.15s ease;
-}
-
-.search-button::after {
-  border: 0;
-}
-
-.search-button--pressed {
-  transform: scale(0.98);
-  opacity: 0.9;
 }
 
 .circle-card {
@@ -188,31 +162,6 @@ export default {
   font-size: var(--font-size-xs);
 }
 
-.join-button {
-  width: auto;
-  margin: 0;
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-pill);
-  background: var(--accent-color);
-  color: var(--on-accent-color);
-  font-size: var(--font-size-sm);
-  transition: transform 0.15s ease, opacity 0.15s ease;
-}
-
-.join-button.joined {
-  background: var(--surface-subtle-color);
-  color: var(--text-secondary-color);
-}
-
-.join-button::after {
-  border: 0;
-}
-
-.join-button--pressed {
-  transform: scale(0.98);
-  opacity: 0.9;
-}
-
 .state {
   padding: 70rpx var(--space-3);
   color: var(--muted-color);
@@ -234,9 +183,7 @@ export default {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .search-button,
   .circle-card,
-  .join-button,
   .state {
     transition: none;
   }

@@ -8,12 +8,10 @@ from django.utils import timezone
 class Notification(models.Model):
     class Verb(models.TextChoices):
         SYSTEM = "system.message", "系统消息"
-        NAMEPLATE_SUPPORT = "nameplate.support", "铭牌获支持"
-        CAN_LIKE = "can.like", "罐头获收藏"
-        CAN_COMMENT = "can.comment", "罐头有新评论"
-        COMMENT_LIKE = "comment.like", "评论获支持"
-        CAN_REVIEW = "can.review", "罐头审核结果"
-        CAN_REUSE = "can.reuse", "罐头被用同款"
+        ENTRY_BOOKMARK = "entry.bookmark", "词条获收藏"
+        USAGE_ATTESTATION = "entry.usage_attestation", "词条获地区补证"
+        RECORDING_LINK = "recording.entry_link", "录音获词条关联"
+        CURATION_REVIEW = "curation.review", "整理审核结果"
 
     LEVEL_SUCCESS = "success"
     LEVEL_INFO = "info"
@@ -87,4 +85,12 @@ class Notification(models.Model):
     @property
     def display_title(self):
         labels = dict(self.Verb.choices)
-        return labels.get(self.verb, self.verb)
+        legacy_labels = {
+            "nameplate.support": "历史资料获支持",
+            "can.like": "历史录音获收藏",
+            "can.comment": "历史录音有新评论",
+            "comment.like": "历史评论获支持",
+            "can.review": "历史录音审核结果",
+            "can.reuse": "历史录音被引用",
+        }
+        return labels.get(self.verb, legacy_labels.get(self.verb, self.verb))

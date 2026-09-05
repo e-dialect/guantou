@@ -1,5 +1,9 @@
 # TDesign UI migration tracker
 
+> 本页保留 2026 年 V2 切换前的控件迁移证据。表中 Can/Nameplate 等页面已在
+> Entry/Recording V2 切换后退役，不再表示当前页面清单或待办；当前前端边界见
+> [`FRONTEND_GUIDE.md`](FRONTEND_GUIDE.md)。
+
 通用控件迁移遵循 [ADR-0005](adr/0005-tdesign-ui-foundation.md) 和 [`frontend/AGENTS.md`](../frontend/AGENTS.md)。状态含义：`done` 已完成；`partial` 已使用部分 TDesign 但仍有遗留控件；`issue` 已延期并由独立 issue 跟踪；`queued` 尚未开始。
 
 本轮 H5 视觉基线保存在 [`docs/assets/tdesign-migration/`](assets/tdesign-migration/)（390×844，含浅色、暗色、旧表单兼容与 404 空态）。

@@ -39,6 +39,13 @@
           <text>{{ entry.attestation_count }} 次地区确认</text>
           <text>{{ entry.evidence_count }} 条证据</text>
         </view>
+        <BaseButton
+          class="bookmark-action"
+          size="small"
+          :variant="entry.is_bookmarked ? 'primary' : 'ghost'"
+          :text="entry.is_bookmarked ? '已收藏' : '收藏词条'"
+          @click="toggleBookmark"
+        />
         <view
           v-if="entry.needs_audio"
           class="needs-audio"
@@ -180,10 +187,12 @@ import PageShell from '@/components/PageShell.vue';
 import { requireAuth } from '@/services/authGuard';
 import {
   createUsageAttestation,
+  bookmarkEntry,
   entryTitle,
   getEntry,
   listRecordings,
   pageResults,
+  unbookmarkEntry,
 } from '@/services/entryRecording';
 import { notifySuccess } from '@/services/feedback';
 import { goRecord } from '@/services/navigation';
@@ -260,6 +269,13 @@ export default {
     continueChain() {
       if (!requireAuth('record_recording', { page: 'entry_detail', entryId: this.id })) return;
       goRecord({ entry_id: this.id });
+    },
+    async toggleBookmark() {
+      if (!requireAuth('bookmark_entry', { page: 'entry_detail', entryId: this.id })) return;
+      const action = this.entry.is_bookmarked ? unbookmarkEntry : bookmarkEntry;
+      const result = await action(this.id);
+      this.entry.is_bookmarked = result.bookmarked;
+      notifySuccess({ title: result.bookmarked ? '已收藏词条' : '已取消收藏' });
     },
     async attest({ dialectId }) {
       if (!dialectId) return;
@@ -346,6 +362,8 @@ export default {
   color: var(--text-secondary-color);
   line-height: 1.6;
 }
+
+.bookmark-action { margin-top: 20rpx; }
 
 .detail-section__title {
   font-size: 30rpx;

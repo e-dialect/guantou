@@ -1666,8 +1666,6 @@ class HinghwaImporter:
         if not self.apply:
             return self.final_report()
         self.import_users()
-        self.import_words()
-        self.import_recordings()
         self.import_entries_v2()
         self.import_recordings_v2()
         self.import_review_candidates_v2()
@@ -1689,19 +1687,14 @@ class HinghwaImporter:
         }
         report["database_counts"] = {
             "users": User.objects.count(),
-            "packages": Package.objects.count(),
-            "flavors": Flavor.objects.count(),
-            "pronunciations": Pronunciation.objects.count(),
-            "cans": Can.objects.count(),
-            "nameplates": Nameplate.objects.count(),
-            "v2_entries": Entry.objects.count(),
-            "v2_senses": EntrySense.objects.count(),
-            "v2_writings": WritingForm.objects.count(),
-            "v2_pronunciation_variants": PronunciationVariant.objects.count(),
-            "v2_recordings": Recording.objects.count(),
-            "v2_recording_entry_links": RecordingEntryLink.objects.count(),
-            "v2_evidence_records": EvidenceRecord.objects.count(),
-            "v2_review_candidates": LegacyReviewCandidate.objects.count(),
+            "entries": Entry.objects.count(),
+            "senses": EntrySense.objects.count(),
+            "writings": WritingForm.objects.count(),
+            "pronunciation_variants": PronunciationVariant.objects.count(),
+            "recordings": Recording.objects.count(),
+            "recording_entry_links": RecordingEntryLink.objects.count(),
+            "evidence_records": EvidenceRecord.objects.count(),
+            "review_candidates": LegacyReviewCandidate.objects.count(),
             "legacy_import_records": LegacyImportRecord.objects.filter(
                 source_system=SOURCE_SYSTEM
             ).count(),
@@ -1709,7 +1702,7 @@ class HinghwaImporter:
         return report
 
 
-def export_demo_fixture():
+def _export_demo_fixture_v1_retired():
     """Export five public recordings without database or identity keys."""
     selected = []
     for qualified_code in DEMO_DIALECT_CODES:
@@ -1807,7 +1800,7 @@ def export_demo_fixture():
     }
 
 
-def _validate_demo_fixture(payload):
+def _validate_demo_fixture_v1_retired(payload):
     if (
         payload.get("schema_version") != 1
         or payload.get("format") != "guantou-logical-key-demo"
@@ -1842,9 +1835,9 @@ def _validate_demo_fixture(payload):
     return actors, entries
 
 
-def import_demo_fixture(payload, *, apply=False):
+def _import_demo_fixture_v1_retired(payload, *, apply=False):
     """Validate or idempotently load the sanitized logical-key fixture."""
-    actors, entries = _validate_demo_fixture(payload)
+    actors, entries = _validate_demo_fixture_v1_retired(payload)
     report = {
         "mode": "apply" if apply else "dry-run",
         "format": payload["format"],
@@ -2088,6 +2081,352 @@ def import_demo_fixture(payload, *, apply=False):
                     )
             report["created"]["v2_entries"] += 1
             report["created"]["v2_recordings"] += 1
+    report["created"] = dict(report["created"])
+    report["skipped"] = dict(report["skipped"])
+    return report
+
+
+def export_demo_fixture():
+    """Export five V2 Entry/Recording examples using logical, anonymous keys."""
+    selected = []
+    for qualified_code in DEMO_DIALECT_CODES:
+        dialect = resolve_dialect(qualified_code)
+        if dialect is None:
+            raise ValueError(f"缺少方言节点: {qualified_code}")
+        recording = (
+            Recording.objects.filter(
+                visibility=True,
+                usage_dialect=dialect,
+                entry_links__is_current=True,
+                entry_links__role=RecordingEntryLink.Role.PRIMARY,
+            )
+            .exclude(entry_links__status=RecordingEntryLink.Status.REJECTED)
+            .select_related("recorder", "usage_dialect")
+            .prefetch_related(
+                "entry_links__entry__entry_writings__writing",
+                "entry_links__entry__senses",
+                "entry_links__entry__pronunciation_variants",
+            )
+            .distinct()
+            .order_by("id")
+            .first()
+        )
+        if recording is None:
+            raise ValueError(f"没有可导出的公开录音: {qualified_code}")
+        link = next(
+            (
+                item
+                for item in recording.entry_links.all()
+                if item.is_current
+                and item.role == RecordingEntryLink.Role.PRIMARY
+                and item.status != RecordingEntryLink.Status.REJECTED
+            ),
+            None,
+        )
+        if link is None:
+            raise ValueError(f"录音缺少主要词条关系: {qualified_code}")
+        selected.append((qualified_code, recording, link))
+
+    user_ids = sorted(
+        {
+            user_id
+            for _, recording, link in selected
+            for user_id in (
+                recording.recorder_id,
+                link.entry.created_by_id,
+                link.created_by_id,
+                link.reviewed_by_id,
+            )
+            if user_id
+        }
+    )
+    actor_keys = {
+        user_id: f"actor_{index}" for index, user_id in enumerate(user_ids, 1)
+    }
+    actors = [
+        {"key": key, "display_name": f"示例贡献者{index}", "role": "contributor"}
+        for index, key in enumerate(actor_keys.values(), 1)
+    ]
+    items = []
+    for index, (qualified_code, recording, link) in enumerate(selected, 1):
+        entry = link.entry
+        writing_link = next(
+            (
+                item
+                for item in entry.entry_writings.all()
+                if item.is_current
+                and item.status != EntryWriting.Status.REJECTED
+                and item.relation_type == EntryWriting.RelationType.PRIMARY
+            ),
+            None,
+        )
+        sense = next(iter(entry.senses.all()), None)
+        variant = next(iter(entry.pronunciation_variants.all()), None)
+        items.append(
+            {
+                "key": f"entry_recording_{index}",
+                "dialect": qualified_code,
+                "entry": {
+                    "summary": entry.summary,
+                    "identity_note": entry.identity_note,
+                    "status": entry.status,
+                    "visibility": bool(entry.visibility),
+                    "creator": actor_keys.get(entry.created_by_id),
+                    "writing": (
+                        {
+                            "text": writing_link.writing.text,
+                            "form_type": writing_link.writing.form_type,
+                        }
+                        if writing_link
+                        else None
+                    ),
+                    "sense": (
+                        {
+                            "gloss": sense.gloss,
+                            "usage_note": sense.usage_note,
+                            "examples": list(sense.examples or []),
+                            "status": sense.status,
+                        }
+                        if sense
+                        else None
+                    ),
+                    "pronunciation": (
+                        {
+                            "ipa": variant.ipa,
+                            "base_romanization": variant.base_romanization,
+                            "surface_romanization": variant.surface_romanization,
+                            "reading_type": variant.reading_type,
+                            "status": variant.status,
+                        }
+                        if variant
+                        else None
+                    ),
+                },
+                "recording": {
+                    "audio_url": recording.audio_url,
+                    "recording_type": recording.recording_type,
+                    "original_gloss": recording.original_gloss,
+                    "duration_ms": recording.duration_ms,
+                    "rights_statement": recording.rights_statement,
+                    "status": recording.status,
+                    "visibility": bool(recording.visibility),
+                    "recorder": actor_keys.get(recording.recorder_id),
+                },
+                "link": {
+                    "role": link.role,
+                    "status": link.status,
+                    "creator": actor_keys.get(link.created_by_id),
+                    "reviewer": actor_keys.get(link.reviewed_by_id),
+                    "review_reason": link.review_reason,
+                },
+            }
+        )
+    return {
+        "schema_version": 2,
+        "format": "guantou-entry-recording-demo",
+        "actors": actors,
+        "items": items,
+    }
+
+
+def _validate_demo_fixture(payload):
+    if (
+        payload.get("schema_version") != 2
+        or payload.get("format") != "guantou-entry-recording-demo"
+    ):
+        raise ValueError("不支持的 demo fixture 格式；请导出 Entry/Recording V2 格式")
+    actors = payload.get("actors")
+    items = payload.get("items")
+    if not isinstance(actors, list) or not isinstance(items, list):
+        raise ValueError("demo fixture 缺少 actors 或 items")
+    actor_keys = {actor.get("key") for actor in actors if isinstance(actor, dict)}
+    if None in actor_keys or len(actor_keys) != len(actors):
+        raise ValueError("demo fixture actor key 无效或重复")
+    item_keys = set()
+    for item in items:
+        if not isinstance(item, dict) or not item.get("key"):
+            raise ValueError("demo fixture item key 无效")
+        if item["key"] in item_keys:
+            raise ValueError("demo fixture item key 重复")
+        item_keys.add(item["key"])
+        if resolve_dialect(item.get("dialect")) is None:
+            raise ValueError(f"demo fixture 方言不存在: {item.get('dialect')}")
+        for field in ("entry", "recording", "link"):
+            if not isinstance(item.get(field), dict):
+                raise ValueError(f"demo fixture item 缺少 {field}")
+        references = (
+            item["entry"].get("creator"),
+            item["recording"].get("recorder"),
+            item["link"].get("creator"),
+            item["link"].get("reviewer"),
+        )
+        if any(key is not None and key not in actor_keys for key in references):
+            raise ValueError("demo fixture 引用了未知 actor")
+    return actors, items
+
+
+def import_demo_fixture(payload, *, apply=False):
+    """Validate or idempotently load a sanitized Entry/Recording V2 fixture."""
+    actors, items = _validate_demo_fixture(payload)
+    report = {
+        "mode": "apply" if apply else "dry-run",
+        "format": payload["format"],
+        "source_counts": {"actors": len(actors), "items": len(items)},
+        "created": defaultdict(int),
+        "skipped": defaultdict(int),
+    }
+    if not apply:
+        return {**report, "created": {}, "skipped": {}}
+
+    actor_map = {}
+    with transaction.atomic():
+        for actor in actors:
+            username = f"hinghwa_demo_{actor['key']}"
+            user, created = User.objects.get_or_create(
+                username=username,
+                defaults={
+                    "email": "",
+                    "is_staff": False,
+                    "is_superuser": False,
+                    "is_active": True,
+                },
+            )
+            if created:
+                user.set_unusable_password()
+                user.save(update_fields=["password"])
+                UserInfo.objects.create(
+                    user=user,
+                    nickname=str(actor.get("display_name") or actor["key"])[:100],
+                )
+                report["created"]["actors"] += 1
+            else:
+                UserInfo.objects.get_or_create(user=user)
+                report["skipped"]["actors"] += 1
+            actor_map[actor["key"]] = user
+
+        for item in items:
+            fixture_key = item["key"]
+            if Entry.objects.filter(metadata__demo_fixture_key=fixture_key).exists():
+                report["skipped"]["items"] += 1
+                continue
+            dialect = resolve_dialect(item["dialect"])
+            entry_data = item["entry"]
+            recording_data = item["recording"]
+            link_data = item["link"]
+            creator = actor_map.get(entry_data.get("creator"))
+            recorder = actor_map.get(recording_data.get("recorder"))
+            entry = Entry.objects.create(
+                summary=str(entry_data.get("summary") or ""),
+                identity_note=str(entry_data.get("identity_note") or "")[:240],
+                usage_dialect=dialect,
+                status=entry_data.get("status") or Entry.Status.DRAFT,
+                visibility=bool(entry_data.get("visibility", True)),
+                created_by=creator,
+                metadata={"demo_fixture_key": fixture_key},
+            )
+            writing_data = entry_data.get("writing")
+            if writing_data:
+                writing = WritingForm.objects.create(
+                    text=str(writing_data.get("text") or ""),
+                    normalized_text=str(writing_data.get("text") or ""),
+                    form_type=writing_data.get("form_type")
+                    or WritingForm.FormType.UNCERTAIN,
+                    metadata={"demo_fixture_key": fixture_key},
+                )
+                EntryWriting.objects.create(
+                    entry=entry,
+                    writing=writing,
+                    relation_type=EntryWriting.RelationType.PRIMARY,
+                    created_by=creator,
+                    note="脱敏 Entry/Recording demo fixture",
+                )
+            sense = None
+            sense_data = entry_data.get("sense")
+            if sense_data:
+                sense = EntrySense.objects.create(
+                    entry=entry,
+                    gloss=str(sense_data.get("gloss") or ""),
+                    usage_note=str(sense_data.get("usage_note") or ""),
+                    examples=list(sense_data.get("examples") or []),
+                    status=sense_data.get("status") or EntrySense.Status.DRAFT,
+                    created_by=creator,
+                )
+            variant = None
+            pronunciation_data = entry_data.get("pronunciation")
+            if pronunciation_data:
+                variant = PronunciationVariant.objects.create(
+                    entry=entry,
+                    dialect=dialect,
+                    ipa=str(pronunciation_data.get("ipa") or ""),
+                    base_romanization=str(
+                        pronunciation_data.get("base_romanization") or ""
+                    ),
+                    surface_romanization=str(
+                        pronunciation_data.get("surface_romanization") or ""
+                    ),
+                    reading_type=pronunciation_data.get("reading_type")
+                    or PronunciationVariant.ReadingType.GENERAL,
+                    status=pronunciation_data.get("status")
+                    or PronunciationVariant.Status.DRAFT,
+                    created_by=creator,
+                )
+            recording = Recording.objects.create(
+                audio_url=recording_data["audio_url"],
+                usage_dialect=dialect,
+                recorder=recorder,
+                recording_type=recording_data.get("recording_type")
+                or Recording.RecordingType.WORD,
+                original_gloss=str(recording_data.get("original_gloss") or ""),
+                duration_ms=max(0, int(recording_data.get("duration_ms") or 0)),
+                rights_statement=str(recording_data.get("rights_statement") or "")[
+                    :300
+                ],
+                status=recording_data.get("status") or Recording.Status.DRAFT,
+                visibility=bool(recording_data.get("visibility", True)),
+                metadata={"demo_fixture_key": fixture_key},
+            )
+            link = RecordingEntryLink.objects.create(
+                recording=recording,
+                entry=entry,
+                sense=sense,
+                role=link_data.get("role") or RecordingEntryLink.Role.PRIMARY,
+                status=link_data.get("status") or RecordingEntryLink.Status.SUGGESTED,
+                created_by=actor_map.get(link_data.get("creator")),
+                reviewed_by=actor_map.get(link_data.get("reviewer")),
+                review_reason=str(link_data.get("review_reason") or "")[:300],
+                reviewed_at=(
+                    timezone.now() if link_data.get("reviewer") is not None else None
+                ),
+            )
+            evidence = EvidenceRecord.objects.create(
+                source_type=EvidenceRecord.SourceType.OTHER,
+                original_writing=str((writing_data or {}).get("text") or ""),
+                original_gloss=str(
+                    (sense_data or {}).get("gloss")
+                    or recording_data.get("original_gloss")
+                    or ""
+                ),
+                original_pronunciation=str(
+                    (pronunciation_data or {}).get("surface_romanization")
+                    or (pronunciation_data or {}).get("ipa")
+                    or ""
+                ),
+                citation=f"demo-fixture:{fixture_key}",
+                source_metadata={"demo_fixture_key": fixture_key},
+                contributor=recorder or creator,
+            )
+            EvidenceLink.objects.create(evidence=evidence, entry=entry)
+            if sense:
+                EvidenceLink.objects.create(evidence=evidence, sense=sense)
+            EvidenceLink.objects.create(evidence=evidence, recording=recording)
+            EvidenceLink.objects.create(evidence=evidence, recording_entry_link=link)
+            if variant:
+                EvidenceLink.objects.create(
+                    evidence=evidence, pronunciation_variant=variant
+                )
+            report["created"]["items"] += 1
+            report["created"]["entries"] += 1
+            report["created"]["recordings"] += 1
     report["created"] = dict(report["created"])
     report["skipped"] = dict(report["skipped"])
     return report

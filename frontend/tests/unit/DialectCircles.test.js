@@ -5,7 +5,7 @@ vi.mock('@/services/guantou', () => ({
   getCircle: vi.fn(),
   joinCircle: vi.fn(),
   leaveCircle: vi.fn(),
-  listCircleCans: vi.fn(),
+  listCircleRecordings: vi.fn(),
   listCircles: vi.fn(),
 }));
 vi.mock('@/services/authGuard', () => ({ requireAuth: vi.fn(() => true) }));
@@ -14,7 +14,7 @@ import CircleDetails from '@/pages/circles/details.vue';
 import CircleIndex from '@/pages/circles/index.vue';
 import { requireAuth } from '@/services/authGuard';
 import {
-  getCircle, joinCircle, listCircleCans, listCircles,
+  getCircle, joinCircle, listCircleRecordings, listCircles,
 } from '@/services/guantou';
 
 const circle = {
@@ -24,12 +24,15 @@ const circle = {
   dialect: { id: 2, name: '闽语' },
   is_member: false,
   member_count: 3,
-  can_count: 8,
+  recording_count: 8,
 };
 
 function stubs() {
   return {
-    CanList: { template: '<div class="can-list" />' },
+    BaseButton: { template: '<button><slot /></button>' },
+    BaseLoading: true,
+    BaseField: true,
+    EntryRecordingCard: true,
     EmptyState: true,
     PageShell: { template: '<main><slot /></main>' },
   };
@@ -41,7 +44,7 @@ describe('dialect circles', () => {
     getCircle.mockResolvedValue(circle);
     joinCircle.mockResolvedValue({ changed: true, is_member: true, member_count: 4 });
     listCircles.mockResolvedValue({ results: [circle] });
-    listCircleCans.mockResolvedValue({ results: [], next: null });
+    listCircleRecordings.mockResolvedValue({ results: [], next: null });
     requireAuth.mockReturnValue(true);
     globalThis.uni = { navigateTo: vi.fn() };
   });
@@ -57,20 +60,20 @@ describe('dialect circles', () => {
     expect(circle.is_member).toBe(false);
   });
 
-  it('opens can creation with the circle dialect preselected', async () => {
+  it('opens recording creation with the circle dialect preselected', async () => {
     const wrapper = mount(CircleDetails, { global: { stubs: stubs() } });
     wrapper.vm.circleId = 4;
     await wrapper.vm.loadCircle();
 
     wrapper.vm.recordHere();
 
-    expect(requireAuth).toHaveBeenCalledWith('record_can', {
+    expect(requireAuth).toHaveBeenCalledWith('record_recording', {
       page: 'circle_detail',
       circleId: 4,
       dialectId: 2,
     });
     expect(uni.navigateTo).toHaveBeenCalledWith({
-      url: '/pages/cans/create?dialect=2',
+      url: '/pages/recordings/create?dialect_id=2',
     });
   });
 });
