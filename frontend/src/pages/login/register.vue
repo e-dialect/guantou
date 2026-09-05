@@ -1,17 +1,21 @@
 <template>
   <PageShell
-    title="用户注册"
+    title="创建账户"
     :show-back="true"
+    content-class="auth-page"
   >
-    <view class="auth-card">
-      <view class="auth-card__title">
-        创建账号
-      </view>
-      <view class="auth-card__lead">
-        注册后可以收藏乡音、确认地区用法、补充词条并参与讨论。
-      </view>
-
-      <view class="auth-form">
+    <AuthJourney
+      eyebrow="建立乡声档案"
+      :title="journeyTitle"
+      :lead="journeyLead"
+      :step="formStep"
+      :step-total="4"
+      :step-label="journeyStepLabel"
+    >
+      <view
+        v-if="formStep === 1"
+        class="auth-form"
+      >
         <BaseField
           v-model="username"
           name="username"
@@ -41,6 +45,32 @@
           :error="errors.passwordConfirmed"
           @input="clearFieldError('passwordConfirmed')"
         />
+        <BaseButton
+          block
+          @click="continueToEmail"
+        >
+          继续验证邮箱
+        </BaseButton>
+      </view>
+
+      <view
+        v-else
+        class="auth-form"
+      >
+        <view
+          class="account-summary"
+          role="note"
+        >
+          <view class="account-summary__label">
+            即将创建
+          </view>
+          <view class="account-summary__value">
+            {{ username }}
+          </view>
+          <view class="account-summary__note">
+            邮箱只用于验证身份和找回账号，不会展示在公开档案中。
+          </view>
+        </view>
         <BaseField
           v-model="email"
           name="email"
@@ -78,14 +108,21 @@
           :loading="submitting"
           @click="register"
         >
-          注册
+          创建账户并继续
         </BaseButton>
+        <view
+          class="edit-account-link"
+          @tap="formStep = 1"
+        >
+          返回修改账号信息
+        </view>
       </view>
-    </view>
+    </AuthJourney>
   </PageShell>
 </template>
 
 <script>
+import AuthJourney from '@/pages/login/components/AuthJourney.vue';
 import PageShell from '@/components/PageShell.vue';
 import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
@@ -99,7 +136,9 @@ const SEND_COUNTDOWN = 30;
 
 export default {
   name: 'RegisterPage',
-  components: { PageShell, BaseButton, BaseField },
+  components: {
+    AuthJourney, PageShell, BaseButton, BaseField,
+  },
   data() {
     return {
       username: '',
@@ -107,6 +146,7 @@ export default {
       passwordConfirmed: '',
       email: '',
       code: '',
+      formStep: 1,
       submitting: false,
       isSending: false,
       count: SEND_COUNTDOWN,
@@ -120,6 +160,16 @@ export default {
     };
   },
   computed: {
+    journeyTitle() {
+      return this.formStep === 1 ? '先留下一个署名' : '确认你的联络方式';
+    },
+    journeyLead() {
+      if (this.formStep === 1) return '设置登录名和密码，之后所有乡音贡献都会归入这份档案。';
+      return '完成邮箱验证后，再设置称呼和熟悉的方言，就可以开始留下乡音。';
+    },
+    journeyStepLabel() {
+      return this.formStep === 1 ? '设置账号' : '验证邮箱';
+    },
     sendCodeMsg() {
       return !this.isSending ? '获取验证码' : `重新获取(${this.count})`;
     },
@@ -141,6 +191,24 @@ export default {
   methods: {
     clearFieldError(field) {
       this.errors[field] = '';
+    },
+    continueToEmail() {
+      const username = String(this.username || '').trim();
+      const { password, passwordConfirmed } = this;
+      this.errors.username = username ? '' : '请输入用户名';
+      this.errors.password = password ? '' : '请输入密码';
+      this.errors.passwordConfirmed = passwordConfirmed ? '' : '请再次输入密码';
+      if (this.errors.username || this.errors.password || this.errors.passwordConfirmed) return;
+      if (password.length < 6 || password.length > 32) {
+        this.errors.password = '密码长度 6 - 32 位';
+        return;
+      }
+      if (password !== passwordConfirmed) {
+        this.errors.passwordConfirmed = '两次密码不相同';
+        return;
+      }
+      this.username = username;
+      this.formStep = 2;
     },
     async getCode() {
       const email = String(this.email || '').trim();
@@ -220,48 +288,45 @@ export default {
 </script>
 
 <style scoped>
-.auth-card {
-  max-width: 680rpx;
-  margin: 42rpx auto 0;
-  padding: 52rpx 34rpx 38rpx;
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-lg);
-  background: var(--surface-color);
-  box-shadow: 0 20rpx 60rpx var(--border-color);
-  box-sizing: border-box;
+.account-summary {
+  padding: 20rpx 22rpx;
+  border-left: 5rpx solid var(--accent-color);
+  background: var(--accent-subtle-color);
 }
 
-.auth-card__title {
+.account-summary__label {
+  color: var(--muted-color);
+  font-size: 20rpx;
+  letter-spacing: 2rpx;
+}
+
+.account-summary__value {
+  margin-top: 6rpx;
   color: var(--text-color);
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
-.auth-card__lead {
-  margin-top: var(--space-2);
+.account-summary__note {
+  margin-top: 6rpx;
   color: var(--text-secondary-color);
-  font-size: var(--font-size-sm);
-  line-height: 1.6;
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
 }
 
-.auth-form {
-  margin-top: var(--space-4);
+.edit-account-link {
+  color: var(--accent-color);
+  text-align: center;
+  font-size: var(--font-size-xs);
 }
 
-.code-row {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-2);
+:deep(.auth-page) {
+  background: linear-gradient(
+    180deg,
+    var(--accent-subtle-color) 0%,
+    var(--page-color) 36%,
+    var(--surface-subtle-color) 100%
+  );
 }
-
-.code-field {
-  flex: 1;
-  min-width: 0;
-}
-
-.code-button {
-  flex: 0 0 auto;
-  margin-bottom: var(--space-3);
-}
-
 </style>

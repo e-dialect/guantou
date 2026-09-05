@@ -2,170 +2,171 @@
   <PageShell
     :title="pageTitle"
     :show-back="false"
+    content-class="auth-page"
   >
-    <view class="intro">
-      <view class="step-mark">
-        {{ step }}/2
-      </view>
-      <view class="intro-title">
-        {{ stepTitle }}
-      </view>
-      <view class="intro-copy">
-        {{ stepCopy }}
-      </view>
-    </view>
-
-    <view
-      v-if="step === 1"
-      class="form-card"
+    <AuthJourney
+      eyebrow="完善乡声身份"
+      :title="stepTitle"
+      :lead="stepCopy"
+      :step="journeyStep"
+      :step-total="journeyTotal"
+      :step-label="journeyStepLabel"
     >
-      <BaseField
-        v-model="nickname"
-        class="nickname-input"
-        name="nickname"
-        label="怎么称呼你"
-        placeholder="输入昵称"
-        :maxlength="100"
-        :error="error"
-        @input="error = ''"
-      />
-      <BaseButton
-        block
-        @click="next"
+      <view
+        v-if="step === 1"
+        class="auth-form"
       >
-        下一步 · 选主方言
-      </BaseButton>
-    </view>
-
-    <view v-else>
-      <view class="dialect-card">
-        <view class="field-label">
-          主方言（必选）
-        </view>
-        <view class="field-hint">
-          列表来自真实方言树；选择最接近你日常乡音的节点。
-        </view>
-        <view
-          v-if="loadingDialects"
-          class="loading-shell loading-shell--dialects"
-        >
-          <BaseLoading text="正在加载方言树…" />
-        </view>
-        <EmptyState
-          v-else-if="dialectsError"
-          title="方言树加载失败"
-          description="检查网络后重试；也可以先退出账号回游客模式，稍后再完成设置。"
-          action-text="重新加载"
-          @action="loadDialects"
+        <BaseField
+          v-model="nickname"
+          class="nickname-input"
+          name="nickname"
+          label="怎么称呼你"
+          placeholder="输入昵称"
+          :maxlength="100"
+          :error="error"
+          @input="error = ''"
         />
-        <template v-else-if="selectedDialect">
-          <view
-            class="dialect-selection"
-            role="button"
-            aria-label="更换主方言"
-            @tap="dialectPickerOpen = true"
-          >
-            <view>
-              <view class="dialect-selection__name">
-                {{ selectedDialectCardLabel }}
-              </view>
-              <view class="dialect-selection__path">
-                {{ selectedDialectLabel }}
-              </view>
-            </view>
-            <text class="dialect-selection__action">
-              更换 ›
-            </text>
-          </view>
-        </template>
         <BaseButton
-          v-else
           block
-          variant="ghost"
-          text="逐级选择主方言"
-          @click="dialectPickerOpen = true"
-        />
+          @click="next"
+        >
+          继续选择主方言
+        </BaseButton>
       </view>
 
-      <DialectSelector
-        v-model:visible="dialectPickerOpen"
-        :value="selectedDialectId"
-        :dialects="dialects"
-        :default-dialect="currentUserDialect"
-        :owner-scope="userId"
-        title="选择主方言"
-        @change="onDialectChange"
-      />
+      <template v-else>
+        <view class="dialect-card">
+          <view class="field-label">
+            主方言（必选）
+          </view>
+          <view class="field-hint">
+            列表来自真实方言树；选择最接近你日常乡音的节点。
+          </view>
+          <view
+            v-if="loadingDialects"
+            class="loading-shell loading-shell--dialects"
+          >
+            <BaseLoading text="正在加载方言树…" />
+          </view>
+          <EmptyState
+            v-else-if="dialectsError"
+            title="方言树加载失败"
+            description="检查网络后重试；也可以先退出账号回游客模式，稍后再完成设置。"
+            action-text="重新加载"
+            @action="loadDialects"
+          />
+          <template v-else-if="selectedDialect">
+            <view
+              class="dialect-selection"
+              role="button"
+              aria-label="更换主方言"
+              @tap="dialectPickerOpen = true"
+            >
+              <view>
+                <view class="dialect-selection__name">
+                  {{ selectedDialectCardLabel }}
+                </view>
+                <view class="dialect-selection__path">
+                  {{ selectedDialectLabel }}
+                </view>
+              </view>
+              <text class="dialect-selection__action">
+                更换 ›
+              </text>
+            </view>
+          </template>
+          <BaseButton
+            v-else
+            block
+            variant="ghost"
+            text="逐级选择主方言"
+            @click="dialectPickerOpen = true"
+          />
+        </view>
 
-      <view
-        v-if="selectedDialectId"
-        class="sample-card"
-      >
-        <view class="sample-kicker">
-          真实乡音样本
-        </view>
+        <DialectSelector
+          v-model:visible="dialectPickerOpen"
+          :value="selectedDialectId"
+          :dialects="dialects"
+          :default-dialect="currentUserDialect"
+          :owner-scope="userId"
+          title="选择主方言"
+          @change="onDialectChange"
+        />
+
         <view
-          v-if="loadingSample"
-          class="loading-copy"
+          v-if="selectedDialectId"
+          class="sample-card"
         >
-          正在寻找公开录音…
+          <view class="sample-kicker">
+            真实乡音样本
+          </view>
+          <view
+            v-if="loadingSample"
+            class="loading-copy"
+          >
+            正在寻找公开录音…
+          </view>
+          <template v-else-if="sample">
+            <view class="sample-title">
+              {{ sampleTitle }}
+            </view>
+            <view class="sample-meta">
+              {{ selectedDialectLabel }} · {{ sampleDuration }}
+            </view>
+            <BaseButton
+              variant="ghost"
+              size="small"
+              @click="playSample"
+            >
+              ▶ 试听这段乡音
+            </BaseButton>
+          </template>
+          <view
+            v-else
+            class="sample-empty"
+          >
+            这个方言点暂时没有公开录音，仍然可以选为主方言。
+          </view>
         </view>
-        <template v-else-if="sample">
-          <view class="sample-title">
-            {{ sampleTitle }}
-          </view>
-          <view class="sample-meta">
-            {{ selectedDialectLabel }} · {{ sampleDuration }}
-          </view>
+
+        <view
+          v-if="error"
+          class="error"
+        >
+          {{ error }}
+        </view>
+        <view class="button-row">
           <BaseButton
             variant="ghost"
-            size="small"
-            @click="playSample"
+            :disabled="saving"
+            @click="step = 1"
           >
-            ▶ 试听这段乡音
+            上一步
           </BaseButton>
-        </template>
-        <view
-          v-else
-          class="sample-empty"
-        >
-          这个方言点暂时没有公开录音，仍然可以选为主方言。
+          <BaseButton
+            :disabled="saving"
+            @click="finish"
+          >
+            {{ saving ? '正在保存…' : '完成设置' }}
+          </BaseButton>
         </view>
-      </view>
+      </template>
 
-      <view
-        v-if="error"
-        class="error"
-      >
-        {{ error }}
-      </view>
-      <view class="button-row">
-        <BaseButton
-          variant="ghost"
-          :disabled="saving"
-          @click="step = 1"
+      <template #footer>
+        <view
+          class="logout-button"
+          @tap="abandon"
         >
-          上一步
-        </BaseButton>
-        <BaseButton
-          :disabled="saving"
-          @click="finish"
-        >
-          {{ saving ? '正在保存…' : '完成设置' }}
-        </BaseButton>
-      </view>
-    </view>
-
-    <view
-      class="logout-button"
-      @tap="abandon"
-    >
-      退出账号，返回游客模式
-    </view>
+          退出账号，返回游客模式
+        </view>
+      </template>
+    </AuthJourney>
   </PageShell>
 </template>
 
 <script>
+import AuthJourney from '@/pages/login/components/AuthJourney.vue';
 import PageShell from '@/components/PageShell.vue';
 import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
@@ -189,7 +190,7 @@ import { dialectBreadcrumb, dialectCardLabel } from '@/utils/dialectTree';
 
 export default {
   components: {
-    PageShell, BaseButton, BaseField, BaseLoading, DialectSelector, EmptyState,
+    AuthJourney, PageShell, BaseButton, BaseField, BaseLoading, DialectSelector, EmptyState,
   },
   data() {
     const user = getApp().globalData.userInfo || {};
@@ -216,6 +217,15 @@ export default {
     },
     pageTitle() {
       return this.isNewUser ? '欢迎加入乡声集盒' : '补选主方言';
+    },
+    journeyStep() {
+      return this.isNewUser ? this.step + 2 : this.step;
+    },
+    journeyTotal() {
+      return this.isNewUser ? 4 : 2;
+    },
+    journeyStepLabel() {
+      return this.step === 1 ? '设置称呼' : '选择主方言';
     },
     stepTitle() {
       if (this.step === 1) return this.isNewUser ? '先认识一下' : '确认你的昵称';
@@ -341,11 +351,6 @@ export default {
 </script>
 
 <style scoped>
-.intro {
-  padding: 10rpx 4rpx 30rpx;
-}
-
-.step-mark,
 .sample-kicker {
   color: var(--accent-color);
   font-size: 22rpx;
@@ -353,14 +358,6 @@ export default {
   letter-spacing: 4rpx;
 }
 
-.intro-title {
-  margin-top: 12rpx;
-  font-size: 46rpx;
-  font-weight: 900;
-  line-height: 1.2;
-}
-
-.intro-copy,
 .field-hint {
   margin-top: 12rpx;
   color: var(--text-secondary-color);
@@ -368,13 +365,14 @@ export default {
   line-height: 1.6;
 }
 
-.form-card,
-.dialect-card,
 .sample-card {
   border: 1rpx solid var(--border-color);
   border-radius: var(--radius-md);
-  background: var(--surface-color);
   padding: 28rpx;
+}
+
+.dialect-card {
+  padding: 2rpx 0 4rpx;
 }
 
 .field-label {
@@ -468,7 +466,9 @@ export default {
 }
 
 .logout-button {
-  margin: 36rpx auto 10rpx;
+  margin: 28rpx auto 2rpx;
+  padding-top: 22rpx;
+  border-top: 1rpx solid var(--border-color);
   color: var(--muted-color);
   font-size: 24rpx;
   text-align: center;
@@ -484,5 +484,14 @@ export default {
   .logout-button {
     transition: none;
   }
+}
+
+:deep(.auth-page) {
+  background: linear-gradient(
+    180deg,
+    var(--accent-subtle-color) 0%,
+    var(--page-color) 36%,
+    var(--surface-subtle-color) 100%
+  );
 }
 </style>

@@ -353,39 +353,73 @@
       </template>
 
       <template v-else>
-        <view class="guest-profile">
-          <view class="guest-mark">
-            乡
+        <view class="guest-profile immersive-shell">
+          <view class="guest-profile__meta">
+            <view class="guest-eyebrow">
+              还没有登录 · 也可以先逛
+            </view>
+            <view
+              class="guest-mark"
+              aria-hidden="true"
+            >
+              乡
+            </view>
           </view>
           <view class="guest-title">
-            还没有登录
+            把自己的乡音带进来
           </view>
           <view class="guest-copy">
-            登录后可以录乡音、收藏词条和查看自己的贡献。公开乡音不用登录，先听也可以。
+            登录后，录音、收藏和贡献履历都会稳稳留在你的档案里。公开乡音无需登录，先听也完全可以。
+          </view>
+          <view class="guest-benefits">
+            <text>
+              录下乡音
+            </text>
+            <text>
+              收藏词条
+            </text>
+            <text>
+              查看履历
+            </text>
           </view>
           <BaseButton
-            class="guest-action login-button"
+            class="guest-action guest-primary login-button"
             block
+            variant="light"
             @click="openLoginFromMine"
           >
-            登录 / 注册
+            登录或创建账户
           </BaseButton>
-          <BaseButton
-            class="guest-action"
-            variant="ghost"
-            block
-            @click="toHome"
-          >
-            先去听乡音
-          </BaseButton>
-          <BaseButton
-            class="guest-action"
-            variant="ghost"
-            block
-            @click="toSearch"
-          >
-            先去查词
-          </BaseButton>
+          <view class="guest-shortcuts">
+            <view
+              class="guest-shortcut pressable"
+              @tap="toHome"
+            >
+              <text class="guest-shortcut__kicker">
+                先逛逛
+              </text>
+              <text class="guest-shortcut__title">
+                听乡音
+              </text>
+              <text class="guest-shortcut__arrow">
+                ↗
+              </text>
+            </view>
+            <view
+              class="guest-shortcut pressable"
+              @tap="toSearch"
+            >
+              <text class="guest-shortcut__kicker">
+                找一找
+              </text>
+              <text class="guest-shortcut__title">
+                查词条
+              </text>
+              <text class="guest-shortcut__arrow">
+                ↗
+              </text>
+            </view>
+          </view>
         </view>
         <view class="menu guest-theme">
           <view class="section-kicker menu-kicker">
@@ -730,7 +764,7 @@ export default {
 }
 
 .state-card,
-.guest-profile {
+.guest-theme {
   padding: var(--space-4);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
@@ -747,41 +781,137 @@ export default {
 }
 
 .guest-profile {
+  position: relative;
   max-width: 620rpx;
-  margin: 8vh auto 0;
-  text-align: center;
+  margin: 24rpx auto 0;
+  padding: 38rpx 34rpx 32rpx;
+  border: 1rpx solid var(--immersive-border-color);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 88% 4%, var(--immersive-glow-color), transparent 32%),
+    linear-gradient(
+      150deg,
+      var(--immersive-bg-strong-color),
+      var(--immersive-bg-soft-color) 58%,
+      var(--immersive-bg-color)
+    );
+  box-shadow: 0 24rpx 70rpx var(--immersive-veil-color);
+  color: var(--on-immersive-color);
+  box-sizing: border-box;
+}
+
+.guest-profile__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.guest-eyebrow {
+  color: var(--immersive-accent-color);
+  font-size: 19rpx;
+  font-weight: 800;
+  letter-spacing: 3rpx;
 }
 
 .guest-mark {
-  width: 160rpx;
-  height: 160rpx;
-  margin: 0 auto;
+  width: 58rpx;
+  height: 58rpx;
+  border: 1rpx solid var(--immersive-border-color);
   border-radius: var(--radius-pill);
-  background: var(--accent-color);
-  color: var(--on-accent-color);
-  font-size: var(--font-size-xl);
-  font-weight: 800;
-  line-height: 160rpx;
+  background: var(--immersive-surface-color);
+  color: var(--on-immersive-color);
+  font-family: STSong, SimSun, serif;
+  font-size: 28rpx;
+  font-weight: 900;
+  line-height: 58rpx;
+  text-align: center;
 }
 
 .guest-title {
-  margin-top: var(--space-3);
-  font-size: var(--font-size-xl);
-  font-weight: 800;
+  max-width: 480rpx;
+  margin-top: 26rpx;
+  font-family: STSong, SimSun, serif;
+  font-size: 44rpx;
+  font-weight: 900;
+  letter-spacing: 1rpx;
+  line-height: 1.2;
 }
 
 .guest-copy {
-  margin-top: var(--space-2);
-  color: var(--muted-color);
-  font-size: var(--font-size-sm);
+  margin-top: 16rpx;
+  color: var(--on-immersive-muted-color);
+  font-size: 24rpx;
   line-height: 1.65;
 }
 
+.guest-benefits {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  margin-top: 24rpx;
+  padding: 16rpx 18rpx;
+  border: 1rpx solid var(--immersive-border-color);
+  border-radius: var(--radius-md);
+  background: var(--immersive-surface-color);
+  color: var(--on-immersive-muted-color);
+  font-size: 20rpx;
+  letter-spacing: 1rpx;
+}
+
 .guest-action {
-  margin-top: var(--space-3);
+  margin-top: 26rpx;
+}
+
+.guest-primary {
+  border-color: transparent;
+  background: var(--on-immersive-color);
+  color: var(--immersive-bg-strong-color);
+}
+
+.guest-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12rpx;
+  margin-top: 14rpx;
+}
+
+.guest-shortcut {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  min-width: 0;
+  padding: 18rpx 20rpx;
+  border: 1rpx solid var(--immersive-border-color);
+  border-radius: var(--radius-md);
+  background: var(--immersive-surface-color);
+  color: var(--on-immersive-color);
+}
+
+.guest-shortcut__kicker {
+  color: var(--on-immersive-muted-color);
+  font-size: 19rpx;
+}
+
+.guest-shortcut__title {
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+}
+
+.guest-shortcut__arrow {
+  position: absolute;
+  top: 20rpx;
+  right: 18rpx;
+  color: var(--immersive-accent-color);
+  font-size: var(--font-size-sm);
 }
 
 .guest-theme {
+  max-width: 620rpx;
+  margin-right: auto;
+  margin-left: auto;
   text-align: left;
 }
 
