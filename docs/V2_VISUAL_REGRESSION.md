@@ -10,7 +10,7 @@
 npm run review:visual:h5
 ```
 
-默认使用 8011；若端口被其它任务占用，指定另一端口仍可保持单命令运行，服务和浏览器会自动使用同一地址：
+默认使用 8011；若端口被其它任务占用，指定另一端口仍可保持单命令运行。启动包装器会临时改写并在进程退出时还原 `manifest.json`，让服务和浏览器使用同一地址，不会误连到另一任务：
 
 ```bash
 VISUAL_REVIEW_BASE_URL=http://localhost:8012 npm run review:visual:h5

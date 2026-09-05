@@ -21,7 +21,7 @@ export default defineConfig({
     viewport: { width: 390, height: 844 },
   },
   webServer: useExternalServer ? undefined : {
-    command: `npm run dev:h5 -- --port ${reviewPort}`,
+    command: `H5_DEV_SERVER_PORT=${reviewPort} npm run dev:h5`,
     url: baseURL,
     reuseExistingServer: false,
     timeout: 120000,
