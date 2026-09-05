@@ -151,10 +151,19 @@
               @click="loadMore"
             />
           </view>
-          <uni-load-more
-            v-else
-            :status="loadStatus"
+          <BaseLoading
+            v-else-if="loadStatus === 'loading'"
+            :delay="0"
+            layout="horizontal"
+            text="正在加载更多…"
           />
+          <view
+            v-else
+            class="pagination-status"
+            role="status"
+          >
+            {{ loadStatus === 'more' ? '上拉继续加载' : '没有更多消息了' }}
+          </view>
         </view>
       </view>
     </scroll-view>
@@ -502,6 +511,13 @@ export default {
   background: var(--danger-subtle-color);
   color: var(--danger-color);
   font-size: var(--font-size-xs);
+}
+
+.pagination-status {
+  padding: var(--space-2) var(--space-3);
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
+  text-align: center;
 }
 
 @media (prefers-reduced-motion: reduce) {

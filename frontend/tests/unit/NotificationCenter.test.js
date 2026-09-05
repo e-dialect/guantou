@@ -25,7 +25,6 @@ function mountCenter() {
       stubs: {
         PageShell: { template: '<main><slot name="before" /><slot /></main>' },
         'scroll-view': { template: '<div><slot /></div>' },
-        'uni-load-more': true,
       },
     },
   });
@@ -42,6 +41,18 @@ describe('notification center', () => {
     });
     markNotificationsRead.mockResolvedValue({});
     globalThis.uni = { navigateTo: vi.fn(), showToast: vi.fn() };
+  });
+
+  it('renders localized pagination states without an implicit component', async () => {
+    const wrapper = mountCenter();
+    wrapper.vm.notifications = [notification];
+    wrapper.vm.loadStatus = 'more';
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.pagination-status').text()).toBe('上拉继续加载');
+
+    wrapper.vm.loadStatus = 'noMore';
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.pagination-status').text()).toBe('没有更多消息了');
   });
 
   it('loads notifications with the selected unread filter', async () => {
