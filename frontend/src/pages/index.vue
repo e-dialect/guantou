@@ -240,6 +240,7 @@ export default {
 <style scoped>
 .home-page {
   position: relative;
+  width: 100%;
   height: 100vh;
   box-sizing: border-box;
   display: flex;
@@ -361,4 +362,52 @@ export default {
     animation: none;
   }
 }
+
+/* #ifdef H5 */
+.home-page {
+  height: 100dvh;
+}
+
+@media screen and (min-width: 960px) {
+  .home-page {
+    max-width: 960px;
+    margin: 0 auto;
+    border-inline: 1rpx solid var(--immersive-border-color);
+  }
+
+  .home-page__body {
+    width: 100%;
+    max-width: 920px;
+    margin-inline: auto;
+  }
+}
+
+@media screen and (min-width: 600px) and (max-height: 500px) and (orientation: landscape) {
+  .home-page__body {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+
+  .home-page__unavailable {
+    width: calc(100% - 48px);
+    margin: auto 24px;
+    padding: 20px 28px;
+    gap: 8px;
+  }
+
+  .home-page__unavailable-kicker {
+    font-size: 12px;
+    letter-spacing: 2px;
+  }
+
+  .home-page__unavailable-title {
+    font-size: 22px;
+  }
+
+  .home-page__unavailable-copy {
+    margin-bottom: 0;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+}
+/* #endif */
 </style>

@@ -142,7 +142,9 @@ export default {
 /* 颜色 Token 来自全局 styles/tokens.scss；暗色由 .theme-dark 全局规则覆盖子树 */
 .page-shell {
   position: relative;
+  width: 100%;
   min-height: 100vh;
+  box-sizing: border-box;
   background: var(--page-color);
   color: var(--text-color);
   letter-spacing: var(--dress-letter-spacing, 0em);
@@ -225,4 +227,67 @@ export default {
 .shell-scroll {
   height: calc(100vh - 104rpx - env(safe-area-inset-top));
 }
+
+/* #ifdef H5 */
+.page-shell {
+  min-height: 100dvh;
+}
+
+.shell-content {
+  min-height: calc(100dvh - 104rpx - env(safe-area-inset-top));
+}
+
+.shell-scroll {
+  height: calc(100dvh - 104rpx - env(safe-area-inset-top));
+}
+
+@media screen and (min-width: 960px) {
+  .page-shell {
+    max-width: 960px;
+    margin: 0 auto;
+    border-inline: 1rpx solid var(--border-color);
+  }
+
+  .shell-content {
+    width: 100%;
+    max-width: 880px;
+    margin-inline: auto;
+  }
+}
+
+@media screen and (min-width: 600px) and (max-height: 500px) and (orientation: landscape) {
+  .shell-topbar {
+    height: calc(56px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) 20px 0;
+    grid-template-columns: minmax(40px, 1fr) auto minmax(40px, 1fr);
+    gap: 12px;
+  }
+
+  .shell-back,
+  .shell-back-placeholder {
+    width: 40px;
+  }
+
+  .shell-back {
+    height: 40px;
+    font-size: 32px;
+  }
+
+  .shell-title {
+    max-width: 420px;
+    font-size: 22px;
+  }
+
+  .shell-content {
+    min-height: calc(100vh - 56px - env(safe-area-inset-top));
+    min-height: calc(100dvh - 56px - env(safe-area-inset-top));
+    padding: 16px 24px;
+  }
+
+  .shell-scroll {
+    height: calc(100vh - 56px - env(safe-area-inset-top));
+    height: calc(100dvh - 56px - env(safe-area-inset-top));
+  }
+}
+/* #endif */
 </style>

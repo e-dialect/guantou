@@ -177,6 +177,23 @@ html.page-transitioning uni-page-wrapper {
     animation: none;
   }
 }
+
+/*
+ * UniApp 默认按窗口宽度线性放大 H5 的 rpx。平板、桌面和手机横屏如果继续
+ * 使用该比例，移动端字号与间距会被放大到挤占主要任务区。宽视口统一停在
+ * 平板阅读尺度；短横屏进一步压缩垂直占用，页面壳再负责布局重排。
+ */
+@media screen and (min-width: 600px) {
+  html {
+    font-size: 24px !important;
+  }
+}
+
+@media screen and (min-width: 600px) and (max-height: 500px) and (orientation: landscape) {
+  html {
+    font-size: 20px !important;
+  }
+}
 /* #endif */
 
 .scrollPage {

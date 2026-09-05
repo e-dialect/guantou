@@ -160,4 +160,40 @@ export default {
   background: var(--immersive-surface-color);
   color: var(--immersive-accent-color);
 }
+
+/* #ifdef H5 */
+@media screen and (min-width: 960px) {
+  .home-tab-bar {
+    left: 50%;
+    right: auto;
+    width: 960px;
+    transform: translateX(-50%);
+  }
+}
+
+@media screen and (min-width: 600px) and (max-height: 500px) and (orientation: landscape) {
+  .home-tab-bar__inner {
+    height: 64px;
+  }
+
+  .home-tab-bar__item {
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  .home-tab-bar__glyph,
+  .home-tab-bar__item--record .home-tab-bar__glyph {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    font-size: 20px;
+    transform: none;
+  }
+
+  .home-tab-bar__hint {
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+}
+/* #endif */
 </style>

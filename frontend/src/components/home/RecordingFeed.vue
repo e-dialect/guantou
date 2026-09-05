@@ -483,4 +483,101 @@ export default {
     animation: none;
   }
 }
+
+/* #ifdef H5 */
+@media screen and (min-width: 600px) and (max-height: 500px) and (orientation: landscape) {
+  .recording-feed__intro {
+    gap: 2px;
+    padding: 8px 24px 6px;
+  }
+
+  .recording-feed__kicker,
+  .recording-feed__scope {
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+
+  .recording-feed__title {
+    font-size: 22px;
+  }
+
+  .recording-feed__copy {
+    font-size: 14px;
+    line-height: 1.3;
+  }
+
+  .recording-feed__state {
+    min-height: 140px;
+    margin: 0 24px;
+    padding: 16px 24px;
+  }
+
+  .recording-feed__state:not(.recording-feed__state--loading) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: repeat(3, auto);
+    align-content: center;
+    align-items: center;
+    column-gap: 24px;
+    row-gap: 4px;
+  }
+
+  .recording-feed__state:not(.recording-feed__state--loading) :deep(.base-button) {
+    grid-column: 2;
+    grid-row: 1 / 4;
+  }
+
+  .recording-feed__state--loading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .recording-feed__state-kicker {
+    font-size: 12px;
+    letter-spacing: 2px;
+  }
+
+  .recording-feed__state-title {
+    font-size: 22px;
+  }
+
+  .recording-feed__state-copy {
+    margin-bottom: 0;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  .recording-feed__state--loading :deep(.base-loading) {
+    padding: 0;
+  }
+
+  .recording-feed__skeleton {
+    gap: 8px;
+  }
+
+  .recording-feed__skeleton-line {
+    height: 8px;
+  }
+
+  .recording-feed__skeleton-line--title {
+    height: 16px;
+  }
+
+  .recording-feed__skeleton-actions {
+    gap: 8px;
+    margin-top: 2px;
+  }
+
+  .recording-feed__skeleton-button {
+    height: 24px;
+  }
+
+  .recording-feed__list {
+    gap: 12px;
+    padding: 0 24px 24px;
+  }
+}
+/* #endif */
 </style>

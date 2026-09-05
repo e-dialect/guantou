@@ -95,9 +95,11 @@ export default {
 
 <style scoped>
 .app-shell {
+  width: 100%;
   height: 100vh;
   overflow: hidden;
   min-height: 100vh;
+  box-sizing: border-box;
   background: var(--page-color);
   color: var(--text-color);
 }
@@ -181,4 +183,84 @@ export default {
   font-size: 21rpx;
   letter-spacing: 2rpx;
 }
+
+/* #ifdef H5 */
+.app-shell {
+  height: 100dvh;
+  min-height: 100dvh;
+}
+
+.app-shell__scroll {
+  height: calc(100dvh - 136rpx - env(safe-area-inset-top));
+}
+
+.app-shell__content {
+  min-height: calc(100dvh - 296rpx - env(safe-area-inset-top));
+}
+
+.app-shell__content--fixed {
+  min-height: calc(100dvh - 136rpx - env(safe-area-inset-top));
+}
+
+@media screen and (min-width: 960px) {
+  .app-shell {
+    max-width: 960px;
+    margin: 0 auto;
+    border-inline: 1rpx solid var(--border-color);
+  }
+
+  .app-shell__content,
+  .app-shell__footer {
+    width: 100%;
+    max-width: 880px;
+    margin-inline: auto;
+  }
+}
+
+@media screen and (min-width: 600px) and (max-height: 500px) and (orientation: landscape) {
+  .app-shell__header {
+    height: calc(64px + env(safe-area-inset-top));
+    padding: calc(8px + env(safe-area-inset-top)) 24px 8px;
+  }
+
+  .app-shell__heading {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .app-shell__brand {
+    flex: 0 0 auto;
+    font-size: 10px;
+    letter-spacing: 2px;
+  }
+
+  .app-shell__title {
+    margin-top: 0;
+    font-size: 24px;
+    letter-spacing: 1px;
+  }
+
+  .app-shell__scroll {
+    height: calc(100vh - 64px - env(safe-area-inset-top));
+    height: calc(100dvh - 64px - env(safe-area-inset-top));
+  }
+
+  .app-shell__content {
+    min-height: calc(100vh - 120px - env(safe-area-inset-top));
+    min-height: calc(100dvh - 120px - env(safe-area-inset-top));
+    padding: 10px 24px calc(72px + env(safe-area-inset-bottom));
+  }
+
+  .app-shell__content--fixed {
+    min-height: calc(100vh - 64px - env(safe-area-inset-top));
+    min-height: calc(100dvh - 64px - env(safe-area-inset-top));
+  }
+
+  .app-shell__footer {
+    padding: 12px 24px calc(72px + env(safe-area-inset-bottom));
+    font-size: 12px;
+  }
+}
+/* #endif */
 </style>
