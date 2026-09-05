@@ -5,10 +5,6 @@
     @scrolltolower="loadMore"
   >
     <view class="entry-search">
-      <view class="entry-search__lead">
-        同一个“行”可能是“行走”的行，也可能是“银行”的行；这里会分别列出，不会混成一条。
-      </view>
-
       <view class="entry-search__bar">
         <BaseField
           v-model="filters.keyword"
@@ -21,10 +17,113 @@
           @confirm="search"
         />
         <BaseButton
+          block
           text="查词条"
           :loading="loading"
           @click="search"
         />
+      </view>
+
+      <DialectSelector
+        v-model:visible="dialectPickerVisible"
+        :value="filters.dialectId"
+        :dialects="dialects"
+        :default-dialect="primaryDialect"
+        :owner-scope="dialectOwnerScope"
+        title="选择地区范围"
+        @change="onDialectChange"
+      />
+
+      <t-picker
+        :visible="writingPickerVisible"
+        :value="[filters.writingType]"
+        title="选择写法类型"
+        @change="onWritingTypeChange"
+        @close="writingPickerVisible = false"
+      >
+        <t-picker-item :options="writingTypes" />
+      </t-picker>
+
+      <t-picker
+        :visible="sourcePickerVisible"
+        :value="[filters.sourceType]"
+        title="选择证据来源"
+        @change="onSourceTypeChange"
+        @close="sourcePickerVisible = false"
+      >
+        <t-picker-item :options="sourceTypes" />
+      </t-picker>
+
+      <view
+        v-if="loading && !entries.length"
+        class="entry-search__state"
+        data-search-state="loading"
+        aria-live="polite"
+      >
+        <BaseLoading text="正在查找词条…" />
+      </view>
+      <view
+        v-else-if="errorMessage && !entries.length"
+        class="entry-search__state"
+        data-search-state="error"
+        role="alert"
+      >
+        <EmptyState
+          :title="errorMessage"
+          :description="errorDescription"
+          :action-text="errorActionText"
+          @action="handleErrorAction"
+        />
+      </view>
+      <view
+        v-else-if="searched && !entries.length"
+        class="entry-search__state"
+        data-search-state="empty"
+      >
+        <EmptyState
+          title="没有找到匹配词条"
+          description="换一个写法、意思或读音再试；也可以先录下你听到的说法。"
+          action-text="录一段，让大家帮忙整理"
+          @action="goRecord"
+        />
+      </view>
+      <view
+        v-else-if="!searched"
+        class="entry-search__prompt"
+        data-search-state="initial"
+      >
+        <text class="entry-search__prompt-kicker">
+          不必先知道正字
+        </text>
+        <text class="entry-search__prompt-title">
+          从一个线索开始
+        </text>
+        <text class="entry-search__prompt-copy">
+          汉字、意思、读音都可以。同一个“行”若有不同意思，会分别列出，不会混成一条。
+        </text>
+        <view class="entry-search__suggestions">
+          <BaseButton
+            v-for="suggestion in searchSuggestions"
+            :key="suggestion"
+            size="small"
+            variant="ghost"
+            :text="`试试：${suggestion}`"
+            @click="quickSearch(suggestion)"
+          />
+        </view>
+      </view>
+      <view
+        v-else-if="entries.length"
+        class="entry-results__summary"
+        data-search-state="summary"
+        aria-live="polite"
+      >
+        <text class="entry-results__summary-title">
+          找到 {{ total }} 个独立词条
+        </text>
+        <text class="entry-results__summary-copy">
+          相同写法的不同意思会各自保留，点开后再看地区、读音和证据。
+        </text>
       </view>
 
       <t-collapse
@@ -34,10 +133,22 @@
       >
         <t-collapse-panel
           value="advanced"
-          header="高级筛选"
-          header-right-content="地区、录音、写法、来源、IPA、罗马字"
+          :header="advancedHeader"
+          :header-right-content="advancedHint"
         >
           <view class="filter-stack">
+            <view
+              v-if="activeFilters"
+              class="filter-stack__summary"
+            >
+              <text>已启用 {{ activeFilters }} 项条件</text>
+              <BaseButton
+                size="extra-small"
+                variant="ghost"
+                text="清空筛选"
+                @click="resetAdvancedFilters"
+              />
+            </view>
             <t-cell
               title="地区范围"
               :note="selectedDialectLabel"
@@ -144,67 +255,21 @@
         </t-collapse-panel>
       </t-collapse>
 
-      <DialectSelector
-        v-model:visible="dialectPickerVisible"
-        :value="filters.dialectId"
-        :dialects="dialects"
-        :default-dialect="primaryDialect"
-        :owner-scope="dialectOwnerScope"
-        title="选择地区范围"
-        @change="onDialectChange"
-      />
-
-      <t-picker
-        :visible="writingPickerVisible"
-        :value="[filters.writingType]"
-        title="选择写法类型"
-        @change="onWritingTypeChange"
-        @close="writingPickerVisible = false"
-      >
-        <t-picker-item :options="writingTypes" />
-      </t-picker>
-
-      <t-picker
-        :visible="sourcePickerVisible"
-        :value="[filters.sourceType]"
-        title="选择证据来源"
-        @change="onSourceTypeChange"
-        @close="sourcePickerVisible = false"
-      >
-        <t-picker-item :options="sourceTypes" />
-      </t-picker>
-
-      <BaseLoading
-        v-if="loading && !entries.length"
-        text="正在查找词条…"
-      />
-      <EmptyState
-        v-else-if="errorMessage && !entries.length"
-        :title="errorMessage"
-        action-text="重试"
-        @action="search"
-      />
-      <EmptyState
-        v-else-if="searched && !entries.length"
-        title="没有找到匹配词条"
-        action-text="录一段，让大家帮忙整理"
-        @action="goRecord"
-      />
-
       <view
-        v-else-if="entries.length"
+        v-if="entries.length"
         class="entry-results"
+        data-search-state="results"
+        :aria-busy="loading || loadingMore ? 'true' : 'false'"
       >
-        <view class="entry-results__summary">
-          找到 {{ total }} 个独立词条
-        </view>
         <view
           v-for="entry in entries"
           :key="entry.id"
           class="entry-result"
           role="button"
+          tabindex="0"
           :aria-label="`查看词条：${entryTitle(entry)}`"
           @tap="goEntryDetail(entry.id)"
+          @keydown.enter="goEntryDetail(entry.id)"
         >
           <view class="entry-result__heading">
             <text class="entry-result__title">
@@ -218,9 +283,16 @@
             {{ entry.summary || '大意待补充' }}
           </view>
           <view class="entry-result__meta">
-            <text>{{ dialectLabel(entry.usage_dialect) }}</text>
-            <text>{{ entry.recording_count }} 段录音</text>
-            <text v-if="entry.needs_audio">
+            <text class="entry-result__meta-item">
+              {{ dialectLabel(entry.usage_dialect) }}
+            </text>
+            <text class="entry-result__meta-item">
+              {{ entry.recording_count }} 段录音
+            </text>
+            <text
+              v-if="entry.needs_audio"
+              class="entry-result__meta-item entry-result__meta-item--attention"
+            >
               待补音
             </text>
           </view>
@@ -229,6 +301,12 @@
             class="entry-result__concepts"
           >
             概念：{{ entry.concepts.map((item) => item.label || item.code).join('、') }}
+          </view>
+          <view class="entry-result__action">
+            查看词条
+            <text aria-hidden="true">
+              ›
+            </text>
           </view>
         </view>
         <BaseLoading
@@ -260,7 +338,7 @@ import {
   pageResults,
 } from '@/services/entryRecording';
 import { listAllDialects } from '@/services/guantou';
-import { goEntryDetail, goRecord } from '@/services/navigation';
+import { goEntryDetail, goHome, goRecord } from '@/services/navigation';
 import { dialectBreadcrumb } from '@/utils/dialectTree';
 import { CAPABILITIES, ensureCapability } from '@/services/capabilities';
 import { PRODUCT_EVENTS, trackProductEvent } from '@/services/productAnalytics';
@@ -354,6 +432,7 @@ export default {
       loading: false,
       loadingMore: false,
       errorMessage: '',
+      searchUnavailable: false,
       searchRequestId: 0,
       dialects: [],
       dialectPickerVisible: false,
@@ -361,6 +440,7 @@ export default {
       sourcePickerVisible: false,
       writingTypes: WRITING_TYPES,
       sourceTypes: SOURCE_TYPES,
+      searchSuggestions: ['行', '害怕', 'hiŋ'],
       audioOptions: [
         { label: '不限', value: '' },
         { label: '有录音', value: true },
@@ -393,6 +473,23 @@ export default {
     sourceTypeLabel() {
       return SOURCE_TYPES.find((item) => item.value === this.filters.sourceType)?.label || '不限';
     },
+    activeFilters() {
+      return activeFilterCount(this.filters);
+    },
+    advancedHeader() {
+      return this.activeFilters ? `筛选条件 · ${this.activeFilters}` : '高级筛选';
+    },
+    advancedHint() {
+      return this.activeFilters ? '可继续调整' : '地区 · 录音 · 证据';
+    },
+    errorActionText() {
+      return this.searchUnavailable ? '返回听乡音' : '重新查询';
+    },
+    errorDescription() {
+      return this.searchUnavailable
+        ? '听乡音和个人资料仍可正常使用。'
+        : '检查网络后再试，已经输入的关键词和筛选条件都会保留。';
+    },
   },
   async onLoad(options = {}) {
     this.filters.keyword = options.keywords || options.key || '';
@@ -419,13 +516,31 @@ export default {
     requestParams(page) {
       return buildEntrySearchParams({ ...this.filters, page, pageSize: 20 });
     },
+    quickSearch(keyword) {
+      this.filters.keyword = keyword;
+      this.search();
+    },
+    resetAdvancedFilters() {
+      const { keyword } = this.filters;
+      this.filters = { ...defaultFilters(), keyword };
+      this.search();
+    },
+    handleErrorAction() {
+      if (this.searchUnavailable) {
+        goHome(true);
+        return;
+      }
+      this.search();
+    },
     async search() {
       if (!ensureCapability(CAPABILITIES.ENTRY_SEARCH, 'search')) {
         this.searched = true;
         this.entries = [];
+        this.searchUnavailable = true;
         this.errorMessage = '词条查询正在维护，请稍后再试';
         return;
       }
+      this.searchUnavailable = false;
       const requestId = this.searchRequestId + 1;
       this.searchRequestId = requestId;
       this.loading = true;
@@ -504,7 +619,9 @@ export default {
   gap: 24rpx;
 }
 
-.entry-search__lead,
+.entry-search__prompt,
+.entry-search__state,
+.entry-results__summary,
 .entry-result {
   padding: 26rpx;
   border-radius: var(--radius-lg);
@@ -512,9 +629,67 @@ export default {
   border: 1rpx solid var(--border-color);
 }
 
-.entry-search__lead {
+.entry-search__prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12rpx;
+  background: var(--accent-subtle-color);
+}
+
+.entry-search__prompt-kicker {
+  color: var(--accent-color);
+  font-size: 20rpx;
+  font-weight: 800;
+  letter-spacing: 2rpx;
+}
+
+.entry-search__prompt-title,
+.entry-results__summary-title {
+  color: var(--text-color);
+  font-family: STSong, SimSun, serif;
+  font-weight: 900;
+}
+
+.entry-search__prompt-title {
+  font-size: 34rpx;
+}
+
+.entry-search__prompt-copy,
+.entry-results__summary-copy {
   color: var(--text-secondary-color);
-  line-height: 1.7;
+  font-size: 24rpx;
+  line-height: 1.65;
+}
+
+.entry-search__suggestions,
+.filter-stack__summary {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex-wrap: wrap;
+}
+
+.entry-search__suggestions {
+  margin-top: 6rpx;
+}
+
+.entry-search__state {
+  min-height: 260rpx;
+}
+
+.entry-search__state :deep(.empty-state) {
+  padding: 34rpx 12rpx;
+}
+
+.entry-results__summary {
+  display: grid;
+  gap: 8rpx;
+  background: var(--accent-subtle-color);
+}
+
+.entry-results__summary-title {
+  font-size: 30rpx;
 }
 
 .entry-search__bar,
@@ -524,13 +699,19 @@ export default {
   gap: 18rpx;
 }
 
+.filter-stack__summary {
+  justify-content: space-between;
+  padding: 4rpx 8rpx 14rpx;
+  color: var(--text-secondary-color);
+  font-size: 23rpx;
+}
+
 .filter-group {
   display: grid;
   gap: 12rpx;
 }
 
-.filter-group__label,
-.entry-results__summary {
+.filter-group__label {
   color: var(--muted-color);
   font-size: 23rpx;
 }
@@ -557,8 +738,12 @@ export default {
 
 .entry-result__status {
   flex: 0 0 auto;
+  padding: 6rpx 12rpx;
+  border-radius: var(--radius-pill);
+  background: var(--accent-subtle-color);
   color: var(--accent-color);
-  font-size: 22rpx;
+  font-size: 20rpx;
+  font-weight: 700;
 }
 
 .entry-result__summary {
@@ -572,5 +757,30 @@ export default {
   margin-top: 16rpx;
   color: var(--muted-color);
   font-size: 22rpx;
+}
+
+.entry-result__meta-item {
+  padding: 6rpx 12rpx;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle-color);
+}
+
+.entry-result__meta-item--attention {
+  background: var(--accent-subtle-color);
+  color: var(--accent-color);
+  font-weight: 700;
+}
+
+.entry-result__action {
+  margin-top: 20rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8rpx;
+  color: var(--accent-color);
+  font-size: 23rpx;
+  font-weight: 800;
 }
 </style>

@@ -31,7 +31,8 @@
 | `pages/pronunciations/create` | done | [#234](https://github.com/e-dialect/guantou/issues/234)：PageShell + BaseForm/BaseField/BaseButton、统一加载/重试/反馈；保留写法 Picker、方言级联、联合校验、字段错误定位与成功返回 |
 | `pages/shelves/index` | issue | [#231](https://github.com/e-dialect/guantou/issues/231)：创建表单与列表状态 |
 | `pages/shelves/details` | issue | [#235](https://github.com/e-dialect/guantou/issues/235)：编辑、双搜索和成员管理 |
-| `pages/search` | done | Entry-first 搜索使用 BaseField/BaseButton 与 TDesign 折叠、级联和选择器；同形异义词条独立展示，支持地区、录音、状态、写法、来源、IPA、罗马字与概念筛选 |
+| `pages/search` | done | Entry-first 搜索使用 BaseField/BaseButton 与 TDesign 折叠、级联和选择器；[#342](https://github.com/e-dialect/guantou/issues/342) 将主路径收敛为“输入 → 状态/结果摘要 → 高级筛选 → 独立词条”，同形异义不合并，失败、空结果与能力维护态都有明确下一步 |
+| `pages/entries/details` | done | [#342](https://github.com/e-dialect/guantou/issues/342) 按“写法与释义 → 地区与读音 → 录音 → 证据与状态 → 参与操作”呈现，保留地区确认、收藏与接龙录音契约 |
 | `pages/users/onboarding` | done | [#233](https://github.com/e-dialect/guantou/issues/233) / [PR #310](https://github.com/e-dialect/guantou/pull/310)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：BaseField/BaseButton、方言树加载重试与真实乡音样本；保留登录中断恢复 |
 | `pages/cans/drafts` | done | [#195](https://github.com/e-dialect/guantou/issues/195) / [PR #216](https://github.com/e-dialect/guantou/pull/216)：加载、空态、错误、继续编辑与删除反馈 |
 | `pages/cans/index` / `library` | queued | 每页独立 PR |
@@ -107,3 +108,10 @@
 - “录”最低只要求音频、已知使用地区和用户自己的大意；写法、读音、已有词条、来源和授权说明均为可选补充。
 - “我”保留完整账户设置；普通用户看到整理员申请说明，有授权的用户才看到管理与审核待办，客户端不嵌入 Django 后台。
 - V2 浏览器主路径由 `tests/e2e/guest-flow.spec.js` 与 `tests/e2e/h5-smoke.spec.js` 覆盖。旧 Can 首页评论浮层失去宿主后不再执行浏览器用例，其组件级交互仍由 `tests/unit/CommentSheet.test.js` 覆盖，并在阶段 8 删除旧领域时一并清理。
+
+### 搜索与词条详情层级（#342）
+
+- 搜索页首屏不预设用户知道正字，以写法、意思或读音作为同等入口，并给出可直接发起查询的示例；高级条件保持原 API 字段与 `false` 精确值语义，清空筛选时保留当前关键词。
+- 查询后先说明独立词条数量与“同字异义分别保留”，再提供高级筛选和结果卡；卡片明确区分状态、地区、录音与待补音，并补齐键盘进入语义。
+- 词条详情把释义、写法和地区读音置于录音之前，把辨识说明、整理状态及证据计数置于录音之后；录音与收藏集中在末尾共建区，不再让状态与指标抢占首屏。
+- `tests/e2e/search-entry-hierarchy.spec.js` 在 390×844 视口覆盖初始/结果/失败/空结果/能力维护态及详情五段顺序；`tests/unit/EntryDetailHierarchy.test.js` 与 `tests/unit/SearchPage.test.js` 固化页面层级和筛选契约。浅色、暗色 H5 已人工复核；微信小程序以构建验证为本轮自动化边界。
