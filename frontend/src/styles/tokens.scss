@@ -80,6 +80,10 @@
   --space-4: 32rpx;
   --space-5: 48rpx;
 
+  /* 共享 EmptyState 以内容为主，不为 TDesign 的空缩略图预留大段间距。 */
+  --td-empty-description-margin-top: 0;
+  --td-empty-action-margin-top: var(--space-3);
+
   /* 圆角档位 */
   --radius-sm: 8rpx;
   --radius-md: 14rpx;

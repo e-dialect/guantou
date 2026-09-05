@@ -280,9 +280,27 @@ describe('TDesign infrastructure primitives', () => {
     const wrapper = mount(EmptyState, {
       props: { title: '还没有内容', actionText: '去创建' },
     });
+    const empty = wrapper.findAllComponents({ name: 'TDesignStub' })[0];
     const button = wrapper.getComponent(BaseButton);
+
+    expect(empty.props('icon')).toBe('');
     button.vm.$emit('click');
     expect(wrapper.emitted('action')).toHaveLength(1);
+  });
+
+  it('keeps empty states content-first with shared spacing tokens', () => {
+    const emptySource = readFileSync(
+      resolve(process.cwd(), 'src/components/EmptyState.vue'),
+      'utf8',
+    );
+    const tokenSource = readFileSync(
+      resolve(process.cwd(), 'src/styles/tokens.scss'),
+      'utf8',
+    );
+
+    expect(emptySource).not.toContain('icon="info-circle"');
+    expect(tokenSource).toContain('--td-empty-description-margin-top: 0;');
+    expect(tokenSource).toContain('--td-empty-action-margin-top: var(--space-3);');
   });
 });
 

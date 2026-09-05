@@ -15,7 +15,7 @@ V2 全站聚合验收由 [#346](https://github.com/e-dialect/guantou/issues/346)
 | 页面/共享区域 | 状态 | 后续工作或 Issue |
 | --- | --- | --- |
 | `components/BaseButton/BaseForm/BaseField/BaseLoading` | done | 项目级原语 |
-| `components/EmptyState` | done | 所有现有消费者自动迁移 |
+| `components/EmptyState` | done | 所有现有消费者自动迁移；[#385](https://github.com/e-dialect/guantou/issues/385) 移除 192rpx 装饰性信息图标，统一为标题、说明、动作的内容优先节奏 |
 | `components/PageShell` / `components/AppShell` / `components/home/HomeTabBar` | done | 已接入按钮原语与反馈 Host；[#340](https://github.com/e-dialect/guantou/issues/340) 收敛主入口标题区、普通页面顶栏与底部导航层级，底栏始终只有一个选中态，“录”在未选中时保留独立行动入口语义；PageShell 返回动作也使用具名的项目圆形按钮，不再局部仿制 |
 | `components/CommentThread` | done | 表单、按钮、加载与空态使用项目原语 |
 | `pages/error/not-found` | done | [#362](https://github.com/e-dialect/guantou/issues/362)：低饱和 404 说明、脱敏的长路径回显与唯一首页恢复动作 |
