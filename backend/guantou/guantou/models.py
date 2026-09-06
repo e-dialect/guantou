@@ -2353,8 +2353,16 @@ class RecordingLike(models.Model):
 
 
 class RecordingComment(models.Model):
+    # Keep the existing table and notification content type for V2 recording comments.
     recording = models.ForeignKey(
-        Recording, on_delete=models.CASCADE, related_name="comments"
+        Recording,
+        on_delete=models.CASCADE,
+        related_name="comments",
+        null=True,
+        blank=True,
+    )
+    entry = models.ForeignKey(
+        Entry, on_delete=models.CASCADE, related_name="comments", null=True, blank=True
     )
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     parent = models.ForeignKey(
@@ -2370,7 +2378,14 @@ class RecordingComment(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["author", "client_id"], name="recording_comment_request_unique"
-            )
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(recording__isnull=False, entry__isnull=True)
+                    | models.Q(recording__isnull=True, entry__isnull=False)
+                ),
+                name="discussion_exactly_one_target",
+            ),
         ]
 
 

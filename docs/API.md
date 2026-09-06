@@ -52,3 +52,9 @@ make api-contract-check
 - `GET /entries/suggestions/?q=...`、`popular/`：最多 8 个公开词条；推荐依照公开录音点赞及有效地区补证，不计私人收藏，不记录搜索原词。
 
 评论、回复和点赞通知复用消息中心，跳转录音详情；不重复发送自身通知，消息正文不复制录音或评论原文。
+
+### Entry 讨论（v1 能力二次补缺）
+
+`GET /entry-comments/?entry_id=<id>&page=1` 浏览可见词条讨论；`POST /entry-comments/` 接收 `entry_id`、`body`、`client_id`（UUID）及可选 `parent_id`。POST 必须且只能给出 entry_id，不能混入 recording_id；目标未公开即使本人可读取，也不能新增评论。一级回复必须属于同一词条，重复 UUID 与不同目标／正文冲突返回 400。
+
+`DELETE /entry-comments/{id}/` 作者删除／管理员隐藏；`PUT` / `DELETE /entry-comments/{id}/like/` 点赞／取消。录音与词条接口互不读取或修改对方评论。事件为 `entry.comment`、`entry.reply`、`entry.comment_like`，通知回到对应词条；不把评论正文放进通知。隐藏主评论后回复同样不公开展示。

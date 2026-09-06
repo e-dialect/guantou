@@ -1,4 +1,6 @@
-import { persistDraftAudio, restoreDraftAudio, removeDraftAudio } from './recordingDraftAudio';
+import {
+  persistDraftAudio, restoreDraftAudio, removeDraftAudio, isDraftAudioAvailable,
+} from './recordingDraftAudio';
 
 export function draftOwner() {
   const id = uni.getStorageSync('id');
@@ -39,6 +41,7 @@ export async function saveRecordingDraft({
     entryId,
     audio: storedAudio,
     audioError,
+    createdAt: old?.createdAt || old?.updatedAt || Date.now(),
     updatedAt: Date.now(),
   };
   // Re-read after async audio persistence so another draft's save is not overwritten.
@@ -71,4 +74,13 @@ export async function deleteRecordingDraft(id, owner = draftOwner()) {
   const item = items.find((draft) => draft.id === id);
   uni.setStorageSync(key(owner), JSON.stringify(items.filter((draft) => draft.id !== id)));
   await removeDraftAudio(item?.audio);
+}
+
+export async function listRecordingDraftsWithAudioStatus(owner = draftOwner()) {
+  return Promise.all(listRecordingDrafts(owner).map(async (item) => ({
+    ...item,
+    audio: item.audio ? {
+      ...item.audio, available: await isDraftAudioAvailable(item.audio),
+    } : null,
+  })));
 }

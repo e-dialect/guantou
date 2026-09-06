@@ -417,6 +417,11 @@ export default {
       ownerScope: '',
       savingDraft: false,
       draftMessage: '',
+      draftReady: false,
+      draftTimer: null,
+      draftSavePromise: null,
+      savedDraftSignature: '',
+      submitted: false,
       capabilityAvailable: true,
     };
   },
@@ -465,12 +470,17 @@ export default {
       return dialect ? dialectBreadcrumb(dialect, this.dialects) : '请选择已知范围';
     },
   },
+  watch: {
+    form: { deep: true, handler() { this.scheduleDraft(); } },
+    audio: { deep: true, handler() { this.scheduleDraft(); } },
+    selectedEntry() { this.scheduleDraft(); },
+  },
   async onLoad(options = {}) {
     if (!requireAuth('record_recording', { page: 'record' })) return;
     this.capabilityAvailable = ensureCapability(CAPABILITIES.RECORDING, 'record');
     if (!this.capabilityAvailable) return;
-    await this.loadDialects();
     this.ownerScope = draftOwner();
+    await this.loadDialects();
     if (options.draft_id) {
       try {
         const draft = await restoreRecordingDraft(options.draft_id, this.ownerScope);
@@ -481,26 +491,83 @@ export default {
         if (draft.entryId) await this.loadEntry(draft.entryId);
       } catch (error) { notify({ title: error.message }); }
     } else if (options.entry_id) await this.loadEntry(options.entry_id);
+    this.savedDraftSignature = this.draftSignature();
+    this.draftReady = true;
   },
-  onUnload() { releaseDraftAudioUrl(this.audio); },
+  onShow() {
+    if (!this.draftReady || draftOwner() === this.ownerScope) return;
+    clearTimeout(this.draftTimer);
+    this.draftReady = false;
+    releaseDraftAudioUrl(this.audio);
+    this.audio = emptyAudio();
+    this.form = Object.fromEntries(Object.keys(this.form).map((key) => [key, '']));
+    this.selectedEntry = null;
+    this.draftId = '';
+    this.draftMessage = '账号已切换，请重新打开录音页';
+    this.goRecordingDrafts();
+  },
+  onHide() { this.persistDirtyDraft(); },
+  onUnload() {
+    clearTimeout(this.draftTimer);
+    this.persistDirtyDraft().finally(() => { releaseDraftAudioUrl(this.audio); });
+  },
   methods: {
-    goRecordingDrafts,
-    async saveDraft() {
-      if (this.savingDraft) return;
+    async goRecordingDrafts() {
+      await this.persistDirtyDraft();
+      goRecordingDrafts();
+    },
+    draftSignature() {
+      return JSON.stringify([this.form, this.audio.path, this.selectedEntry?.id || null]);
+    },
+    scheduleDraft() {
+      clearTimeout(this.draftTimer);
+      if (!this.draftReady || this.submitted || this.submitting) return;
+      this.draftTimer = setTimeout(() => { this.persistDirtyDraft(); }, 700);
+    },
+    async persistDirtyDraft() {
+      clearTimeout(this.draftTimer);
+      if (!this.draftReady || this.submitted || this.submitting
+        || this.savedDraftSignature === this.draftSignature()) return;
+      const hasText = Object.entries(this.form).some(([key, value]) => (
+        key !== 'usage_dialect_id' && String(value || '').trim()
+      ));
+      if (!this.audio.path && !hasText) return;
+      await this.saveDraft({ silent: true });
+    },
+    saveDraft(options = {}) {
+      const pending = (this.draftSavePromise || Promise.resolve()).catch(() => {})
+        .then(() => this.performSaveDraft(options));
+      this.draftSavePromise = pending;
+      return pending;
+    },
+    async performSaveDraft({ silent = false } = {}) {
+      if (this.submitted) return;
       if (draftOwner() !== this.ownerScope) { notify({ title: '账号已切换，请重新打开录音页' }); return; }
       this.savingDraft = true;
+      const signature = this.draftSignature();
+      const audioPath = this.audio.path;
       try {
         const draft = await saveRecordingDraft({
-          id: this.draftId, form: this.form, audio: this.audio, entryId: this.selectedEntry?.id,
+          id: this.draftId,
+          form: { ...this.form },
+          audio: { ...this.audio },
+          entryId: this.selectedEntry?.id,
         }, this.ownerScope);
+        const unchanged = signature === this.draftSignature();
         this.draftId = draft.id;
-        if (draft.audio) {
+        if (draft.audio && this.audio.path === audioPath) {
           this.audio = { ...this.audio, ...draft.audio, path: draft.audio.path || this.audio.path };
         }
-        this.draftMessage = draft.audioError ? '仅文字已保存，音频保存失败，请保留本页重试' : '草稿已保存，可稍后继续';
-        notify({ title: this.draftMessage });
+        if (unchanged) {
+          this.savedDraftSignature = this.draftSignature();
+        }
+        if (draft.audioError) this.draftMessage = '仅文字已保存，音频保存失败，请保留本页重试';
+        else this.draftMessage = unchanged ? '草稿已保存，可稍后继续' : '上一版已保存，新修改仍待保存';
+        if (!silent || draft.audioError) notify({ title: this.draftMessage });
       } catch (error) {
-        if (error.persistedAudio) this.audio = { ...this.audio, ...error.persistedAudio };
+        if (error.persistedAudio && this.audio.path === audioPath) {
+          this.audio = { ...this.audio, ...error.persistedAudio };
+        }
         this.draftMessage = error.message;
         notify({ title: error.message });
       } finally { this.savingDraft = false; }
@@ -583,6 +650,8 @@ export default {
       if (this.submitting || this.savingDraft || !await this.validateForm()) return;
       if (draftOwner() !== this.ownerScope) { notify({ title: '账号已切换，请重新打开录音页' }); return; }
       this.submitting = true;
+      clearTimeout(this.draftTimer);
+      await this.saveDraft({ silent: true });
       try {
         const uploaded = await uploadFile(this.audio.path);
         if (draftOwner() !== this.ownerScope) throw new Error('账号已切换，请重新打开录音页');
@@ -604,6 +673,8 @@ export default {
           result: 'success',
           metadata: { has_linked_entry: Boolean(this.selectedEntry?.id) },
         });
+        this.submitted = true;
+        clearTimeout(this.draftTimer);
         notifySuccess('乡音已保存为可追溯初稿');
         if (this.draftId) {
           try { await deleteRecordingDraft(this.draftId, this.ownerScope); } catch (error) { notify({ title: '乡音已提交，请手动清理旧草稿' }); }

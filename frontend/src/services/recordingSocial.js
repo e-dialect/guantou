@@ -1,15 +1,15 @@
 import request from '@/utils/request';
 
 export const likeRecording = (id, liked) => (liked ? request.put(`/recordings/${id}/like/`, {}) : request.del(`/recordings/${id}/like/`));
-export const listComments = (recordingId, page = 1) => request.get('/recording-comments/', {
-  recording_id: recordingId,
+export const listComments = (recordingId, page = 1, targetType = 'recording') => request.get(`/${targetType}-comments/`, {
+  [`${targetType}_id`]: recordingId,
   page,
 }, true, {
   loading: false,
 });
-export const createComment = (data) => request.post('/recording-comments/', data);
-export const deleteComment = (id) => request.del(`/recording-comments/${id}/`);
-export const likeComment = (id, liked) => (liked ? request.put(`/recording-comments/${id}/like/`, {}) : request.del(`/recording-comments/${id}/like/`));
+export const createComment = (data, targetType = 'recording') => request.post(`/${targetType}-comments/`, data);
+export const deleteComment = (id, targetType = 'recording') => request.del(`/${targetType}-comments/${id}/`);
+export const likeComment = (id, liked, targetType = 'recording') => (liked ? request.put(`/${targetType}-comments/${id}/like/`, {}) : request.del(`/${targetType}-comments/${id}/like/`));
 export const discoverRecording = (kind = 'daily') => request.get(`/recordings/${kind}/`, {}, true, {
   loading: false,
 });

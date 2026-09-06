@@ -229,7 +229,7 @@ function successPayload(pathname, method, {
   if (pathname === '/dialects/') return paged(empty ? [] : DIALECTS);
   if (pathname === '/entries/suggestions/' || pathname === '/entries/popular/') return [ENTRY];
   if (pathname === '/recordings/daily/' || pathname === '/recordings/random/') return { ...RECORDING, visibility: true };
-  if (pathname === '/recording-comments/') return paged([]);
+  if (pathname === '/recording-comments/' || pathname === '/entry-comments/') return paged([]);
   if (pathname === '/collections/') return paged([{ id: 1, title: '雨落故乡', description: '听见雨声里的乡音', is_public: true }]);
   if (pathname === '/collections/1/') return {
     id: 1, title: '雨落故乡', description: '从一句落大雨，听见不同地方的日常。', is_public: true, editable: true,

@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from inbox.models import Notification
 from inbox.services import send_event_notification
 from .models import (
+    Entry,
     Collection,
     CollectionEntry,
     CollectionRecording,
@@ -320,10 +321,11 @@ class CollectionViewSet(viewsets.ModelViewSet):
 def event_once(actor, recipient, verb, recording, comment=None):
     if not recipient or actor.pk == recipient.pk:
         return
+    target_type = "entry" if isinstance(recording, Entry) else "recording"
     metadata = {
-        "target_type": "recording",
+        "target_type": target_type,
         "target_id": recording.id,
-        "target_url": f"/pages/recordings/details?id={recording.id}",
+        "target_url": f"/pages/{'entries' if target_type == 'entry' else 'recordings'}/details?id={recording.id}",
     }
     obj = comment or recording
     # One notification per actor/object/verb, including unlike/re-like.
@@ -399,7 +401,8 @@ def discover_recording(view, request, daily=False):
 
 
 class CommentInput(serializers.Serializer):
-    recording_id = serializers.IntegerField(min_value=1)
+    recording_id = serializers.IntegerField(min_value=1, required=False)
+    entry_id = serializers.IntegerField(min_value=1, required=False)
     parent_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
     body = serializers.CharField(max_length=2000)
     client_id = serializers.UUIDField()
@@ -417,7 +420,9 @@ class CommentSerializer(serializers.ModelSerializer):
 
     def get_liked(self, obj):
         user = self.context["request"].user
-        return user.is_authenticated and obj.likes.filter(user=user).exists()
+        return user.is_authenticated and any(
+            like.user_id == user.id for like in obj.likes.all()
+        )
 
     def get_editable(self, obj):
         user = self.context["request"].user
@@ -428,6 +433,7 @@ class CommentSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "recording_id",
+            "entry_id",
             "parent_id",
             "body",
             "author_name",
@@ -440,26 +446,41 @@ class CommentSerializer(serializers.ModelSerializer):
 
 
 class RecordingCommentViewSet(viewsets.GenericViewSet):
+    target_type = "recording"
+
+    def visible_targets(self):
+        return (
+            visible_entries_for_user(self.request.user)
+            if self.target_type == "entry"
+            else visible_recordings_for_user(self.request.user)
+        )
+
+    def target_filter(self, target):
+        return {self.target_type: target}
+
+    def recipient(self, target):
+        return target.created_by if self.target_type == "entry" else target.recorder
+
     serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
         return (
             RecordingComment.objects.filter(
-                recording__in=visible_recordings_for_user(self.request.user),
+                **{f"{self.target_type}__in": self.visible_targets()},
                 hidden=False,
             )
             .filter(Q(parent=None) | Q(parent__hidden=False))
-            .select_related("author", "recording", "parent__author")
+            .select_related("author", "recording", "entry", "parent__author")
             .prefetch_related("likes")
         )
 
     def list(self, request):
         values = serializers.IntegerField(min_value=1).run_validation(
-            request.query_params.get("recording_id")
+            request.query_params.get(f"{self.target_type}_id")
         )
-        get_object_or_404(visible_recordings_for_user(request.user), pk=values)
-        rows = self.get_queryset().filter(recording_id=values)
+        get_object_or_404(self.visible_targets(), pk=values)
+        rows = self.get_queryset().filter(**{f"{self.target_type}_id": values})
         page = self.paginate_queryset(rows)
         return self.get_paginated_response(self.get_serializer(page, many=True).data)
 
@@ -468,24 +489,32 @@ class RecordingCommentViewSet(viewsets.GenericViewSet):
         values = CommentInput(data=request.data)
         values.is_valid(raise_exception=True)
         data = values.validated_data
-        recording = get_object_or_404(
-            visible_recordings_for_user(request.user), pk=data["recording_id"]
-        )
+        target_key = f"{self.target_type}_id"
+        other_key = "recording_id" if self.target_type == "entry" else "entry_id"
+        if target_key not in data or other_key in data:
+            raise ValidationError("评论必须且只能属于当前接口的一种内容")
+        recording = get_object_or_404(self.visible_targets(), pk=data[target_key])
+        if not recording.visibility:
+            raise PermissionDenied("内容未公开，不能新增评论")
         parent = None
         if data.get("parent_id"):
             parent = get_object_or_404(
                 self.get_queryset(),
                 pk=data["parent_id"],
-                recording=recording,
+                **self.target_filter(recording),
                 parent=None,
             )
         comment, created = RecordingComment.objects.get_or_create(
             author=request.user,
             client_id=data["client_id"],
-            defaults={"recording": recording, "parent": parent, "body": data["body"]},
+            defaults={
+                **self.target_filter(recording),
+                "parent": parent,
+                "body": data["body"],
+            },
         )
         if (
-            comment.recording_id != recording.id
+            getattr(comment, target_key) != recording.id
             or comment.parent_id != data.get("parent_id")
             or comment.body != data["body"]
             or comment.hidden
@@ -494,14 +523,18 @@ class RecordingCommentViewSet(viewsets.GenericViewSet):
         if created:
             event_once(
                 request.user,
-                recording.recorder,
-                "recording.comment",
+                self.recipient(recording),
+                f"{self.target_type}.comment",
                 recording,
                 comment,
             )
-            if parent and parent.author_id != recording.recorder_id:
+            if parent and parent.author != self.recipient(recording):
                 event_once(
-                    request.user, parent.author, "recording.reply", recording, comment
+                    request.user,
+                    parent.author,
+                    f"{self.target_type}.reply",
+                    recording,
+                    comment,
                 )
         return Response(
             self.get_serializer(comment).data, status=201 if created else 200
@@ -531,8 +564,8 @@ class RecordingCommentViewSet(viewsets.GenericViewSet):
                 event_once(
                     request.user,
                     comment.author,
-                    "recording.comment_like",
-                    comment.recording,
+                    f"{self.target_type}.comment_like",
+                    getattr(comment, self.target_type),
                     comment,
                 )
         else:
@@ -540,6 +573,10 @@ class RecordingCommentViewSet(viewsets.GenericViewSet):
         return Response(
             {"liked": request.method == "PUT", "like_count": comment.likes.count()}
         )
+
+
+class EntryCommentViewSet(RecordingCommentViewSet):
+    target_type = "entry"
 
 
 def entry_suggestions(view, request, popular=False):

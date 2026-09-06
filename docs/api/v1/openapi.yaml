@@ -551,6 +551,134 @@ paths:
         schema:
           type: integer
           minimum: 1
+  /entry-comments/{comment_id}/like/:
+    put:
+      tags:
+        - Entries
+      operationId: likeEntryComment
+      summary: 点赞或取消点赞
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LikeResult"
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+    parameters:
+      - name: comment_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    delete:
+      tags:
+        - Entries
+      operationId: unlikeEntryComment
+      summary: 点赞或取消点赞
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LikeResult"
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+  /entry-comments/:
+    get:
+      tags:
+        - Entries
+      operationId: listEntryComments
+      summary: 词条留言及一层回复
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntryCommentPage"
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+      security: []
+      parameters:
+        - name: entry_id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+          required: true
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+    post:
+      tags:
+        - Entries
+      operationId: createEntryComment
+      summary: 发送留言，同一作者 UUID 幂等重试
+      responses:
+        "200":
+          description: 返回原有评论
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntryComment"
+        "201":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntryComment"
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EntryCommentWrite"
+  /entry-comments/{comment_id}/:
+    delete:
+      tags:
+        - Entries
+      operationId: hideEntryComment
+      summary: 作者删除或管理员隐藏留言
+      responses:
+        "204":
+          description: 已完成
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+    parameters:
+      - name: comment_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
   /entries/suggestions/:
     get:
       tags:
@@ -1143,6 +1271,54 @@ components:
         - recording_id
         - body
         - client_id
+    EntryComment:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        entry_id:
+          type: integer
+          minimum: 1
+        parent_id:
+          type: integer
+          nullable: true
+        body:
+          type: string
+        author_id:
+          type: integer
+          minimum: 1
+        author_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        like_count:
+          type: integer
+        liked:
+          type: boolean
+        editable:
+          type: boolean
+    EntryCommentWrite:
+      type: object
+      properties:
+        entry_id:
+          type: integer
+          minimum: 1
+        parent_id:
+          type: integer
+          nullable: true
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        client_id:
+          type: string
+          format: uuid
+      required:
+        - entry_id
+        - body
+        - client_id
     LikeResult:
       type: object
       properties:
@@ -1181,6 +1357,21 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RecordingComment"
+    EntryCommentPage:
+      type: object
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          nullable: true
+        previous:
+          type: string
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/EntryComment"
     DialectRef:
       type: object
       properties:
