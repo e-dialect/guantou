@@ -1,4 +1,8 @@
 export const ROUTE_VISUAL_MATRIX = Object.freeze([
+  { route: '/pages/recordings/details', target: '/pages/recordings/details?id=41', slug: 'recording-detail', issues: [], plan: 'docs/plans/2026-09-06-v2-restoration.md', persona: 'guest' },
+  { route: '/pages/recordings/drafts', target: '/pages/recordings/drafts', slug: 'recording-drafts', issues: [], plan: 'docs/plans/2026-09-06-v2-restoration.md', persona: 'member' },
+  { route: '/pages/collections/index', target: '/pages/collections/index', slug: 'collections', issues: [], plan: 'docs/plans/2026-09-06-v2-restoration.md', persona: 'guest' },
+  { route: '/pages/collections/details', target: '/pages/collections/details?id=1', slug: 'collection-detail', issues: [], plan: 'docs/plans/2026-09-06-v2-restoration.md', persona: 'guest' },
   {
     route: '/pages/index', target: '/', expectedPath: '/', slug: 'listen', issues: [341], persona: 'guest',
   },

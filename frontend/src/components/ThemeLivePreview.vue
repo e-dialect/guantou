@@ -88,12 +88,36 @@
           class="mock-tab"
           :class="{ locked: model.nativeLocked }"
         >
-          <view>首页</view>
-          <view>圈子</view>
-          <view>我的</view>
+          <view>听</view>
+          <view>查</view>
+          <view>录</view>
+          <view>我</view>
         </view>
       </view>
 
+      <view class="preview-label">
+        主题集盒
+      </view>
+      <view
+        class="mock-phone"
+        :class="model.shotClass"
+        :style="model.vars"
+      >
+        <view class="mock-nav">
+          乡声集盒 · 月下乡音
+        </view>
+        <view class="mock-recording">
+          <view class="mock-recording-title">
+            01 月娘
+          </view><view class="muted">
+            月亮 · 2 段乡音
+          </view><view class="mock-pill">
+            城里 › 听录音
+          </view><view class="mock-pill">
+            仙游 › 听录音
+          </view>
+        </view>
+      </view>
       <view class="preview-label">
         个人中心
       </view>

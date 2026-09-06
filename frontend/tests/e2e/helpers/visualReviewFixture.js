@@ -1,4 +1,4 @@
-const TINY_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
+const TINY_WAV = 'data:audio/wav;base64,UklGRmQGAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YUAGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 const FIXTURE_AVATAR = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2296%22 height=%2296%22 viewBox=%220 0 96 96%22%3E%3Crect width=%2296%22 height=%2296%22 rx=%2248%22 fill=%22%23e8f3ed%22/%3E%3Ccircle cx=%2248%22 cy=%2237%22 r=%2217%22 fill=%22%23216a4d%22/%3E%3Cpath d=%22M19 86c3-19 14-30 29-30s26 11 29 30%22 fill=%22%23216a4d%22/%3E%3Cpath d=%22M34 38c6-4 11-9 14-16 5 7 10 12 16 15%22 fill=%22none%22 stroke=%22%23a8dfc2%22 stroke-width=%225%22 stroke-linecap=%22round%22/%3E%3C/svg%3E';
 
 const DIALECTS = [
@@ -227,11 +227,19 @@ function successPayload(pathname, method, {
   }
   if (pathname === '/dialects/resolve/') return DIALECTS[1];
   if (pathname === '/dialects/') return paged(empty ? [] : DIALECTS);
+  if (pathname === '/entries/suggestions/' || pathname === '/entries/popular/') return [ENTRY];
+  if (pathname === '/recordings/daily/' || pathname === '/recordings/random/') return { ...RECORDING, visibility: true };
+  if (pathname === '/recording-comments/') return paged([]);
+  if (pathname === '/collections/') return paged([{ id: 1, title: '雨落故乡', description: '听见雨声里的乡音', is_public: true }]);
+  if (pathname === '/collections/1/') return {
+    id: 1, title: '雨落故乡', description: '从一句落大雨，听见不同地方的日常。', is_public: true, editable: true,
+    entry_count: 1, recording_count: 1, pending: [], sections: [{ id: 1, entry: ENTRY, recording_count: 1, recordings: [{ id: 1, recording: { ...RECORDING, visibility: true } }] }],
+  };
   if (pathname === '/entries/bookmarks/') return paged(empty ? [] : [ENTRY]);
   if (/^\/entries\/\d+\/bookmark\/$/.test(pathname)) return { bookmarked: method !== 'DELETE' };
   if (/^\/entries\/\d+\/$/.test(pathname)) return ENTRY;
   if (pathname === '/entries/') return paged(empty ? [] : [ENTRY]);
-  if (/^\/recordings\/\d+\/$/.test(pathname)) return RECORDING;
+  if (/^\/recordings\/\d+\/$/.test(pathname)) return { ...RECORDING, visibility: true, liked: false, like_count: 2 };
   if (pathname === '/recordings/') return paged(empty ? [] : [RECORDING]);
   if (/^\/circles\/\d+\/recordings\/$/.test(pathname)) return paged(empty ? [] : [RECORDING]);
   if (/^\/circles\/\d+\/membership\/$/.test(pathname)) return { ...CIRCLE, is_member: true };
@@ -323,9 +331,11 @@ export async function installVisualFixture(page, {
   theme = 'light',
   state = 'success',
   focus = '',
+  preserveStorage = false,
 } = {}) {
-  await page.addInitScript(({ member, selectedTheme }) => {
-    localStorage.clear();
+  await page.addInitScript(({ member, selectedTheme, preserve }) => {
+    if (!preserve || !sessionStorage.getItem('fixture-seeded')) localStorage.clear();
+    sessionStorage.setItem('fixture-seeded', 'true');
     localStorage.setItem('ui_theme', selectedTheme);
     localStorage.setItem('ui_accent', 'pine');
     localStorage.setItem('visitor_id', 'visual-review-visitor');
@@ -333,10 +343,11 @@ export async function installVisualFixture(page, {
       localStorage.setItem('token', 'visual-review-token');
       localStorage.setItem('id', '7');
     }
-  }, { member: persona === 'member', selectedTheme: theme });
+  }, { member: persona === 'member', selectedTheme: theme, preserve: preserveStorage });
 
-  await page.route('http://localhost:8000/**', async (route) => {
+  await page.route(`${process.env.VISUAL_REVIEW_API_ORIGIN || 'http://localhost:8000'}/**`, async (route) => {
     const request = route.request();
+    if (!['xhr', 'fetch'].includes(request.resourceType())) { await route.continue(); return; }
     const { pathname } = new URL(request.url());
     const isFocus = focused(pathname, focus);
     if (isFocus && state === 'loading') {

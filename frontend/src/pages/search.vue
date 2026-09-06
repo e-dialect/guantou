@@ -24,6 +24,60 @@
         />
       </view>
 
+      <view
+        v-if="suggestions.length"
+        class="entry-search__suggestions"
+        aria-label="词条联想"
+      >
+        <BaseButton
+          v-for="entry in suggestions"
+          :key="entry.id"
+          size="small"
+          variant="ghost"
+          :text="`${entryTitle(entry)} · ${entry.summary || ''}`"
+          @click="goEntryDetail(entry.id)"
+        />
+      </view>
+      <view
+        v-if="!filters.keyword"
+        class="entry-search__suggestions"
+        aria-label="搜索辅助"
+      >
+        <BaseButton
+          variant="ghost"
+          text="逛主题集盒"
+          @click="goCollections()"
+        />
+        <text v-if="history.length">
+          最近查过
+        </text>
+        <BaseButton
+          v-for="term in history"
+          :key="term"
+          size="small"
+          variant="ghost"
+          :text="term"
+          @click="quickSearch(term)"
+        />
+        <BaseButton
+          v-if="history.length"
+          size="small"
+          variant="ghost"
+          text="清空历史"
+          @click="clearHistory"
+        />
+        <text v-if="popular.length">
+          大家在听
+        </text>
+        <BaseButton
+          v-for="entry in popular"
+          :key="entry.id"
+          size="small"
+          variant="ghost"
+          :text="entryTitle(entry)"
+          @click="goEntryDetail(entry.id)"
+        />
+      </view>
       <DialectSelector
         v-model:visible="dialectPickerVisible"
         :value="filters.dialectId"
@@ -337,8 +391,13 @@ import {
   listEntries,
   pageResults,
 } from '@/services/entryRecording';
+import {
+  suggestEntries, popularEntries, searchHistory, rememberSearch, clearSearchHistory,
+} from '@/services/entrySearchAssist';
 import { listAllDialects } from '@/services/guantou';
-import { goEntryDetail, goHome, goRecord } from '@/services/navigation';
+import {
+  goCollections, goEntryDetail, goHome, goRecord,
+} from '@/services/navigation';
 import { dialectBreadcrumb } from '@/utils/dialectTree';
 import { CAPABILITIES, ensureCapability } from '@/services/capabilities';
 import { PRODUCT_EVENTS, trackProductEvent } from '@/services/productAnalytics';
@@ -441,6 +500,12 @@ export default {
       writingTypes: WRITING_TYPES,
       sourceTypes: SOURCE_TYPES,
       searchSuggestions: ['行', '害怕', 'hiŋ'],
+      history: [],
+      popular: [],
+      suggestions: [],
+      suggestTimer: null,
+      suggestSequence: 0,
+      submittedKeyword: '',
       audioOptions: [
         { label: '不限', value: '' },
         { label: '有录音', value: true },
@@ -491,7 +556,30 @@ export default {
         : '检查网络后再试，已经输入的关键词和筛选条件都会保留。';
     },
   },
+  watch: {
+    'filters.keyword': function suggestKeyword(value) {
+      clearTimeout(this.suggestTimer);
+      this.suggestSequence += 1;
+      const sequence = this.suggestSequence;
+      this.suggestions = [];
+      if (!String(value || '').trim() || String(value).trim() === this.submittedKeyword) return;
+      this.suggestTimer = setTimeout(async () => {
+        try {
+          const items = await suggestEntries(value);
+          if (sequence === this.suggestSequence) this.suggestions = pageResults(items);
+        } catch (error) {
+          if (sequence === this.suggestSequence) this.suggestions = [];
+        }
+      }, 250);
+    },
+  },
+  onShow() { this.history = searchHistory(); },
+  onUnload() { clearTimeout(this.suggestTimer); this.suggestSequence += 1; },
   async onLoad(options = {}) {
+    this.history = searchHistory();
+    popularEntries()
+      .then((items) => { this.popular = pageResults(items); })
+      .catch(() => { this.popular = []; });
     this.filters.keyword = options.keywords || options.key || '';
     try {
       this.dialects = await listAllDialects();
@@ -501,6 +589,8 @@ export default {
     if (this.filters.keyword) await this.search();
   },
   methods: {
+    goCollections,
+    clearHistory() { clearSearchHistory(); this.history = []; },
     dialectLabel,
     entryTitle,
     goEntryDetail,
@@ -533,6 +623,12 @@ export default {
       this.search();
     },
     async search() {
+      this.submittedKeyword = String(this.filters.keyword || '').trim();
+      rememberSearch(this.filters.keyword);
+      this.history = searchHistory();
+      this.suggestions = [];
+      clearTimeout(this.suggestTimer);
+      this.suggestSequence += 1;
       if (!ensureCapability(CAPABILITIES.ENTRY_SEARCH, 'search')) {
         this.searched = true;
         this.entries = [];

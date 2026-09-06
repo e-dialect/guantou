@@ -1,5 +1,6 @@
 export const LISTEN_FEED_TABS = Object.freeze([
   { key: 'today', label: '新近' },
+  { key: 'following', label: '关注' },
   { key: 'dialect', label: '本地' },
   { key: 'phrase', label: '短语' },
   { key: 'recommended', label: '全部' },

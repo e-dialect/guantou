@@ -4,6 +4,26 @@
     active="record"
   >
     <view class="record-page">
+      <view class="record-draft-actions">
+        <BaseButton
+          variant="ghost"
+          text="草稿箱"
+          @click="goRecordingDrafts"
+        />
+        <BaseButton
+          variant="ghost"
+          text="保存草稿"
+          :loading="savingDraft"
+          :disabled="submitting || savingDraft"
+          @click="saveDraft"
+        />
+        <text
+          v-if="draftMessage"
+          aria-live="polite"
+        >
+          {{ draftMessage }}
+        </text>
+      </view>
       <view class="record-page__intro">
         <view class="record-page__intro-meta">
           <text class="record-page__eyebrow">
@@ -339,12 +359,15 @@ import {
   getEntry,
   listEntries,
   pageResults,
-  primaryEntryLink,
 } from '@/services/entryRecording';
 import { uploadFile } from '@/services/file';
 import { notify, notifySuccess } from '@/services/feedback';
 import { listAllDialects } from '@/services/guantou';
-import { goEntryDetail, goHome } from '@/services/navigation';
+import { goRecordingDetail, goRecordingDrafts } from '@/services/navigation';
+import {
+  draftOwner, saveRecordingDraft, restoreRecordingDraft, deleteRecordingDraft,
+} from '@/services/recordingDrafts';
+import { releaseDraftAudioUrl } from '@/services/recordingDraftAudio';
 import { dialectBreadcrumb } from '@/utils/dialectTree';
 import { CAPABILITIES, ensureCapability } from '@/services/capabilities';
 import { PRODUCT_EVENTS, trackProductEvent } from '@/services/productAnalytics';
@@ -390,6 +413,10 @@ export default {
       entrySearching: false,
       selectedEntry: null,
       submitting: false,
+      draftId: '',
+      ownerScope: '',
+      savingDraft: false,
+      draftMessage: '',
       capabilityAvailable: true,
     };
   },
@@ -443,9 +470,40 @@ export default {
     this.capabilityAvailable = ensureCapability(CAPABILITIES.RECORDING, 'record');
     if (!this.capabilityAvailable) return;
     await this.loadDialects();
-    if (options.entry_id) await this.loadEntry(options.entry_id);
+    this.ownerScope = draftOwner();
+    if (options.draft_id) {
+      try {
+        const draft = await restoreRecordingDraft(options.draft_id, this.ownerScope);
+        this.draftId = draft.id;
+        this.form = { ...this.form, ...draft.form };
+        this.audio = draft.audio || emptyAudio();
+        if (!this.audio.path) this.draftMessage = '文字已恢复，音频不可用，请重新选择或录制';
+        if (draft.entryId) await this.loadEntry(draft.entryId);
+      } catch (error) { notify({ title: error.message }); }
+    } else if (options.entry_id) await this.loadEntry(options.entry_id);
   },
+  onUnload() { releaseDraftAudioUrl(this.audio); },
   methods: {
+    goRecordingDrafts,
+    async saveDraft() {
+      if (this.savingDraft) return;
+      if (draftOwner() !== this.ownerScope) { notify({ title: '账号已切换，请重新打开录音页' }); return; }
+      this.savingDraft = true;
+      try {
+        const draft = await saveRecordingDraft({
+          id: this.draftId, form: this.form, audio: this.audio, entryId: this.selectedEntry?.id,
+        }, this.ownerScope);
+        this.draftId = draft.id;
+        if (draft.audio) {
+          this.audio = { ...this.audio, ...draft.audio, path: draft.audio.path || this.audio.path };
+        }
+        this.draftMessage = draft.audioError ? '仅文字已保存，音频保存失败，请保留本页重试' : '草稿已保存，可稍后继续';
+        notify({ title: this.draftMessage });
+      } catch (error) {
+        this.draftMessage = error.message;
+        notify({ title: error.message });
+      } finally { this.savingDraft = false; }
+    },
     dialectLabel,
     entryTitle,
     async loadDialects() {
@@ -521,10 +579,12 @@ export default {
       return true;
     },
     async submit() {
-      if (this.submitting || !await this.validateForm()) return;
+      if (this.submitting || this.savingDraft || !await this.validateForm()) return;
+      if (draftOwner() !== this.ownerScope) { notify({ title: '账号已切换，请重新打开录音页' }); return; }
       this.submitting = true;
       try {
         const uploaded = await uploadFile(this.audio.path);
+        if (draftOwner() !== this.ownerScope) throw new Error('账号已切换，请重新打开录音页');
         const payload = {
           audio_url: uploaded.url,
           usage_dialect_id: Number(this.form.usage_dialect_id),
@@ -543,10 +603,11 @@ export default {
           result: 'success',
           metadata: { has_linked_entry: Boolean(this.selectedEntry?.id) },
         });
-        notifySuccess({ title: '乡音已保存为可追溯初稿' });
-        const entryId = primaryEntryLink(recording)?.entry?.id;
-        if (entryId) goEntryDetail(entryId, { replace: true });
-        else goHome(true);
+        notifySuccess('乡音已保存为可追溯初稿');
+        if (this.draftId) {
+          try { await deleteRecordingDraft(this.draftId, this.ownerScope); } catch (error) { notify({ title: '乡音已提交，请手动清理旧草稿' }); }
+        }
+        goRecordingDetail(recording.id, { replace: true });
       } catch (error) {
         trackProductEvent(PRODUCT_EVENTS.RECORDING_SUBMIT, {
           surface: 'record',
@@ -557,7 +618,8 @@ export default {
           ...this.fieldErrors,
           ...(error?.data || {}),
         };
-        notify({ title: error?.message || '保存失败，录音仍保留在本页', icon: 'none' });
+        await this.saveDraft();
+        notify({ title: this.draftMessage || '保存失败，录音仍保留在本页', icon: 'none' });
       } finally {
         this.submitting = false;
       }

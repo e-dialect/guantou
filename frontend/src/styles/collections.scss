@@ -1,0 +1,12 @@
+.box-stack { display: grid; gap: var(--space-4); max-width: 960px; margin: 0 auto; color: var(--text-color); }
+.box-cover { display: grid; gap: var(--space-3); padding: var(--space-5) var(--space-4); border: 1rpx solid var(--border-color); border-top: 6rpx solid var(--accent-color); border-radius: var(--radius-lg); background: var(--accent-subtle-color); }
+.box-kicker { color: var(--accent-color); font-size: var(--font-size-sm); letter-spacing: 3rpx; }
+.box-title { display: block; font-size: var(--font-size-xl); font-weight: 650; line-height: 1.4; }
+.box-heading { display: block; font-size: var(--font-size-lg); font-weight: 600; }
+.box-panel { display: grid; gap: var(--space-3); padding: var(--space-4); border: 1rpx solid var(--border-color); border-radius: var(--radius-lg); background: var(--surface-color); }
+.box-actions { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+.box-note { color: var(--muted-color); font-size: var(--font-size-sm); line-height: 1.65; }
+.box-directory { display: grid; gap: var(--space-3); border-left: 3rpx solid var(--gilt-color); padding-left: var(--space-3); }
+.box-recording { display: grid; gap: var(--space-2); padding-top: var(--space-3); border-top: 1rpx solid var(--border-color); }
+.box-reply { margin-left: var(--space-4); border-left: 2rpx solid var(--border-color); padding-left: var(--space-3); }
+.box-entry-title { min-width: 0; flex: 1; }

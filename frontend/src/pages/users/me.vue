@@ -219,6 +219,18 @@
           </view>
 
           <view class="archive-menu">
+            <t-cell
+              title="我的集盒"
+              note="按词条收集各地乡音"
+              arrow
+              @click="goCollections({ mine: true })"
+            />
+            <t-cell
+              title="录音草稿"
+              note="仅保存在当前设备"
+              arrow
+              @click="goRecordingDrafts"
+            />
             <view class="section-kicker menu-kicker">
               档案导航
             </view>
@@ -463,6 +475,8 @@ import { openLoginFromMine } from '@/services/authJourney';
 import { getCurationSummary } from '@/services/entryRecording';
 import { CAPABILITIES, isCapabilityEnabled } from '@/services/capabilities';
 import {
+  goCollections,
+  goRecordingDrafts,
   goCircleList,
   goContributionHistory,
   goCurationWorkbench,
@@ -623,6 +637,8 @@ export default {
     toCreate() {
       goRecord();
     },
+    goCollections,
+    goRecordingDrafts,
     toBookmarks() { goEntryBookmarks(); },
     toCircleList() { goCircleList(); },
     selectWorksTab(tab) {

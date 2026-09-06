@@ -21,6 +21,40 @@
     </view>
 
     <view
+      v-if="tab === 'today' || tab === 'recommended'"
+      class="recording-feed__intro"
+    >
+      <view class="box-actions">
+        <BaseButton
+          size="small"
+          variant="light"
+          text="今日精选"
+          :disabled="discovering"
+          @click="discover('daily')"
+        />
+        <BaseButton
+          size="small"
+          variant="light"
+          text="换一段"
+          :disabled="discovering"
+          @click="discover('random')"
+        />
+      </view>
+      <text
+        v-if="discoveryMessage"
+        aria-live="polite"
+      >
+        {{ discoveryMessage }}
+      </text>
+      <EntryRecordingCard
+        v-if="featured"
+        :recording="featured"
+        @attest="attest"
+        @open-entry="goEntryDetail"
+        @continue="continueChain"
+      />
+    </view>
+    <view
       v-if="loading && !items.length"
       class="recording-feed__state recording-feed__state--loading"
       data-feed-state="loading"
@@ -132,6 +166,7 @@ import {
   pageResults,
   primaryEntryLink,
 } from '@/services/entryRecording';
+import { discoverRecording } from '@/services/recordingSocial';
 import { notifySuccess } from '@/services/feedback';
 import {
   goEntryDetail,
@@ -149,6 +184,9 @@ export default {
   data() {
     return {
       items: [],
+      featured: null,
+      discovering: false,
+      discoveryMessage: '',
       next: null,
       page: 1,
       loading: false,
@@ -161,6 +199,7 @@ export default {
     scopeText() {
       const labels = {
         today: '新近一段',
+        following: '关注的声音',
         dialect: '我的本地',
         phrase: '短语片段',
         recommended: '全部乡音',
@@ -172,6 +211,10 @@ export default {
     this.reload();
   },
   methods: {
+    async discover(kind) {
+      this.discovering = true; this.discoveryMessage = '';
+      try { this.featured = await discoverRecording(kind); if (!this.featured) this.discoveryMessage = '还没有可听的公开录音'; } catch (error) { this.discoveryMessage = '暂时无法寻找乡音，请重试'; } finally { this.discovering = false; }
+    },
     primaryEntryId(recording) {
       return primaryEntryLink(recording)?.entry?.id || null;
     },
@@ -179,7 +222,7 @@ export default {
       const params = { page, page_size: 12 };
       const app = typeof getApp === 'function' ? getApp() : null;
       const primaryDialect = app?.globalData?.userInfo?.primary_dialect;
-      if (this.tab === 'today') params.page_size = 1;
+      if (this.tab === 'following') params.following = true;
       if (this.tab === 'phrase') params.recording_type = 'phrase';
       if (this.tab === 'dialect' && primaryDialect?.id) {
         params.dialect_id = primaryDialect.id;

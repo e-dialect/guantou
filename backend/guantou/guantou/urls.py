@@ -22,7 +22,13 @@ from .v2_views import (
     WritingFormViewSet,
 )
 
+from .restoration import CollectionViewSet, RecordingCommentViewSet
+
 router = DefaultRouter()
+router.register("collections", CollectionViewSet, basename="collection")
+router.register(
+    "recording-comments", RecordingCommentViewSet, basename="recording-comment"
+)
 router.register("dialects", DialectViewSet, basename="dialect")
 router.register("circles", DialectCircleViewSet, basename="circle")
 router.register("entries", EntryViewSet, basename="entry")

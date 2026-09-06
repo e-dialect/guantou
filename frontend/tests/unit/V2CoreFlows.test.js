@@ -52,6 +52,8 @@ vi.mock('@/services/guantou', () => ({
 }));
 
 vi.mock('@/services/navigation', () => ({
+  goRecordingDetail: vi.fn(),
+  goRecordingDrafts: vi.fn(),
   goEntryDetail: vi.fn(),
   goHome: vi.fn(),
   goRecord: vi.fn(),
@@ -63,7 +65,7 @@ const entryRecording = await import('@/services/entryRecording');
 const { requireAuth } = await import('@/services/authGuard');
 const { uploadFile } = await import('@/services/file');
 const { notifySuccess } = await import('@/services/feedback');
-const { goEntryDetail, goRecord } = await import('@/services/navigation');
+const { goRecordingDetail, goEntryDetail, goRecord } = await import('@/services/navigation');
 const { trackProductEvent } = await import('@/services/productAnalytics');
 const RecordingFeed = (await import('@/components/home/RecordingFeed.vue')).default;
 const RecordingCreate = (await import('@/pages/recordings/create.vue')).default;
@@ -80,7 +82,7 @@ function context(Component, extra = {}) {
 describe('V2 listening flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    globalThis.uni = { showToast: vi.fn() };
+    globalThis.uni = { showToast: vi.fn(), getStorageSync: vi.fn(() => 1) };
     globalThis.getApp = vi.fn(() => ({ globalData: { userInfo: {} } }));
   });
 
@@ -115,7 +117,7 @@ describe('V2 listening flow', () => {
 describe('low-threshold recording flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    globalThis.uni = { showToast: vi.fn() };
+    globalThis.uni = { showToast: vi.fn(), getStorageSync: vi.fn(() => 1) };
     globalThis.getApp = vi.fn(() => ({ globalData: { userInfo: {} } }));
   });
 
@@ -130,6 +132,7 @@ describe('low-threshold recording flow', () => {
     });
     const page = context(RecordingCreate, {
       $refs: { form: { validate: vi.fn(async () => true) } },
+      ownerScope: 'user:1',
     });
     page.audio = { path: '/tmp/voice.mp3', durationMs: 2300 };
     page.form.usage_dialect_id = 11;
@@ -145,7 +148,7 @@ describe('low-threshold recording flow', () => {
       original_pronunciation: '',
     }));
     expect(notifySuccess).toHaveBeenCalled();
-    expect(goEntryDetail).toHaveBeenCalledWith(17, { replace: true });
+    expect(goRecordingDetail).toHaveBeenCalledWith(9, { replace: true });
     expect(trackProductEvent).toHaveBeenCalledWith('recording_submit', {
       surface: 'record',
       result: 'success',
@@ -165,6 +168,7 @@ describe('low-threshold recording flow', () => {
   it('does not require a writing or IPA before validation succeeds', async () => {
     const page = context(RecordingCreate, {
       $refs: { form: { validate: vi.fn(async () => true) } },
+      ownerScope: 'user:1',
     });
     page.audio = { path: '/tmp/voice.mp3', durationMs: 1200 };
     page.form.usage_dialect_id = 11;

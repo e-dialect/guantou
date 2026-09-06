@@ -254,6 +254,7 @@
           </view>
         </view>
         <view class="detail-actions__buttons">
+          <CollectionPicker :entry-id="entry.id" />
           <BaseButton
             block
             text="录下我这边的说法"
@@ -272,6 +273,7 @@
 </template>
 
 <script>
+import CollectionPicker from '@/components/CollectionPicker.vue';
 import BaseButton from '@/components/BaseButton.vue';
 import BaseLoading from '@/components/BaseLoading.vue';
 import EmptyState from '@/components/EmptyState.vue';
@@ -295,6 +297,7 @@ import { PRODUCT_EVENTS, trackProductEvent } from '@/services/productAnalytics';
 
 export default {
   components: {
+    CollectionPicker,
     BaseButton,
     BaseLoading,
     DialectLabel,

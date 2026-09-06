@@ -1,0 +1,61 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+vi.mock('@/services/recordingDraftAudio', () => ({ persistDraftAudio: vi.fn(), restoreDraftAudio: vi.fn(), removeDraftAudio: vi.fn() }));
+import { persistDraftAudio, restoreDraftAudio, removeDraftAudio } from '@/services/recordingDraftAudio';
+import { saveRecordingDraft, restoreRecordingDraft, listRecordingDrafts, deleteRecordingDraft } from '@/services/recordingDrafts';
+import { searchHistory, rememberSearch, clearSearchHistory } from '@/services/entrySearchAssist';
+
+let storage;
+let user;
+beforeEach(() => {
+  vi.resetAllMocks(); storage = new Map(); user = 1;
+  globalThis.uni = { getStorageSync: vi.fn((key) => key === 'id' ? user : storage.get(key)), setStorageSync: vi.fn((key, value) => storage.set(key, value)), removeStorageSync: vi.fn((key) => storage.delete(key)) };
+});
+const input = () => ({ form: { original_gloss: '月娘', usage_dialect_id: 2 }, audio: { path: 'blob:audio' }, entryId: 3 });
+describe('Recording draft lifecycle', () => {
+  it('restores fields and audio after a refresh, keeps logout data isolated, then cleans submitted drafts', async () => {
+    persistDraftAudio.mockResolvedValue({ persisted: true, mediaId: 'a', storage: 'indexeddb' });
+    restoreDraftAudio.mockResolvedValue({ path: 'blob:restored', persisted: true });
+    const saved = await saveRecordingDraft(input());
+    expect(listRecordingDrafts()).toHaveLength(1);
+    const restored = await restoreRecordingDraft(saved.id);
+    expect(restored.form).toEqual(input().form);
+    expect(restored.entryId).toBe(3);
+    expect(restored.audio.path).toBe('blob:restored');
+    user = ''; expect(listRecordingDrafts()).toEqual([]);
+    user = 2; await expect(restoreRecordingDraft(saved.id)).rejects.toThrow('其他账号');
+    user = 1; expect(listRecordingDrafts()).toHaveLength(1);
+    await deleteRecordingDraft(saved.id);
+    expect(listRecordingDrafts()).toEqual([]);
+    expect(removeDraftAudio).toHaveBeenCalledWith(expect.objectContaining({ mediaId: 'a' }));
+  });
+  it('distinguishes text-only saving from successful audio persistence', async () => {
+    persistDraftAudio.mockRejectedValue(new Error('quota'));
+    const saved = await saveRecordingDraft(input());
+    expect(saved.audioError).toBe(true);
+    expect(saved.audio).toBeNull();
+    expect(listRecordingDrafts()[0].form.original_gloss).toBe('月娘');
+  });
+  it('does not destroy the last saved draft when metadata storage fails', async () => {
+    persistDraftAudio.mockResolvedValueOnce({ persisted: true, mediaId: 'old' });
+    const old = await saveRecordingDraft(input());
+    persistDraftAudio.mockResolvedValueOnce({ persisted: true, mediaId: 'new' });
+    uni.setStorageSync.mockImplementationOnce(() => { throw new Error('quota'); });
+    await expect(saveRecordingDraft({ ...input(), id: old.id })).rejects.toThrow('空间不足');
+    expect(listRecordingDrafts()[0].audio.mediaId).toBe('old');
+    expect(removeDraftAudio).toHaveBeenCalledWith(expect.objectContaining({ mediaId: 'new' }));
+    expect(removeDraftAudio).not.toHaveBeenCalledWith(expect.objectContaining({ mediaId: 'old' }));
+  });
+  it('never imports archived can drafts', () => {
+    storage.set('can_drafts:user:1', '[{"id":"old"}]');
+    expect(listRecordingDrafts()).toEqual([]);
+    expect(storage.has('can_drafts:user:1')).toBe(true);
+  });
+});
+describe('local search history', () => {
+  it('deduplicates, isolates accounts, caps history and clears only the current account', () => {
+    for (let index = 0; index < 15; index += 1) rememberSearch(`word${index}`);
+    rememberSearch('word14'); expect(searchHistory()).toHaveLength(10);
+    user = 2; expect(searchHistory()).toEqual([]); rememberSearch('月娘'); clearSearchHistory();
+    expect(searchHistory()).toEqual([]); user = 1; expect(searchHistory()).toHaveLength(10);
+  });
+});

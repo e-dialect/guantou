@@ -86,10 +86,10 @@ export default {
       const index = LISTEN_FEED_TABS.findIndex((tab) => tab.key === this.activeTab);
       return index < 0 ? 0 : index;
     },
-    /* 指示器槽位宽为容器的 25%，translateX 百分比相对自身宽度，
+    /* 指示器槽位宽为容器的一份，translateX 百分比相对自身宽度，
      * 故 index * 100% 恰好落在第 index 个槽位 */
     indicatorStyle() {
-      return { transform: `translateX(${this.activeTabIndex * 100}%)` };
+      return { width: `${100 / LISTEN_FEED_TABS.length}%`, transform: `translateX(${this.activeTabIndex * 100}%)` };
     },
   },
   methods: {
@@ -239,13 +239,13 @@ export default {
   font-weight: 900;
 }
 
-/* 单一滑动下划线指示器：宽度为一个均分槽位（25%），
+/* 单一滑动下划线指示器：宽度为一个均分槽位，
  * 实际短线由 ::after 渲染并槽内居中，视觉与原下划线一致 */
 .home-top-bar__indicator {
   position: absolute;
   left: 0;
   bottom: 0;
-  width: 25%;
+
   height: 6rpx;
   transition: transform 0.25s ease;
 }

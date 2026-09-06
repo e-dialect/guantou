@@ -2275,3 +2275,119 @@ class CurationAction(models.Model):
         ]
         verbose_name = "整理操作记录"
         verbose_name_plural = "整理操作记录"
+
+
+class Collection(models.Model):
+    """A curated, entry-first box; independent of archived Shelf records."""
+
+    owner = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="collections"
+    )
+    title = models.CharField(max_length=120)
+    description = models.TextField(blank=True, max_length=2000)
+    is_public = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+
+class CollectionEntry(models.Model):
+    collection = models.ForeignKey(
+        Collection, on_delete=models.CASCADE, related_name="sections"
+    )
+    entry = models.ForeignKey(Entry, on_delete=models.PROTECT)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["collection", "entry"], name="collection_entry_unique"
+            )
+        ]
+
+
+class CollectionRecording(models.Model):
+    collection = models.ForeignKey(
+        Collection, on_delete=models.CASCADE, related_name="recording_items"
+    )
+    section = models.ForeignKey(
+        CollectionEntry,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="recording_items",
+    )
+    recording = models.ForeignKey(Recording, on_delete=models.PROTECT)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["section", "recording"],
+                condition=models.Q(section__isnull=False),
+                name="collection_section_recording_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["collection", "recording"],
+                condition=models.Q(section__isnull=True),
+                name="collection_pending_recording_unique",
+            ),
+        ]
+
+
+class RecordingLike(models.Model):
+    recording = models.ForeignKey(
+        Recording, on_delete=models.CASCADE, related_name="likes"
+    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["recording", "user"], name="recording_like_unique"
+            )
+        ]
+
+
+class RecordingComment(models.Model):
+    recording = models.ForeignKey(
+        Recording, on_delete=models.CASCADE, related_name="comments"
+    )
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    parent = models.ForeignKey(
+        "self", on_delete=models.CASCADE, null=True, blank=True, related_name="replies"
+    )
+    body = models.TextField(max_length=2000)
+    hidden = models.BooleanField(default=False)
+    client_id = models.UUIDField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["author", "client_id"], name="recording_comment_request_unique"
+            )
+        ]
+
+
+class RecordingCommentLike(models.Model):
+    comment = models.ForeignKey(
+        RecordingComment, on_delete=models.CASCADE, related_name="likes"
+    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["comment", "user"], name="recording_comment_like_unique"
+            )
+        ]
+
+
+class DailyRecordingSelection(models.Model):
+    date = models.DateField(unique=True)
+    recording = models.ForeignKey(Recording, on_delete=models.SET_NULL, null=True)

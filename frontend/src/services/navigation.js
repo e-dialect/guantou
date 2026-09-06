@@ -2,6 +2,10 @@ export const ROUTES = Object.freeze({
   home: '/pages/index',
   search: '/pages/search',
   record: '/pages/recordings/create',
+  recordingDetail: '/pages/recordings/details',
+  recordingDrafts: '/pages/recordings/drafts',
+  collections: '/pages/collections/index',
+  collectionDetail: '/pages/collections/details',
   entryDetail: '/pages/entries/details',
   mine: '/pages/users/me',
   login: '/pages/login/login',
@@ -208,3 +212,10 @@ export default {
   pageUrl,
   routeDestination,
 };
+
+export function goRecordingDetail(id, options = {}) {
+  return openPage(ROUTES.recordingDetail, { id }, options);
+}
+export const goRecordingDrafts = () => openPage(ROUTES.recordingDrafts);
+export const goCollections = (params = {}) => openPage(ROUTES.collections, params);
+export const goCollectionDetail = (id) => openPage(ROUTES.collectionDetail, { id });

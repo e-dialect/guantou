@@ -715,17 +715,18 @@ describe('mine page logout', () => {
     expect(wrapper.vm.worksTab).toBe('entries');
 
     const archiveCells = wrapper.get('.archive-menu').findAllComponents({ name: 'TCell' });
-    expect(archiveCells).toHaveLength(2);
-    expect(archiveCells[0].props()).toMatchObject({
+    expect(archiveCells).toHaveLength(4);
+    expect(archiveCells.slice(0, 2).map((cell) => cell.props('title'))).toEqual(['我的集盒', '录音草稿']);
+    expect(archiveCells[2].props()).toMatchObject({
       title: '词条收藏',
       note: '仅自己可见',
     });
-    expect(archiveCells[1].props()).toMatchObject({
+    expect(archiveCells[3].props()).toMatchObject({
       title: '关注方言',
       note: '1 个',
     });
-    await archiveCells[0].trigger('click');
-    await archiveCells[1].trigger('click');
+    await archiveCells[2].trigger('click');
+    await archiveCells[3].trigger('click');
     expect(goEntryBookmarks).toHaveBeenCalledTimes(1);
     expect(goCircleList).toHaveBeenCalledTimes(1);
 
