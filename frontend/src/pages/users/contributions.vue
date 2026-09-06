@@ -127,6 +127,13 @@
             <view class="activity-label">
               {{ event.label }}
             </view>
+            <BaseButton
+              v-if="event.kind === 'recording'"
+              size="small"
+              variant="ghost"
+              text="收听这段乡音"
+              @click="goRecordingDetail(event.target_id)"
+            />
           </view>
         </view>
       </view>
@@ -135,16 +142,21 @@
 </template>
 
 <script>
+import BaseButton from '@/components/BaseButton.vue';
 import BaseLoading from '@/components/BaseLoading.vue';
 import DialectLabel from '@/components/DialectLabel.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import PageShell from '@/components/PageShell.vue';
 import { getMyContributionHistory } from '@/services/entryRecording';
-import { goRecord } from '@/services/navigation';
+import { goRecord, goRecordingDetail } from '@/services/navigation';
 
 export default {
   components: {
-    BaseLoading, DialectLabel, EmptyState, PageShell,
+    BaseButton,
+    BaseLoading,
+    DialectLabel,
+    EmptyState,
+    PageShell,
   },
   data() { return { history: {}, loading: true, error: '' }; },
   computed: {
@@ -160,6 +172,7 @@ export default {
   },
   onLoad() { this.load(); },
   methods: {
+    goRecordingDetail,
     goRecord,
     kindLabel(kind) {
       return ({

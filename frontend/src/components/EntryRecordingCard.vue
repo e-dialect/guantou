@@ -1,6 +1,12 @@
 <template>
-  <view class="recording-card">
-    <view class="recording-card__meta">
+  <view
+    class="recording-card"
+    :class="{ 'recording-card--compact': compact }"
+  >
+    <view
+      v-if="!compact"
+      class="recording-card__meta"
+    >
       <text class="recording-card__dialect">
         {{ dialectText }}
       </text>
@@ -9,7 +15,10 @@
       </text>
     </view>
 
-    <view class="recording-card__title">
+    <view
+      v-if="!compact"
+      class="recording-card__title"
+    >
       {{ title }}
     </view>
     <view class="recording-card__gloss">
@@ -17,20 +26,34 @@
     </view>
 
     <view
-      v-if="pronunciationText"
+      v-if="pronunciationText && !compact"
       class="recording-card__pronunciation"
     >
       {{ pronunciationText }}
     </view>
 
+    <view
+      v-if="compact"
+      class="recording-card__meta"
+    >
+      {{ recording.recorder?.nickname || recording.recorder?.username || '乡音贡献者' }}
+      · {{ Math.round((recording.duration_ms || 0) / 1000) }} 秒
+    </view>
     <view class="recording-card__actions">
+      <BaseButton
+        v-if="detailLink"
+        size="small"
+        variant="ghost"
+        text="录音详情"
+        @click="goRecordingDetail(recording.id)"
+      />
       <BaseButton
         size="small"
         :text="playing ? '停止' : '听录音'"
         @click="toggleAudio"
       />
       <BaseButton
-        v-if="entry"
+        v-if="entry && !compact"
         size="small"
         variant="ghost"
         text="看词条"
@@ -39,7 +62,7 @@
     </view>
 
     <view
-      v-if="entry"
+      v-if="entry && community"
       class="recording-card__community"
     >
       <BaseButton
@@ -60,13 +83,14 @@
 </template>
 
 <script>
+import { goRecordingDetail } from '@/services/navigation';
 import BaseButton from '@/components/BaseButton.vue';
 import {
   dialectLabel,
   entryTitle,
   primaryEntryLink,
 } from '@/services/entryRecording';
-import { playManaged, stopAudio } from '@/utils/audio';
+import { onExternalStop, playManaged, stopAudio } from '@/utils/audio';
 
 const TYPE_LABELS = {
   word: '词',
@@ -80,6 +104,9 @@ export default {
   components: { BaseButton },
   props: {
     recording: { type: Object, required: true },
+    community: { type: Boolean, default: true },
+    compact: { type: Boolean, default: false },
+    detailLink: { type: Boolean, default: true },
     attested: { type: Boolean, default: false },
   },
   emits: ['attest', 'continue', 'open-entry'],
@@ -97,7 +124,7 @@ export default {
       return this.primaryLink?.entry || null;
     },
     title() {
-      return entryTitle(this.entry || {});
+      return this.entry ? entryTitle(this.entry) : '待整理乡音';
     },
     dialectText() {
       return dialectLabel(this.recording.usage_dialect);
@@ -110,10 +137,19 @@ export default {
       return variant?.surface_romanization || variant?.base_romanization || variant?.ipa || '';
     },
   },
+  mounted() {
+    this.unsubscribeAudio = onExternalStop((handle) => {
+      if (handle !== this.playbackHandle) return;
+      this.playing = false;
+      this.playbackHandle = null;
+    });
+  },
   beforeUnmount() {
     if (this.playbackHandle) stopAudio();
+    this.unsubscribeAudio?.();
   },
   methods: {
+    goRecordingDetail,
     toggleAudio() {
       if (this.playing) {
         stopAudio();
@@ -140,6 +176,11 @@ export default {
 </script>
 
 <style scoped>
+.recording-card.recording-card--compact {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
 .recording-card {
   padding: 30rpx;
   border-radius: var(--radius-lg);

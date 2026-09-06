@@ -213,3 +213,12 @@ V2 全站聚合验收由 [#346](https://github.com/e-dialect/guantou/issues/346)
 - 赛博与节日主题的浅色底栏使用页面自适应色组；`tabbar-plain` 使用表面自适应色组。颜色均来自现有主题 token，浅暗模式会同步切换，不新增局部色值。
 - 前端内置目录和 Django 主题目录保持同一契约；数据迁移 `themes.0010_seed_tab_bar_contrast` 会重新发布目录并提升版本，避免已部署数据库继续返回旧的单背景配置。
 - 390×844 H5 已验证 `tabbar-plain` 浅色/暗色和浅底赛博主题；同时检查实际计算后的背景、普通文字、激活文字、激活字形和边界颜色。回归入口为 `themeSchema.test.js`、`ThemeCatalogDomain.test.js`、`HomeTabBar.test.js` 与 `ThemeApiTests.test_live_packs_ship_surface_recipes`。
+
+## 2026-09-06：v2 功能回归
+
+新增录音详情、草稿、集盒列表和目录页，使用 PageShell、BaseButton、BaseForm、BaseField、
+BaseLoading、EmptyState 与显式导入的 TDesign Switch。收纳面板使用现有组件，不恢复旧表单控件。
+主题预览更新为“听／查／录／我”并增加集盒预览。
+
+实施依据：[已确认计划](plans/2026-09-06-v2-restoration.md)，实现见 [PR #408](https://github.com/e-dialect/guantou/pull/408)；功能去向见
+[回归记录](audits/2026-09-06-v1-feature-restoration.md)。浏览器测试为 `frontend/tests/e2e/restoration.spec.js`。

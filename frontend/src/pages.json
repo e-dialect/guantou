@@ -20,6 +20,22 @@
       "style": {}
     },
     {
+      "path": "pages/recordings/details",
+      "style": {}
+    },
+    {
+      "path": "pages/recordings/drafts",
+      "style": {}
+    },
+    {
+      "path": "pages/collections/index",
+      "style": {}
+    },
+    {
+      "path": "pages/collections/details",
+      "style": {}
+    },
+    {
       "path": "pages/circles/index",
       "style": {}
     },

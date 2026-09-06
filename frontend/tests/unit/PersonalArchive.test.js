@@ -19,13 +19,14 @@ vi.mock('@/services/feedback', () => ({ notify: vi.fn(), notifySuccess: vi.fn() 
 vi.mock('@/services/navigation', async (importOriginal) => ({
   ...(await importOriginal()),
   goEntryDetail: vi.fn(),
+  goRecordingDetail: vi.fn(),
   goRecord: vi.fn(),
   goSearch: vi.fn(),
 }));
 
 const archive = await import('@/services/entryRecording');
 const { notify, notifySuccess } = await import('@/services/feedback');
-const { goEntryDetail } = await import('@/services/navigation');
+const { goEntryDetail, goRecordingDetail } = await import('@/services/navigation');
 const { default: BookmarksPage } = await import('@/pages/users/bookmarks.vue');
 const { default: ContributionsPage } = await import('@/pages/users/contributions.vue');
 
@@ -55,6 +56,15 @@ function mountPage(component) {
 }
 
 describe('personal contribution and bookmark archives', () => {
+  it('opens a contributed recording even when it has no linked entry', async () => {
+    const wrapper = mountPage(ContributionsPage);
+    wrapper.vm.history = { summary: {}, recent_activity: [{ kind: 'recording', target_id: 55, label: '尚待整理的乡音', created_at: '2026-09-06' }] };
+    wrapper.vm.loading = false;
+    await wrapper.vm.$nextTick();
+    await wrapper.get('.activity-row button').trigger('click');
+    expect(goRecordingDetail).toHaveBeenCalledWith(55);
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     archive.getMyContributionHistory.mockResolvedValue({

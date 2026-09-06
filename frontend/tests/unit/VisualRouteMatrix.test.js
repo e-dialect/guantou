@@ -8,10 +8,11 @@ import {
 
 describe('V2 visual review matrix', () => {
   it('maps every registered page exactly once', () => {
+    expect(pagesJson.pages[0].path).toBe('pages/index');
     const registered = pagesJson.pages.map((page) => `/${page.path}`).sort();
     const mapped = ROUTE_VISUAL_MATRIX.map((entry) => entry.route).sort();
 
-    expect(registered).toHaveLength(33);
+    expect(registered).toHaveLength(37);
     expect(mapped).toEqual(registered);
     expect(new Set(ROUTE_VISUAL_MATRIX.map((entry) => entry.slug)).size)
       .toBe(ROUTE_VISUAL_MATRIX.length);
@@ -25,7 +26,7 @@ describe('V2 visual review matrix', () => {
       } else {
         expect(entry.target.startsWith(entry.route)).toBe(true);
       }
-      expect(entry.issues.length).toBeGreaterThan(0);
+      expect(entry.issues.length > 0 || entry.plan?.startsWith('docs/plans/')).toBe(true);
       expect(entry.issues.every((issue) => Number.isInteger(issue) && issue > 0)).toBe(true);
       expect(['guest', 'member']).toContain(entry.persona);
     });

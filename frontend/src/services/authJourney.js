@@ -23,6 +23,16 @@ export function resolveAuthDestination(intent) {
     return routeDestination(ROUTES.mine);
   }
 
+  if (intent.action === 'interact_recording' && context.recordingId) {
+    return routeDestination(ROUTES.recordingDetail, { id: context.recordingId });
+  }
+  if (intent.action === 'manage_collection') {
+    if (context.recordingId) {
+      return routeDestination(ROUTES.recordingDetail, { id: context.recordingId });
+    }
+    if (context.entryId) return routeDestination(ROUTES.entryDetail, { id: context.entryId });
+    return routeDestination(ROUTES.collections, { mine: true });
+  }
   if (intent.action === 'record_recording') {
     return routeDestination(ROUTES.record, {
       entry_id: context.entryId || undefined,

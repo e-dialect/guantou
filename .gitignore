@@ -50,4 +50,5 @@ pnpm-debug.log*
 .docker/
 
 # Local agent implementation plans
-docs/plans/
+docs/plans/*
+!docs/plans/2026-09-06-v2-restoration.md

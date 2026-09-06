@@ -8,6 +8,10 @@ from django.utils import timezone
 class Notification(models.Model):
     class Verb(models.TextChoices):
         SYSTEM = "system.message", "系统消息"
+        RECORDING_LIKE = "recording.like", "录音获赞"
+        RECORDING_COMMENT = "recording.comment", "录音有新评论"
+        RECORDING_REPLY = "recording.reply", "评论有新回复"
+        RECORDING_COMMENT_LIKE = "recording.comment_like", "评论获赞"
         ENTRY_BOOKMARK = "entry.bookmark", "词条获收藏"
         USAGE_ATTESTATION = "entry.usage_attestation", "词条获地区补证"
         RECORDING_LINK = "recording.entry_link", "录音获词条关联"

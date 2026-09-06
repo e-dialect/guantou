@@ -28,6 +28,13 @@
       <!-- 已访问过的 tab 保持挂载（v-if 常驻），v-show 切换可见性：
            切回已加载的 tab 不重请求、不闪烁；首次进入仍走原加载流程 -->
       <HomeFeed
+        v-if="listenAvailable && isTabAlive('following')"
+        v-show="activeTab === 'following'"
+        :key="`following-${feedRevision}`"
+        class="home-page__feed"
+        tab="following"
+      />
+      <HomeFeed
         v-if="listenAvailable && isTabAlive('today')"
         v-show="activeTab === 'today'"
         :key="`today-${feedRevision}`"

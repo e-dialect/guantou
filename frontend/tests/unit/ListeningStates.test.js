@@ -41,6 +41,8 @@ vi.mock('@/services/listenFeed', () => ({
 vi.mock('@/services/feedback', () => ({ notifySuccess: vi.fn() }));
 
 vi.mock('@/services/navigation', () => ({
+  goRecordingDetail: vi.fn(),
+  goRecordingDrafts: vi.fn(),
   goCircleList: vi.fn(),
   goEntryDetail: vi.fn(),
   goHome: vi.fn(),
@@ -62,7 +64,7 @@ vi.mock('@/services/theme', () => ({
 
 vi.mock('@/services/themeCenter', () => ({ hydrateOutfitStyle: vi.fn() }));
 vi.mock('@/services/themeSchema', () => ({ getAppliedOutfitVars: vi.fn(() => ({})) }));
-vi.mock('@/utils/audio', () => ({ stopAudio: vi.fn() }));
+vi.mock('@/utils/audio', () => ({ stopAudio: vi.fn(), onExternalStop: vi.fn(() => vi.fn()) }));
 
 const entryRecording = await import('@/services/entryRecording');
 const { requireAuth } = await import('@/services/authGuard');
@@ -111,7 +113,7 @@ describe('listening feed visual states', () => {
 
     expect(wrapper.get('[data-feed-state="empty"]').text()).toContain('等你开声');
     expect(wrapper.text()).toContain('我的本地');
-    wrapper.getComponent(BaseButton).vm.$emit('click');
+    wrapper.get('[data-feed-state="empty"]').getComponent(BaseButton).vm.$emit('click');
     await wrapper.vm.$nextTick();
 
     expect(requireAuth).toHaveBeenCalledWith('record_recording', { page: 'listen' });
@@ -127,7 +129,7 @@ describe('listening feed visual states', () => {
 
     expect(wrapper.get('[data-feed-state="error"]').attributes('role')).toBe('alert');
     expect(wrapper.text()).toContain('录音加载失败，请稍后重试');
-    wrapper.getComponent(BaseButton).vm.$emit('click');
+    wrapper.get('[data-feed-state="error"]').getComponent(BaseButton).vm.$emit('click');
     await flushPromises();
 
     expect(entryRecording.listRecordings).toHaveBeenCalledTimes(2);
@@ -176,7 +178,7 @@ describe('listening maintenance state', () => {
 
     expect(wrapper.get('[data-feed-state="maintenance"]').text()).toContain('录音流正在维护');
     expect(wrapper.findComponent(RecordingFeed).exists()).toBe(false);
-    wrapper.getComponent(BaseButton).vm.$emit('click');
+    wrapper.get('[data-feed-state="maintenance"]').getComponent(BaseButton).vm.$emit('click');
     await wrapper.vm.$nextTick();
 
     expect(goSearch).toHaveBeenCalledWith();

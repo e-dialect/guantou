@@ -198,6 +198,21 @@ RETIRED_CORE_PATHS = {
 }
 
 AUXILIARY_V2_PATHS = {
+    "/collections/": {"get", "post"},
+    "/collections/{collection_id}/": {"get", "patch", "delete"},
+    "/collections/{collection_id}/entries/": {"post"},
+    "/collections/{collection_id}/recordings/": {"post"},
+    "/collections/{collection_id}/entries/{item_id}/": {"delete"},
+    "/collections/{collection_id}/recordings/{item_id}/": {"delete"},
+    "/collections/{collection_id}/order/": {"post"},
+    "/entries/suggestions/": {"get"},
+    "/entries/popular/": {"get"},
+    "/recordings/daily/": {"get"},
+    "/recordings/random/": {"get"},
+    "/recordings/{recording_id}/like/": {"put", "delete"},
+    "/recording-comments/": {"get", "post"},
+    "/recording-comments/{comment_id}/": {"delete"},
+    "/recording-comments/{comment_id}/like/": {"put", "delete"},
     "/curation/": {"get"},
     "/curation/tasks/": {"get"},
     "/curator-applications/{application_id}/review/": {"post"},
@@ -362,9 +377,7 @@ def contract_errors():
             schema, schemas, schema_parents
         )
         if missing:
-            errors.append(
-                f"OpenAPI schema {schema} 缺少核心字段: {sorted(missing)}"
-            )
+            errors.append(f"OpenAPI schema {schema} 缺少核心字段: {sorted(missing)}")
     return errors
 
 

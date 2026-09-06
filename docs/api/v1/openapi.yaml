@@ -12,6 +12,8 @@ info:
 servers:
   - url: /
 tags:
+  - name: Collections
+    description: 以词条为目录的主题集盒。
   - name: Entries
     description: 词条、编号义和地区读音。
   - name: Recordings
@@ -25,6 +27,579 @@ tags:
 security:
   - bearerAuth: []
 paths:
+  /collections/:
+    get:
+      tags:
+        - Collections
+      operationId: listCollections
+      summary: 浏览公开集盒或自己的集盒
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionPage"
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+      security: []
+      parameters:
+        - name: mine
+          in: query
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+    post:
+      tags:
+        - Collections
+      operationId: createCollection
+      summary: 创建集盒，默认私有
+      responses:
+        "201":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollectionCreate"
+  /collections/{collection_id}/:
+    get:
+      tags:
+        - Collections
+      operationId: getCollection
+      summary: 打开词条目录与地区录音
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionDetail"
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+      security: []
+    parameters:
+      - name: collection_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    patch:
+      tags:
+        - Collections
+      operationId: updateCollection
+      summary: 修改盒签和公开状态
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollectionWrite"
+    delete:
+      tags:
+        - Collections
+      operationId: deleteCollection
+      summary: 删除集盒，保留原始资料
+      responses:
+        "204":
+          description: 已完成
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+  /collections/{collection_id}/entries/:
+    post:
+      tags:
+        - Collections
+      operationId: addCollectionEntry
+      summary: 收进词条，不自动收录音
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    minimum: 1
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                entry_id:
+                  type: integer
+                  minimum: 1
+              required:
+                - entry_id
+    parameters:
+      - name: collection_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+  /collections/{collection_id}/recordings/:
+    post:
+      tags:
+        - Collections
+      operationId: addCollectionRecording
+      summary: 指定录音盒内归属，未关联时进入待整理区
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    minimum: 1
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                recording_id:
+                  type: integer
+                  minimum: 1
+                entry_id:
+                  type: integer
+                  nullable: true
+              required:
+                - recording_id
+    parameters:
+      - name: collection_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+  /collections/{collection_id}/entries/{item_id}/:
+    delete:
+      tags:
+        - Collections
+      operationId: removeCollectionEntries
+      summary: 移出集盒，保留原始资料
+      responses:
+        "204":
+          description: 已完成
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+    parameters:
+      - name: collection_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+  /collections/{collection_id}/recordings/{item_id}/:
+    delete:
+      tags:
+        - Collections
+      operationId: removeCollectionRecordings
+      summary: 移出集盒，保留原始资料
+      responses:
+        "204":
+          description: 已完成
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+    parameters:
+      - name: collection_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+  /collections/{collection_id}/order/:
+    post:
+      tags:
+        - Collections
+      operationId: orderCollection
+      summary: 对目录或目录内录音排序
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ordered:
+                    type: boolean
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 1
+                section_id:
+                  type: integer
+                  nullable: true
+              required:
+                - ids
+    parameters:
+      - name: collection_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+  /recordings/daily/:
+    get:
+      tags:
+        - Recordings
+      operationId: dailyRecording
+      summary: 公开乡音发现
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordingV2"
+        "204":
+          description: 没有公开候选
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+      security: []
+  /recordings/random/:
+    get:
+      tags:
+        - Recordings
+      operationId: randomRecording
+      summary: 公开乡音发现
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordingV2"
+        "204":
+          description: 没有公开候选
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+      security: []
+  /recordings/{recording_id}/like/:
+    put:
+      tags:
+        - Recordings
+      operationId: likeRecording
+      summary: 点赞或取消点赞
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LikeResult"
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+    parameters:
+      - name: recording_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    delete:
+      tags:
+        - Recordings
+      operationId: unlikeRecording
+      summary: 点赞或取消点赞
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LikeResult"
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+  /recording-comments/{comment_id}/like/:
+    put:
+      tags:
+        - Recordings
+      operationId: likeRecordingComment
+      summary: 点赞或取消点赞
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LikeResult"
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+    parameters:
+      - name: comment_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    delete:
+      tags:
+        - Recordings
+      operationId: unlikeRecordingComment
+      summary: 点赞或取消点赞
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LikeResult"
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+  /recording-comments/:
+    get:
+      tags:
+        - Recordings
+      operationId: listRecordingComments
+      summary: 录音留言及一层回复
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordingCommentPage"
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+      security: []
+      parameters:
+        - name: recording_id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+          required: true
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+    post:
+      tags:
+        - Recordings
+      operationId: createRecordingComment
+      summary: 发送留言，同一作者 UUID 幂等重试
+      responses:
+        "200":
+          description: 返回原有评论
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordingComment"
+        "201":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordingComment"
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordingCommentWrite"
+  /recording-comments/{comment_id}/:
+    delete:
+      tags:
+        - Recordings
+      operationId: hideRecordingComment
+      summary: 作者删除或管理员隐藏留言
+      responses:
+        "204":
+          description: 已完成
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+    parameters:
+      - name: comment_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+  /entries/suggestions/:
+    get:
+      tags:
+        - Entries
+      operationId: suggestionsEntries
+      summary: 公开词条联想或互动推荐（最多八条）
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EntryV2"
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+      security: []
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+  /entries/popular/:
+    get:
+      tags:
+        - Entries
+      operationId: popularEntries
+      summary: 公开词条联想或互动推荐（最多八条）
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EntryV2"
+        "400":
+          description: 输入错误或归属关系不合法
+        "403":
+          description: 无写入权限
+        "404":
+          description: 对象不存在或不可见
+      security: []
   /entries/:
     get:
       tags: [Entries]
@@ -434,6 +1009,178 @@ components:
     ApplicationId: { name: application_id, in: path, required: true, schema: { type: integer } }
     ActionId: { name: action_id, in: path, required: true, schema: { type: integer } }
   schemas:
+    Collection:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        owner_id:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 2000
+        is_public:
+          type: boolean
+          default: false
+        created_at:
+          type: string
+          format: date-time
+    CollectionCreate:
+      allOf:
+        - $ref: "#/components/schemas/CollectionWrite"
+        - type: object
+          required: [title]
+    CollectionWrite:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 2000
+        is_public:
+          type: boolean
+          default: false
+    CollectedRecording:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        recording:
+          $ref: "#/components/schemas/RecordingV2"
+        needs_review:
+          type: boolean
+    CollectionSection:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        entry:
+          $ref: "#/components/schemas/EntryV2"
+        recordings:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectedRecording"
+        recording_count:
+          type: integer
+          minimum: 0
+    CollectionDetail:
+      allOf:
+        - $ref: "#/components/schemas/Collection"
+        - type: object
+          properties:
+            unavailable_count:
+              type: integer
+              description: 仅所有者可见的暂不可见收纳记录数量
+            editable:
+              type: boolean
+            sections:
+              type: array
+              items:
+                $ref: "#/components/schemas/CollectionSection"
+            pending:
+              type: array
+              items:
+                $ref: "#/components/schemas/CollectedRecording"
+            entry_count:
+              type: integer
+            recording_count:
+              type: integer
+              description: 去重后的可见录音数
+    RecordingComment:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        recording_id:
+          type: integer
+          minimum: 1
+        parent_id:
+          type: integer
+          nullable: true
+        body:
+          type: string
+        author_id:
+          type: integer
+          minimum: 1
+        author_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        like_count:
+          type: integer
+        liked:
+          type: boolean
+        editable:
+          type: boolean
+    RecordingCommentWrite:
+      type: object
+      properties:
+        recording_id:
+          type: integer
+          minimum: 1
+        parent_id:
+          type: integer
+          nullable: true
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        client_id:
+          type: string
+          format: uuid
+      required:
+        - recording_id
+        - body
+        - client_id
+    LikeResult:
+      type: object
+      properties:
+        liked:
+          type: boolean
+        like_count:
+          type: integer
+          minimum: 0
+    CollectionPage:
+      type: object
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          nullable: true
+        previous:
+          type: string
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/Collection"
+    RecordingCommentPage:
+      type: object
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          nullable: true
+        previous:
+          type: string
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecordingComment"
     DialectRef:
       type: object
       properties:
@@ -493,11 +1240,26 @@ components:
         id: { type: integer, readOnly: true }
         audio_url: { type: string, format: uri }
         usage_dialect: { $ref: "#/components/schemas/DialectRef" }
+        recorder: { $ref: "#/components/schemas/UserRef" }
+        duration_ms: { type: integer, minimum: 0 }
+        rights_statement: { type: string }
+        like_count: { type: integer, readOnly: true }
+        liked: { type: boolean, readOnly: true }
+        comment_count: { type: integer, readOnly: true }
         original_gloss: { type: string }
-        recording_type: { type: string, enum: [word, phrase, sentence, narrative] }
+        recording_type: { type: string, enum: [word, phrase, example, other] }
         status: { type: string, enum: [draft, published, disputed, rejected] }
         visibility: { type: boolean }
-        entry_links: { type: array, items: { $ref: "#/components/schemas/RecordingEntryLinkV2" }, readOnly: true }
+        entry_links: { type: array, items: { $ref: "#/components/schemas/RecordingEntryLinkRef" }, readOnly: true }
+    RecordingEntryLinkRef:
+      type: object
+      properties:
+        id: { type: integer }
+        entry: { $ref: "#/components/schemas/EntryV2" }
+        sense_id: { type: integer, nullable: true }
+        role: { type: string, enum: [primary, mention, competing] }
+        status: { type: string, enum: [suggested, accepted, disputed, rejected] }
+        is_current: { type: boolean }
     RecordingEntryLinkV2:
       type: object
       properties:

@@ -18,6 +18,8 @@ vi.mock('@/services/authGuard', () => ({
 }));
 vi.mock('@/services/feedback', () => ({ notifySuccess: vi.fn() }));
 vi.mock('@/services/navigation', () => ({
+  goRecordingDetail: vi.fn(),
+  goRecordingDrafts: vi.fn(),
   ROUTES: { home: '/pages/index' },
   goBack: vi.fn(),
   goRecord: vi.fn(),

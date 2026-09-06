@@ -5,7 +5,7 @@ from django.db.models import BooleanField, Count, Exists, OuterRef, Prefetch, Q,
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, MethodNotAllowed
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from utils.exceptions.types.bad_request import BadRequestException
@@ -295,8 +295,13 @@ class DialectCircleViewSet(viewsets.ReadOnlyModelViewSet):
             .filter(usage_dialect_id__in=circle.dialect.descendant_ids())
             .select_related("usage_dialect", "usage_dialect__parent", "recorder")
             .prefetch_related(
-                "entry_links__sense",
-                "entry_links__entry__entry_writings__writing",
+                Prefetch(
+                    "entry_links",
+                    queryset=available_recording_links_for_user(self.request.user)
+                    .filter(entry__in=visible_entries_for_user(self.request.user))
+                    .select_related("sense", "entry")
+                    .prefetch_related("entry__entry_writings__writing"),
+                ),
             )
             .annotate(evidence_count=Count("evidence_links", distinct=True))
             .order_by("-created_at", "-id")
@@ -376,6 +381,18 @@ class EntryViewSet(viewsets.ModelViewSet):
         "options",
     ]
     permission_classes = [V2ResourcePermission]
+
+    @action(detail=False, methods=["get"])
+    def suggestions(self, request):
+        from .restoration import entry_suggestions
+
+        return entry_suggestions(self, request)
+
+    @action(detail=False, methods=["get"])
+    def popular(self, request):
+        from .restoration import entry_suggestions
+
+        return entry_suggestions(self, request, popular=True)
 
     def get_serializer_class(self):
         return EntryCardSerializer if self.action == "list" else EntrySerializer
@@ -671,17 +688,53 @@ class PronunciationVariantViewSet(viewsets.ModelViewSet):
 
 
 class RecordingViewSet(viewsets.ModelViewSet):
-    http_method_names = ["get", "post", "patch", "head", "options"]
+    http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
     serializer_class = RecordingSerializer
     permission_classes = [V2ResourcePermission]
+
+    def destroy(self, request, *args, **kwargs):
+        raise MethodNotAllowed("DELETE")
+
+    def retrieve(self, request, *args, **kwargs):
+        from .restoration import recording_data
+
+        return Response(recording_data(self.get_object(), request))
+
+    @action(
+        detail=True,
+        methods=["put", "delete"],
+        permission_classes=[permissions.IsAuthenticated],
+    )
+    @transaction.atomic
+    def like(self, request, pk=None):
+        from .restoration import recording_like
+
+        return recording_like(self, request, pk)
+
+    @action(detail=False, methods=["get"])
+    def daily(self, request):
+        from .restoration import discover_recording
+
+        return discover_recording(self, request, daily=True)
+
+    @action(detail=False, methods=["get"])
+    def random(self, request):
+        from .restoration import discover_recording
+
+        return discover_recording(self, request)
 
     def response_queryset(self):
         return (
             visible_recordings_for_user(self.request.user)
             .select_related("usage_dialect", "usage_dialect__parent", "recorder")
             .prefetch_related(
-                "entry_links__sense",
-                "entry_links__entry__entry_writings__writing",
+                Prefetch(
+                    "entry_links",
+                    queryset=available_recording_links_for_user(self.request.user)
+                    .filter(entry__in=visible_entries_for_user(self.request.user))
+                    .select_related("sense", "entry")
+                    .prefetch_related("entry__entry_writings__writing"),
+                ),
             )
             .annotate(evidence_count=Count("evidence_links", distinct=True))
         )
@@ -699,6 +752,8 @@ class RecordingViewSet(viewsets.ModelViewSet):
         )
 
     def update(self, request, *args, **kwargs):
+        if request.method == "PUT":
+            raise MethodNotAllowed("PUT")
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
@@ -710,6 +765,17 @@ class RecordingViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = self.response_queryset()
+        if parse_boolean(self.request.query_params.get("following"), "following"):
+            from user.models import UserFollow
+
+            if not self.request.user.is_authenticated:
+                return queryset.none()
+            queryset = queryset.filter(
+                visibility=True,
+                recorder_id__in=UserFollow.objects.filter(
+                    follower=self.request.user
+                ).values("followed_id"),
+            )
         for parameter in ("recording_type", "status"):
             value = self.request.query_params.get(parameter)
             if value:
