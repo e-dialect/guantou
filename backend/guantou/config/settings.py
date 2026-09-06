@@ -25,6 +25,12 @@ ENVIRONMENT = env.str("ENVIRONMENT", "development").strip().lower()
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env.str("SECRET_KEY", "DEFAULT_SECRET_KEY")
 
+# Throttle anonymous-visitor last_seen_at refreshes to reduce SQLite write
+# lock contention when many requests reuse one visitor id.
+AUDIT_VISITOR_LAST_SEEN_THROTTLE_SECONDS = env.int(
+    "AUDIT_VISITOR_LAST_SEEN_THROTTLE_SECONDS", 60
+)
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG", False)
 
