@@ -66,6 +66,33 @@ describe('forget password page', () => {
     expect(wrapper.vm.emailMasked).toBe('c***@example.com');
   });
 
+  it('returns to username editing and clears sensitive reset drafts', async () => {
+    const wrapper = mountPage();
+    wrapper.vm.username = 'collector';
+    wrapper.vm.steps = 1;
+    fillResetForm(wrapper);
+    wrapper.vm.errors.password = '密码错误';
+    wrapper.vm.errors.repeatedPassword = '两次密码不一致';
+    wrapper.vm.errors.code = '验证码错误';
+    await wrapper.vm.$nextTick();
+
+    const backAction = wrapper.findAllComponents({ name: 'TDesignStub' })
+      .find((component) => component.props('ariaLabel') === '返回修改用户名');
+    expect(backAction.props('variant')).toBe('text');
+    backAction.vm.$emit('click');
+
+    expect(wrapper.vm.steps).toBe(0);
+    expect(wrapper.vm.username).toBe('collector');
+    expect(wrapper.vm.password).toBe('');
+    expect(wrapper.vm.repeatedPassword).toBe('');
+    expect(wrapper.vm.code).toBe('');
+    expect(wrapper.vm.errors).toMatchObject({
+      password: '',
+      repeatedPassword: '',
+      code: '',
+    });
+  });
+
   it('offers a friendly message when the username is unknown', async () => {
     const wrapper = mountPage();
     wrapper.vm.username = 'ghost';

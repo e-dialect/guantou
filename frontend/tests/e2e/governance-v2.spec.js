@@ -35,11 +35,12 @@ test('ordinary contributor can prepare a scoped curator application', async ({ p
   await page.goto('/pages/curation/apply');
 
   await expect(page.getByText('申请成为整理员').first()).toBeVisible();
-  await expect(page.getByText('共同整理，不争权威')).toBeVisible();
-  await expect(page.getByRole('button', { name: '词条整理' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '地区整理' })).toBeVisible();
+  await expect(page.getByText('申请一块你真正熟悉的范围')).toBeVisible();
+  await expect(page.getByText('权限有范围')).toBeVisible();
+  await expect(page.getByRole('button', { name: '选择词条整理权限' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '选择地区整理权限' })).toBeVisible();
   await expect(page.getByText('逐级选择地区范围')).toBeVisible();
-  await expect(page.getByText('公开授权记录')).toBeVisible();
+  await expect(page.getByText('当前有效授权')).toBeVisible();
 });
 
 test('authorized curator can record a scoped decision and view history', async ({ page }) => {
@@ -89,7 +90,10 @@ test('authorized curator can record a scoped decision and view history', async (
 
   await page.goto('/pages/curation/index');
   await expect(page.getByText('表示害怕')).toBeVisible();
-  await page.getByText('保留争议').click();
+  await expect(page.getByText('准备记录这项判断')).toHaveCount(0);
+  await page.getByRole('button', { name: '录音：保留争议' }).click();
+  await expect(page.getByText('准备记录这项判断')).toBeVisible();
+  await expect(page.getByText('等待更多证据后再作结论')).toBeVisible();
   await page.locator('.task textarea').fill('现有证据不足，先保留不同解释。');
   await page.getByText('确认保留争议').click();
   await expect.poll(() => actions.length).toBe(1);

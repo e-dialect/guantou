@@ -20,9 +20,16 @@ vi.mock('@/services/phoneAuth', () => ({
   requestPhoneCode: vi.fn(),
 }));
 
+vi.mock('@/routers/login', () => ({
+  toForgetPage: vi.fn(),
+  toRegisterPage: vi.fn(),
+  toWechatRegisterPage: vi.fn(),
+}));
+
 import { cancelLoginToSearch } from '@/services/authJourney';
 import { peekInterceptIntent } from '@/services/authGuard';
 import { loginWithPhone } from '@/services/phoneAuth';
+import { toForgetPage, toRegisterPage } from '@/routers/login';
 
 globalThis.getApp = vi.fn(() => ({
   globalData: {
@@ -68,8 +75,30 @@ describe('login page intent', () => {
     await wrapper.vm.$nextTick();
 
     expect(wrapper.text()).toContain('你刚才想录制乡音');
-    await wrapper.find('.browse-first').trigger('tap');
+    const browseFirst = wrapper.findAllComponents({ name: 'TDesignStub' })
+      .find((component) => component.props('ariaLabel') === '暂不登录，先去查词');
+    browseFirst.vm.$emit('click');
     expect(cancelLoginToSearch).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses TDesign text buttons for every visible secondary action', async () => {
+    peekInterceptIntent.mockReturnValue(null);
+    const wrapper = mountLogin();
+    await wrapper.vm.$nextTick();
+
+    const textButtons = wrapper.findAllComponents({ name: 'TDesignStub' })
+      .filter((component) => component.props('variant') === 'text');
+    expect(textButtons.map((component) => component.props('ariaLabel'))).toEqual([
+      '暂不登录，先去查词',
+      '忘记密码',
+      '用户注册',
+      '微信注册',
+    ]);
+
+    textButtons.find((component) => component.props('ariaLabel') === '忘记密码').vm.$emit('click');
+    textButtons.find((component) => component.props('ariaLabel') === '用户注册').vm.$emit('click');
+    expect(toForgetPage).toHaveBeenCalledTimes(1);
+    expect(toRegisterPage).toHaveBeenCalledTimes(1);
   });
 
   it('uses distinct copy for voluntary login', async () => {

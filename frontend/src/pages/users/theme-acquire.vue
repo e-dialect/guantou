@@ -3,13 +3,27 @@
     title="装扮获取"
     :back-fallback="ROUTES.themeCenter"
   >
-    <view class="lead">
-      活动、会员与方言创作任务可在此领取装扮。H5 与小程序权限一致，会员状态两端同步。
-    </view>
+    <ThemeJourneyIntro
+      eyebrow="装扮权益"
+      title="按真实资格找到获取路径"
+      description="会员、活动和方言创作任务分别核验；已获得的资格会跟随账号，不需要重复领取。"
+      :status="member ? '会员权益已生效' : '当前为普通账户，可继续参与活动与创作任务'"
+      :tone="member ? 'success' : 'neutral'"
+    />
 
     <view class="block">
-      <view class="block-title">
-        会员
+      <view class="block-head">
+        <view>
+          <view class="block-kicker">
+            会员权益
+          </view>
+          <view class="block-title">
+            一次开通，两端同步
+          </view>
+        </view>
+        <view class="status-chip">
+          {{ member ? '已生效' : '未开通' }}
+        </view>
       </view>
       <view class="muted">
         开通会员即可解锁全部会员全局主题、会员局部装扮。
@@ -28,8 +42,18 @@
     </view>
 
     <view class="block">
-      <view class="block-title">
-        进行中的活动
+      <view class="block-head">
+        <view>
+          <view class="block-kicker">
+            限时获取
+          </view>
+          <view class="block-title">
+            进行中的活动
+          </view>
+        </view>
+        <view class="status-chip">
+          {{ eventOffers.length }} 项
+        </view>
       </view>
       <view
         v-if="!eventOffers.length"
@@ -43,19 +67,21 @@
         class="offer pressable"
         @tap="openEvent(item)"
       >
-        <view class="offer-name">
-          {{ item.name }}
-        </view>
-        <view class="muted">
-          {{ item.description }}
-        </view>
-        <view class="tag tag-event">
-          活动限定
+        <view class="offer-copy">
+          <view class="offer-name">
+            {{ item.name }}
+          </view>
+          <view class="muted">
+            {{ item.description }}
+          </view>
+          <view class="tag tag-event">
+            活动限定
+          </view>
         </view>
         <BaseButton
           class="row-action"
           size="extra-small"
-          @click="openEvent(item)"
+          @click.stop="openEvent(item)"
         >
           去参与活动
         </BaseButton>
@@ -63,20 +89,50 @@
     </view>
 
     <view class="block">
-      <view class="block-title">
-        方言创作任务
+      <view class="block-head">
+        <view>
+          <view class="block-kicker">
+            创作解锁
+          </view>
+          <view class="block-title">
+            方言创作任务
+          </view>
+        </view>
+        <view
+          class="status-chip"
+          :class="{ ready: creatorReady }"
+        >
+          {{ creatorReady ? '可领取' : '进行中' }}
+        </view>
       </view>
       <view class="muted">
         完成方言创作任务即可解锁，录一段乡音积累创作成就。
       </view>
-      <view class="task">
-        录音贡献 {{ progress.recordings }}/10
-      </view>
-      <view class="task">
-        方言达人徽章 {{ progress.badge ? '已获得' : '未获得' }}
-      </view>
-      <view class="task">
-        方言话题挑战赛 {{ progress.challenge ? '已参与' : '未完成' }}
+      <view class="task-list">
+        <view class="task">
+          <text class="task-label">
+            录音贡献
+          </text>
+          <text class="task-value">
+            {{ progress.recordings }}/10
+          </text>
+        </view>
+        <view class="task">
+          <text class="task-label">
+            方言达人徽章
+          </text>
+          <text class="task-value">
+            {{ progress.badge ? '已获得' : '未获得' }}
+          </text>
+        </view>
+        <view class="task">
+          <text class="task-label">
+            方言话题挑战赛
+          </text>
+          <text class="task-value">
+            {{ progress.challenge ? '已参与' : '未完成' }}
+          </text>
+        </view>
       </view>
       <view class="action-row">
         <BaseButton
@@ -105,8 +161,18 @@
     </view>
 
     <view class="block">
-      <view class="block-title">
-        方言主题福利
+      <view class="block-head">
+        <view>
+          <view class="block-kicker">
+            日常参与
+          </view>
+          <view class="block-title">
+            方言主题福利
+          </view>
+        </view>
+        <view class="status-chip">
+          {{ shards }} 碎片
+        </view>
       </view>
       <view class="muted">
         每日录一段乡音可领取少量装扮碎片，碎片可以兑换限定方言装扮。当前碎片 {{ shards }}。
@@ -148,6 +214,8 @@
 <script>
 import BaseButton from '@/components/BaseButton.vue';
 import PageShell from '@/components/PageShell.vue';
+import ThemeJourneyIntro from '@/components/ThemeJourneyIntro.vue';
+import { isLoggedIn } from '@/services/authGuard';
 import { getMyContributionHistory } from '@/services/entryRecording';
 import { notifySuccess } from '@/services/feedback';
 import {
@@ -170,7 +238,7 @@ import {
 } from '@/services/themeCenter';
 
 export default {
-  components: { BaseButton, PageShell },
+  components: { BaseButton, PageShell, ThemeJourneyIntro },
   data() {
     return {
       ROUTES,
@@ -221,6 +289,7 @@ export default {
       goThemeEvent({ id: item.id, kind: item.kind });
     },
     async syncContributionCount() {
+      if (!isLoggedIn()) return;
       try {
         const response = await getMyContributionHistory();
         const recordings = Math.max(0, Number(response?.summary?.recordings || 0));
@@ -240,7 +309,6 @@ export default {
 </script>
 
 <style scoped>
-.lead,
 .block {
   margin-top: var(--space-3);
   padding: var(--space-3);
@@ -249,9 +317,43 @@ export default {
   background: var(--surface-color);
 }
 
+.block-head,
+.offer,
+.task {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.block-kicker {
+  color: var(--accent-color);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
 .block-title,
 .offer-name {
+  margin-top: var(--space-1);
+  color: var(--text-color);
+  font-size: var(--font-size-lg);
   font-weight: 700;
+}
+
+.status-chip {
+  flex: 0 0 auto;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle-color);
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
+.status-chip.ready {
+  background: var(--accent-subtle-color);
+  color: var(--accent-color);
 }
 
 .muted,
@@ -270,6 +372,19 @@ export default {
 
 .offer {
   margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-color);
+  align-items: flex-start;
+}
+
+.offer-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.offer .row-action {
+  flex: 0 0 auto;
+  margin-top: 0;
 }
 
 .tag {
@@ -295,6 +410,27 @@ export default {
   flex-wrap: wrap;
   gap: var(--space-2);
   margin-top: var(--space-2);
+}
+
+.task-list {
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--border-color);
+}
+
+.task {
+  margin-top: 0;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.task-label {
+  color: var(--text-secondary-color);
+}
+
+.task-value {
+  flex: 0 0 auto;
+  color: var(--text-color);
+  font-weight: 700;
 }
 
 .foot-note {

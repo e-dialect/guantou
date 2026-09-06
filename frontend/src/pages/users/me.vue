@@ -3,7 +3,7 @@
     title="我的账户"
     active="me"
   >
-    <view class="page">
+    <view class="account-page">
       <template v-if="loggedIn">
         <view
           v-if="loading"
@@ -27,11 +27,23 @@
         <template v-else>
           <view class="hero">
             <image
+              v-if="avatar"
               :src="avatar"
-              class="avatar pressable"
+              class="avatar avatar--image pressable"
               mode="aspectFill"
+              role="button"
+              aria-label="编辑头像"
               @tap="toUserInfoPage"
             />
+            <view
+              v-else
+              class="avatar avatar--fallback pressable"
+              role="button"
+              aria-label="编辑头像"
+              @tap="toUserInfoPage"
+            >
+              {{ avatarFallback }}
+            </view>
             <view class="hero-copy">
               <view class="name">
                 {{ nickname || '未填写昵称' }}
@@ -60,10 +72,7 @@
           </view>
 
           <view class="social-stats">
-            <view
-              class="social-stat pressable"
-              @tap="toContributionHistory"
-            >
+            <view class="social-stat">
               <view class="number">
                 {{ recordingsCount }}
               </view>
@@ -140,25 +149,44 @@
           </view>
 
           <view class="works">
-            <view class="works-tabs">
+            <view
+              class="works-tabs"
+              role="tablist"
+              aria-label="贡献类型"
+            >
               <view
                 class="works-tab pressable"
                 :class="{ active: worksTab === 'recordings' }"
-                @tap="worksTab = 'recordings'"
+                role="tab"
+                tabindex="0"
+                :aria-selected="worksTab === 'recordings' ? 'true' : 'false'"
+                @tap="selectWorksTab('recordings')"
+                @keydown.enter="selectWorksTab('recordings')"
+                @keydown.space.prevent="selectWorksTab('recordings')"
               >
                 录音 {{ recordingsCount }}
               </view>
               <view
                 class="works-tab pressable"
                 :class="{ active: worksTab === 'entries' }"
-                @tap="worksTab = 'entries'"
+                role="tab"
+                tabindex="0"
+                :aria-selected="worksTab === 'entries' ? 'true' : 'false'"
+                @tap="selectWorksTab('entries')"
+                @keydown.enter="selectWorksTab('entries')"
+                @keydown.space.prevent="selectWorksTab('entries')"
               >
                 词条 {{ entriesCount }}
               </view>
               <view
                 class="works-tab pressable"
                 :class="{ active: worksTab === 'senses' }"
-                @tap="worksTab = 'senses'"
+                role="tab"
+                tabindex="0"
+                :aria-selected="worksTab === 'senses' ? 'true' : 'false'"
+                @tap="selectWorksTab('senses')"
+                @keydown.enter="selectWorksTab('senses')"
+                @keydown.space.prevent="selectWorksTab('senses')"
               >
                 义项 {{ sensesCount }}
               </view>
@@ -190,56 +218,36 @@
             </view>
           </view>
 
-          <view class="tool-grid">
-            <view
-              class="tool-item pressable"
-              @tap="toContributionHistory"
-            >
-              <view class="tool-count">
-                {{ recordingsCount }}
-              </view>
-              <view class="tool-label">
-                既有录音
-              </view>
+          <view class="archive-menu">
+            <view class="section-kicker menu-kicker">
+              档案导航
             </view>
-            <view
-              class="tool-item pressable"
-              @tap="toBookmarks"
-            >
-              <view class="tool-count">
-                ·
-              </view>
-              <view class="tool-label">
-                词条收藏
-              </view>
-            </view>
-            <view
-              class="tool-item pressable"
-              @tap="toCircleList"
-            >
-              <view class="tool-count">
-                {{ followedDialects.length }}
-              </view>
-              <view class="tool-label">
-                关注方言
-              </view>
-            </view>
-          </view>
-
-          <view class="account-section">
-            <view class="section-kicker">
-              贡献履历
-            </view>
-            <view class="account-section__copy">
-              你已留下 {{ recordingsCount }} 段录音、参与 {{ entriesCount }} 个词条、
-              补充 {{ sensesCount }} 个义项与 {{ evidenceCount }} 条原始证据。修订和地区足迹也会形成可追溯记录。
-            </view>
-            <BaseButton
-              class="account-section__action"
-              size="small"
-              variant="ghost"
-              text="查看完整贡献履历"
-              @click="toContributionHistory"
+            <t-cell
+              title="词条收藏"
+              note="仅自己可见"
+              arrow
+              hover
+              custom-style="padding: var(--space-3); background: transparent;"
+              aria-label="查看词条收藏"
+              role="button"
+              tabindex="0"
+              @click="toBookmarks"
+              @keydown.enter="toBookmarks"
+              @keydown.space.prevent="toBookmarks"
+            />
+            <t-cell
+              title="关注方言"
+              :note="`${followedDialects.length} 个`"
+              arrow
+              hover
+              :bordered="false"
+              custom-style="padding: var(--space-3); background: transparent;"
+              :aria-label="`查看关注方言，当前 ${followedDialects.length} 个`"
+              role="button"
+              tabindex="0"
+              @click="toCircleList"
+              @keydown.enter="toCircleList"
+              @keydown.space.prevent="toCircleList"
             />
           </view>
 
@@ -353,53 +361,92 @@
       </template>
 
       <template v-else>
-        <view class="guest-profile">
-          <view class="guest-mark">
-            乡
+        <view class="guest-profile immersive-shell">
+          <view class="guest-profile__meta">
+            <view class="guest-eyebrow">
+              还没有登录 · 也可以先逛
+            </view>
+            <view
+              class="guest-mark"
+              aria-hidden="true"
+            >
+              乡
+            </view>
           </view>
           <view class="guest-title">
-            还没有登录
+            把自己的乡音带进来
           </view>
           <view class="guest-copy">
-            登录后可以录乡音、收藏词条和查看自己的贡献。公开乡音不用登录，先听也可以。
+            登录后，录音、收藏和贡献履历都会稳稳留在你的档案里。公开乡音无需登录，先听也完全可以。
+          </view>
+          <view class="guest-benefits">
+            <text>
+              录下乡音
+            </text>
+            <text>
+              收藏词条
+            </text>
+            <text>
+              查看履历
+            </text>
           </view>
           <BaseButton
-            class="guest-action login-button"
+            class="guest-action guest-primary login-button"
             block
+            variant="light"
             @click="openLoginFromMine"
           >
-            登录 / 注册
+            登录或创建账户
           </BaseButton>
-          <BaseButton
-            class="guest-action"
-            variant="ghost"
-            block
-            @click="toHome"
-          >
-            先去听乡音
-          </BaseButton>
-          <BaseButton
-            class="guest-action"
-            variant="ghost"
-            block
-            @click="toSearch"
-          >
-            先去查词
-          </BaseButton>
+          <view class="guest-shortcuts">
+            <t-cell
+              class="guest-shortcut pressable"
+              title="听乡音"
+              description="先逛逛"
+              arrow
+              hover
+              :bordered="false"
+              custom-style="min-height: 56px; padding: var(--space-3);"
+              aria-label="先去听乡音"
+              role="button"
+              tabindex="0"
+              @click="toHome"
+              @keydown.enter.space.prevent="toHome"
+            />
+            <t-cell
+              class="guest-shortcut pressable"
+              title="查词条"
+              description="找一找"
+              arrow
+              hover
+              :bordered="false"
+              custom-style="min-height: 56px; padding: var(--space-3);"
+              aria-label="先去查词条"
+              role="button"
+              tabindex="0"
+              @click="toSearch"
+              @keydown.enter.space.prevent="toSearch"
+            />
+          </view>
         </view>
         <view class="menu guest-theme">
           <view class="section-kicker menu-kicker">
             主题
           </view>
-          <view
-            class="menu-item pressable"
-            @tap="toThemeCenter"
-          >
-            <view>主题中心</view>
-            <view class="menu-value">
-              {{ themeLabel }}
-            </view>
-          </view>
+          <t-cell
+            class="guest-theme__action"
+            title="主题中心"
+            :note="themeLabel"
+            arrow
+            hover
+            :bordered="false"
+            custom-style="min-height: 48px; padding: var(--space-3) 0 0; background: transparent;"
+            :aria-label="`打开主题中心，当前 ${themeLabel}`"
+            role="button"
+            tabindex="0"
+            @click="toThemeCenter"
+            @keydown.enter.space.prevent="toThemeCenter"
+          />
         </view>
       </template>
     </view>
@@ -407,6 +454,7 @@
 </template>
 
 <script>
+import TCell from '@tdesign/uniapp/cell/cell.vue';
 import AppShell from '@/components/AppShell.vue';
 import BaseButton from '@/components/BaseButton.vue';
 import confirmDialog from '@/components/ConfirmDialog';
@@ -440,7 +488,7 @@ import {
 } from '@/services/user';
 
 export default {
-  components: { AppShell, BaseButton },
+  components: { AppShell, BaseButton, TCell },
   data() {
     return {
       id: '',
@@ -468,6 +516,11 @@ export default {
     };
   },
   computed: {
+    avatarFallback() {
+      const displayName = String(this.nickname || '').trim()
+        || String(this.username || '').trim();
+      return displayName.slice(0, 1) || '乡';
+    },
     locationText() {
       return dialectCardLabel(this.primaryDialect);
     },
@@ -492,7 +545,7 @@ export default {
     },
     worksPanelCopy() {
       if (this.worksCount > 0) {
-        return '既有贡献仍可查看；新录音会按词条和地区建立可追溯关联。';
+        return '既有贡献仍可查看；新录音会按词条和地区建立可追溯关联，并形成地区足迹。';
       }
       if (this.worksTab === 'entries') {
         return '不会写汉字也没关系，先录音和说明大意，之后再逐步完善词条。';
@@ -572,6 +625,9 @@ export default {
     },
     toBookmarks() { goEntryBookmarks(); },
     toCircleList() { goCircleList(); },
+    selectWorksTab(tab) {
+      this.worksTab = tab;
+    },
     toContributionHistory() {
       goContributionHistory();
     },
@@ -724,13 +780,13 @@ export default {
 </script>
 
 <style scoped>
-.page {
+.account-page {
   color: var(--dress-home-bg-color, var(--text-color));
   background: var(--dress-home-bg-background, transparent);
 }
 
 .state-card,
-.guest-profile {
+.guest-theme {
   padding: var(--space-4);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
@@ -747,42 +803,129 @@ export default {
 }
 
 .guest-profile {
+  position: relative;
   max-width: 620rpx;
-  margin: 8vh auto 0;
-  text-align: center;
+  margin: 24rpx auto 0;
+  padding: 38rpx 34rpx 32rpx;
+  border: 1rpx solid var(--immersive-border-color);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 88% 4%, var(--immersive-glow-color), transparent 32%),
+    linear-gradient(
+      150deg,
+      var(--immersive-bg-strong-color),
+      var(--immersive-bg-soft-color) 58%,
+      var(--immersive-bg-color)
+    );
+  box-shadow: 0 24rpx 70rpx var(--immersive-veil-color);
+  color: var(--on-immersive-color);
+  box-sizing: border-box;
+}
+
+.guest-profile__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.guest-eyebrow {
+  color: var(--immersive-accent-color);
+  font-size: 19rpx;
+  font-weight: 800;
+  letter-spacing: 3rpx;
 }
 
 .guest-mark {
-  width: 160rpx;
-  height: 160rpx;
-  margin: 0 auto;
+  width: 58rpx;
+  height: 58rpx;
+  border: 1rpx solid var(--immersive-border-color);
   border-radius: var(--radius-pill);
-  background: var(--accent-color);
-  color: var(--on-accent-color);
-  font-size: var(--font-size-xl);
-  font-weight: 800;
-  line-height: 160rpx;
+  background: var(--immersive-surface-color);
+  color: var(--on-immersive-color);
+  font-family: STSong, SimSun, serif;
+  font-size: 28rpx;
+  font-weight: 900;
+  line-height: 58rpx;
+  text-align: center;
 }
 
 .guest-title {
-  margin-top: var(--space-3);
-  font-size: var(--font-size-xl);
-  font-weight: 800;
+  max-width: 480rpx;
+  margin-top: 26rpx;
+  font-family: STSong, SimSun, serif;
+  font-size: 44rpx;
+  font-weight: 900;
+  letter-spacing: 1rpx;
+  line-height: 1.2;
 }
 
 .guest-copy {
-  margin-top: var(--space-2);
-  color: var(--muted-color);
-  font-size: var(--font-size-sm);
+  margin-top: 16rpx;
+  color: var(--on-immersive-muted-color);
+  font-size: 24rpx;
   line-height: 1.65;
 }
 
+.guest-benefits {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  margin-top: 24rpx;
+  padding: 16rpx 18rpx;
+  border: 1rpx solid var(--immersive-border-color);
+  border-radius: var(--radius-md);
+  background: var(--immersive-surface-color);
+  color: var(--on-immersive-muted-color);
+  font-size: 20rpx;
+  letter-spacing: 1rpx;
+}
+
 .guest-action {
-  margin-top: var(--space-3);
+  margin-top: 26rpx;
+}
+
+.guest-primary {
+  border-color: transparent;
+  background: var(--on-immersive-color);
+  color: var(--immersive-bg-strong-color);
+}
+
+.guest-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12rpx;
+  margin-top: 14rpx;
+}
+
+.guest-shortcut {
+  --td-cell-bg-color: var(--immersive-surface-color);
+  --td-cell-border-color: transparent;
+  --td-cell-description-color: var(--on-immersive-muted-color);
+  --td-cell-hover-color: var(--immersive-veil-color);
+  --td-cell-right-icon-color: var(--immersive-accent-color);
+  --td-cell-title-color: var(--on-immersive-color);
+
+  min-width: 0;
+  border: 1rpx solid var(--immersive-border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
 
 .guest-theme {
+  max-width: 620rpx;
+  margin-right: auto;
+  margin-left: auto;
   text-align: left;
+}
+
+.guest-theme__action {
+  --td-cell-bg-color: transparent;
+  --td-cell-hover-color: var(--surface-subtle-color);
+  --td-cell-note-color: var(--text-secondary-color);
+  --td-cell-right-icon-color: var(--muted-color);
+  --td-cell-title-color: var(--text-color);
 }
 
 .hero {
@@ -802,6 +945,16 @@ export default {
     solid var(--dress-avatar-frame-border-color, transparent);
   box-sizing: border-box;
   flex-shrink: 0;
+}
+
+.avatar--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dress-avatar-frame-color, var(--accent-color));
+  font-family: STSong, SimSun, serif;
+  font-size: 62rpx;
+  font-weight: 900;
 }
 
 .hero-copy {
@@ -859,8 +1012,7 @@ export default {
   font-weight: 800;
 }
 
-.label,
-.tool-label {
+.label {
   margin-top: var(--space-1);
   color: var(--muted-color);
   font-size: var(--font-size-xs);
@@ -894,7 +1046,7 @@ export default {
 }
 
 .works,
-.tool-grid,
+.archive-menu,
 .menu,
 .account-section {
   margin-top: var(--space-4);
@@ -955,22 +1107,6 @@ export default {
 
 .works-empty-action {
   margin-top: var(--space-3);
-}
-
-.tool-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  padding: var(--space-3) 0;
-}
-
-.tool-item {
-  position: relative;
-  text-align: center;
-}
-
-.tool-count {
-  font-size: var(--font-size-lg);
-  font-weight: 800;
 }
 
 .menu-item {

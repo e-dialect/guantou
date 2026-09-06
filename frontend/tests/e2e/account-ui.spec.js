@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { stableScreenshot } from './helpers/stableScreenshot';
+import { observeRuntime } from './helpers/visualReviewFixture';
 
 async function tap(locator) {
   await locator.click();
@@ -20,6 +21,48 @@ async function openMine(page) {
   await expect(page.getByText('还没有登录')).toBeVisible();
 }
 
+function waitForThemeCatalog(page) {
+  const catalogPaths = ['/themes/', '/decorations/'];
+  return Promise.all(catalogPaths.map((pathname) => page.waitForResponse((response) => (
+    new URL(response.url()).pathname === pathname && response.ok()
+  ))));
+}
+
+async function themeCenterLayout(page) {
+  await page.evaluate(() => new Promise((resolve) => {
+    const resetScroll = () => {
+      window.scrollTo(0, 0);
+      document.querySelectorAll('.shell-scroll, .app-shell__scroll')
+        .forEach((element) => element.scrollTo(0, 0));
+    };
+    resetScroll();
+    requestAnimationFrame(() => {
+      resetScroll();
+      requestAnimationFrame(() => {
+        resetScroll();
+        resolve();
+      });
+    });
+  }));
+  return page.evaluate(() => {
+    const recentElement = document.querySelector('.recent-block');
+    const currentElement = document.querySelector('.current-card');
+    const recent = recentElement?.getBoundingClientRect();
+    const current = currentElement?.getBoundingClientRect();
+    const scrollContainer = currentElement?.closest('.shell-scroll, .app-shell__scroll');
+    const scrollRect = scrollContainer?.getBoundingClientRect();
+    const currentTop = current && scrollRect
+      ? current.top - scrollRect.top + scrollContainer.scrollTop
+      : (current?.top || 0) + window.scrollY;
+    return {
+      recentHeight: recent?.height || 0,
+      currentTop,
+      scrollTop: scrollContainer?.scrollTop || window.scrollY,
+      overflow: document.documentElement.scrollWidth - window.innerWidth,
+    };
+  });
+}
+
 async function themeTokens(page) {
   return page.evaluate(() => {
     const styles = getComputedStyle(document.documentElement);
@@ -34,8 +77,19 @@ async function themeTokens(page) {
 
 test('mine page keeps contrast in light and dark themes', async ({ page }) => {
   await openMine(page);
+  const initialCatalogReady = waitForThemeCatalog(page);
   await tap(page.getByText('主题中心'));
+  await initialCatalogReady;
+  await expect(page.getByText('装扮目录加载中…')).toHaveCount(0);
   await expect(page.getByText('当前使用')).toBeVisible();
+  await expect(page.locator('.recent-block .theme-status-pane--compact')).toBeVisible();
+  await expect(page.locator('.recent-block .empty-state')).toHaveCount(0);
+
+  const lightLayout = await themeCenterLayout(page);
+  expect(lightLayout.recentHeight).toBeLessThanOrEqual(120);
+  expect(lightLayout.currentTop).toBeLessThanOrEqual(539);
+  expect(lightLayout.scrollTop).toBe(0);
+  expect(lightLayout.overflow).toBeLessThanOrEqual(0);
 
   const light = await themeTokens(page);
   expect(light.page).toBe('#f6f7f3');
@@ -47,18 +101,33 @@ test('mine page keeps contrast in light and dark themes', async ({ page }) => {
 
   await tap(page.locator('.filters.appearance .chip', { hasText: '深色' }));
   await expect.poll(async () => (await themeTokens(page)).theme).toBe('dark');
+  const darkCatalogReady = waitForThemeCatalog(page);
+  await page.reload();
+  await darkCatalogReady;
+  await expect(page.getByText('装扮目录加载中…')).toHaveCount(0);
+  await expect(page.getByText('当前使用')).toBeVisible();
+  await expect.poll(async () => (await themeTokens(page)).theme).toBe('dark');
 
   const dark = await themeTokens(page);
   expect(dark.page).toBe('#121915');
   expect(dark.text).toBe('#edf4ef');
   expect(dark.surface).toBe('#1d2822');
   expect(dark.page).not.toBe(light.page);
+  const darkLayout = await themeCenterLayout(page);
+  expect(darkLayout).toEqual(lightLayout);
   await stableScreenshot(page, {
     path: 'test-results/account-me-dark.png',
   });
 });
 
 test('theme center keeps one live pack and placeholders', async ({ page }) => {
+  const runtimeIssues = observeRuntime(page);
+  let contributionRequests = 0;
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/contributions/me/') {
+      contributionRequests += 1;
+    }
+  });
   await openMine(page);
   await tap(page.getByText('主题中心'));
   await expect(page.locator('.tab.active', { hasText: '全局主题' })).toBeVisible();
@@ -68,7 +137,7 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
   await expect(page.getByText('搜索主题、装扮名称、方言风格')).toBeVisible();
   await expect(page.getByText('热门搜索词')).toBeVisible();
   await expect(page.getByText('方言头像框')).toBeVisible();
-  await expect(page.getByText('名称A-Z')).toBeVisible();
+  await expect(page.getByText('名称A-Z')).toHaveCount(0);
   await expect(page.getByText('提示：可以通过方言地域标签快速筛选家乡风格装扮；筛选条件会临时保留。')).toBeVisible();
   await expect(page.getByText('提示：实时预览仅模拟展示效果；微信小程序部分系统原生组件不支持自定义装扮。')).toBeVisible();
   await expect(page.getByText('暂无最近使用记录，快去挑选装扮吧')).toBeVisible();
@@ -92,10 +161,11 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
   await expect(page.getByText('你还没有收藏任何主题装扮，快去挑选喜欢的吧')).toBeVisible();
   await page.locator('.tab', { hasText: '全局主题' }).click();
 
-  await page.locator('.filter-toolbar .base-button').click({ force: true });
+  await page.getByRole('button', { name: /^筛选与排序/ }).click();
   await expect(page.getByText('权限筛选')).toBeVisible();
   await expect(page.getByText('地域方言标签')).toBeVisible();
   await expect(page.getByText('可多选家乡风格')).toBeVisible();
+  await expect(page.getByText('名称A-Z')).toBeVisible();
   await page.getByText('重置').click({ force: true });
   await page.getByText('确定').click({ force: true });
 
@@ -165,7 +235,10 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
   await page.locator('.tab', { hasText: '局部装扮' }).click();
   await page.locator('.dress-card', { hasText: '导航栏底色与图标' }).locator('.theme-name').click();
   await expect(page.getByText('系统默认顶栏').first()).toBeVisible();
-  await expect(page.getByText('该分类装扮素材即将上线，敬请期待').first()).toBeVisible();
+  const availability = page.locator('.availability-note');
+  await expect(availability.getByText('目录状态', { exact: true })).toBeVisible();
+  await expect(availability).toContainText('部分素材仍在制作，已上线项可正常预览和应用。');
+  await expect(page.locator('.directory-head')).toContainText('可用目录');
   await page.getByText('系统默认顶栏').first().click();
   await expect(page.getByText('H5网页版：完整生效').first()).toBeVisible();
   await page.locator('.sheet-actions .base-button').last().click({ force: true });
@@ -183,12 +256,14 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
   await page.locator('.preview-close').click({ force: true });
   await page.locator('.current-card .base-button').click({ force: true });
   await expect(page.locator('.tab.active', { hasText: '全局主题' })).toBeVisible();
+  expect(contributionRequests).toBe(0);
+  expect(runtimeIssues).toEqual([]);
 });
 
 test('account settings stay behind login and use PageShell titles', async ({ page }) => {
   await openMine(page);
   await tap(page.locator('.login-button'));
-  await expect(page.getByText('登录后可以确认地区用法')).toBeVisible();
+  await expect(page.getByText('验证身份后返回「我的」。')).toBeVisible();
 
   await page.goto('/pages/users/settings/information');
   await expect(page).toHaveURL(/\/pages\/login\/login/);
@@ -274,6 +349,20 @@ test('H5 mine account menu hides WeChat bind and keeps email', async ({ page }) 
   await expect(page.getByText('修改密码')).toBeVisible();
   await expect(page.getByText('绑定微信')).toHaveCount(0);
   await expect(page.getByText('点此授权')).toHaveCount(0);
+
+  const buttonTokens = await page.locator('.profile-actions .t-button').first().evaluate((element) => {
+    const styles = getComputedStyle(element);
+    const root = getComputedStyle(document.documentElement);
+    return {
+      brand: styles.getPropertyValue('--td-brand-color').trim().toLowerCase(),
+      rootAccent: root.getPropertyValue('--accent-color').trim().toLowerCase(),
+      rootBrand: root.getPropertyValue('--td-brand-color').trim().toLowerCase(),
+    };
+  });
+  expect(buttonTokens.brand).toBe(buttonTokens.rootAccent);
+  expect(buttonTokens.brand).toBe(buttonTokens.rootBrand);
+  expect(buttonTokens.brand).not.toBe('#0052d9');
+  expect(buttonTokens.brand).not.toBe('#366ef4');
 });
 
 test('password settings use design-system fields, visibility, and loading', async ({ page }) => {

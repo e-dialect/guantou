@@ -101,36 +101,38 @@ function persistVisitorId(res) {
   }
 }
 
-export function request(method = 'GET', url = '', data = {}, options = {}) {
+export async function request(method = 'GET', url = '', data = {}, options = {}) {
   const resolvedOptions = resolveOptions(options);
+  const payload = {
+    method,
+    url: BASE_URL + url,
+    data,
+    header: buildHeaders(resolvedOptions),
+    dataType: 'json',
+  };
+  const timeout = Number(resolvedOptions.timeout) || 0;
+  if (timeout > 0) payload.timeout = timeout;
+
+  let response;
+  let requestError;
   showLoading(resolvedOptions);
-  return new Promise((resolve, reject) => {
-    const payload = {
-      method,
-      url: BASE_URL + url,
-      data,
-      header: buildHeaders(resolvedOptions),
-      dataType: 'json',
-    };
-    const timeout = Number(resolvedOptions.timeout) || 0;
-    if (timeout > 0) payload.timeout = timeout;
-    uni.request(payload).then((res) => {
-      if (resolvedOptions.visitor) persistVisitorId(res);
-      hideLoading(resolvedOptions);
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        resolve(res.data);
-        return;
-      }
-      const error = createApiError(res);
-      notifyError(error, resolvedOptions);
-      reject(error);
-    }).catch((rawError) => {
-      hideLoading(resolvedOptions);
-      const error = createApiError(rawError);
-      notifyError(error, resolvedOptions);
-      reject(error);
-    });
-  });
+  try {
+    response = await uni.request(payload);
+    if (resolvedOptions.visitor) persistVisitorId(response);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      requestError = createApiError(response);
+    }
+  } catch (rawError) {
+    requestError = createApiError(rawError);
+  } finally {
+    hideLoading(resolvedOptions);
+  }
+
+  if (requestError) {
+    notifyError(requestError, resolvedOptions);
+    throw requestError;
+  }
+  return response.data;
 }
 
 function parseUploadResponseData(data) {
@@ -143,14 +145,16 @@ function parseUploadResponseData(data) {
   }
 }
 
-export function upload(file, options = {}) {
+export async function upload(file, options = {}) {
   const resolvedOptions = resolveOptions({
     loadingTitle: '上传中……',
     ...options,
   });
+  let response;
+  let requestError;
   showLoading(resolvedOptions);
-  return new Promise((resolve, reject) => {
-    uni.uploadFile({
+  try {
+    response = await uni.uploadFile({
       url: `${BASE_URL}${options.url || '/files'}`,
       filePath: file,
       name: options.name || 'file',
@@ -158,23 +162,22 @@ export function upload(file, options = {}) {
         ...visitorHeaders(),
         ...authHeaders(resolvedOptions.auth),
       },
-    }).then((res) => {
-      persistVisitorId(res);
-      hideLoading(resolvedOptions);
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        resolve(parseUploadResponseData(res.data));
-        return;
-      }
-      const error = createApiError(res);
-      notifyError(error, resolvedOptions);
-      reject(error);
-    }).catch((rawError) => {
-      hideLoading(resolvedOptions);
-      const error = createApiError(rawError);
-      notifyError(error, resolvedOptions);
-      reject(error);
     });
-  });
+    persistVisitorId(response);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      requestError = createApiError(response);
+    }
+  } catch (rawError) {
+    requestError = createApiError(rawError);
+  } finally {
+    hideLoading(resolvedOptions);
+  }
+
+  if (requestError) {
+    notifyError(requestError, resolvedOptions);
+    throw requestError;
+  }
+  return parseUploadResponseData(response.data);
 }
 
 export default {

@@ -1,3 +1,5 @@
+import { isH5Runtime } from '@/services/platform';
+
 export const THEME_STORAGE_KEY = 'ui_theme';
 export const ACCENT_STORAGE_KEY = 'ui_accent';
 export const BUTTON_STYLE_STORAGE_KEY = 'ui_button_style';
@@ -307,7 +309,12 @@ export function getAccentChrome(accent = getAccentPreference()) {
 function callUni(name, payload) {
   if (typeof uni === 'undefined' || typeof uni[name] !== 'function') return;
   try {
-    uni[name](payload);
+    const result = uni[name](payload);
+    if (result && typeof result.catch === 'function') {
+      result.catch(() => {
+        // This optional chrome API is allowed to be unavailable at runtime.
+      });
+    }
   } catch {
     // Some runtimes polyfill these as no-ops.
   }
@@ -318,6 +325,7 @@ export function paintNativeChrome({
   accent = 'pine',
   immersive = false,
 } = {}) {
+  if (isH5Runtime()) return;
   const chrome = getAccentChrome(accent);
   let backgroundColor = chrome.page;
   if (immersive) backgroundColor = chrome.immersive;

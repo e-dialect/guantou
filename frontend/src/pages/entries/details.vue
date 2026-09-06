@@ -14,13 +14,12 @@
       v-else-if="entry"
       class="entry-detail"
     >
-      <view class="entry-hero">
-        <view class="entry-hero__meta">
-          <DialectLabel
-            :dialect="entry.usage_dialect"
-            mode="detail"
-          />
-          <text>{{ statusLabel(entry.status) }}</text>
+      <view
+        class="entry-hero"
+        data-detail-section="meaning"
+      >
+        <view class="entry-hero__eyebrow">
+          词条释义
         </view>
         <view class="entry-hero__title">
           {{ entryTitle(entry) }}
@@ -29,117 +28,119 @@
           {{ entry.summary || '大意待补充' }}
         </view>
         <view
-          v-if="entry.identity_note"
-          class="entry-identity"
+          v-if="entry.senses?.length"
+          class="meaning-block"
         >
-          辨识说明：{{ entry.identity_note }}
-        </view>
-        <view class="entry-hero__counts">
-          <text>{{ entry.recording_count }} 段录音</text>
-          <text>{{ entry.attestation_count }} 次地区确认</text>
-          <text>{{ entry.evidence_count }} 条证据</text>
-        </view>
-        <BaseButton
-          class="bookmark-action"
-          size="small"
-          :variant="entry.is_bookmarked ? 'primary' : 'ghost'"
-          :text="entry.is_bookmarked ? '已收藏' : '收藏词条'"
-          @click="toggleBookmark"
-        />
-        <view
-          v-if="entry.needs_audio"
-          class="needs-audio"
-        >
-          这个词条还没有录音，但它仍是一条有效词条。你可以补上第一段乡音。
-        </view>
-      </view>
-
-      <view
-        v-if="entry.senses?.length"
-        class="detail-section"
-      >
-        <view class="detail-section__title">
-          编号义与用法
-        </view>
-        <view
-          v-for="sense in entry.senses"
-          :key="sense.id"
-          class="sense-row"
-        >
-          <text class="sense-row__number">
-            {{ sense.sense_number }}
-          </text>
-          <view>
-            <view class="sense-row__gloss">
-              {{ sense.gloss }}
-            </view>
-            <view
-              v-if="sense.usage_note"
-              class="sense-row__note"
-            >
-              {{ sense.usage_note }}
-            </view>
-            <view
-              v-if="sense.concepts?.length"
-              class="sense-row__concepts"
-            >
-              关联概念：{{ sense.concepts.map((item) => item.label || item.code).join('、') }}
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <view
-        v-if="entry.writings?.length"
-        class="detail-section"
-      >
-        <view class="detail-section__title">
-          写法
-        </view>
-        <view class="chip-list">
-          <view
-            v-for="writing in entry.writings"
-            :key="writing.id"
-            class="detail-chip"
-          >
-            {{ writing.writing.text }} · {{ writingTypeLabel(writing.writing.form_type) }}
-          </view>
-        </view>
-      </view>
-
-      <view
-        v-if="entry.pronunciation_variants?.length"
-        class="detail-section"
-      >
-        <view class="detail-section__title">
-          地区间读音差异
-        </view>
-        <view
-          v-for="variant in entry.pronunciation_variants"
-          :key="variant.id"
-          class="pronunciation-row"
-        >
-          <view class="pronunciation-row__dialect">
-            <DialectLabel
-              :dialect="variant.dialect"
-              mode="detail"
-            />
-          </view>
-          <view class="pronunciation-row__value">
-            {{ variant.surface_romanization || variant.base_romanization || variant.ipa }}
+          <view class="detail-section__label">
+            分义与用法
           </view>
           <view
-            v-if="variant.ipa"
-            class="pronunciation-row__ipa"
+            v-for="sense in entry.senses"
+            :key="sense.id"
+            class="sense-row"
           >
-            IPA {{ variant.ipa }}
+            <text class="sense-row__number">
+              {{ sense.sense_number }}
+            </text>
+            <view>
+              <view class="sense-row__gloss">
+                {{ sense.gloss }}
+              </view>
+              <view
+                v-if="sense.usage_note"
+                class="sense-row__note"
+              >
+                {{ sense.usage_note }}
+              </view>
+              <view
+                v-if="sense.concepts?.length"
+                class="sense-row__concepts"
+              >
+                关联概念：{{ sense.concepts.map((item) => item.label || item.code).join('、') }}
+              </view>
+            </view>
+          </view>
+        </view>
+        <view
+          v-if="entry.writings?.length"
+          class="writing-block"
+        >
+          <view class="detail-section__label">
+            收录写法
+          </view>
+          <view class="chip-list">
+            <view
+              v-for="writing in entry.writings"
+              :key="writing.id"
+              class="detail-chip"
+            >
+              {{ writing.writing.text }} · {{ writingTypeLabel(writing.writing.form_type) }}
+            </view>
           </view>
         </view>
       </view>
 
-      <view class="detail-section">
+      <view
+        class="detail-section"
+        data-detail-section="pronunciation"
+      >
         <view class="detail-section__heading">
           <view>
+            <view class="detail-section__eyebrow">
+              地方读法
+            </view>
+            <view class="detail-section__title">
+              地区与读音
+            </view>
+          </view>
+          <DialectLabel
+            :dialect="entry.usage_dialect"
+            mode="detail"
+          />
+        </view>
+        <view
+          v-if="entry.pronunciation_variants?.length"
+          class="pronunciation-list"
+        >
+          <view
+            v-for="variant in entry.pronunciation_variants"
+            :key="variant.id"
+            class="pronunciation-row"
+          >
+            <view class="pronunciation-row__dialect">
+              <DialectLabel
+                :dialect="variant.dialect"
+                mode="detail"
+              />
+            </view>
+            <view class="pronunciation-row__value">
+              {{ variant.surface_romanization || variant.base_romanization || variant.ipa }}
+            </view>
+            <view
+              v-if="variant.ipa"
+              class="pronunciation-row__ipa"
+            >
+              IPA {{ variant.ipa }}
+            </view>
+          </view>
+        </view>
+        <view
+          v-else
+          class="detail-section__pending"
+        >
+          这个地区的读音还没整理出来，可以先听下面的乡音。
+        </view>
+      </view>
+
+      <view
+        class="detail-section detail-section--recordings"
+        data-detail-section="recordings"
+      >
+        <view class="detail-section__heading">
+          <view>
+            <view class="detail-section__eyebrow">
+              真实乡音
+            </view>
             <view class="detail-section__title">
               关联录音
             </view>
@@ -147,11 +148,15 @@
               同一词条可有多个地区读音和多段录音。
             </view>
           </view>
-          <BaseButton
-            size="small"
-            text="录下我这边的说法"
-            @click="continueChain"
-          />
+          <view class="recording-count">
+            {{ entry.recording_count }} 段
+          </view>
+        </view>
+        <view
+          v-if="entry.needs_audio"
+          class="needs-audio"
+        >
+          还没有录音，但它仍是一条有效词条。你可以补上第一段乡音。
         </view>
         <EmptyState
           v-if="!recordings.length"
@@ -170,6 +175,95 @@
             :attested="attestedDialects.has(recording.usage_dialect?.id)"
             @attest="attest"
             @continue="continueChain"
+          />
+        </view>
+      </view>
+
+      <view
+        class="detail-section detail-section--evidence"
+        data-detail-section="evidence"
+      >
+        <view class="evidence-heading">
+          <view>
+            <view class="detail-section__eyebrow">
+              资料可信度
+            </view>
+            <view class="detail-section__title">
+              整理状态与证据
+            </view>
+          </view>
+          <view class="status-badge">
+            {{ statusLabel(entry.status) }}
+          </view>
+        </view>
+        <view
+          v-if="entry.identity_note"
+          class="entry-identity"
+        >
+          <text class="entry-identity__label">
+            辨识说明
+          </text>
+          <text>
+            {{ entry.identity_note }}
+          </text>
+        </view>
+        <view class="evidence-metrics">
+          <view class="evidence-metric">
+            <text class="evidence-metric__value">
+              {{ entry.recording_count }}
+            </text>
+            <text>
+              录音
+            </text>
+          </view>
+          <view class="evidence-metric">
+            <text class="evidence-metric__value">
+              {{ entry.attestation_count }}
+            </text>
+            <text>
+              地区确认
+            </text>
+          </view>
+          <view class="evidence-metric">
+            <text class="evidence-metric__value">
+              {{ entry.evidence_count }}
+            </text>
+            <text>
+              文字证据
+            </text>
+          </view>
+        </view>
+        <view class="evidence-note">
+          状态表示目前的整理进度；新录音和地区确认会继续补充这个词条。
+        </view>
+      </view>
+
+      <view
+        class="detail-actions"
+        data-detail-section="actions"
+      >
+        <view>
+          <view class="detail-section__eyebrow">
+            参与共建
+          </view>
+          <view class="detail-section__title">
+            把你听到的说法补进来
+          </view>
+          <view class="detail-section__copy">
+            收藏方便以后再找，也可以录下你所在地区的读法。
+          </view>
+        </view>
+        <view class="detail-actions__buttons">
+          <BaseButton
+            block
+            text="录下我这边的说法"
+            @click="continueChain"
+          />
+          <BaseButton
+            block
+            :variant="entry.is_bookmarked ? 'primary' : 'ghost'"
+            :text="entry.is_bookmarked ? '已收藏' : '收藏词条'"
+            @click="toggleBookmark"
           />
         </view>
       </view>
@@ -310,48 +404,65 @@ export default {
 }
 
 .entry-hero,
-.detail-section {
+.detail-section,
+.detail-actions {
   padding: 28rpx;
   border-radius: var(--radius-lg);
   background: var(--surface-color);
   border: 1rpx solid var(--border-color);
 }
 
-.entry-hero__meta,
-.entry-hero__counts,
-.detail-section__heading {
+.entry-hero {
+  background: var(--accent-subtle-color);
+  border-color: transparent;
+}
+
+.detail-section__heading,
+.evidence-heading {
   display: flex;
   justify-content: space-between;
   gap: 16rpx;
   flex-wrap: wrap;
 }
 
-.entry-hero__meta,
-.entry-hero__counts,
 .detail-section__copy,
 .sense-row__note,
 .sense-row__concepts,
-.pronunciation-row__ipa {
+.pronunciation-row__ipa,
+.evidence-note {
   color: var(--muted-color);
   font-size: 22rpx;
 }
 
+.entry-hero__eyebrow,
+.detail-section__eyebrow,
+.detail-section__label {
+  color: var(--accent-color);
+  font-size: 21rpx;
+  font-weight: 800;
+  letter-spacing: 2rpx;
+}
+
 .entry-hero__title {
-  margin-top: 18rpx;
-  font-size: 48rpx;
+  margin-top: 12rpx;
+  font-family: STSong, SimSun, serif;
+  font-size: 54rpx;
   font-weight: 900;
   overflow-wrap: anywhere;
 }
 
-.entry-hero__summary,
-.entry-identity {
+.entry-hero__summary {
   margin-top: 14rpx;
   color: var(--text-secondary-color);
+  font-size: 30rpx;
   line-height: 1.65;
 }
 
-.entry-hero__counts {
-  margin-top: 20rpx;
+.meaning-block,
+.writing-block {
+  margin-top: 26rpx;
+  padding-top: 22rpx;
+  border-top: 1rpx solid var(--border-color);
 }
 
 .needs-audio {
@@ -363,9 +474,9 @@ export default {
   line-height: 1.6;
 }
 
-.bookmark-action { margin-top: 20rpx; }
-
 .detail-section__title {
+  margin-top: 6rpx;
+  font-family: STSong, SimSun, serif;
   font-size: 30rpx;
   font-weight: 800;
 }
@@ -427,5 +538,88 @@ export default {
 
 .pronunciation-row__ipa {
   grid-column: 2;
+}
+
+.detail-section__pending,
+.entry-identity,
+.evidence-note {
+  margin-top: 22rpx;
+  padding: 20rpx;
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle-color);
+  color: var(--text-secondary-color);
+  line-height: 1.6;
+}
+
+.recording-count,
+.status-badge {
+  align-self: flex-start;
+  padding: 7rpx 14rpx;
+  border-radius: var(--radius-pill);
+  background: var(--accent-subtle-color);
+  color: var(--accent-color);
+  font-size: 21rpx;
+  font-weight: 800;
+}
+
+.recording-list,
+.detail-section--recordings :deep(.empty-state) {
+  margin-top: 22rpx;
+}
+
+.detail-section--recordings :deep(.recording-card) {
+  background: var(--surface-subtle-color);
+}
+
+.evidence-heading {
+  align-items: flex-start;
+}
+
+.entry-identity {
+  display: grid;
+  gap: 8rpx;
+}
+
+.entry-identity__label {
+  color: var(--accent-color);
+  font-size: 22rpx;
+  font-weight: 800;
+}
+
+.evidence-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12rpx;
+  margin-top: 22rpx;
+}
+
+.evidence-metric {
+  display: grid;
+  justify-items: center;
+  gap: 4rpx;
+  padding: 18rpx 8rpx;
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle-color);
+  color: var(--muted-color);
+  font-size: 20rpx;
+  text-align: center;
+}
+
+.evidence-metric__value {
+  color: var(--text-color);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 30rpx;
+  font-weight: 800;
+}
+
+.detail-actions {
+  display: grid;
+  gap: 24rpx;
+  border-color: var(--accent-color);
+}
+
+.detail-actions__buttons {
+  display: grid;
+  gap: 14rpx;
 }
 </style>

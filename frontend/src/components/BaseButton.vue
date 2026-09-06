@@ -14,6 +14,7 @@
     :disabled="disabled"
     :loading="loading"
     :type="type || undefined"
+    :open-type="openType || undefined"
     v-bind="buttonA11y"
     @click="handleClick"
     @tap="handleClick"
@@ -62,6 +63,11 @@ export default {
       type: String,
       default: '',
       validator: (value) => ['', 'submit', 'reset'].includes(value),
+    },
+    openType: {
+      type: String,
+      default: '',
+      validator: (value) => ['', 'share'].includes(value),
     },
   },
   emits: ['click'],
@@ -155,6 +161,11 @@ export default {
 .base-button {
   pointer-events: auto;
   --td-button-border-radius: var(--dress-button-border-radius, var(--radius-pill));
+}
+
+.base-button--ghost {
+  --td-button-primary-outline-active-bg-color: var(--accent-subtle-color);
+  --td-button-primary-outline-active-border-color: var(--accent-color);
 }
 
 .base-button--look-soft {

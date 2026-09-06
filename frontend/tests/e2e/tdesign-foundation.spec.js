@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { stableScreenshot } from './helpers/stableScreenshot';
+import {
+  installVisualFixture,
+  openVisualRoute,
+} from './helpers/visualReviewFixture';
 
 const rect = (locator) => locator.evaluate((element) => {
   const { width, height } = element.getBoundingClientRect();
@@ -10,14 +14,20 @@ test('BaseField stays readable and full width on a 390px mobile viewport', async
   await page.goto('/pages/mails/send');
 
   const labels = page.locator('.t-form__label');
-  await expect(labels).toHaveCount(3);
-  await expect(labels.nth(0)).toContainText('接收者 ID');
+  await expect(labels).toHaveCount(2);
+  await expect(labels.nth(0)).toContainText('标题');
+
+  const recipientSearch = page.locator('.t-search input');
+  await expect(recipientSearch).toBeVisible();
+  await expect(page.getByText('搜索昵称、用户名或用户编号', { exact: true })).toBeVisible();
+  const recipientSearchBox = await rect(page.locator('.t-search__input-box'));
 
   const inputBox = await rect(page.locator('.t-input').first());
   const nativeInputBox = await rect(page.locator('.t-input__control').first());
   const textareaBox = await rect(page.locator('.t-textarea'));
   const nativeTextareaBox = await rect(page.locator('.t-textarea__wrapper-inner'));
 
+  expect(recipientSearchBox.height).toBeGreaterThan(40);
   expect(inputBox.width).toBeGreaterThan(300);
   expect(inputBox.height).toBeGreaterThan(40);
   expect(nativeInputBox.height).toBeGreaterThan(20);
@@ -26,12 +36,44 @@ test('BaseField stays readable and full width on a 390px mobile viewport', async
   expect(nativeTextareaBox.height).toBeGreaterThanOrEqual(80);
 
   await page.locator('[aria-label="提交"]').click();
-  await expect(page.locator('.t-form__item-extra')).toHaveCount(3);
+  await expect(page.locator('.t-form__item-extra')).toHaveCount(2);
+  await expect(page.getByText('请先搜索并选择收件人。')).toBeVisible();
 
   await testInfo.attach('mail-form-light-390x844', {
     body: await stableScreenshot(page, { fullPage: true }),
     contentType: 'image/png',
   });
+});
+
+test('mail composer searches and confirms a recognizable recipient', async ({ page }) => {
+  await page.route('**/users?*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      json: {
+        users: [{
+          id: 12,
+          username: 'lin-local',
+          nickname: '阿林',
+          avatar: '',
+          primary_dialect: { id: 3, name: '莆仙话' },
+        }],
+      },
+    });
+  });
+  await page.goto('/pages/mails/send');
+
+  const recipientSearch = page.locator('.t-search input');
+  await recipientSearch.fill('阿林');
+  await recipientSearch.press('Enter');
+
+  await expect(page.getByText('阿林', { exact: true })).toBeVisible();
+  await expect(page.getByText('@lin-local · 用户 #12 · 莆仙话', { exact: true })).toBeVisible();
+  await page.getByText('阿林', { exact: true }).click();
+
+  await expect(page.locator('.recipient-card')).toContainText('阿林');
+  await expect(page.locator('.recipient-card')).toContainText('@lin-local · 用户 #12 · 莆仙话');
+  await expect(page.getByRole('button', { name: '重新选择收件人' })).toBeVisible();
+  await expect(page.locator('.t-search input')).toHaveCount(0);
 });
 
 test('TDesign theme bridge supplies readable dark form colors', async ({ page }, testInfo) => {
@@ -81,17 +123,16 @@ test('component-level theme-dark recomputes TDesign tokens', async ({ page }) =>
 });
 
 test('recording creation uses a BaseField with a non-zero text area', async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem('token', 'e2e-layout-token');
-    localStorage.setItem('id', '1');
-  });
-  await page.goto('/pages/recordings/create');
+  await installVisualFixture(page, { persona: 'member' });
+  await openVisualRoute(page, '/pages/recordings/create', { persona: 'member' });
 
-  const conceptInput = page.locator('.base-field input').first();
-  await expect(conceptInput).toBeVisible();
-  const conceptInputBox = await rect(conceptInput);
+  const glossField = page.locator('.base-field .t-textarea').first();
+  const glossTextarea = glossField.locator('textarea');
+  await expect(glossField).toBeVisible();
+  await expect(glossTextarea).toBeVisible();
 
-  expect(conceptInputBox.height).toBeGreaterThan(20);
+  expect((await rect(glossField)).height).toBeGreaterThan(80);
+  expect((await rect(glossTextarea)).height).toBeGreaterThan(20);
 });
 
 test('PageShell and AppShell mount the shared feedback host', async ({ page }) => {
@@ -102,9 +143,18 @@ test('PageShell and AppShell mount the shared feedback host', async ({ page }) =
   await expect(page.locator('.feedback-host')).toHaveCount(1);
 });
 
-test('the migrated not-found empty state renders its copy once', async ({ page }) => {
-  await page.goto('/pages/error/not-found');
+test('the not-found page explains the attempted path and offers one recovery route', async ({ page }) => {
+  const attemptedPath = '/shared/dialect/entry/a-very-long-and-unavailable-route';
+  await page.goto(`${attemptedPath}?token=private-value`);
 
-  await expect(page.getByText('您访问的页面不存在，请检查链接是否正确。')).toHaveCount(1);
-  await expect(page.locator('[aria-label="返回首页"]')).toBeVisible();
+  await expect(page).toHaveURL(/pages\/error\/not-found/);
+  await expect(page.getByText('这条路没有找到页面')).toHaveCount(1);
+  await expect(page.getByText(attemptedPath, { exact: true })).toBeVisible();
+  await expect(page.getByText('private-value')).toHaveCount(0);
+
+  const recoveryAction = page.locator('[aria-label="返回首页"]');
+  await expect(recoveryAction).toBeVisible();
+  await expect(page.getByRole('button')).toHaveCount(1);
+  await recoveryAction.click();
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/');
 });

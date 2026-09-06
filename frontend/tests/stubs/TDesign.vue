@@ -1,6 +1,8 @@
 <template>
   <div>
     <slot />
+    <slot name="title" />
+    <slot name="note" />
     <slot name="description" />
     <slot name="action" />
   </div>
@@ -25,6 +27,7 @@ export default {
     maxlength: { type: [String, Number], default: -1 },
     modelValue: { type: [String, Number, Array], default: '' },
     name: { type: String, default: '' },
+    openType: { type: String, default: '' },
     placeholder: { type: String, default: '' },
     readonly: { type: Boolean, default: false },
     requiredMark: { type: Boolean, default: false },

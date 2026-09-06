@@ -46,7 +46,7 @@ describe('theme preference', () => {
     global.uni = {
       $emit: vi.fn(),
       getStorageSync: vi.fn(),
-      getSystemInfoSync: vi.fn(() => ({ theme: 'light' })),
+      getSystemInfoSync: vi.fn(() => ({ theme: 'light', uniPlatform: 'mp-weixin' })),
       setStorageSync: vi.fn(),
     };
     document.documentElement.removeAttribute('data-theme');
@@ -150,6 +150,31 @@ describe('theme preference', () => {
     expect(uni.setBackgroundColor).toHaveBeenLastCalledWith(expect.objectContaining({
       backgroundColor: '#0c1016',
     }));
+  });
+
+  it('keeps H5 theme changes in the document without calling native chrome APIs', () => {
+    uni.getSystemInfoSync.mockReturnValue({ theme: 'light', uniPlatform: 'web' });
+    uni.setNavigationBarColor = vi.fn();
+    uni.setBackgroundColor = vi.fn();
+
+    const result = setAccentPreference('tea');
+
+    expect(result.accent).toBe('tea');
+    expect(document.documentElement.dataset.accent).toBe('tea');
+    expect(uni.setNavigationBarColor).not.toHaveBeenCalled();
+    expect(uni.setBackgroundColor).not.toHaveBeenCalled();
+  });
+
+  it('attaches rejection handlers to optional native chrome calls', () => {
+    const navigationCatch = vi.fn();
+    const backgroundCatch = vi.fn();
+    uni.setNavigationBarColor = vi.fn(() => ({ catch: navigationCatch }));
+    uni.setBackgroundColor = vi.fn(() => ({ catch: backgroundCatch }));
+
+    paintNativeChrome({ accent: 'pine' });
+
+    expect(navigationCatch).toHaveBeenCalledOnce();
+    expect(backgroundCatch).toHaveBeenCalledOnce();
   });
 
   it('persists a selected button style without changing the palette', () => {

@@ -76,4 +76,17 @@ describe('dialect circles', () => {
       url: '/pages/recordings/create?dialect_id=2',
     });
   });
+
+  it('keeps circle context visible when only recordings fail to load', async () => {
+    listCircleRecordings.mockRejectedValueOnce(new Error('录音服务繁忙'));
+    const wrapper = mount(CircleDetails, { global: { stubs: stubs() } });
+    wrapper.vm.circleId = 4;
+
+    await wrapper.vm.loadCircle();
+
+    expect(wrapper.vm.circle).toEqual(circle);
+    expect(wrapper.vm.error).toBe('');
+    expect(wrapper.vm.recordingsError).toBe('录音服务繁忙');
+    expect(wrapper.vm.loadingRecordings).toBe(false);
+  });
 });

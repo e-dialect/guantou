@@ -1,4 +1,6 @@
 import { mount } from '@vue/test-utils';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   beforeEach, describe, expect, it, vi,
 } from 'vitest';
@@ -23,6 +25,11 @@ describe('BaseButton', () => {
   it('forwards recording action icons explicitly on both platforms', () => {
     const wrapper = mount(BaseButton, { props: { icon: 'refresh' } });
     expect(wrapper.getComponent({ name: 'TDesignStub' }).props('icon')).toBe('refresh');
+  });
+
+  it('forwards the mini program share capability explicitly', () => {
+    const wrapper = mount(BaseButton, { props: { openType: 'share' } });
+    expect(wrapper.getComponent({ name: 'TDesignStub' }).props('openType')).toBe('share');
   });
 
   it('omits an empty aria-label so slot text stays the accessible name', () => {
@@ -71,6 +78,19 @@ describe('BaseButton', () => {
       theme: 'danger',
       variant: 'outline',
     });
+  });
+
+  it('keeps ghost active feedback on readable semantic colors', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/components/BaseButton.vue'),
+      'utf8',
+    );
+    expect(source).toContain(
+      '--td-button-primary-outline-active-bg-color: var(--accent-subtle-color);',
+    );
+    expect(source).toContain(
+      '--td-button-primary-outline-active-border-color: var(--accent-color);',
+    );
   });
 
   it('emits click on tap but not when disabled or loading', async () => {
@@ -138,6 +158,24 @@ describe('BaseButton', () => {
 });
 
 describe('BaseField', () => {
+  it('provides a safe per-field form relation when used standalone', () => {
+    const wrapper = mount(BaseField, {
+      props: { name: 'keyword', label: '关键词' },
+    });
+    const relation = wrapper.vm.standaloneFormRelation;
+    const child = { name: 'keyword' };
+
+    expect(relation).toMatchObject({
+      data: {},
+      formData: {},
+      rules: {},
+    });
+    relation.registerChild(child);
+    expect(relation.children).toEqual([child]);
+    relation.unregisterChild('keyword');
+    expect(relation.children).toEqual([]);
+  });
+
   it('wraps a picker trigger without rendering an extra text input', () => {
     const wrapper = mount(BaseField, {
       props: { name: 'dialect', label: '方言点', error: '请选择方言点' },
@@ -260,9 +298,27 @@ describe('TDesign infrastructure primitives', () => {
     const wrapper = mount(EmptyState, {
       props: { title: '还没有内容', actionText: '去创建' },
     });
+    const empty = wrapper.findAllComponents({ name: 'TDesignStub' })[0];
     const button = wrapper.getComponent(BaseButton);
+
+    expect(empty.props('icon')).toBe('');
     button.vm.$emit('click');
     expect(wrapper.emitted('action')).toHaveLength(1);
+  });
+
+  it('keeps empty states content-first with shared spacing tokens', () => {
+    const emptySource = readFileSync(
+      resolve(process.cwd(), 'src/components/EmptyState.vue'),
+      'utf8',
+    );
+    const tokenSource = readFileSync(
+      resolve(process.cwd(), 'src/styles/tokens.scss'),
+      'utf8',
+    );
+
+    expect(emptySource).not.toContain('icon="info-circle"');
+    expect(tokenSource).toContain('--td-empty-description-margin-top: 0;');
+    expect(tokenSource).toContain('--td-empty-action-margin-top: var(--space-3);');
   });
 });
 

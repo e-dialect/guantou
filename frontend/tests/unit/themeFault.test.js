@@ -31,7 +31,7 @@ import {
   themeResourceHealth,
   writeThemeStorage,
 } from '@/services/themeFault';
-import * as themeApi from '@/services/themeApi';
+import { bindThemeRuntimeAdapters } from '@/services/themeRuntime';
 
 vi.mock('@/services/feedback', () => ({
   notify: vi.fn(),
@@ -183,10 +183,16 @@ describe('themeFault', () => {
     };
     uni.setStorageSync('token', 'token');
     uni.setStorageSync(THEME_GUEST_SNAP_KEY, snapshot);
-    vi.spyOn(themeApi, 'pullThemeCloudState').mockRejectedValueOnce(new Error('offline'));
-    const result = await applyThemeMergeChoice('cloud', snapshot);
-    expect(result).toMatchObject({ ok: false, choice: 'cloud', kind: THEME_FAULT_KIND.NETWORK });
-    expect(uni.getStorageSync(THEME_GUEST_SNAP_KEY)).toEqual(snapshot);
+    const restore = bindThemeRuntimeAdapters({
+      pullThemeCloudState: vi.fn().mockRejectedValueOnce(new Error('offline')),
+    });
+    try {
+      const result = await applyThemeMergeChoice('cloud', snapshot);
+      expect(result).toMatchObject({ ok: false, choice: 'cloud', kind: THEME_FAULT_KIND.NETWORK });
+      expect(uni.getStorageSync(THEME_GUEST_SNAP_KEY)).toEqual(snapshot);
+    } finally {
+      restore();
+    }
   });
 
   it('clears local theme keys when switching accounts', async () => {

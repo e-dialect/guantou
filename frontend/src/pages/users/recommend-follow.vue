@@ -2,156 +2,163 @@
   <PageShell
     title="认识一些乡音"
     :show-back="false"
+    content-class="auth-page"
   >
-    <view class="intro-card">
-      <view class="step-mark">
-        方言身份 · 下一步
-      </view>
-      <view class="intro-title">
-        让关注流从乡音开始
-      </view>
-      <view class="intro-copy">
-        主方言已经自动关注。你也可以订阅别的方言，或认识几位真正上传过公开录音的作者。
-      </view>
-      <view
-        v-if="primaryDialect"
-        class="primary-badge"
-      >
-        主方言 · {{ dialectCardLabel(primaryDialect, dialects) }}
-      </view>
-    </view>
-
-    <view
-      v-if="loading"
-      class="loading-shell"
+    <AuthJourney
+      eyebrow="身份设置已完成"
+      mark="听"
+      title="让关注流从乡音开始"
+      lead="主方言已经自动关注。再选一些地区或真实贡献者，就能听见更贴近你的乡音。"
     >
-      <BaseLoading text="正在读取方言与作者…" />
-    </view>
-    <EmptyState
-      v-else-if="loadError"
-      title="推荐加载失败"
-      description="方言和作者推荐没有读出来。重试一次，或直接进入首页——主方言订阅已生效。"
-      action-text="重新加载"
-      @action="loadRecommendations"
-    />
-    <template v-else>
-      <view class="section-card">
-        <view class="section-kicker">
-          关注方言
+      <template #hero>
+        <view
+          v-if="primaryDialect"
+          class="primary-badge"
+        >
+          主方言 · {{ dialectCardLabel(primaryDialect, dialects) }}
         </view>
-        <view class="section-title">
-          还想听哪些地方的乡音？
-        </view>
-        <view class="followed-dialects">
-          <view
-            v-for="dialect in selectedDialects"
-            :key="dialect.id"
-            class="dialect-row selected"
-            @tap="toggleDialect(dialect.id)"
-          >
-            <view class="choice-mark">
-              ●
-            </view>
-            <view class="dialect-copy">
-              <view class="dialect-name">
-                {{ dialectCardLabel(dialect, dialects) }}
-              </view>
-              <view class="dialect-path">
-                {{ dialectBreadcrumb(dialect, dialects) }}
-              </view>
-            </view>
+      </template>
+
+      <view
+        v-if="loading"
+        class="loading-shell"
+      >
+        <BaseLoading text="正在读取方言与作者…" />
+      </view>
+      <EmptyState
+        v-else-if="loadError"
+        title="推荐加载失败"
+        description="方言和作者推荐没有读出来。重试一次，或直接进入首页——主方言订阅已生效。"
+        action-text="重新加载"
+        @action="loadRecommendations"
+      />
+      <template v-else>
+        <view class="follow-section">
+          <view class="section-kicker">
+            关注方言
+          </view>
+          <view class="section-title">
+            还想听哪些地方的乡音？
+          </view>
+          <view class="followed-dialects">
             <view
-              v-if="dialect.id === primaryDialect?.id"
-              class="locked-mark"
+              v-for="dialect in selectedDialects"
+              :key="dialect.id"
+              class="dialect-row selected"
+              @tap="toggleDialect(dialect.id)"
             >
-              主方言
+              <view class="choice-mark">
+                ●
+              </view>
+              <view class="dialect-copy">
+                <view class="dialect-name">
+                  {{ dialectCardLabel(dialect, dialects) }}
+                </view>
+                <view class="dialect-path">
+                  {{ dialectBreadcrumb(dialect, dialects) }}
+                </view>
+              </view>
+              <view
+                v-if="dialect.id === primaryDialect?.id"
+                class="locked-mark"
+              >
+                主方言
+              </view>
+              <view
+                v-else
+                class="locked-mark"
+              >
+                移除
+              </view>
             </view>
+            <BaseButton
+              block
+              variant="ghost"
+              text="逐级添加关注地区"
+              @click="dialectPickerOpen = true"
+            />
+          </view>
+        </view>
+
+        <DialectSelector
+          v-model:visible="dialectPickerOpen"
+          :dialects="dialects"
+          :default-dialect="primaryDialect"
+          :owner-scope="ownerScope"
+          title="添加关注地区"
+          @change="addDialect"
+        />
+
+        <view class="follow-section creator-section">
+          <view class="section-kicker">
+            真实贡献者
+          </view>
+          <view class="section-title">
+            同方言作者
+          </view>
+          <view class="section-hint">
+            只推荐有公开录音的真实用户，不足时不会用演示账号补位。
+          </view>
+          <EmptyState
+            v-if="!candidates.length"
+            title="暂时没有可推荐的同方言作者"
+            description="主方言订阅已经生效，可以直接进入首页认识更多乡音。"
+            action-text="进入首页"
+            @action="skip"
+          />
+          <view
+            v-for="candidate in candidates"
+            :key="candidate.id"
+            :class="['creator-row', isAuthorSelected(candidate.id) ? 'selected' : '']"
+            @tap="toggleAuthor(candidate.id)"
+          >
+            <image
+              v-if="candidate.avatar"
+              class="creator-avatar"
+              :src="candidate.avatar"
+              mode="aspectFill"
+            />
             <view
               v-else
-              class="locked-mark"
+              class="creator-avatar creator-avatar--fallback"
+              aria-hidden="true"
             >
-              移除
+              {{ authorMark(candidate) }}
+            </view>
+            <view class="creator-copy">
+              <view class="creator-name">
+                {{ candidate.nickname || candidate.username }}
+              </view>
+              <view class="creator-meta">
+                {{ dialectCardLabel(candidate.primary_dialect, dialects) }}
+                · {{ candidate.public_recording_count }} 段公开乡音
+              </view>
+            </view>
+            <view class="creator-check">
+              {{ isAuthorSelected(candidate.id) ? '已选' : '选择' }}
             </view>
           </view>
-          <BaseButton
-            block
-            variant="ghost"
-            text="逐级添加关注地区"
-            @click="dialectPickerOpen = true"
-          />
         </view>
-      </view>
+      </template>
 
-      <DialectSelector
-        v-model:visible="dialectPickerOpen"
-        :dialects="dialects"
-        :default-dialect="primaryDialect"
-        :owner-scope="ownerScope"
-        title="添加关注地区"
-        @change="addDialect"
-      />
-
-      <view class="section-card creator-section">
-        <view class="section-kicker">
-          真实贡献者
-        </view>
-        <view class="section-title">
-          同方言作者
-        </view>
-        <view class="section-hint">
-          只推荐有公开录音的真实用户，不足时不会用演示账号补位。
-        </view>
-        <EmptyState
-          v-if="!candidates.length"
-          title="暂时没有可推荐的同方言作者"
-          description="主方言订阅已经生效，可以直接进入首页认识更多乡音。"
-          action-text="进入首页"
-          @action="skip"
-        />
-        <view
-          v-for="candidate in candidates"
-          :key="candidate.id"
-          :class="['creator-row', isAuthorSelected(candidate.id) ? 'selected' : '']"
-          @tap="toggleAuthor(candidate.id)"
+      <view class="actions">
+        <BaseButton
+          block
+          variant="ghost"
+          :disabled="saving"
+          @click="skip"
         >
-          <image
-            class="creator-avatar"
-            :src="candidate.avatar"
-            mode="aspectFill"
-          />
-          <view class="creator-copy">
-            <view class="creator-name">
-              {{ candidate.nickname || candidate.username }}
-            </view>
-            <view class="creator-meta">
-              {{ dialectCardLabel(candidate.primary_dialect, dialects) }}
-              · {{ candidate.public_recording_count }} 段公开乡音
-            </view>
-          </view>
-          <view class="creator-check">
-            {{ isAuthorSelected(candidate.id) ? '已选' : '选择' }}
-          </view>
-        </view>
+          暂时跳过
+        </BaseButton>
+        <BaseButton
+          block
+          :disabled="saving"
+          @click="save"
+        >
+          {{ saving ? '正在保存…' : actionText }}
+        </BaseButton>
       </view>
-    </template>
-
-    <view class="actions">
-      <BaseButton
-        block
-        variant="ghost"
-        :disabled="saving"
-        @click="skip"
-      >
-        暂时跳过
-      </BaseButton>
-      <BaseButton
-        block
-        :disabled="saving"
-        @click="save"
-      >
-        {{ saving ? '正在保存…' : actionText }}
-      </BaseButton>
-    </view>
+    </AuthJourney>
   </PageShell>
 </template>
 
@@ -161,6 +168,7 @@ import BaseButton from '@/components/BaseButton.vue';
 import BaseLoading from '@/components/BaseLoading.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import DialectSelector from '@/components/DialectSelector.vue';
+import AuthJourney from '@/pages/login/components/AuthJourney.vue';
 import { goOnboarding } from '@/services/navigation';
 import { toIndexPage } from '@/routers';
 import {
@@ -174,7 +182,7 @@ import { dialectBreadcrumb, dialectCardLabel } from '@/utils/dialectTree';
 
 export default {
   components: {
-    PageShell, BaseButton, BaseLoading, DialectSelector, EmptyState,
+    AuthJourney, PageShell, BaseButton, BaseLoading, DialectSelector, EmptyState,
   },
   data() {
     const user = getApp().globalData.userInfo || {};
@@ -219,6 +227,10 @@ export default {
   methods: {
     dialectBreadcrumb,
     dialectCardLabel,
+    authorMark(candidate = {}) {
+      const label = String(candidate.nickname || candidate.username || '乡').trim();
+      return label.slice(0, 1) || '乡';
+    },
     async loadRecommendations() {
       this.loading = true;
       this.loadError = false;
@@ -305,30 +317,11 @@ export default {
 </script>
 
 <style scoped>
-.intro-card,
-.section-card {
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-lg);
-  background: var(--surface-color);
-  padding: 28rpx;
-}
-
-.section-card {
-  margin-top: 22rpx;
-}
-
-.step-mark,
 .section-kicker {
   color: var(--accent-color);
   font-size: 22rpx;
   font-weight: 800;
   letter-spacing: 4rpx;
-}
-
-.intro-title {
-  margin-top: 14rpx;
-  font-size: 44rpx;
-  font-weight: 900;
 }
 
 .section-title {
@@ -337,7 +330,6 @@ export default {
   font-weight: 800;
 }
 
-.intro-copy,
 .section-hint {
   margin-top: 12rpx;
   color: var(--text-secondary-color);
@@ -357,11 +349,18 @@ export default {
   display: inline-flex;
   margin-top: 20rpx;
   padding: 9rpx 18rpx;
+  border: 1rpx solid var(--immersive-border-color);
   border-radius: var(--radius-pill);
-  background: var(--accent-subtle-color);
-  color: var(--accent-color);
+  background: var(--immersive-surface-color);
+  color: var(--immersive-accent-color);
   font-size: 24rpx;
   font-weight: 800;
+}
+
+.follow-section + .follow-section {
+  margin-top: 30rpx;
+  padding-top: 28rpx;
+  border-top: 1rpx solid var(--border-color);
 }
 
 .dialect-list {
@@ -442,16 +441,32 @@ export default {
 }
 
 .creator-avatar {
+  flex: 0 0 auto;
   width: 74rpx;
   height: 74rpx;
+  border: 1rpx solid var(--border-color);
   border-radius: 50%;
   background: var(--surface-subtle-color);
+  box-sizing: border-box;
+}
+
+.creator-avatar--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-color);
+  color: var(--accent-color);
+  font-family: STSong, SimSun, serif;
+  font-size: 30rpx;
+  font-weight: 900;
 }
 
 .actions {
   display: grid;
   grid-template-columns: 0.8fr 1.4fr;
   gap: 14rpx;
-  padding-bottom: 34rpx;
+  margin-top: 30rpx;
+  padding-top: 28rpx;
+  border-top: 1rpx solid var(--border-color);
 }
 </style>

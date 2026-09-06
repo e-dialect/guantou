@@ -1,65 +1,109 @@
 <template>
   <PageShell
     :title="circle ? circle.name : '方言圈'"
-    :scroll="false"
     content-class="circle-detail-content"
-    :action-text="circle ? (circle.is_member ? '退出' : '加入') : ''"
-    @action="toggleMembership"
   >
-    <view
-      v-if="circle"
-      class="circle-header"
-    >
-      <view class="description">
-        {{ circle.description || `一起记录${circle.dialect.name}乡音。` }}
-      </view>
-      <view class="meta">
-        {{ circle.member_count }} 位成员 · {{ circle.recording_count }} 段公开录音
-      </view>
-      <BaseButton
-        class="record-button"
-        block
-        :text="`录一段${circle.dialect.name}乡音`"
-        @click="recordHere"
-      />
-    </view>
     <BaseLoading
-      v-if="circle && loadingRecordings"
-      text="正在寻找圈内乡音…"
+      v-if="loadingCircle"
+      text="正在进入方言圈…"
     />
     <EmptyState
-      v-else-if="circle && !recordings.length"
-      title="圈里还没有公开录音"
-      description="录下第一段乡音，邀请同乡一起补充词条和地区差异。"
-      action-text="录第一段"
-      @action="recordHere"
-    />
-    <scroll-view
-      v-else-if="circle"
-      scroll-y
-      class="recording-list"
-    >
-      <EntryRecordingCard
-        v-for="recording in recordings"
-        :key="recording.id"
-        :recording="recording"
-        @open-entry="goEntryDetail"
-        @continue="continueChain"
-      />
-    </scroll-view>
-    <view
       v-else-if="error"
-      class="state error"
-      hover-class="state--pressed"
-      @tap="loadCircle"
-    >
-      {{ error }}，点此重试
-    </view>
+      :title="error"
+      description="检查网络后再试，或返回方言圈广场选择其他地区。"
+      action-text="重新加载"
+      @action="loadCircle"
+    />
     <view
-      v-else
-      class="state"
+      v-else-if="circle"
+      class="circle-detail"
     >
-      正在加载方言圈…
+      <view class="circle-hero">
+        <view class="circle-hero__heading">
+          <view>
+            <view class="circle-hero__eyebrow">
+              地区圈
+            </view>
+            <view class="circle-hero__dialect">
+              {{ circle.dialect.name }}
+            </view>
+          </view>
+          <view
+            v-if="circle.is_member"
+            class="membership-badge"
+          >
+            已加入
+          </view>
+        </view>
+        <view class="circle-hero__description">
+          {{ circle.description || `一起记录${circle.dialect.name}乡音。` }}
+        </view>
+        <view class="circle-hero__stats">
+          <text>{{ circle.member_count }} 位成员</text>
+          <text>{{ circle.recording_count }} 段公开录音</text>
+        </view>
+        <BaseButton
+          class="membership-action"
+          size="small"
+          variant="ghost"
+          :disabled="membershipBusy"
+          :loading="membershipBusy"
+          :text="circle.is_member ? '退出这个圈子' : '加入这个圈子'"
+          @click="toggleMembership"
+        />
+      </view>
+
+      <view class="recording-section">
+        <view class="recording-section__heading">
+          <view>
+            <view class="recording-section__eyebrow">
+              真实乡音
+            </view>
+            <view class="recording-section__title">
+              圈内录音
+            </view>
+            <view class="recording-section__copy">
+              每段录音保留自己的地区、读音和词条关联。
+            </view>
+          </view>
+          <BaseButton
+            v-if="recordings.length && !loadingRecordings && !recordingsError"
+            size="small"
+            text="录一段"
+            @click="recordHere"
+          />
+        </view>
+        <BaseLoading
+          v-if="loadingRecordings"
+          text="正在寻找圈内乡音…"
+        />
+        <EmptyState
+          v-else-if="recordingsError"
+          :title="recordingsError"
+          description="圈子资料已经载入，可以只重新获取公开录音。"
+          action-text="重新获取录音"
+          @action="loadRecordings"
+        />
+        <EmptyState
+          v-else-if="!recordings.length"
+          title="圈里还没有公开录音"
+          description="录下第一段乡音，邀请同乡一起补充词条和地区差异。"
+          action-text="录第一段"
+          @action="recordHere"
+        />
+        <view
+          v-else
+          class="recording-list"
+        >
+          <EntryRecordingCard
+            v-for="recording in recordings"
+            :key="recording.id"
+            :recording="recording"
+            @open-entry="goEntryDetail"
+            @continue="continueChain"
+          />
+        </view>
+      </view>
     </view>
   </PageShell>
 </template>
@@ -83,7 +127,14 @@ export default {
   },
   data() {
     return {
-      circle: null, circleId: null, error: '', recordings: [], loadingRecordings: false,
+      circle: null,
+      circleId: null,
+      error: '',
+      loadingCircle: true,
+      loadingRecordings: false,
+      membershipBusy: false,
+      recordings: [],
+      recordingsError: '',
     };
   },
   onLoad(options) {
@@ -92,20 +143,28 @@ export default {
   },
   methods: {
     async loadCircle() {
+      this.loadingCircle = true;
       this.error = '';
       try {
         this.circle = await getCircle(this.circleId);
+        this.loadingCircle = false;
         await this.loadRecordings();
       } catch (error) {
         this.error = error.message || '方言圈加载失败';
+      } finally {
+        this.loadingCircle = false;
       }
     },
     async loadRecordings() {
       this.loadingRecordings = true;
+      this.recordingsError = '';
       try {
         this.recordings = pageResults(await listCircleRecordings(this.circleId, {
           page_size: 50,
         }));
+      } catch (error) {
+        this.recordings = [];
+        this.recordingsError = error.message || '圈内录音暂时无法读取';
       } finally {
         this.loadingRecordings = false;
       }
@@ -113,10 +172,16 @@ export default {
     async toggleMembership() {
       if (!this.circle) return;
       if (!requireAuth('circle_join', { page: 'circle_detail', circleId: this.circle.id })) return;
-      const result = this.circle.is_member
-        ? await leaveCircle(this.circle.id)
-        : await joinCircle(this.circle.id);
-      this.circle = { ...this.circle, ...result };
+      if (this.membershipBusy) return;
+      this.membershipBusy = true;
+      try {
+        const result = this.circle.is_member
+          ? await leaveCircle(this.circle.id)
+          : await joinCircle(this.circle.id);
+        this.circle = { ...this.circle, ...result };
+      } finally {
+        this.membershipBusy = false;
+      }
     },
     recordHere() {
       if (!requireAuth('record_recording', {
@@ -139,60 +204,102 @@ export default {
 
 <style scoped>
 :deep(.circle-detail-content) {
-  display: flex;
-  height: calc(100vh - 96rpx);
-  min-height: 0;
-  flex-direction: column;
   padding: var(--space-3) 28rpx var(--space-5);
 }
 
-.circle-header {
-  flex: 0 0 auto;
-  margin-bottom: var(--space-3);
-  padding: var(--space-3);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: var(--accent-subtle-color);
+.circle-detail,
+.recording-list {
+  display: grid;
+  gap: var(--space-3);
 }
 
-.description {
+.circle-hero,
+.recording-section {
+  padding: var(--space-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+
+.circle-hero {
+  background: var(--accent-subtle-color);
+  border-color: transparent;
+}
+
+.circle-hero__heading,
+.circle-hero__stats,
+.recording-section__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.circle-hero__eyebrow,
+.recording-section__eyebrow {
+  color: var(--accent-color);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  letter-spacing: 2rpx;
+}
+
+.circle-hero__dialect,
+.recording-section__title {
+  margin-top: 4rpx;
+  color: var(--text-color);
+  font-family: STSong, SimSun, serif;
+  font-size: var(--font-size-xl);
+  font-weight: 900;
+}
+
+.circle-hero__description {
+  margin-top: var(--space-2);
   color: var(--text-secondary-color);
+  line-height: 1.65;
+}
+
+.circle-hero__stats {
+  justify-content: flex-start;
+  margin-top: var(--space-2);
+}
+
+.circle-hero__stats text,
+.membership-badge {
+  padding: 6rpx 12rpx;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle-color);
+  color: var(--muted-color);
+  font-size: 22rpx;
+}
+
+.membership-badge {
+  background: var(--surface-color);
+  color: var(--accent-color);
+  font-weight: 700;
+}
+
+.membership-action {
+  margin-top: var(--space-3);
+}
+
+.recording-section {
+  background: var(--surface-color);
+}
+
+.recording-section__copy {
+  margin-top: var(--space-1);
+  color: var(--muted-color);
+  font-size: var(--font-size-sm);
   line-height: 1.55;
 }
 
-.meta {
-  margin-top: var(--space-1);
-  color: var(--muted-color);
-  font-size: var(--font-size-xs);
-}
-
-.record-button { margin-top: var(--space-3); }
-
+.recording-section > :deep(.base-loading),
+.recording-section > :deep(.empty-state),
 .recording-list {
-  min-height: 0;
-  flex: 1;
+  margin-top: var(--space-3);
 }
 
-.recording-list :deep(.recording-card) { margin-bottom: var(--space-3); }
-
-.state {
-  padding: 80rpx var(--space-3);
-  color: var(--muted-color);
-  text-align: center;
-  transition: opacity 0.15s ease;
-}
-
-.state.error {
-  color: var(--danger-color);
-}
-
-.state--pressed {
-  opacity: 0.7;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .state {
-    transition: none;
-  }
+.recording-list :deep(.recording-card) {
+  background: var(--surface-subtle-color);
 }
 </style>

@@ -8,9 +8,14 @@ vi.mock('@/services/navigation', async (importOriginal) => {
   return {
     ...actual,
     goBack: vi.fn(),
+    goCircleList: vi.fn(),
+    goContributionHistory: vi.fn(),
+    goEntryBookmarks: vi.fn(),
     goHome: vi.fn(),
     goLogin: vi.fn(),
     goMailSend: vi.fn(),
+    goSearch: vi.fn(),
+    goThemeCenter: vi.fn(),
     goUserEmail: vi.fn(),
     goUserInformation: vi.fn(),
   };
@@ -111,7 +116,19 @@ vi.mock('@/components/ConfirmDialog', () => ({
   default: vi.fn(async () => true),
 }));
 
-import { goBack, goHome, goLogin, goMailSend, goUserEmail, goUserInformation } from '@/services/navigation';
+import {
+  goBack,
+  goCircleList,
+  goContributionHistory,
+  goEntryBookmarks,
+  goHome,
+  goLogin,
+  goMailSend,
+  goSearch,
+  goThemeCenter,
+  goUserEmail,
+  goUserInformation,
+} from '@/services/navigation';
 import { notify, notifySuccess } from '@/services/feedback';
 import { bindingWechat, cancelBindingWechat, clearUserInfo, changeUserInfo, getUserInfo } from '@/services/user';
 import request from '@/utils/request';
@@ -139,6 +156,8 @@ const accountPages = [
   'src/pages/users/settings/email.vue',
   'src/pages/users/settings/password.vue',
   'src/pages/users/settings/telephone.vue',
+  'src/pages/users/settings/components/AccountSettingPanel.vue',
+  'src/pages/users/recommend-follow.vue',
   'src/pages/users/theme-center.vue',
   'src/pages/users/theme-dress.vue',
   'src/pages/users/theme-acquire.vue',
@@ -146,6 +165,7 @@ const accountPages = [
   'src/pages/users/theme-event.vue',
   'src/components/ThemeShareSheet.vue',
   'src/components/ThemeLivePreview.vue',
+  'src/components/ThemeJourneyIntro.vue',
 ];
 
 const { default: NicknamePage } = await import('@/pages/users/settings/nickname.vue');
@@ -159,6 +179,15 @@ function mountForm(Page) {
       stubs: {
         PageShell: { template: '<main><slot /></main>' },
         AppShell: { template: '<main><slot /></main>' },
+        TCell: {
+          name: 'TCell',
+          props: [
+            'title', 'description', 'note', 'arrow', 'hover', 'bordered',
+            'customStyle', 'ariaLabel',
+          ],
+          emits: ['click'],
+          template: '<button class="t-cell-stub" @click="$emit(\'click\')">{{ title }} {{ note }}</button>',
+        },
         SectionBlock: { template: '<section><slot /></section>' },
         BaseForm: {
           name: 'BaseForm',
@@ -186,6 +215,8 @@ describe('account UI tokens', () => {
       resolve(process.cwd(), 'src/pages/users/me.vue'),
       'utf8',
     );
+    expect(source).toContain('class="account-page"');
+    expect(source).not.toContain('class="page"');
     expect(source).toContain('编辑资料');
     expect(source).toContain('乡声号');
     expect(source).toContain('录乡音');
@@ -248,6 +279,32 @@ describe('account UI tokens', () => {
     expect(source).not.toContain('type="nickname"');
     expect(source).not.toContain('微信头像和聊天记录需要在小程序里使用');
     expect(source).not.toContain('将会默认公开');
+  });
+
+  it('keeps the identity journey and account settings on one visual language', () => {
+    const compactSettingPages = [
+      'src/pages/users/settings/username.vue',
+      'src/pages/users/settings/nickname.vue',
+      'src/pages/users/settings/email.vue',
+      'src/pages/users/settings/password.vue',
+      'src/pages/users/settings/telephone.vue',
+    ];
+    compactSettingPages.forEach((relativePath) => {
+      const source = readFileSync(resolve(process.cwd(), relativePath), 'utf8');
+      expect(source, relativePath).toContain('AccountSettingPanel');
+    });
+
+    const recommendations = readFileSync(
+      resolve(process.cwd(), 'src/pages/users/recommend-follow.vue'),
+      'utf8',
+    );
+    const information = readFileSync(
+      resolve(process.cwd(), 'src/pages/users/settings/information.vue'),
+      'utf8',
+    );
+    expect(recommendations).toContain('AuthJourney');
+    expect(recommendations).toContain('creator-avatar--fallback');
+    expect(information).toContain('hero-avatar--fallback');
   });
 });
 
@@ -377,7 +434,17 @@ describe('user details page', () => {
 
   it('renders inside PageShell', () => {
     const wrapper = mountForm(UserDetailsPage);
-    expect(wrapper.html()).toContain('正在读取用户档案');
+    expect(wrapper.findComponent({ name: 'BaseLoading' }).props('text'))
+      .toBe('正在读取用户档案…');
+  });
+
+  it('uses a readable avatar fallback and keyboard-selectable contribution tabs', () => {
+    const wrapper = mountForm(UserDetailsPage);
+    wrapper.vm.userInfo.user.nickname = '采集者';
+
+    expect(wrapper.vm.profileInitial).toBe('采');
+    wrapper.vm.selectWorksTab('entries');
+    expect(wrapper.vm.worksTab).toBe('entries');
   });
 
   it('switches works tabs and treats a non-zero public count as a filled panel', () => {
@@ -457,6 +524,77 @@ describe('mine page logout', () => {
       $off: vi.fn(),
       $emit: vi.fn(),
     };
+  });
+
+  it('uses three TDesign cells for the guest destinations', async () => {
+    app.globalData.id = null;
+    globalThis.uni.getStorageSync = vi.fn(() => '');
+    const wrapper = mountForm(MePage);
+    await flushPromises();
+
+    expect(wrapper.find('.guest-profile').exists()).toBe(true);
+    const shortcuts = wrapper.get('.guest-shortcuts').findAllComponents({ name: 'TCell' });
+    expect(shortcuts).toHaveLength(2);
+    expect(shortcuts[0].props()).toMatchObject({
+      title: '听乡音',
+      description: '先逛逛',
+      ariaLabel: '先去听乡音',
+    });
+    expect(shortcuts[1].props()).toMatchObject({
+      title: '查词条',
+      description: '找一找',
+      ariaLabel: '先去查词条',
+    });
+    const theme = wrapper.get('.guest-theme').getComponent({ name: 'TCell' });
+    expect(theme.props()).toMatchObject({
+      title: '主题中心',
+      note: '默认方言主题',
+      ariaLabel: '打开主题中心，当前 默认方言主题',
+    });
+
+    await shortcuts[0].trigger('click');
+    await shortcuts[1].trigger('click');
+    await theme.trigger('click');
+    expect(goHome).toHaveBeenCalledTimes(1);
+    expect(goSearch).toHaveBeenCalledTimes(1);
+    expect(goThemeCenter).toHaveBeenCalledTimes(1);
+    app.globalData.id = 7;
+  });
+
+  it('uses a stable avatar fallback and keeps both avatar branches editable', async () => {
+    getUserInfo.mockResolvedValueOnce({
+      user: {
+        id: 7,
+        avatar: '',
+        nickname: '采集者',
+        username: 'collector',
+        email: '',
+        wechat: false,
+      },
+      contribution: { recordings_total: 0, entries_total: 0, senses_total: 0 },
+      notification: { statistics: { unread: 0 } },
+    });
+    const wrapper = mountForm(MePage);
+    await flushPromises();
+
+    expect(wrapper.find('.avatar--fallback').text()).toBe('采');
+    expect(wrapper.find('.avatar--image').exists()).toBe(false);
+    await wrapper.find('.avatar--fallback').trigger('tap');
+    expect(goUserInformation).toHaveBeenCalledTimes(1);
+
+    wrapper.vm.nickname = '  ';
+    wrapper.vm.username = 'collector';
+    expect(wrapper.vm.avatarFallback).toBe('c');
+    wrapper.vm.username = '  ';
+    expect(wrapper.vm.avatarFallback).toBe('乡');
+
+    wrapper.vm.avatar = '/avatar.png';
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.avatar--fallback').exists()).toBe(false);
+    expect(wrapper.find('.avatar--image').attributes('src')).toBe('/avatar.png');
+    expect(wrapper.find('.avatar--image').attributes('mode')).toBe('aspectFill');
+    await wrapper.find('.avatar--image').trigger('tap');
+    expect(goUserInformation).toHaveBeenCalledTimes(2);
   });
 
   it('confirms before leaving the account', async () => {
@@ -540,6 +678,59 @@ describe('mine page logout', () => {
     wrapper.vm.recordingsCount = 3;
     wrapper.vm.worksTab = 'recordings';
     expect(wrapper.vm.worksPanelTitle).toBe('留下 3 段录音');
+  });
+
+  it('keeps profile stats read-only and one contribution entry surface', async () => {
+    getUserInfo.mockResolvedValueOnce({
+      user: {
+        id: 7,
+        avatar: '',
+        nickname: '采集者',
+        username: 'collector',
+        email: '',
+        wechat: false,
+        followed_dialects: [{ id: 3, name: '莆仙方言' }],
+      },
+      contribution: {
+        recordings_total: 12,
+        entries_total: 5,
+        senses_total: 8,
+        evidence: 7,
+      },
+      notification: { statistics: { unread: 0 } },
+    });
+    const wrapper = mountForm(MePage);
+    await flushPromises();
+
+    expect(wrapper.findAll('.social-stat')).toHaveLength(3);
+    expect(wrapper.find('.social-stat.pressable').exists()).toBe(false);
+    expect(wrapper.find('.tool-grid').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('既有录音');
+    expect(wrapper.text()).not.toContain('查看完整贡献履历');
+    expect(wrapper.get('[role="tablist"]').attributes('aria-label')).toBe('贡献类型');
+
+    const tabs = wrapper.findAll('[role="tab"]');
+    expect(tabs).toHaveLength(3);
+    await tabs[1].trigger('keydown', { key: 'Enter' });
+    expect(wrapper.vm.worksTab).toBe('entries');
+
+    const archiveCells = wrapper.get('.archive-menu').findAllComponents({ name: 'TCell' });
+    expect(archiveCells).toHaveLength(2);
+    expect(archiveCells[0].props()).toMatchObject({
+      title: '词条收藏',
+      note: '仅自己可见',
+    });
+    expect(archiveCells[1].props()).toMatchObject({
+      title: '关注方言',
+      note: '1 个',
+    });
+    await archiveCells[0].trigger('click');
+    await archiveCells[1].trigger('click');
+    expect(goEntryBookmarks).toHaveBeenCalledTimes(1);
+    expect(goCircleList).toHaveBeenCalledTimes(1);
+
+    wrapper.vm.toContributionHistory();
+    expect(goContributionHistory).toHaveBeenCalledTimes(1);
   });
 
   it('loads the archive from a stored id before App hydrates globalData', async () => {

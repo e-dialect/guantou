@@ -3,82 +3,90 @@
     :title="pageTitle"
     :back-fallback="ROUTES.home"
   >
-    <view
+    <BaseLoading
       v-if="loading"
-      class="state-card"
-    >
-      正在读取用户档案…
-    </view>
-    <view
+      text="正在读取用户档案…"
+    />
+    <EmptyState
       v-else-if="loadError"
-      class="state-card"
-    >
-      <view>{{ loadError }}</view>
-      <BaseButton
-        class="state-action"
-        block
-        @click="getInfo"
-      >
-        重试
-      </BaseButton>
-    </view>
+      :title="loadError"
+      :description="id ? '检查网络后再试，已打开的用户编号会保留。' : '请从主页、方言圈或消息重新进入用户档案。'"
+      :action-text="id ? '重新加载' : '返回听乡音'"
+      @action="handleLoadError"
+    />
     <template v-else>
-      <view class="hero">
-        <image
-          class="avatar"
-          :src="userInfo.user.avatar"
-          mode="aspectFill"
-        />
-        <view class="hero-copy">
-          <view class="name">
-            {{ userInfo.user.nickname || userInfo.user.username }}
+      <view
+        class="profile-overview"
+        data-profile-section="overview"
+      >
+        <view class="hero">
+          <image
+            v-if="userInfo.user.avatar"
+            class="avatar"
+            :src="userInfo.user.avatar"
+            mode="aspectFill"
+          />
+          <view
+            v-else
+            class="avatar avatar--fallback"
+            aria-hidden="true"
+          >
+            {{ profileInitial }}
           </view>
-          <view class="handle">
-            乡声号 {{ userInfo.user.username || '未设置' }}
-          </view>
-          <view class="bio">
-            {{ bioText }}
-          </view>
-          <view class="meta-row">
-            <view
-              v-if="userInfo.user.primary_dialect"
-              class="dialect-badge"
-            >
-              {{ locationText }}
+          <view class="hero-copy">
+            <view class="profile-eyebrow">
+              乡友档案
             </view>
-            <view
-              v-else
-              class="meta"
-            >
-              未填写方言点
+            <view class="name">
+              {{ userInfo.user.nickname || userInfo.user.username }}
+            </view>
+            <view class="handle">
+              乡声号 {{ userInfo.user.username || '未设置' }}
+            </view>
+            <view class="bio">
+              {{ bioText }}
+            </view>
+            <view class="meta-row">
+              <view
+                v-if="userInfo.user.primary_dialect"
+                class="dialect-badge"
+              >
+                {{ locationText }}
+              </view>
+              <view
+                v-else
+                class="meta"
+              >
+                未填写方言点
+              </view>
             </view>
           </view>
         </view>
-      </view>
 
-      <view class="social-stats">
-        <view class="social-stat">
-          <view class="number">
-            {{ displayRecordingsCount }}
+        <view class="social-stats">
+          <view class="social-stat">
+            <view class="number">
+              {{ displayRecordingsCount }}
+            </view>
+            <view class="label">
+              录音
+            </view>
           </view>
-          <view class="label">
-            录音
+          <view class="social-stat">
+            <view class="number">
+              {{ userInfo.user.following_count }}
+            </view>
+            <view class="label">
+              关注
+            </view>
           </view>
-        </view>
-        <view class="social-stat">
-          <view class="number">
-            {{ userInfo.user.following_count }}
-          </view>
-          <view class="label">
-            关注
-          </view>
-        </view>
-        <view class="social-stat">
-          <view class="number">
-            {{ userInfo.user.follower_count }}
-          </view>
-          <view class="label">
-            粉丝
+          <view class="social-stat">
+            <view class="number">
+              {{ userInfo.user.follower_count }}
+            </view>
+            <view class="label">
+              粉丝
+            </view>
           </view>
         </view>
       </view>
@@ -145,26 +153,45 @@
         </view>
       </view>
 
-      <view class="works">
-        <view class="works-tabs">
+      <view
+        class="works"
+        data-profile-section="contributions"
+      >
+        <view
+          class="works-tabs"
+          role="tablist"
+          aria-label="公开贡献类型"
+        >
           <view
             class="works-tab pressable"
             :class="{ active: worksTab === 'recordings' }"
-            @tap="worksTab = 'recordings'"
+            role="tab"
+            tabindex="0"
+            :aria-selected="worksTab === 'recordings' ? 'true' : 'false'"
+            @tap="selectWorksTab('recordings')"
+            @keydown.enter="selectWorksTab('recordings')"
           >
             录音 {{ displayRecordingsCount }}
           </view>
           <view
             class="works-tab pressable"
             :class="{ active: worksTab === 'entries' }"
-            @tap="worksTab = 'entries'"
+            role="tab"
+            tabindex="0"
+            :aria-selected="worksTab === 'entries' ? 'true' : 'false'"
+            @tap="selectWorksTab('entries')"
+            @keydown.enter="selectWorksTab('entries')"
           >
             词条 {{ displayEntriesCount }}
           </view>
           <view
             class="works-tab pressable"
             :class="{ active: worksTab === 'senses' }"
-            @tap="worksTab = 'senses'"
+            role="tab"
+            tabindex="0"
+            :aria-selected="worksTab === 'senses' ? 'true' : 'false'"
+            @tap="selectWorksTab('senses')"
+            @keydown.enter="selectWorksTab('senses')"
           >
             义项 {{ displaySensesCount }}
           </view>
@@ -210,6 +237,8 @@
 
 <script>
 import BaseButton from '@/components/BaseButton.vue';
+import BaseLoading from '@/components/BaseLoading.vue';
+import EmptyState from '@/components/EmptyState.vue';
 import PageShell from '@/components/PageShell.vue';
 import { APP_NAME } from '@/const/branding';
 import { requireAuth } from '@/services/authGuard';
@@ -228,7 +257,9 @@ import { getUserInfo } from '@/services/user';
 import { dialectCardLabel } from '@/utils/dialectTree';
 
 export default {
-  components: { BaseButton, PageShell },
+  components: {
+    BaseButton, BaseLoading, EmptyState, PageShell,
+  },
   data() {
     return {
       ROUTES,
@@ -265,8 +296,14 @@ export default {
         || '用户档案';
     },
     bioText() {
+      if (!this.userInfo.user.primary_dialect) return '在这里记录自己的乡音';
       const dialect = this.locationText;
       return `在「${dialect}」记录乡音`;
+    },
+    profileInitial() {
+      return String(this.userInfo.user.nickname || this.userInfo.user.username || '')
+        .trim()
+        .slice(0, 1) || '乡';
     },
     isSelf() {
       const mine = Number(uni.getStorageSync('id'));
@@ -337,6 +374,16 @@ export default {
     goMails,
     goHome,
     goContributionHistory,
+    handleLoadError() {
+      if (this.id) {
+        this.getInfo();
+        return;
+      }
+      goHome(true);
+    },
+    selectWorksTab(tab) {
+      this.worksTab = tab;
+    },
     openMail() {
       if (!requireAuth('dm', { page: 'user_detail', userId: this.id })) return;
       goMailSend(this.id);
@@ -391,16 +438,10 @@ export default {
 </script>
 
 <style scoped>
-.state-card {
+.profile-overview {
   padding: var(--space-4);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: var(--surface-color);
-  color: var(--text-secondary-color);
-}
-
-.state-action {
-  margin-top: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--accent-subtle-color);
 }
 
 .hero {
@@ -422,7 +463,27 @@ export default {
   flex-shrink: 0;
 }
 
+.avatar--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-color);
+  color: var(--accent-color);
+  font-family: STSong, SimSun, serif;
+  font-size: 62rpx;
+  font-weight: 900;
+}
+
+.profile-eyebrow {
+  color: var(--accent-color);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  letter-spacing: 2rpx;
+}
+
 .name {
+  margin-top: 4rpx;
+  font-family: STSong, SimSun, serif;
   font-size: var(--font-size-xl);
   font-weight: 800;
 }
@@ -466,11 +527,14 @@ export default {
 
 .social-stats {
   display: flex;
-  margin-top: var(--space-4);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-color);
 }
 
 .social-stat {
   flex: 1;
+  text-align: center;
 }
 
 .number {

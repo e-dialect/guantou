@@ -1,31 +1,26 @@
 <template>
   <PageShell
     title="登录"
-    :scroll="false"
-    content-class="login-content"
+    content-class="auth-page"
   >
-    <view class="login-card">
-      <view class="login-card__stamp">
-        身份校验处
-      </view>
-      <view class="login-card__title">
-        回来听一听乡音
-      </view>
-      <view class="login-card__lead">
-        登录后可以确认地区用法、补充词条、发表评论和录下乡音。
-      </view>
-
-      <view
+    <AuthJourney
+      eyebrow="乡声通行证"
+      title="回来听一听乡音"
+      lead="登录不是门槛，而是为了把你的录音、收藏和贡献履历好好保存下来。"
+    >
+      <template
         v-if="intentText"
-        class="intent-banner"
+        #hero
       >
-        <view class="intent-kicker">
-          {{ intentVoluntary ? '继续访问' : '登录后继续' }}
+        <view class="intent-banner">
+          <view class="intent-kicker">
+            {{ intentVoluntary ? '继续访问' : '登录后继续' }}
+          </view>
+          <view class="intent-copy">
+            {{ intentText }}
+          </view>
         </view>
-        <view class="intent-copy">
-          {{ intentText }}
-        </view>
-      </view>
+      </template>
 
       <t-tabs
         :value="loginMode"
@@ -142,36 +137,77 @@
       </BaseButton>
       <!-- #endif -->
 
-      <view class="login-card__secondary">
-        <view
-          class="browse-first"
-          @tap="cancelLoginToSearch"
-        >
-          暂不登录，先去查词
+      <template #footer>
+        <view class="auth-secondary">
+          <t-button
+            class="browse-first"
+            theme="primary"
+            variant="text"
+            size="medium"
+            role="button"
+            tabindex="0"
+            aria-label="暂不登录，先去查词"
+            @click="cancelLoginToSearch"
+            @keydown.enter.space.prevent="cancelLoginToSearch"
+          >
+            暂不登录，先去查词
+          </t-button>
+          <view class="login-links">
+            <t-button
+              class="login-link"
+              theme="default"
+              variant="text"
+              size="medium"
+              role="button"
+              tabindex="0"
+              aria-label="忘记密码"
+              @click="toForgetPage()"
+              @keydown.enter.space.prevent="toForgetPage()"
+            >
+              忘记密码
+            </t-button>
+            <!-- #ifndef MP-WEIXIN -->
+            <t-button
+              class="login-link"
+              theme="default"
+              variant="text"
+              size="medium"
+              role="button"
+              tabindex="0"
+              aria-label="用户注册"
+              @click="toRegisterPage()"
+              @keydown.enter.space.prevent="toRegisterPage()"
+            >
+              用户注册
+            </t-button>
+            <!-- #endif -->
+            <!-- #ifdef MP-WEIXIN -->
+            <t-button
+              class="login-link"
+              theme="default"
+              variant="text"
+              size="medium"
+              role="button"
+              tabindex="0"
+              aria-label="微信注册"
+              @click="toWechatRegisterPage()"
+              @keydown.enter.space.prevent="toWechatRegisterPage()"
+            >
+              微信注册
+            </t-button>
+            <!-- #endif -->
+          </view>
         </view>
-        <view class="login-links">
-          <text @tap="toForgetPage()">
-            忘记密码
-          </text>
-          <!-- #ifndef MP-WEIXIN -->
-          <text @tap="toRegisterPage()">
-            用户注册
-          </text>
-          <!-- #endif -->
-          <!-- #ifdef MP-WEIXIN -->
-          <text @tap="toWechatRegisterPage()">
-            微信注册
-          </text>
-          <!-- #endif -->
-        </view>
-      </view>
-    </view>
+      </template>
+    </AuthJourney>
   </PageShell>
 </template>
 
 <script>
 import TTabPanel from '@tdesign/uniapp/tab-panel/tab-panel.vue';
 import TTabs from '@tdesign/uniapp/tabs/tabs.vue';
+import TButton from '@tdesign/uniapp/button/button.vue';
+import AuthJourney from '@/pages/login/components/AuthJourney.vue';
 import PageShell from '@/components/PageShell.vue';
 import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
@@ -185,11 +221,13 @@ import { applyFieldErrors, readableErrorMessage } from '@/utils/apiError';
 export default {
   name: 'LoginPage',
   components: {
+    AuthJourney,
     PageShell,
     BaseButton,
     BaseField,
     TTabPanel,
     TTabs,
+    TButton,
   },
   data() {
     return {
@@ -314,55 +352,15 @@ export default {
 </script>
 
 <style scoped>
-.login-card {
-  position: relative;
-  max-width: 680rpx;
-  margin: 42rpx auto 0;
-  padding: 52rpx 34rpx 38rpx;
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-sm);
-  background: var(--surface-color);
-  box-shadow: 0 20rpx 60rpx var(--border-color);
-  box-sizing: border-box;
-}
-
-.login-card__stamp {
-  position: absolute;
-  top: 28rpx;
-  right: 28rpx;
-  padding: 8rpx 12rpx;
-  border: 2rpx solid var(--danger-color);
-  color: var(--danger-color);
-  font-size: 18rpx;
-  font-weight: 800;
-  letter-spacing: 3rpx;
-  transform: rotate(3deg);
-}
-
-.login-card__title {
-  color: var(--text-color);
-  font-family: STSong, SimSun, serif;
-  font-size: 44rpx;
-  font-weight: 900;
-}
-
-.login-card__lead {
-  width: 76%;
-  margin-top: 14rpx;
-  color: var(--text-secondary-color);
-  font-size: 24rpx;
-  line-height: 1.6;
-}
-
 .intent-banner {
-  margin-top: 28rpx;
-  padding: 20rpx 22rpx;
-  border-left: 7rpx solid var(--accent-color);
-  background: var(--accent-subtle-color);
+  margin-top: 26rpx;
+  padding: 18rpx 20rpx;
+  border-left: 5rpx solid var(--immersive-accent-color);
+  background: var(--immersive-surface-color);
 }
 
 .intent-kicker {
-  color: var(--accent-color);
+  color: var(--immersive-accent-color);
   font-size: 20rpx;
   font-weight: 800;
   letter-spacing: 3rpx;
@@ -370,37 +368,20 @@ export default {
 
 .intent-copy {
   margin-top: 6rpx;
-  color: var(--text-secondary-color);
+  color: var(--on-immersive-muted-color);
   font-size: 24rpx;
   line-height: 1.5;
 }
 
 .login-tabs {
   display: block;
-  margin-top: 34rpx;
+  margin-top: -4rpx;
 }
 
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 22rpx;
-  margin-top: 28rpx;
-}
-
-.code-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 12rpx;
-}
-
-.code-field {
-  flex: 1;
-  min-width: 0;
-}
-
-.code-button {
-  flex: 0 0 auto;
-  margin-bottom: var(--space-3);
+  margin-top: 24rpx;
 }
 
 .demo-code {
@@ -420,51 +401,39 @@ export default {
   margin-top: 18rpx;
 }
 
-.login-card__secondary {
-  margin-top: 30rpx;
-  padding-top: 24rpx;
-  border-top: 1rpx dashed var(--border-color);
-}
-
 .browse-first {
+  display: flex;
+  width: 100%;
+  margin: 0;
+  --td-button-medium-font: 700 28rpx / 40rpx var(--td-font-family);
+  --td-button-medium-height: 80rpx;
+  --td-button-primary-text-color: var(--accent-color);
+  --td-button-primary-text-active-bg-color: var(--accent-subtle-color);
   color: var(--accent-color);
-  text-align: center;
-  font-size: 24rpx;
-  transition: opacity 0.2s ease;
-}
-
-.browse-first:active {
-  opacity: 0.6;
 }
 
 .login-links {
   display: flex;
   justify-content: center;
-  gap: 44rpx;
-  margin-top: 22rpx;
+  gap: var(--space-1);
+  margin-top: 2rpx;
   color: var(--muted-color);
-  font-size: 22rpx;
 }
 
-.login-links text {
-  transition: color 0.2s ease;
+.login-link {
+  min-width: 132rpx;
+  margin: 0;
+  --td-button-medium-font: 600 24rpx / 36rpx var(--td-font-family);
+  --td-button-medium-height: 80rpx;
+  --td-button-default-color: var(--muted-color);
+  --td-button-default-text-active-bg-color: var(--surface-subtle-color);
 }
 
-.login-links text:active {
-  color: var(--accent-color);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .browse-first,
-  .login-links text {
-    transition: none;
-  }
-}
-
-:deep(.login-content) {
+:deep(.auth-page) {
   background: linear-gradient(
     180deg,
-    var(--page-color) 0%,
+    var(--accent-subtle-color) 0%,
+    var(--page-color) 36%,
     var(--surface-subtle-color) 100%
   );
 }

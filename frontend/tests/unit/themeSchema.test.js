@@ -28,6 +28,7 @@ import {
 } from '@/services/themeSchema';
 
 vi.mock('@/services/platform', () => ({
+  isH5Runtime: vi.fn(() => false),
   isWechatMiniProgram: vi.fn(() => false),
   default: vi.fn(() => false),
 }));
@@ -258,6 +259,24 @@ describe('themeSchema contract', () => {
       '--dress-grain-image': 'var(--grain-paper)',
       '--dress-letter-spacing': '0.06em',
     });
+
+    const tabBar = flattenStyleJson({
+      tabBackground: 'var(--surface-color)',
+      tabColor: 'var(--muted-color)',
+      tabAccent: 'var(--accent-color)',
+      tabOnAccent: 'var(--on-accent-color)',
+      tabEmphasis: 'var(--text-color)',
+      tabBorder: 'var(--border-color)',
+    }, 'tab_bar');
+    expect(tabBar.vars).toMatchObject({
+      '--dress-tab-bar-background': 'var(--surface-color)',
+      '--dress-tab-bar-color': 'var(--muted-color)',
+      '--dress-tab-bar-accent': 'var(--accent-color)',
+      '--dress-tab-bar-on-accent': 'var(--on-accent-color)',
+      '--dress-tab-bar-emphasis': 'var(--text-color)',
+      '--dress-tab-bar-border-color': 'var(--border-color)',
+    });
+    expect(Object.keys(tabBar.vars).some((key) => key.includes('tab-bar-tab-bar'))).toBe(false);
     const coveredSkin = resolveOutfitStyle({
       theme: {
         style_json: {

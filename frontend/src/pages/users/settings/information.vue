@@ -103,89 +103,129 @@
           @click="openAvatarSheet"
         >
           <image
+            v-if="avatarSrc"
             class="hero-avatar"
             :src="avatarSrc"
             mode="aspectFill"
           />
+          <view
+            v-else
+            class="hero-avatar hero-avatar--fallback"
+            aria-hidden="true"
+          >
+            {{ avatarFallback }}
+          </view>
+          <view class="avatar-edit-mark">
+            更换
+          </view>
         </view>
-        <view class="edit-hero-hint">
-          {{ avatarHint }}
+        <view class="edit-hero-copy">
+          <view class="edit-hero-eyebrow">
+            你的公开身份
+          </view>
+          <view class="edit-hero-name">
+            {{ profileDisplayName }}
+          </view>
+          <view class="edit-hero-hint">
+            {{ avatarHint }}
+          </view>
         </view>
       </view>
 
       <SectionBlock title="公开档案">
-        <view
-          class="row pressable"
-          @tap="goUserUsername"
-        >
-          <view class="row-label">
-            用户名
-          </view>
-          <view class="row-value">
-            {{ user.username || '未填写' }}
-          </view>
-        </view>
-        <view
-          class="row pressable"
-          @tap="goUserNickname"
-        >
-          <view class="row-label">
-            昵称
-          </view>
-          <view class="row-value">
-            {{ user.nickname || '未填写' }}
-          </view>
-        </view>
+        <t-cell
+          title="用户名"
+          :note="user.username || '未填写'"
+          arrow
+          hover
+          :custom-style="profileCellStyle"
+          :note-style="profileCellNoteStyle"
+          :aria-label="`修改用户名，当前为${user.username || '未填写'}`"
+          role="button"
+          tabindex="0"
+          @click="goUserUsername"
+          @keydown.enter="goUserUsername"
+          @keydown.space.prevent="goUserUsername"
+        />
+        <t-cell
+          title="昵称"
+          :note="user.nickname || '未填写'"
+          arrow
+          hover
+          :bordered="false"
+          :custom-style="profileCellStyle"
+          :note-style="profileCellNoteStyle"
+          :aria-label="`修改昵称，当前为${user.nickname || '未填写'}`"
+          role="button"
+          tabindex="0"
+          @click="goUserNickname"
+          @keydown.enter="goUserNickname"
+          @keydown.space.prevent="goUserNickname"
+        />
       </SectionBlock>
 
       <SectionBlock title="账号与安全（仅自己可见）">
-        <view
-          class="row pressable"
-          @tap="goUserEmail"
-        >
-          <view class="row-label">
-            邮箱
-          </view>
-          <view class="row-value">
-            {{ user.email || '未填写' }}
-          </view>
-        </view>
-        <view
-          class="row pressable"
-          @tap="goUserPhone"
-        >
-          <view class="row-label">
-            手机
-          </view>
-          <view class="row-value">
-            {{ user.telephone || '未填写' }}
-          </view>
-        </view>
-        <view
-          class="row pressable"
-          @tap="openBirthdayPicker"
-        >
-          <view class="row-label">
-            生日
-          </view>
-          <view class="row-value">
-            {{ date }}
-          </view>
-        </view>
+        <t-cell
+          title="邮箱"
+          :note="user.email || '未填写'"
+          arrow
+          hover
+          :custom-style="profileCellStyle"
+          :note-style="profileCellNoteStyle"
+          :aria-label="`修改邮箱，当前为${user.email || '未填写'}`"
+          role="button"
+          tabindex="0"
+          @click="goUserEmail"
+          @keydown.enter="goUserEmail"
+          @keydown.space.prevent="goUserEmail"
+        />
+        <t-cell
+          title="手机"
+          :note="user.telephone || '未填写'"
+          arrow
+          hover
+          :custom-style="profileCellStyle"
+          :note-style="profileCellNoteStyle"
+          :aria-label="`修改手机，当前为${user.telephone || '未填写'}`"
+          role="button"
+          tabindex="0"
+          @click="goUserPhone"
+          @keydown.enter="goUserPhone"
+          @keydown.space.prevent="goUserPhone"
+        />
+        <t-cell
+          title="生日"
+          :note="date"
+          arrow
+          hover
+          :bordered="false"
+          :custom-style="profileCellStyle"
+          :note-style="profileCellNoteStyle"
+          :aria-label="`修改生日，当前为${date}`"
+          role="button"
+          tabindex="0"
+          @click="openBirthdayPicker"
+          @keydown.enter="openBirthdayPicker"
+          @keydown.space.prevent="openBirthdayPicker"
+        />
       </SectionBlock>
 
       <SectionBlock title="录音默认地区">
-        <view
-          class="row pressable"
-          @tap="openDialectPicker"
-        >
-          <view class="row-label">
-            发音默认地点
-          </view>
-          <view class="row-value">
-            {{ selectedDialectLabel }}
-          </view>
-        </view>
+        <t-cell
+          title="发音默认地点"
+          :note="selectedDialectLabel"
+          arrow
+          hover
+          :bordered="false"
+          :custom-style="profileCellStyle"
+          :note-style="profileCellNoteStyle"
+          :aria-label="`修改发音默认地点，当前为${selectedDialectLabel}`"
+          role="button"
+          tabindex="0"
+          @click="openDialectPicker"
+          @keydown.enter="openDialectPicker"
+          @keydown.space.prevent="openDialectPicker"
+        />
       </SectionBlock>
 
       <t-date-time-picker
@@ -217,6 +257,7 @@
 </template>
 
 <script>
+import TCell from '@tdesign/uniapp/cell/cell.vue';
 import TDateTimePicker from '@tdesign/uniapp/date-time-picker/date-time-picker.vue';
 import BaseButton from '@/components/BaseButton.vue';
 import DialectSelector from '@/components/DialectSelector.vue';
@@ -244,6 +285,15 @@ const app = getApp();
 const BIRTHDAY_START = '1960-09-01';
 const BIRTHDAY_END = '2020-09-01';
 const BIRTHDAY_FALLBACK = '1990-01-01';
+const PROFILE_CELL_STYLE = 'padding: var(--space-3) 0;';
+const PROFILE_CELL_NOTE_STYLE = [
+  'max-width: 64%',
+  'min-width: 0',
+  'text-align: right',
+  'white-space: normal',
+  'word-break: break-word',
+  'overflow-wrap: anywhere',
+].join('; ');
 
 function fieldErrorMessage(error, field) {
   const item = error?.data?.[field] || error?.data?.user?.[field];
@@ -271,6 +321,7 @@ export default {
     DialectSelector,
     PageShell,
     SectionBlock,
+    TCell,
     TDateTimePicker,
   },
   data() {
@@ -291,6 +342,8 @@ export default {
       birthdayPickerOpen: false,
       dialectPickerOpen: false,
       canUseWechatAuth: isCapabilityEnabled(CAPABILITIES.WECHAT_AUTH),
+      profileCellStyle: PROFILE_CELL_STYLE,
+      profileCellNoteStyle: PROFILE_CELL_NOTE_STYLE,
     };
   },
   computed: {
@@ -307,6 +360,12 @@ export default {
     },
     avatarSrc() {
       return this.avatarPreview || this.user.avatar;
+    },
+    profileDisplayName() {
+      return this.user.nickname || this.user.username || '未命名乡友';
+    },
+    avatarFallback() {
+      return String(this.profileDisplayName).trim().slice(0, 1) || '乡';
     },
     avatarHint() {
       if (this.canUseWechatAuth) {
@@ -548,25 +607,79 @@ export default {
 
 .edit-hero {
   margin-bottom: var(--space-4);
-  text-align: center;
+  padding: 28rpx;
+  border: 1rpx solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(145deg, var(--accent-subtle-color), var(--surface-color));
+  display: flex;
+  align-items: center;
+  gap: 26rpx;
+}
+
+.edit-hero-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.edit-hero-eyebrow {
+  color: var(--accent-color);
+  font-size: 20rpx;
+  font-weight: 800;
+  letter-spacing: 4rpx;
+}
+
+.edit-hero-name {
+  margin-top: 8rpx;
+  color: var(--text-color);
+  font-family: STSong, SimSun, serif;
+  font-size: 36rpx;
+  font-weight: 900;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .edit-hero-hint {
-  margin-top: var(--space-2);
-  color: var(--muted-color);
+  margin-top: 6rpx;
+  color: var(--text-secondary-color);
   font-size: var(--font-size-sm);
-  line-height: 1.6;
+  line-height: 1.55;
 }
 
 .hero-avatar {
-  width: 168rpx;
-  height: 168rpx;
+  width: 132rpx;
+  height: 132rpx;
   border-radius: var(--radius-pill);
   background: var(--surface-subtle-color);
 }
 
+.hero-avatar--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-color);
+  color: var(--on-accent-color);
+  font-family: STSong, SimSun, serif;
+  font-size: 52rpx;
+  font-weight: 900;
+}
+
 .avatar-hit {
-  display: inline-block;
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+}
+
+.avatar-edit-mark {
+  position: absolute;
+  right: -6rpx;
+  bottom: -4rpx;
+  padding: 4rpx 10rpx;
+  border: 2rpx solid var(--accent-color);
+  border-radius: var(--radius-pill);
+  background: var(--surface-color);
+  color: var(--accent-color);
+  font-size: 18rpx;
+  font-weight: 700;
 }
 
 .avatar-mask {
@@ -640,41 +753,6 @@ export default {
 
 .sheet-cancel {
   color: var(--muted-color);
-}
-
-.row {
-  min-height: 92rpx;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.row:last-child {
-  border-bottom: 0;
-}
-
-.row-label {
-  flex: 0 0 auto;
-  max-width: 42%;
-  color: var(--text-color);
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  line-height: 1.6;
-}
-
-.row-value {
-  flex: 1;
-  min-width: 0;
-  color: var(--muted-color);
-  font-size: var(--font-size-sm);
-  line-height: 1.6;
-  text-align: right;
-  white-space: normal;
-  word-break: break-word;
-  overflow-wrap: anywhere;
 }
 
 .pressable {

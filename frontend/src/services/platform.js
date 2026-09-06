@@ -18,3 +18,18 @@ export default function canUseWechatMiniProgramAuth() {
 export function isWechatMiniProgram() {
   return canUseWechatMiniProgramAuth();
 }
+
+/**
+ * Runtime H5 detection for code paths shared by every compiled target.
+ * Prefer an already available system-info payload so startup code does not
+ * need to ask uni-app for the same data twice.
+ */
+export function isH5Runtime(systemInfo = null) {
+  if (systemInfo?.uniPlatform) return systemInfo.uniPlatform === 'web';
+  if (typeof uni === 'undefined' || typeof uni.getSystemInfoSync !== 'function') return false;
+  try {
+    return uni.getSystemInfoSync().uniPlatform === 'web';
+  } catch {
+    return false;
+  }
+}

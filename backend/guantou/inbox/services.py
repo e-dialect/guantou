@@ -29,13 +29,11 @@ def send_notification(
     sender, recipients, content, target=None, action_object=None, title=None
 ):
     if recipients is None:
-        transfer = User.objects.filter(is_superuser=True).order_by("id").first()
-        recipients = User.objects.filter(is_superuser=True)
-        if not transfer:
+        recipients = User.objects.filter(is_superuser=True, is_active=True)
+        if sender is not None:
+            recipients = recipients.exclude(id=sender.id)
+        if not recipients.exists():
             return []
-        return send_notification(
-            transfer, recipients, content, target, action_object, title
-        )
     if sender is None:
         sender = User.objects.filter(is_superuser=True).order_by("id").first()
     if title is None:

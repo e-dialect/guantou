@@ -25,7 +25,6 @@ function mountCenter() {
       stubs: {
         PageShell: { template: '<main><slot name="before" /><slot /></main>' },
         'scroll-view': { template: '<div><slot /></div>' },
-        'uni-load-more': true,
       },
     },
   });
@@ -44,6 +43,18 @@ describe('notification center', () => {
     globalThis.uni = { navigateTo: vi.fn(), showToast: vi.fn() };
   });
 
+  it('renders localized pagination states without an implicit component', async () => {
+    const wrapper = mountCenter();
+    wrapper.vm.notifications = [notification];
+    wrapper.vm.loadStatus = 'more';
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.pagination-status').text()).toBe('上拉继续加载');
+
+    wrapper.vm.loadStatus = 'noMore';
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.pagination-status').text()).toBe('没有更多消息了');
+  });
+
   it('loads notifications with the selected unread filter', async () => {
     const wrapper = mountCenter();
     wrapper.vm.filter = 'unread';
@@ -55,6 +66,9 @@ describe('notification center', () => {
       unread: true,
     });
     expect(wrapper.text()).toContain('词条有新补证');
+    expect(wrapper.vm.introTitle).toBe('1 条未读消息');
+    expect(wrapper.vm.headerActionText).toBe('全部已读');
+    expect(wrapper.vm.senderInitial(notification)).toBe('乡');
   });
 
   it('marks one notification read before opening its target', async () => {
@@ -80,5 +94,17 @@ describe('notification center', () => {
 
     expect(markNotificationsRead).toHaveBeenCalledWith();
     expect(wrapper.vm.notifications[0].unread).toBe(false);
+    expect(wrapper.vm.headerActionText).toBe('');
+  });
+
+  it('keeps unread state when the mark-all request fails', async () => {
+    markNotificationsRead.mockRejectedValueOnce(new Error('服务繁忙'));
+    const wrapper = mountCenter();
+    wrapper.vm.notifications = [notification];
+
+    await wrapper.vm.markAllRead();
+
+    expect(wrapper.vm.notifications[0].unread).toBe(true);
+    expect(wrapper.vm.markingAll).toBe(false);
   });
 });

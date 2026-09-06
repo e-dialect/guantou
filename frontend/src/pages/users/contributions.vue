@@ -1,36 +1,37 @@
 <template>
   <PageShell title="贡献履历">
-    <view class="intro card">
+    <view class="archive-intro">
       <view class="eyebrow">
         可追溯的参与记录
       </view>
-      <view class="title">
+      <view class="intro-title">
         记录你留下了什么，不给人排权威高低
       </view>
-      <view class="copy">
-        录音、原始证据、整理修订和地区足迹分别呈现；数量只帮助你找回自己的贡献。
+      <view class="intro-copy">
+        每段录音、每份依据和每次修订各自留痕；数量只帮助你找回参与过的资料。
       </view>
     </view>
 
-    <view
+    <BaseLoading
       v-if="loading"
-      class="card muted"
-    >
-      正在整理你的贡献记录…
-    </view>
+      text="正在整理你的贡献记录…"
+    />
     <EmptyState
       v-else-if="error"
-      title="贡献履历加载失败"
+      title="贡献履历暂时没有加载出来"
       :description="error"
       action-text="重新加载"
       @action="load"
     />
     <template v-else>
-      <view class="metrics">
+      <view
+        class="metric-strip"
+        aria-label="贡献概览"
+      >
         <view
           v-for="item in metrics"
           :key="item.key"
-          class="metric card"
+          class="metric-item"
         >
           <view class="metric-number">
             {{ item.value }}
@@ -41,34 +42,60 @@
         </view>
       </view>
 
-      <view class="card">
-        <view class="eyebrow">
-          地区足迹
+      <view class="archive-section">
+        <view class="section-heading">
+          <view>
+            <view class="section-kicker">
+              地区足迹
+            </view>
+            <view class="section-title">
+              你参与记录过的乡音
+            </view>
+          </view>
+          <view class="section-count">
+            {{ history.dialect_footprint?.length || 0 }} 处
+          </view>
         </view>
         <view
           v-if="!history.dialect_footprint?.length"
-          class="muted"
+          class="inline-empty"
         >
-          还没有形成地区足迹。
+          还没有形成地区足迹；录音或确认本地用法后，会在这里留下记录。
         </view>
         <view
           v-for="item in history.dialect_footprint"
           :key="item.dialect.id"
-          class="row"
+          class="footprint-row"
         >
-          <DialectLabel
-            :dialect="item.dialect"
-            mode="card"
-          />
+          <view class="footprint-copy">
+            <view
+              class="footprint-mark"
+              aria-hidden="true"
+            />
+            <DialectLabel
+              :dialect="item.dialect"
+              mode="card"
+            />
+          </view>
           <text class="row-value">
             {{ item.contribution_count }} 次参与
           </text>
         </view>
       </view>
 
-      <view class="card">
-        <view class="eyebrow">
-          最近参与
+      <view class="archive-section activity-section">
+        <view class="section-heading">
+          <view>
+            <view class="section-kicker">
+              最近参与
+            </view>
+            <view class="section-title">
+              按时间找回你的记录
+            </view>
+          </view>
+          <view class="section-count">
+            {{ history.recent_activity?.length || 0 }} 条
+          </view>
         </view>
         <EmptyState
           v-if="!history.recent_activity?.length"
@@ -80,18 +107,26 @@
         <view
           v-for="event in history.recent_activity"
           :key="`${event.kind}-${event.target_id}-${event.created_at}`"
-          class="activity"
+          class="activity-row"
         >
-          <view>
-            <view class="activity-kind">
-              {{ kindLabel(event.kind) }}
+          <view
+            class="activity-mark"
+            aria-hidden="true"
+          >
+            {{ kindMark(event.kind) }}
+          </view>
+          <view class="activity-copy">
+            <view class="activity-meta">
+              <view class="activity-kind">
+                {{ kindLabel(event.kind) }}
+              </view>
+              <view class="activity-date">
+                {{ dateLabel(event.created_at) }}
+              </view>
             </view>
             <view class="activity-label">
               {{ event.label }}
             </view>
-          </view>
-          <view class="date">
-            {{ dateLabel(event.created_at) }}
           </view>
         </view>
       </view>
@@ -100,14 +135,17 @@
 </template>
 
 <script>
-import PageShell from '@/components/PageShell.vue';
+import BaseLoading from '@/components/BaseLoading.vue';
 import DialectLabel from '@/components/DialectLabel.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import PageShell from '@/components/PageShell.vue';
 import { getMyContributionHistory } from '@/services/entryRecording';
 import { goRecord } from '@/services/navigation';
 
 export default {
-  components: { PageShell, DialectLabel, EmptyState },
+  components: {
+    BaseLoading, DialectLabel, EmptyState, PageShell,
+  },
   data() { return { history: {}, loading: true, error: '' }; },
   computed: {
     metrics() {
@@ -128,14 +166,20 @@ export default {
         recording: '录音', evidence: '补证', revision: '修订', attestation: '地区确认',
       })[kind] || '贡献';
     },
-    dateLabel(value) { return value ? String(value).slice(0, 10) : ''; },
+    kindMark(kind) {
+      return ({
+        recording: '音', evidence: '证', revision: '修', attestation: '认',
+      })[kind] || '记';
+    },
+    dateLabel(value) { return value ? String(value).slice(0, 10) : '日期待补'; },
     async load() {
       this.loading = true;
       this.error = '';
+      this.history = {};
       try {
-        this.history = await getMyContributionHistory();
+        this.history = (await getMyContributionHistory()) || {};
       } catch (error) {
-        this.error = error?.message || '请检查网络后重试';
+        this.error = error?.message || '请检查网络或登录状态后重试';
       } finally {
         this.loading = false;
       }
@@ -145,38 +189,199 @@ export default {
 </script>
 
 <style scoped>
-.card {
-  margin-bottom: var(--space-3);
+.archive-intro {
   padding: var(--space-4);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  background: var(--surface-color);
+  border: 1px solid var(--accent-color);
+  border-radius: var(--radius-md);
+  background: var(--accent-subtle-color);
 }
-.eyebrow { color: var(--accent-color); font-size: var(--font-size-xs); font-weight: 700; }
-.title { margin-top: var(--space-1); font-size: var(--font-size-xl); font-weight: 700; }
-.copy, .muted { margin-top: var(--space-2); color: var(--text-secondary-color); line-height: 1.6; }
-.metrics {
+
+.eyebrow,
+.section-kicker,
+.activity-kind {
+  color: var(--accent-color);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.intro-title {
+  margin-top: var(--space-1);
+  color: var(--text-color);
+  font-family: STSong, SimSun, serif;
+  font-size: var(--font-size-xl);
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.intro-copy {
+  margin-top: var(--space-1);
+  color: var(--text-secondary-color);
+  font-size: var(--font-size-sm);
+  line-height: 1.65;
+}
+
+.metric-strip {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: var(--space-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
+  overflow: hidden;
 }
-.metric { margin-bottom: 0; text-align: center; }
-.metric-number { font-size: var(--font-size-xxl); font-weight: 700; }
+
+.metric-item {
+  min-width: 0;
+  padding: var(--space-3) var(--space-1);
+  border-right: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.metric-item:last-child {
+  border-right: 0;
+}
+
+.metric-number {
+  color: var(--text-color);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+}
+
 .metric-label,
 .row-value,
-.date { color: var(--text-secondary-color); font-size: var(--font-size-xs); }
-.row,
-.activity {
+.section-count,
+.activity-date {
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
+}
+
+.metric-label {
+  margin-top: var(--space-1);
+}
+
+.archive-section {
+  margin-top: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
+}
+
+.section-heading,
+.activity-meta,
+.footprint-row,
+.footprint-copy {
   display: flex;
   align-items: center;
+}
+
+.section-heading,
+.activity-meta,
+.footprint-row {
   justify-content: space-between;
   gap: var(--space-2);
+}
+
+.section-title {
+  margin-top: var(--space-1);
+  color: var(--text-color);
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+}
+
+.section-count {
+  flex: 0 0 auto;
+}
+
+.inline-empty {
+  margin-top: var(--space-3);
+  padding: var(--space-4) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle-color);
+  color: var(--muted-color);
+  font-size: var(--font-size-sm);
+  line-height: 1.65;
+  text-align: center;
+}
+
+.footprint-row {
   padding: var(--space-3) 0;
   border-bottom: 1px solid var(--border-color);
 }
-.row:last-child, .activity:last-child { border-bottom: 0; }
-.activity { align-items: flex-start; }
-.activity-kind { color: var(--accent-color); font-size: var(--font-size-xs); }
-.activity-label { margin-top: var(--space-1); overflow-wrap: anywhere; }
-.date { flex: 0 0 auto; }
+
+.section-heading + .footprint-row {
+  margin-top: var(--space-2);
+}
+
+.footprint-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.footprint-copy {
+  min-width: 0;
+  gap: var(--space-2);
+  color: var(--text-color);
+  font-weight: 700;
+}
+
+.footprint-mark {
+  width: 12rpx;
+  height: 12rpx;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--accent-color);
+}
+
+.activity-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.section-heading + .activity-row {
+  margin-top: var(--space-2);
+}
+
+.activity-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.activity-mark {
+  display: flex;
+  width: 56rpx;
+  height: 56rpx;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent-subtle-color);
+  color: var(--accent-color);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+}
+
+.activity-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.activity-kind {
+  letter-spacing: 0;
+}
+
+.activity-date {
+  flex: 0 0 auto;
+}
+
+.activity-label {
+  margin-top: var(--space-1);
+  color: var(--text-color);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
 </style>

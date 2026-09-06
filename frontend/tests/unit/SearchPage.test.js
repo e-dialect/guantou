@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  beforeEach, describe, expect, it, vi,
+} from 'vitest';
 
 vi.mock('@/utils/request', () => ({
   default: {
@@ -57,7 +59,7 @@ describe('entry-first search page orchestration', () => {
       search: '行',
       page: 1,
       page_size: 20,
-    }), true);
+    }), true, { loading: false });
     expect(page.entries.map((entry) => entry.id)).toEqual([1, 2]);
     expect(page.total).toBe(2);
     expect(analyticsRequest).toHaveBeenCalledWith(
@@ -108,5 +110,41 @@ describe('entry-first search page orchestration', () => {
 
     expect(page.entries).toHaveLength(1);
     expect(page.entries[0].display_writing).toBe('月亮');
+  });
+
+  it('starts a suggested search without changing filter semantics', () => {
+    const page = pageContext();
+    page.filters.hasRecording = false;
+    page.search = vi.fn();
+
+    page.quickSearch('hiŋ');
+
+    expect(page.filters.keyword).toBe('hiŋ');
+    expect(page.filters.hasRecording).toBe(false);
+    expect(page.search).toHaveBeenCalledOnce();
+  });
+
+  it('clears advanced filters while preserving the current query', () => {
+    const page = pageContext();
+    page.filters = {
+      ...page.filters,
+      keyword: '害怕',
+      dialectId: 23,
+      dialectMatch: 'exact',
+      hasRecording: false,
+      sourceType: 'fieldwork',
+    };
+    page.search = vi.fn();
+
+    page.resetAdvancedFilters();
+
+    expect(page.filters).toMatchObject({
+      keyword: '害怕',
+      dialectId: '',
+      dialectMatch: 'subtree',
+      hasRecording: '',
+      sourceType: '',
+    });
+    expect(page.search).toHaveBeenCalledOnce();
   });
 });

@@ -9,12 +9,15 @@
       class="sheet preview-sheet"
       @tap.stop
     >
-      <view
-        class="preview-close pressable"
-        @tap="$emit('cancel')"
+      <BaseButton
+        class="preview-close"
+        size="small"
+        variant="ghost"
+        aria-label="关闭实时预览"
+        @click="$emit('cancel')"
       >
         关闭
-      </view>
+      </BaseButton>
       <view class="sheet-title">
         {{ title }}
       </view>
@@ -266,11 +269,7 @@ export default {
   top: var(--space-3);
   right: var(--space-3);
   z-index: 2;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-pill);
-  background: var(--surface-subtle-color);
-  color: var(--text-secondary-color);
-  font-size: var(--font-size-xs);
+  margin: 0;
 }
 
 .sheet-title {
@@ -351,6 +350,15 @@ export default {
 
 .mock-tab {
   background: var(--dress-tab-bar-background, var(--accent-color));
+  color: var(--dress-tab-bar-color, var(--on-accent-color));
+  border-color: var(--dress-tab-bar-border-color, transparent);
+}
+
+.mock-tab > view:first-child {
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--dress-tab-bar-accent, var(--accent-color));
+  color: var(--dress-tab-bar-on-accent, var(--on-accent-color));
 }
 
 .mock-nav.locked,

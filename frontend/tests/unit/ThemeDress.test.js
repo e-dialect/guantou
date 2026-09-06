@@ -3,6 +3,7 @@ import {
   beforeEach, describe, expect, it, vi,
 } from 'vitest';
 import confirmDialog from '@/components/ConfirmDialog';
+import BaseButton from '@/components/BaseButton.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import { isWechatMiniProgram } from '@/services/platform';
 import {
@@ -19,6 +20,7 @@ vi.mock('@/services/feedback', () => ({
 }));
 
 vi.mock('@/services/platform', () => ({
+  isH5Runtime: vi.fn(() => false),
   isWechatMiniProgram: vi.fn(() => false),
   default: vi.fn(() => false),
 }));
@@ -90,7 +92,9 @@ describe('Theme dress page', () => {
     expect(wrapper.vm.applyLabel(live)).toBe('应用');
     expect(wrapper.vm.applyLabel(upcoming)).toBe('敬请期待');
     expect(wrapper.text()).toContain('敬请期待');
-    expect(wrapper.text()).toContain('该分类装扮素材即将上线，敬请期待');
+    expect(wrapper.text()).toContain('部分素材仍在制作，已上线项可正常预览和应用');
+    expect(wrapper.text()).toContain('选择一种外观');
+    expect(wrapper.vm.journeyStatus).toContain('只替换当前部件');
     expect(wrapper.text()).toContain('最新上架');
 
     wrapper.vm.openDetail(live);
@@ -115,6 +119,16 @@ describe('Theme dress page', () => {
     await wrapper.vm.$nextTick();
     expect(wrapper.vm.zoomOpen).toBe(true);
     expect(wrapper.text()).toContain('双指缩放查看细节，点空白关闭');
+    const closeZoom = wrapper.findAllComponents(BaseButton)
+      .find((button) => button.props('ariaLabel') === '关闭装扮大图');
+    expect(closeZoom?.props()).toMatchObject({
+      size: 'small',
+      variant: 'ghost',
+    });
+    closeZoom.vm.$emit('click');
+    await wrapper.vm.$nextTick();
+    expect(wrapper.vm.zoomOpen).toBe(false);
+    wrapper.vm.zoomOpen = true;
     wrapper.vm.closeDetail();
     expect(wrapper.vm.zoomOpen).toBe(false);
 
@@ -151,6 +165,7 @@ describe('Theme dress page', () => {
     await wrapper.vm.onApply(live);
     expect(notifySuccess).toHaveBeenCalledWith('装扮已生效');
     expect(wrapper.text()).toContain('暂时失效');
+    expect(wrapper.vm.journeyTone).toBe('warning');
   });
 
   it('does not apply upcoming placeholders', async () => {
@@ -200,12 +215,38 @@ describe('Theme dress page', () => {
     wrapper.vm.refresh();
     await wrapper.vm.$nextTick();
     const live = wrapper.vm.items.find((item) => item.id === 'navbar-plain');
+    const upcoming = wrapper.vm.items.find((item) => !item.available);
+    const actionButtons = wrapper.findAllComponents(BaseButton)
+      .filter((button) => button.props('ariaLabel'));
+    const liveFavorite = actionButtons.find((button) => (
+      button.props('ariaLabel') === `收藏装扮：${live.name}`
+    ));
+    const liveShare = actionButtons.find((button) => (
+      button.props('ariaLabel') === `分享装扮：${live.name}`
+    ));
+    const upcomingFavorite = actionButtons.find((button) => (
+      button.props('ariaLabel') === `收藏装扮：${upcoming.name}`
+    ));
+    const upcomingShare = actionButtons.find((button) => (
+      button.props('ariaLabel') === `分享装扮：${upcoming.name}`
+    ));
+    expect(liveFavorite?.props()).toMatchObject({
+      disabled: false, shape: 'circle', size: 'extra-small', variant: 'light',
+    });
+    expect(liveShare?.props('disabled')).toBe(false);
+    expect(upcomingFavorite?.props('disabled')).toBe(true);
+    expect(upcomingShare?.props('disabled')).toBe(true);
+    wrapper.vm.openDetail(live);
+    await wrapper.vm.$nextTick();
+    const detailActions = wrapper.findAllComponents(BaseButton)
+      .filter((button) => button.props('ariaLabel') === `收藏装扮：${live.name}`);
+    expect(detailActions).toHaveLength(2);
+    wrapper.vm.closeDetail();
     await wrapper.vm.onToggleFavorite(live);
     expect(notifySuccess).toHaveBeenCalledWith('已收藏该装扮');
     await wrapper.vm.onShare(live);
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain('分享这个装扮');
-    const upcoming = wrapper.vm.items.find((item) => !item.available);
     await wrapper.vm.onShare(upcoming);
     expect(notify).toHaveBeenCalledWith({ title: '待上线装扮暂不支持分享' });
   });

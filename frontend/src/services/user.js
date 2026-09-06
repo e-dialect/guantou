@@ -3,6 +3,8 @@ import rawRequest from '@/utils/rawRequest';
 import { afterLogin } from '@/services/login';
 import { afterThemeLogout } from '@/services/themeApi';
 
+const PAGE_LOAD_OPTIONS = Object.freeze({ loading: false });
+
 /**
  * US0101 新建用户（普通）
  * @returns {Promise<unknown>}
@@ -78,7 +80,25 @@ export function registerWechatUser(username, password, nickname) {
  * @returns {Promise<unknown>}
  */
 export async function getUserInfo(id, silent = false) {
-  return request.get(`/users/${id}`, null, silent);
+  return request.get(`/users/${id}`, null, silent, PAGE_LOAD_OPTIONS);
+}
+
+/**
+ * 按公开身份信息查找可接收站内信的用户。
+ * @param query 昵称、用户名或精确用户编号
+ * @param limit 最大结果数
+ * @returns {Promise<Array>}
+ */
+export async function searchUsers(query, limit = 8) {
+  const search = String(query || '').trim();
+  if (!search) return [];
+  const response = await request.get(
+    '/users',
+    { search, limit },
+    true,
+    PAGE_LOAD_OPTIONS,
+  );
+  return Array.isArray(response?.users) ? response.users : [];
 }
 
 /**

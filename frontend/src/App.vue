@@ -3,6 +3,7 @@ import { goNotFound } from '@/services/navigation';
 // app.js
 import { getLoginStatus } from '@/services/login';
 import { hydrateCapabilities } from '@/services/capabilities';
+import { isH5Runtime } from '@/services/platform';
 import {
   ensureDialectOnboarding,
   ONBOARDING_REASONS,
@@ -42,7 +43,14 @@ export default {
       success: (e) => {
         this.globalData.platform = e.platform;
         this.globalData.StatusBar = e.statusBarHeight;
-        const capsule = uni.getMenuButtonBoundingClientRect();
+        let capsule = null;
+        if (!isH5Runtime(e) && typeof uni.getMenuButtonBoundingClientRect === 'function') {
+          try {
+            capsule = uni.getMenuButtonBoundingClientRect();
+          } catch {
+            // Keep the platform-neutral fallback below when the optional API fails.
+          }
+        }
 
         if (capsule) {
           this.globalData.Custom = capsule;
@@ -105,7 +113,7 @@ export default {
 </script>
 <style lang="scss">
 /* 全局 Design Tokens：全站颜色/间距/圆角/字号唯一来源（M1·设计系统） */
-@import '@/styles/tokens.scss';
+@use '@/styles/tokens.scss';
 </style>
 
 <style>
@@ -167,6 +175,23 @@ html.page-transitioning uni-page-wrapper {
 @media (prefers-reduced-motion: reduce) {
   html.page-transitioning uni-page-wrapper {
     animation: none;
+  }
+}
+
+/*
+ * UniApp 默认按窗口宽度线性放大 H5 的 rpx。平板、桌面和手机横屏如果继续
+ * 使用该比例，移动端字号与间距会被放大到挤占主要任务区。宽视口统一停在
+ * 平板阅读尺度；短横屏进一步压缩垂直占用，页面壳再负责布局重排。
+ */
+@media screen and (min-width: 600px) {
+  html {
+    font-size: 24px !important;
+  }
+}
+
+@media screen and (min-width: 600px) and (max-height: 500px) and (orientation: landscape) {
+  html {
+    font-size: 20px !important;
   }
 }
 /* #endif */

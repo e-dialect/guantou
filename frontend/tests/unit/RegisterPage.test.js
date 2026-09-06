@@ -68,6 +68,42 @@ describe('register page', () => {
     expect(wrapper.vm.errors.passwordConfirmed).toBe('两次密码不相同');
   });
 
+  it('keeps email verification behind valid account details', async () => {
+    const wrapper = mountPage();
+
+    expect(wrapper.vm.formStep).toBe(1);
+    expect(wrapper.text()).not.toContain('邮箱只用于验证身份');
+    wrapper.vm.continueToEmail();
+    expect(wrapper.vm.errors.username).toBe('请输入用户名');
+    expect(wrapper.vm.formStep).toBe(1);
+
+    wrapper.vm.username = '  collector  ';
+    wrapper.vm.password = 'password123';
+    wrapper.vm.passwordConfirmed = 'password123';
+    wrapper.vm.continueToEmail();
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.username).toBe('collector');
+    expect(wrapper.vm.formStep).toBe(2);
+    expect(wrapper.text()).toContain('邮箱只用于验证身份');
+  });
+
+  it('returns to account details through a TDesign text action without losing email draft', async () => {
+    const wrapper = mountPage();
+    fillValidForm(wrapper);
+    wrapper.vm.formStep = 2;
+    await wrapper.vm.$nextTick();
+
+    const backAction = wrapper.findAllComponents({ name: 'TDesignStub' })
+      .find((component) => component.props('ariaLabel') === '返回修改账号信息');
+    expect(backAction.props('variant')).toBe('text');
+    backAction.vm.$emit('click');
+
+    expect(wrapper.vm.formStep).toBe(1);
+    expect(wrapper.vm.email).toBe('collector@example.com');
+    expect(wrapper.vm.code).toBe('123456');
+  });
+
   it('sends email code when contact is an email', async () => {
     const wrapper = mountPage();
     wrapper.vm.email = 'collector@example.com';

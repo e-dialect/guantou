@@ -1,20 +1,10 @@
 import { isLoggedIn } from '@/services/authGuard';
 import { isWechatMiniProgram } from '@/services/platform';
 import {
-  accessLabel,
-  catalogStatus,
-  DIALECT_REGIONS,
-  DRESS_CATEGORIES,
-  getActiveThemeId,
-  getDressGroup,
-  THEME_ACCESS_FILTERS,
-  THEME_CATEGORIES,
-  THEME_SORTS,
-} from '@/services/themeCenter';
-import {
   THEME_EMPTY_ACTION_LABELS,
   THEME_EMPTY_SCENE_LABELS,
-} from '@/services/themeStatus';
+} from '@/services/themeAnalyticsLabels';
+import { themeRuntime } from '@/services/themeRuntime';
 
 export const THEME_ANALYTICS_EVENTS = {
   ENTER: 'theme_center_enter',
@@ -142,17 +132,17 @@ export function themeItemType(kind) {
 
 export function themeRegionLabel(region) {
   if (!region || region === 'all') return '';
-  return lookupLabel(DIALECT_REGIONS, region, region);
+  return lookupLabel(themeRuntime().getDialectRegions(), region, region);
 }
 
 export function themeAccessType(item) {
   if (!item) return '';
-  return accessLabel(item.access, item);
+  return themeRuntime().accessLabel(item.access, item);
 }
 
 export function themeDressCategoryLabel(category) {
   if (!category || category === 'all') return '';
-  return lookupLabel(DRESS_CATEGORIES, category, category);
+  return lookupLabel(themeRuntime().getDressCategories(), category, category);
 }
 
 export function describeThemeQuery(query = {}) {
@@ -160,23 +150,23 @@ export function describeThemeQuery(query = {}) {
     .map((value) => themeRegionLabel(value))
     .filter(Boolean);
   return {
-    access_filter: lookupLabel(THEME_ACCESS_FILTERS, query.access, '全部'),
-    style_filter: lookupLabel(THEME_CATEGORIES, query.category, '全部'),
+    access_filter: lookupLabel(themeRuntime().getThemeAccessFilters(), query.access, '全部'),
+    style_filter: lookupLabel(themeRuntime().getThemeCategories(), query.category, '全部'),
     dress_category: themeDressCategoryLabel(query.dressCategory) || '全部',
     region_tags: regions.join(','),
-    sort: lookupLabel(THEME_SORTS, query.sort, '最新上架'),
+    sort: lookupLabel(themeRuntime().getThemeSorts(), query.sort, '最新上架'),
   };
 }
 
 export function themeItemContext(kind, item, group) {
-  const dressGroup = group || getDressGroup(item?.group);
+  const dressGroup = group || themeRuntime().getDressGroup(item?.group);
   return {
     item_id: item?.id || '',
     item_type: themeItemType(kind),
     access_type: themeAccessType(item),
     region_tag: themeRegionLabel(item?.region),
     dress_category: themeDressCategoryLabel(dressGroup?.category),
-    catalog_status: catalogStatus(item),
+    catalog_status: themeRuntime().catalogStatus(item),
   };
 }
 
@@ -314,9 +304,13 @@ export function reportThemeEvent(event, payload = {}) {
   } else {
     reportWeb(event, params);
   }
-  import('@/services/themeApi').then(({ postThemeEvent }) => {
-    postThemeEvent(event, params.item_id || payload.item_id || '');
-  }).catch(() => {});
+  try {
+    Promise.resolve(
+      themeRuntime().postThemeEvent(event, params.item_id || payload.item_id || ''),
+    ).catch(() => {});
+  } catch {
+    // Analytics transport must not block the user action.
+  }
   return record;
 }
 
@@ -325,7 +319,7 @@ export function trackThemeCenterEnter(extra = {}) {
   enterAt = Date.now();
   return reportThemeEvent(THEME_ANALYTICS_EVENTS.ENTER, {
     logged_in: isLoggedIn() ? 'logged' : 'guest',
-    theme_id: extra.themeId || getActiveThemeId(),
+    theme_id: extra.themeId || themeRuntime().getActiveThemeId(),
   });
 }
 
@@ -472,7 +466,7 @@ export function trackThemeApplyMix(outfit, { hasUnavailable = false } = {}) {
 
 export function trackThemeResetAll({ themeId, dressCount = 0 } = {}) {
   return reportThemeEvent(THEME_ANALYTICS_EVENTS.RESET_ALL, {
-    theme_id: themeId || getActiveThemeId(),
+    theme_id: themeId || themeRuntime().getActiveThemeId(),
     dress_count: Number(dressCount) || 0,
   });
 }

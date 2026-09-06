@@ -1,8 +1,6 @@
 <template>
   <view class="empty-state">
-    <t-empty
-      icon="info-circle"
-    >
+    <t-empty>
       <template #description>
         <view class="empty-title">
           {{ title }}

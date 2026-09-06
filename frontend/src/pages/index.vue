@@ -58,8 +58,22 @@
       <view
         v-if="!listenAvailable"
         class="home-page__unavailable"
+        data-feed-state="maintenance"
       >
-        听音功能正在维护，请稍后再来。查词条和个人资料仍可正常使用。
+        <text class="home-page__unavailable-kicker">
+          听音暂歇
+        </text>
+        <text class="home-page__unavailable-title">
+          录音流正在维护
+        </text>
+        <text class="home-page__unavailable-copy">
+          查词条和个人资料仍可正常使用，已保存的内容也不会受影响。
+        </text>
+        <BaseButton
+          variant="light"
+          text="先去查词条"
+          @click="goSearch"
+        />
       </view>
     </view>
 
@@ -68,6 +82,7 @@
 </template>
 
 <script>
+import BaseButton from '@/components/BaseButton.vue';
 import HomeFeed from '@/components/home/RecordingFeed.vue';
 import HomeTabBar from '@/components/home/HomeTabBar.vue';
 import HomeTopBar from '@/components/home/HomeTopBar.vue';
@@ -87,6 +102,7 @@ import {
 import { hydrateOutfitStyle } from '@/services/themeCenter';
 import { getAppliedOutfitVars } from '@/services/themeSchema';
 import { PRODUCT_EVENTS, trackProductEvent } from '@/services/productAnalytics';
+import { goSearch } from '@/services/navigation';
 
 /* 常驻 feed 数量上限：只保留最近访问的 2 个 tab，超出者从头部卸载，
  * 回访时按首次进入的懒加载流程重建，限制内存与并发请求 */
@@ -94,6 +110,7 @@ const MAX_ALIVE_TABS = 2;
 
 export default {
   components: {
+    BaseButton,
     HomeFeed,
     HomeTabBar,
     HomeTopBar,
@@ -153,6 +170,7 @@ export default {
     stopAudio();
   },
   methods: {
+    goSearch,
     handleThemeChange(theme) {
       this.accent = theme?.accent || getAccentPreference();
       this.syncOutfitVars();
@@ -222,6 +240,7 @@ export default {
 <style scoped>
 .home-page {
   position: relative;
+  width: 100%;
   height: 100vh;
   box-sizing: border-box;
   display: flex;
@@ -289,12 +308,37 @@ export default {
 }
 
 .home-page__unavailable {
+  width: calc(100% - 80rpx);
   margin: auto 40rpx;
-  padding: 34rpx;
+  padding: 48rpx 40rpx;
   border: 1rpx solid var(--immersive-border-color);
   border-radius: var(--radius-lg);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18rpx;
   background: var(--immersive-surface-color);
   color: var(--on-immersive-color);
+}
+
+.home-page__unavailable-kicker {
+  color: var(--immersive-accent-color);
+  font-size: 20rpx;
+  font-weight: 800;
+  letter-spacing: 3rpx;
+}
+
+.home-page__unavailable-title {
+  font-family: STSong, SimSun, serif;
+  font-size: 36rpx;
+  font-weight: 900;
+}
+
+.home-page__unavailable-copy {
+  margin-bottom: 6rpx;
+  color: var(--on-immersive-muted-color);
+  font-size: 25rpx;
   line-height: 1.7;
 }
 
@@ -318,4 +362,52 @@ export default {
     animation: none;
   }
 }
+
+/* #ifdef H5 */
+.home-page {
+  height: 100dvh;
+}
+
+@media screen and (min-width: 960px) {
+  .home-page {
+    max-width: 960px;
+    margin: 0 auto;
+    border-inline: 1rpx solid var(--immersive-border-color);
+  }
+
+  .home-page__body {
+    width: 100%;
+    max-width: 920px;
+    margin-inline: auto;
+  }
+}
+
+@media screen and (min-width: 600px) and (max-height: 500px) and (orientation: landscape) {
+  .home-page__body {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+
+  .home-page__unavailable {
+    width: calc(100% - 48px);
+    margin: auto 24px;
+    padding: 20px 28px;
+    gap: 8px;
+  }
+
+  .home-page__unavailable-kicker {
+    font-size: 12px;
+    letter-spacing: 2px;
+  }
+
+  .home-page__unavailable-title {
+    font-size: 22px;
+  }
+
+  .home-page__unavailable-copy {
+    margin-bottom: 0;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+}
+/* #endif */
 </style>

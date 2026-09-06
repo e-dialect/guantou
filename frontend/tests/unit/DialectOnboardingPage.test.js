@@ -51,6 +51,7 @@ function mountPage() {
         PageShell: {
           template: '<main><slot /></main>',
         },
+        'scroll-view': { template: '<div><slot /></div>' },
       },
     },
   });
@@ -92,6 +93,21 @@ describe('dialect onboarding page', () => {
     await wrapper.vm.finish();
     expect(wrapper.vm.error).toBe('请选择主方言');
     expect(saveDialectProfile).not.toHaveBeenCalled();
+  });
+
+  it('continues the four-step identity journey for new accounts', async () => {
+    const wrapper = mountPage();
+    wrapper.vm.reason = 'new_user';
+
+    expect(wrapper.vm.journeyStep).toBe(3);
+    expect(wrapper.vm.journeyTotal).toBe(4);
+    expect(wrapper.vm.journeyStepLabel).toBe('设置称呼');
+
+    wrapper.vm.next();
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.journeyStep).toBe(4);
+    expect(wrapper.vm.journeyStepLabel).toBe('选择主方言');
   });
 
   it('loads a real sample and preserves interrupted navigation for new users', async () => {

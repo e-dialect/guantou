@@ -1,8 +1,10 @@
 import request from '@/utils/request';
 import { registerDialectCatalog } from '@/utils/dialectTree';
 
+const PAGE_LOAD_OPTIONS = Object.freeze({ loading: false });
+
 export function listDialects(params = {}) {
-  return request.get('/dialects/', params);
+  return request.get('/dialects/', params, false, PAGE_LOAD_OPTIONS);
 }
 
 function orderedDialects(items) {
@@ -25,15 +27,20 @@ export async function listAllDialects() {
 }
 
 export function resolveDialect(qualifiedCode) {
-  return request.get('/dialects/resolve/', { qualified_code: qualifiedCode });
+  return request.get(
+    '/dialects/resolve/',
+    { qualified_code: qualifiedCode },
+    false,
+    PAGE_LOAD_OPTIONS,
+  );
 }
 
 export function listCircles(params = {}) {
-  return request.get('/circles/', params);
+  return request.get('/circles/', params, false, PAGE_LOAD_OPTIONS);
 }
 
 export function getCircle(id) {
-  return request.get(`/circles/${id}/`);
+  return request.get(`/circles/${id}/`, null, false, PAGE_LOAD_OPTIONS);
 }
 
 export function joinCircle(id) {
@@ -45,5 +52,10 @@ export function leaveCircle(id) {
 }
 
 export function listCircleRecordings(id, params = {}) {
-  return request.get(`/circles/${id}/recordings/`, params, true);
+  return request.get(
+    `/circles/${id}/recordings/`,
+    params,
+    true,
+    PAGE_LOAD_OPTIONS,
+  );
 }

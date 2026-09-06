@@ -118,10 +118,10 @@ jobs:
         run: yarn install --frozen-lockfile --production=false
 
       - name: Build H5 frontend
-        run: yarn build
+        run: yarn build:h5:checked
 
       - name: Build WeChat mini program frontend
-        run: yarn build:mp-weixin
+        run: yarn build:mp-weixin:checked
 
   e2e-h5:
     name: H5 E2E

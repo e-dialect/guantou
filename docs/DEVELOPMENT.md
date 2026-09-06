@@ -96,6 +96,8 @@ VITE_BACKEND_URL=http://localhost:8000 yarn dev:h5
 - `request`：用于普通业务请求，默认带 `Authorization: Bearer <token>` 和 `X-Visitor-ID`，错误会提示，401 会跳登录。
 - `rawRequest`：用于登录、注册、刷新 token 等流程，默认带 `Authorization: Bearer <token>` 和 `X-Visitor-ID`，但错误静默，不自动跳登录。
 
+默认可见请求通过 `services/feedback.js` 共用一份全局 loading 引用计数：首个请求显示、最后一个请求结束才隐藏。H5 的原生 loading 与 toast 共用弹层，Host 尚未挂载时产生的错误提示会等 loading 完成关闭后再显示；页面不要绕开该服务自行配对全局 loading。
+
 登录、注册、微信登录/注册等公开入口必须显式传 `{ auth: false }`，避免浏览器或小程序本地残留的旧 token 污染 public 请求。刷新 token、加载当前用户信息等需要登录态的流程继续使用默认 `auth: true`。
 
 `src/polyfill` 和 `src/utils/u-parse` 是旧 uni-app 迁移兼容层。它们不是 uni-app 编译微信小程序的必需依赖；删除前必须先确认源码不再依赖对应能力，并通过 H5、mp-weixin 构建和 H5 E2E。

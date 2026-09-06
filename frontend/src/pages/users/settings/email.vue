@@ -3,92 +3,99 @@
     title="修改邮箱"
     :back-fallback="ROUTES.userInformation"
   >
-    <view
-      v-if="loading"
-      class="state-card"
+    <AccountSettingPanel
+      eyebrow="账户与安全"
+      mark="邮"
+      title="更新联系邮箱"
+      description="验证码会发往新的地址，验证通过后才会替换当前绑定。"
     >
-      正在读取邮箱…
-    </view>
-    <view
-      v-else-if="loadError"
-      class="state-card"
-    >
-      <view>{{ loadError }}</view>
-      <BaseButton
-        class="state-action"
-        block
-        @click="getUserEmail"
+      <view
+        v-if="loading"
+        class="state-card"
       >
-        重试
-      </BaseButton>
-    </view>
-    <view
-      v-else
-      class="email-form"
-    >
-      <view class="hint">
-        当前绑定 {{ oldEmailDisplay }}。验证码会发到新邮箱。若该地址已经绑定其他账号，需要换一个。
+        正在读取邮箱…
       </view>
-      <BaseForm
-        ref="form"
-        :data="formData"
-        :rules="rules"
+      <view
+        v-else-if="loadError"
+        class="state-card"
       >
-        <BaseField
-          :model-value="oldEmailDisplay"
-          name="oldEmail"
-          label="原邮箱"
-          disabled
-        />
-        <BaseField
-          v-model="newEmail"
-          name="email"
-          label="新邮箱"
-          required
-          placeholder="请输入新邮箱"
-          :error="emailError"
-          :disabled="saving"
-        />
-        <view class="code-row">
-          <view class="code-field">
-            <BaseField
-              v-model="code"
-              name="code"
-              label="验证码"
-              required
-              placeholder="请输入验证码"
-              :maxlength="6"
-              :error="codeError"
-              :disabled="saving"
-            />
+        <view>{{ loadError }}</view>
+        <BaseButton
+          class="state-action"
+          block
+          @click="getUserEmail"
+        >
+          重试
+        </BaseButton>
+      </view>
+      <view
+        v-else
+        class="email-form"
+      >
+        <view class="account-summary">
+          当前绑定 · {{ oldEmailDisplay }}
+        </view>
+        <BaseForm
+          ref="form"
+          :data="formData"
+          :rules="rules"
+        >
+          <BaseField
+            :model-value="oldEmailDisplay"
+            name="oldEmail"
+            label="原邮箱"
+            disabled
+          />
+          <BaseField
+            v-model="newEmail"
+            name="email"
+            label="新邮箱"
+            required
+            placeholder="请输入新邮箱"
+            :error="emailError"
+            :disabled="saving"
+          />
+          <view class="code-row">
+            <view class="code-field">
+              <BaseField
+                v-model="code"
+                name="code"
+                label="验证码"
+                required
+                placeholder="请输入验证码"
+                :maxlength="6"
+                :error="codeError"
+                :disabled="saving"
+              />
+            </view>
+            <BaseButton
+              class="code-button"
+              size="small"
+              variant="ghost"
+              :disabled="sending || saving || countdown > 0"
+              :loading="sending"
+              @click="sendCode"
+            >
+              {{ sendCodeLabel }}
+            </BaseButton>
+          </view>
+          <view
+            v-if="demoCode"
+            class="demo-code"
+          >
+            Demo 验证码：<text>{{ demoCode }}</text>
           </view>
           <BaseButton
-            class="code-button"
-            size="small"
-            variant="ghost"
-            :disabled="sending || saving || countdown > 0"
-            :loading="sending"
-            @click="sendCode"
+            block
+            :disabled="saving || sending"
+            :loading="saving"
+            @click="setNewEmail"
           >
-            {{ sendCodeLabel }}
+            保存新邮箱
           </BaseButton>
-        </view>
-        <view
-          v-if="demoCode"
-          class="demo-code"
-        >
-          Demo 验证码：<text>{{ demoCode }}</text>
-        </view>
-        <BaseButton
-          block
-          :disabled="saving || sending"
-          :loading="saving"
-          @click="setNewEmail"
-        >
-          保存
-        </BaseButton>
-      </BaseForm>
-    </view>
+        </BaseForm>
+      </view>
+    </AccountSettingPanel>
   </PageShell>
 </template>
 
@@ -97,6 +104,7 @@ import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
 import BaseForm from '@/components/BaseForm.vue';
 import PageShell from '@/components/PageShell.vue';
+import AccountSettingPanel from '@/pages/users/settings/components/AccountSettingPanel.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import { goBack, goLogin, ROUTES } from '@/services/navigation';
 import { resolveSessionUserId } from '@/services/session';
@@ -128,7 +136,7 @@ function applyEmailErrors(error) {
 export default {
   name: 'ChangeEmail',
   components: {
-    BaseButton, BaseField, BaseForm, PageShell,
+    AccountSettingPanel, BaseButton, BaseField, BaseForm, PageShell,
   },
   data() {
     return {
@@ -281,11 +289,15 @@ export default {
   box-sizing: border-box;
 }
 
-.hint {
+.account-summary {
   margin-bottom: var(--space-3);
-  color: var(--muted-color);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--accent-subtle-color);
+  color: var(--text-secondary-color);
   font-size: var(--font-size-sm);
   line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 .code-row {

@@ -1,41 +1,102 @@
 <template>
-  <scroll-view
-    scroll-y
-    class="recording-feed"
+  <PlatformScroll
+    variant="recording-feed"
     @scrolltolower="loadMore"
   >
     <view class="recording-feed__intro">
-      <text class="recording-feed__kicker">
-        听见真实使用
-      </text>
+      <view class="recording-feed__intro-meta">
+        <text class="recording-feed__kicker">
+          听见真实使用
+        </text>
+        <text class="recording-feed__scope">
+          {{ scopeText }}
+        </text>
+      </view>
       <text class="recording-feed__title">
-        一段录音，可以通向一个词条
+        先听这一句
       </text>
       <text class="recording-feed__copy">
-        不知道汉字也没关系：先听、先确认，再由爱好者补充写法和读音。
+        听懂意思，再看词条，或录下你那边的说法。
       </text>
     </view>
 
-    <BaseLoading
+    <view
       v-if="loading && !items.length"
-      text="正在寻找乡音…"
-    />
-    <EmptyState
+      class="recording-feed__state recording-feed__state--loading"
+      data-feed-state="loading"
+      aria-live="polite"
+    >
+      <view
+        class="recording-feed__skeleton"
+        aria-hidden="true"
+      >
+        <view class="recording-feed__skeleton-line recording-feed__skeleton-line--meta" />
+        <view class="recording-feed__skeleton-line recording-feed__skeleton-line--title" />
+        <view class="recording-feed__skeleton-line recording-feed__skeleton-line--copy" />
+        <view class="recording-feed__skeleton-actions">
+          <view class="recording-feed__skeleton-button" />
+          <view class="recording-feed__skeleton-button" />
+        </view>
+      </view>
+      <BaseLoading
+        layout="horizontal"
+        text="正在寻找乡音…"
+      />
+    </view>
+    <view
       v-else-if="errorMessage && !items.length"
-      :title="errorMessage"
-      action-text="重试"
-      @action="reload"
-    />
-    <EmptyState
+      class="recording-feed__state"
+      data-feed-state="error"
+      role="alert"
+    >
+      <text class="recording-feed__state-kicker">
+        连接暂歇
+      </text>
+      <text class="recording-feed__state-title">
+        {{ errorMessage }}
+      </text>
+      <text class="recording-feed__state-copy">
+        检查网络后再试，已经加载过的内容不会受影响。
+      </text>
+      <BaseButton
+        variant="light"
+        text="重新加载"
+        @click="reload"
+      />
+    </view>
+    <view
       v-else-if="!items.length"
-      title="这里还没有可听的录音"
-      action-text="录下第一段"
-      @action="openRecorder"
-    />
+      class="recording-feed__state"
+      data-feed-state="empty"
+    >
+      <text class="recording-feed__state-kicker">
+        等你开声
+      </text>
+      <text class="recording-feed__state-title">
+        这里还没有可听的录音
+      </text>
+      <text class="recording-feed__state-copy">
+        录下一句你熟悉的乡音，让下一位来的人有声可听。
+      </text>
+      <BaseButton
+        variant="light"
+        text="录下第一段"
+        @click="openRecorder"
+      />
+    </view>
     <view
       v-else
       class="recording-feed__list"
+      data-feed-state="normal"
     >
+      <view class="recording-feed__list-heading">
+        <text class="recording-feed__list-title">
+          正在听
+        </text>
+        <text class="recording-feed__list-count">
+          已载入 {{ items.length }} 段
+        </text>
+      </view>
       <EntryRecordingCard
         v-for="recording in items"
         :key="recording.id"
@@ -56,13 +117,14 @@
         已经听到这一页的末尾
       </view>
     </view>
-  </scroll-view>
+  </PlatformScroll>
 </template>
 
 <script>
+import BaseButton from '@/components/BaseButton.vue';
 import BaseLoading from '@/components/BaseLoading.vue';
-import EmptyState from '@/components/EmptyState.vue';
 import EntryRecordingCard from '@/components/EntryRecordingCard.vue';
+import PlatformScroll from '@/components/PlatformScroll.vue';
 import { requireAuth } from '@/services/authGuard';
 import {
   createUsageAttestation,
@@ -78,7 +140,9 @@ import {
 
 export default {
   name: 'RecordingFeed',
-  components: { BaseLoading, EmptyState, EntryRecordingCard },
+  components: {
+    BaseButton, BaseLoading, EntryRecordingCard, PlatformScroll,
+  },
   props: {
     tab: { type: String, default: 'recommended' },
   },
@@ -92,6 +156,17 @@ export default {
       errorMessage: '',
       attestedEntries: new Set(),
     };
+  },
+  computed: {
+    scopeText() {
+      const labels = {
+        today: '新近一段',
+        dialect: '我的本地',
+        phrase: '短语片段',
+        recommended: '全部乡音',
+      };
+      return labels[this.tab] || labels.recommended;
+    },
   },
   created() {
     this.reload();
@@ -173,26 +248,134 @@ export default {
 .recording-feed__intro {
   display: flex;
   flex-direction: column;
-  gap: 10rpx;
-  padding: 30rpx;
+  gap: 6rpx;
+  padding: 24rpx 30rpx 20rpx;
   color: var(--on-immersive-color);
+}
+
+.recording-feed__intro-meta,
+.recording-feed__list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
 }
 
 .recording-feed__kicker {
   color: var(--immersive-accent-color);
-  font-size: 22rpx;
+  font-size: 20rpx;
   font-weight: 800;
+  letter-spacing: 2rpx;
+}
+
+.recording-feed__scope {
+  color: var(--on-immersive-faint-color);
+  font-size: 18rpx;
+  letter-spacing: 2rpx;
 }
 
 .recording-feed__title {
-  font-size: 38rpx;
-  font-weight: 800;
+  font-size: 36rpx;
+  font-weight: 900;
+  letter-spacing: 1rpx;
 }
 
 .recording-feed__copy {
   color: var(--on-immersive-muted-color);
-  font-size: 25rpx;
-  line-height: 1.6;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.recording-feed__state {
+  min-height: 400rpx;
+  margin: 0 24rpx;
+  padding: 52rpx 42rpx;
+  border: 1rpx solid var(--immersive-border-color);
+  border-radius: var(--radius-lg);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 18rpx;
+  background: var(--immersive-surface-color);
+  color: var(--on-immersive-color);
+}
+
+.recording-feed__state-kicker {
+  color: var(--immersive-accent-color);
+  font-size: 20rpx;
+  font-weight: 800;
+  letter-spacing: 3rpx;
+}
+
+.recording-feed__state-title {
+  font-family: STSong, SimSun, serif;
+  font-size: 34rpx;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.recording-feed__state-copy {
+  margin-bottom: 8rpx;
+  color: var(--on-immersive-muted-color);
+  font-size: 24rpx;
+  line-height: 1.65;
+}
+
+.recording-feed__state--loading {
+  justify-content: flex-start;
+}
+
+.recording-feed__state--loading :deep(.base-loading) {
+  align-self: center;
+  padding: 6rpx 0 0;
+  color: var(--on-immersive-muted-color);
+  --td-brand-color: var(--immersive-accent-color);
+  --td-text-color-primary: var(--on-immersive-muted-color);
+}
+
+.recording-feed__skeleton {
+  width: 100%;
+  display: grid;
+  gap: 20rpx;
+}
+
+.recording-feed__skeleton-line,
+.recording-feed__skeleton-button {
+  border-radius: var(--radius-pill);
+  background: var(--immersive-surface-strong-color);
+  animation: recording-feed-breathe 1.4s ease-in-out infinite;
+}
+
+.recording-feed__skeleton-line {
+  height: 20rpx;
+}
+
+.recording-feed__skeleton-line--meta {
+  width: 30%;
+}
+
+.recording-feed__skeleton-line--title {
+  width: 56%;
+  height: 42rpx;
+}
+
+.recording-feed__skeleton-line--copy {
+  width: 88%;
+  animation-delay: 0.12s;
+}
+
+.recording-feed__skeleton-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18rpx;
+  margin-top: 18rpx;
+}
+
+.recording-feed__skeleton-button {
+  height: 64rpx;
+  animation-delay: 0.2s;
 }
 
 .recording-feed__list {
@@ -201,10 +384,202 @@ export default {
   padding: 0 24rpx 180rpx;
 }
 
+.recording-feed__list-heading {
+  padding: 0 6rpx;
+}
+
+.recording-feed__list-title {
+  color: var(--on-immersive-color);
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.recording-feed__list-count {
+  color: var(--on-immersive-faint-color);
+  font-size: 20rpx;
+}
+
+.recording-feed__list :deep(.recording-card) {
+  display: flex;
+  flex-direction: column;
+  background: var(--immersive-surface-color);
+  border-color: var(--immersive-border-color);
+  backdrop-filter: blur(18rpx);
+}
+
+.recording-feed__list :deep(.recording-card__title) {
+  order: 1;
+  margin-top: 0;
+  color: var(--on-immersive-color);
+}
+
+.recording-feed__list :deep(.recording-card__gloss) {
+  order: 2;
+}
+
+.recording-feed__list :deep(.recording-card__meta) {
+  order: 3;
+  justify-content: flex-start;
+  margin-top: 18rpx;
+}
+
+.recording-feed__list :deep(.recording-card__dialect) {
+  padding: 6rpx 14rpx;
+  border-radius: var(--radius-pill);
+  background: var(--immersive-surface-strong-color);
+  color: var(--immersive-accent-color);
+  font-weight: 800;
+}
+
+.recording-feed__list :deep(.recording-card__type),
+.recording-feed__list :deep(.recording-card__gloss) {
+  color: var(--on-immersive-muted-color);
+}
+
+.recording-feed__list :deep(.recording-card__pronunciation) {
+  order: 4;
+  color: var(--immersive-accent-color);
+}
+
+.recording-feed__list :deep(.recording-card__actions) {
+  order: 5;
+}
+
+.recording-feed__list :deep(.recording-card__community) {
+  order: 6;
+  border-color: var(--immersive-border-color);
+}
+
+.recording-feed__list :deep(.base-button) {
+  --td-brand-color: var(--immersive-accent-color);
+  --td-brand-color-active: var(--immersive-wave-active-color);
+  --td-text-color-anti: var(--immersive-bg-color);
+}
+
+.recording-feed__list :deep(.base-button--ghost) {
+  --td-bg-color-container: transparent;
+  --td-bg-color-container-active: var(--immersive-surface-strong-color);
+}
+
 .recording-feed__end {
   padding: 24rpx;
   color: var(--on-immersive-muted-color);
   text-align: center;
   font-size: 22rpx;
 }
+
+@keyframes recording-feed-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.42;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recording-feed__skeleton-line,
+  .recording-feed__skeleton-button {
+    animation: none;
+  }
+}
+
+/* #ifdef H5 */
+@media screen and (min-width: 600px) and (max-height: 500px) and (orientation: landscape) {
+  .recording-feed__intro {
+    gap: 2px;
+    padding: 8px 24px 6px;
+  }
+
+  .recording-feed__kicker,
+  .recording-feed__scope {
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+
+  .recording-feed__title {
+    font-size: 22px;
+  }
+
+  .recording-feed__copy {
+    font-size: 14px;
+    line-height: 1.3;
+  }
+
+  .recording-feed__state {
+    min-height: 140px;
+    margin: 0 24px;
+    padding: 16px 24px;
+  }
+
+  .recording-feed__state:not(.recording-feed__state--loading) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: repeat(3, auto);
+    align-content: center;
+    align-items: center;
+    column-gap: 24px;
+    row-gap: 4px;
+  }
+
+  .recording-feed__state:not(.recording-feed__state--loading) :deep(.base-button) {
+    grid-column: 2;
+    grid-row: 1 / 4;
+  }
+
+  .recording-feed__state--loading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .recording-feed__state-kicker {
+    font-size: 12px;
+    letter-spacing: 2px;
+  }
+
+  .recording-feed__state-title {
+    font-size: 22px;
+  }
+
+  .recording-feed__state-copy {
+    margin-bottom: 0;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  .recording-feed__state--loading :deep(.base-loading) {
+    padding: 0;
+  }
+
+  .recording-feed__skeleton {
+    gap: 8px;
+  }
+
+  .recording-feed__skeleton-line {
+    height: 8px;
+  }
+
+  .recording-feed__skeleton-line--title {
+    height: 16px;
+  }
+
+  .recording-feed__skeleton-actions {
+    gap: 8px;
+    margin-top: 2px;
+  }
+
+  .recording-feed__skeleton-button {
+    height: 24px;
+  }
+
+  .recording-feed__list {
+    gap: 12px;
+    padding: 0 24px 24px;
+  }
+}
+/* #endif */
 </style>

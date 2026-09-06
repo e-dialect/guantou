@@ -22,7 +22,7 @@ describe('PageShell', () => {
     };
   });
 
-  it('keeps the title in the center grid column when back is hidden', () => {
+  it('keeps the title in the centered grid column when back is hidden', () => {
     const wrapper = mount(PageShell, {
       props: {
         title: '乡声集盒',
@@ -42,6 +42,25 @@ describe('PageShell', () => {
     wrapper.unmount();
   });
 
+  it('uses a named design-system circle for the back affordance', () => {
+    const wrapper = mount(PageShell, {
+      props: { title: '词条详情' },
+      global: {
+        stubs: { 'scroll-view': { template: '<div><slot /></div>' } },
+      },
+    });
+
+    const back = wrapper.findAllComponents(BaseButton)
+      .find((button) => button.props('ariaLabel') === '返回');
+    expect(back?.props()).toMatchObject({
+      size: 'small',
+      variant: 'ghost',
+      shape: 'circle',
+    });
+    expect(back?.text()).toBe('‹');
+    wrapper.unmount();
+  });
+
   it('uses the shared button contract for topbar actions', () => {
     const wrapper = mount(PageShell, {
       props: { title: '编辑', actionText: '保存' },
@@ -49,7 +68,8 @@ describe('PageShell', () => {
         stubs: { 'scroll-view': { template: '<div><slot /></div>' } },
       },
     });
-    const action = wrapper.getComponent(BaseButton);
+    const action = wrapper.findAllComponents(BaseButton)
+      .find((button) => button.props('text') === '保存');
     expect(action.props('text')).toBe('保存');
     action.vm.$emit('click');
     expect(wrapper.emitted('action')).toHaveLength(1);
@@ -77,8 +97,9 @@ describe('PageShell', () => {
 
   it('tints the top bar with the active accent tokens', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/components/PageShell.vue'), 'utf8');
-    expect(source).toContain('var(--dress-nav-bar-background, var(--accent-subtle-color))');
-    expect(source).toContain('var(--dress-nav-bar-border-color, var(--accent-color))');
+    expect(source).toContain('--dress-nav-bar-background');
+    expect(source).toContain('linear-gradient(90deg, var(--surface-color), var(--accent-subtle-color))');
+    expect(source).toContain('var(--dress-nav-bar-border-color, var(--border-color))');
     expect(source).toContain('shell-grain');
     expect(source).toContain('var(--dress-grain-image, var(--grain-dot))');
   });
@@ -98,21 +119,24 @@ describe('PageShell', () => {
         stubs: { 'scroll-view': { template: '<div><slot /></div>' } },
       },
     });
-    await wrapper.find('.shell-back').trigger('tap');
+    const back = wrapper.findAllComponents(BaseButton)
+      .find((button) => button.props('ariaLabel') === '返回');
+    back.vm.$emit('click');
+    await wrapper.vm.$nextTick();
     expect(wrapper.emitted('back')).toHaveLength(1);
     expect(uni.navigateBack).not.toHaveBeenCalled();
     expect(uni.reLaunch).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 
-  it('forwards inner scroll-view motion to the page', () => {
+  it('forwards normalized scrolling from the platform scroll container', () => {
     const wrapper = mount(PageShell, {
       props: { title: '主题中心' },
       global: {
         stubs: { 'scroll-view': { template: '<div><slot /></div>' } },
       },
     });
-    wrapper.vm.onScroll({ detail: { scrollTop: 180 } });
+    wrapper.vm.onScroll({ scrollTop: 180 });
     expect(wrapper.emitted('scroll')[0][0]).toEqual({ scrollTop: 180 });
     wrapper.unmount();
   });

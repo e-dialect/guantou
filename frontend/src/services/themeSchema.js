@@ -5,6 +5,7 @@
  */
 import { isWechatMiniProgram } from '@/services/platform';
 import { parseThemeStyle } from '@/services/themeFault';
+import { bindThemeRuntimeAdapters } from '@/services/themeRuntime';
 import {
   applyTheme,
   getAccentPreference,
@@ -180,6 +181,11 @@ const CAMEL_TO_VAR = {
   navColor: '--dress-nav-bar-color',
   navBorder: '--dress-nav-bar-border-color',
   tabBackground: '--dress-tab-bar-background',
+  tabColor: '--dress-tab-bar-color',
+  tabAccent: '--dress-tab-bar-accent',
+  tabOnAccent: '--dress-tab-bar-on-accent',
+  tabEmphasis: '--dress-tab-bar-emphasis',
+  tabBorder: '--dress-tab-bar-border-color',
   grainOpacity: '--dress-grain-opacity',
   grainImage: '--dress-grain-image',
   grainSize: '--dress-grain-size',
@@ -536,8 +542,9 @@ function computeFlattenStyleJson(style, componentType = '') {
     const cssKey = TOKEN_KEY.test(key) ? key : CAMEL_TO_VAR[key];
     if (!cssKey) return;
     if (!isSafeCssValue(value)) return;
-    const scoped = componentType
-      ? cssKey.replace('--dress-', `--dress-${componentType.replace(/_/g, '-')}-`)
+    const scopePrefix = `--dress-${componentType.replace(/_/g, '-')}-`;
+    const scoped = componentType && cssKey.startsWith('--dress-') && !cssKey.startsWith(scopePrefix)
+      ? cssKey.replace('--dress-', scopePrefix)
       : cssKey;
     vars[scoped] = value;
   });
@@ -673,3 +680,7 @@ export function clearOutfitStyleVars() {
   writeDocumentVars({});
   appliedVarKeys = [];
 }
+
+bindThemeRuntimeAdapters({
+  clearThemeStyleCache,
+});

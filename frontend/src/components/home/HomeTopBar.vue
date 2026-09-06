@@ -324,4 +324,38 @@ export default {
   font-size: 18rpx;
   letter-spacing: 6rpx;
 }
+
+/* #ifdef H5 */
+@media screen and (min-width: 600px) and (max-height: 500px) and (orientation: landscape) {
+  .home-top-bar {
+    padding: 4px 20px 0;
+  }
+
+  .home-top-bar__row {
+    gap: 8px;
+  }
+
+  .home-top-bar__entry,
+  .home-top-bar__search {
+    width: 44px;
+    height: 44px;
+  }
+
+  .home-top-bar__tab {
+    padding: 5px 4px;
+    font-size: 15px;
+  }
+
+  .home-top-bar__tab--active {
+    font-size: 17px;
+  }
+
+  .home-top-bar__brand {
+    margin-top: 0;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 4px;
+  }
+}
+/* #endif */
 </style>

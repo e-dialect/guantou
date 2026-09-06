@@ -3,33 +3,37 @@
     title="修改用户名"
     :back-fallback="ROUTES.userInformation"
   >
-    <view class="setting-hint">
-      用户名是识别账号的标识，也用于账号密码登录。
-    </view>
-    <BaseForm
-      ref="form"
-      :data="form"
-      :rules="rules"
+    <AccountSettingPanel
+      eyebrow="公开身份"
+      mark="号"
+      title="设置你的乡声号"
+      description="用户名是识别账号的稳定标识，也用于账号密码登录。"
     >
-      <BaseField
-        v-model="form.username"
-        name="username"
-        label="用户名"
-        required
-        clearable
-        placeholder="请输入不超过 20 位的用户名"
-        :maxlength="20"
-        :error="error"
-        :disabled="saving"
-      />
-      <BaseButton
-        block
-        text="保存"
-        :disabled="saving || form.username === currentUsername"
-        :loading="saving"
-        @click="saveUsername"
-      />
-    </BaseForm>
+      <BaseForm
+        ref="form"
+        :data="form"
+        :rules="rules"
+      >
+        <BaseField
+          v-model="form.username"
+          name="username"
+          label="用户名"
+          required
+          clearable
+          placeholder="请输入不超过 20 位的用户名"
+          :maxlength="20"
+          :error="error"
+          :disabled="saving"
+        />
+        <BaseButton
+          block
+          text="保存用户名"
+          :disabled="saving || form.username === currentUsername"
+          :loading="saving"
+          @click="saveUsername"
+        />
+      </BaseForm>
+    </AccountSettingPanel>
   </PageShell>
 </template>
 
@@ -38,6 +42,7 @@ import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
 import BaseForm from '@/components/BaseForm.vue';
 import PageShell from '@/components/PageShell.vue';
+import AccountSettingPanel from '@/pages/users/settings/components/AccountSettingPanel.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import { goBack, goLogin, ROUTES } from '@/services/navigation';
 import { resolveSessionUserId } from '@/services/session';
@@ -55,7 +60,7 @@ function fieldErrorMessage(error, field) {
 export default {
   name: 'ChangeUsername',
   components: {
-    BaseButton, BaseField, BaseForm, PageShell,
+    AccountSettingPanel, BaseButton, BaseField, BaseForm, PageShell,
   },
   data() {
     return {
@@ -111,15 +116,3 @@ export default {
   },
 };
 </script>
-
-<style scoped>
-.setting-hint {
-  margin-bottom: var(--space-3);
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  background: var(--accent-subtle-color);
-  color: var(--text-secondary-color);
-  font-size: var(--font-size-sm);
-  line-height: 1.6;
-}
-</style>

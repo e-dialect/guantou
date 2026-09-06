@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils';
 import {
   beforeEach, describe, expect, it, vi,
 } from 'vitest';
+import { getMyContributionHistory } from '@/services/entryRecording';
 import { notify, notifySuccess } from '@/services/feedback';
 import ThemeAcquirePage from '@/pages/users/theme-acquire.vue';
 import ThemeEventPage from '@/pages/users/theme-event.vue';
@@ -9,8 +10,13 @@ import ThemeMemberPage from '@/pages/users/theme-member.vue';
 import {
   getMemberStatus,
   isOwned,
+  setCreatorProgress,
   THEME_ACCESS_FOOTER,
 } from '@/services/themeCenter';
+
+vi.mock('@/services/entryRecording', () => ({
+  getMyContributionHistory: vi.fn(),
+}));
 
 vi.mock('@/services/feedback', () => ({
   notify: vi.fn(),
@@ -52,6 +58,7 @@ describe('theme acquire, member, and event pages', () => {
       global: { stubs: stubs() },
     });
     expect(wrapper.text()).toContain('装扮获取');
+    expect(wrapper.text()).toContain('按真实资格找到获取路径');
     expect(wrapper.text()).toContain('开通会员即可解锁全部会员全局主题、会员局部装扮');
     expect(wrapper.text()).toContain('同乡灯会');
     expect(wrapper.text()).toContain('去参与活动');
@@ -69,11 +76,36 @@ describe('theme acquire, member, and event pages', () => {
     expect(notifySuccess).toHaveBeenCalled();
   });
 
+  it('keeps the verified contribution snapshot without an authenticated request', async () => {
+    setCreatorProgress({ recordings: 4 });
+    const wrapper = mount(ThemeAcquirePage, {
+      global: { stubs: stubs() },
+    });
+
+    await wrapper.vm.syncContributionCount();
+
+    expect(getMyContributionHistory).not.toHaveBeenCalled();
+    expect(wrapper.vm.progress.recordings).toBe(4);
+  });
+
+  it('refreshes contribution progress for a signed-in user', async () => {
+    uni.setStorageSync('token', 'signed-in-token');
+    getMyContributionHistory.mockResolvedValue({ summary: { recordings: 12 } });
+    const wrapper = mount(ThemeAcquirePage, {
+      global: { stubs: stubs() },
+    });
+
+    await wrapper.vm.syncContributionCount();
+
+    expect(getMyContributionHistory).toHaveBeenCalledTimes(1);
+    expect(wrapper.vm.progress.recordings).toBe(12);
+  });
+
   it('activates membership for both H5 and mini program', () => {
     const wrapper = mount(ThemeMemberPage, {
       global: { stubs: stubs() },
     });
-    expect(wrapper.text()).toContain('该装扮为会员专属，开通会员即可解锁全部会员主题与装扮');
+    expect(wrapper.text()).toContain('一处开通，装扮资格跟随账号');
     expect(wrapper.text()).toContain('解锁全部会员全局主题、会员局部装扮');
     expect(getMemberStatus()).toBe(false);
     wrapper.vm.onToggle();
@@ -94,8 +126,15 @@ describe('theme acquire, member, and event pages', () => {
 
     wrapper.vm.itemId = 'event-spring';
     wrapper.vm.refresh();
+    expect(wrapper.vm.eventStatus).toBe('活动已结束');
+    expect(wrapper.vm.eventTone).toBe('warning');
     await wrapper.vm.onClaim();
     expect(notify).toHaveBeenCalledWith({ title: '该限定装扮活动已结束，无法获取' });
     expect(isOwned('theme', 'event-spring')).toBe(false);
+
+    wrapper.vm.itemId = 'missing-theme';
+    wrapper.vm.refresh();
+    expect(wrapper.vm.eventStatus).toBe('活动不可用');
+    expect(wrapper.vm.eventIntro).toContain('活动链接可能已失效');
   });
 });
