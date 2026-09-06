@@ -43,6 +43,18 @@ python manage.py migrate
 python manage.py runserver
 ```
 
+音频上传会把 MP3、WAV、M4A 统一编码为 MP3，因此本地需要同时提供 `ffmpeg`
+和 `ffprobe`。macOS 可运行 `brew install ffmpeg`，Debian/Ubuntu 可运行
+`sudo apt-get install ffmpeg`。安装后执行以下显式探测：
+
+```bash
+python manage.py probe_audio
+```
+
+普通迁移、非音频测试和服务启动不会主动加载 pydub 或探测二进制；仅在音频
+上传时缺少能力才返回 503 的稳定 API 错误。Docker 镜像构建会分别执行
+`ffmpeg -version` 与 `ffprobe -version`，避免把缺失能力的镜像发布出去。
+
 ### 后台管理员
 
 仓库和容器不会创建带固定密码的默认管理员，测试代码中的管理员也只存在于临时测试库。
