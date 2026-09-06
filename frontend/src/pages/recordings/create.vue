@@ -500,6 +500,7 @@ export default {
         this.draftMessage = draft.audioError ? '仅文字已保存，音频保存失败，请保留本页重试' : '草稿已保存，可稍后继续';
         notify({ title: this.draftMessage });
       } catch (error) {
+        if (error.persistedAudio) this.audio = { ...this.audio, ...error.persistedAudio };
         this.draftMessage = error.message;
         notify({ title: error.message });
       } finally { this.savingDraft = false; }

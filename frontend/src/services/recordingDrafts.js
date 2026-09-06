@@ -27,6 +27,7 @@ export async function saveRecordingDraft({
   try {
     storedAudio = await persistDraftAudio(audio, `${owner}:${draftId}:${Date.now()}`);
   } catch (error) {
+    if (old?.audio) throw new Error('音频保存失败，原草稿已保留，请保留本页重试');
     audioError = true;
   }
   const item = {
@@ -45,6 +46,12 @@ export async function saveRecordingDraft({
   try {
     uni.setStorageSync(key(owner), JSON.stringify([item, ...items]));
   } catch (error) {
+    // saveFile moves the temporary file. Keep its new path available for retry.
+    if (storedAudio?.storage === 'saved-file') {
+      const failure = new Error('草稿空间不足，请保留本页并重试');
+      failure.persistedAudio = storedAudio;
+      throw failure;
+    }
     if (storedAudio?.mediaId !== old?.audio?.mediaId) await removeDraftAudio(storedAudio);
     throw new Error('草稿空间不足，请保留本页并重试');
   }

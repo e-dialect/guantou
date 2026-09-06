@@ -50,6 +50,23 @@ describe('Recording draft lifecycle', () => {
     expect(listRecordingDrafts()).toEqual([]);
     expect(storage.has('can_drafts:user:1')).toBe(true);
   });
+  it('retains a moved native file for retry when the draft index cannot be written', async () => {
+    const audio = { persisted: true, mediaId: 'native', storage: 'saved-file', path: '/saved/audio' };
+    persistDraftAudio.mockResolvedValueOnce(audio);
+    uni.setStorageSync.mockImplementationOnce(() => { throw new Error('quota'); });
+    await expect(saveRecordingDraft(input())).rejects.toMatchObject({ persistedAudio: audio });
+    expect(removeDraftAudio).not.toHaveBeenCalled();
+    expect(listRecordingDrafts()).toEqual([]);
+  });
+  it('keeps the previous form and audio when replacement audio cannot be saved', async () => {
+    persistDraftAudio.mockResolvedValueOnce({ persisted: true, mediaId: 'old' });
+    const old = await saveRecordingDraft(input());
+    persistDraftAudio.mockRejectedValueOnce(new Error('quota'));
+    await expect(saveRecordingDraft({ ...input(), id: old.id, form: { original_gloss: 'new' } }))
+      .rejects.toThrow('原草稿已保留');
+    expect(listRecordingDrafts()[0]).toEqual(old);
+    expect(removeDraftAudio).not.toHaveBeenCalled();
+  });
 });
 describe('local search history', () => {
   it('deduplicates, isolates accounts, caps history and clears only the current account', () => {
