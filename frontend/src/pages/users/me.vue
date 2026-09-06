@@ -219,21 +219,35 @@
           </view>
 
           <view class="archive-menu">
+            <view class="section-kicker menu-kicker">
+              档案导航
+            </view>
             <t-cell
               title="我的集盒"
               note="按词条收集各地乡音"
               arrow
+              hover
+              custom-style="padding: var(--space-3); background: transparent;"
+              aria-label="查看我的集盒"
+              role="button"
+              tabindex="0"
               @click="goCollections({ mine: true })"
+              @keydown.enter="goCollections({ mine: true })"
+              @keydown.space.prevent="goCollections({ mine: true })"
             />
             <t-cell
               title="录音草稿"
               note="仅保存在当前设备"
               arrow
+              hover
+              custom-style="padding: var(--space-3); background: transparent;"
+              aria-label="查看录音草稿"
+              role="button"
+              tabindex="0"
               @click="goRecordingDrafts"
+              @keydown.enter="goRecordingDrafts"
+              @keydown.space.prevent="goRecordingDrafts"
             />
-            <view class="section-kicker menu-kicker">
-              档案导航
-            </view>
             <t-cell
               title="词条收藏"
               note="仅自己可见"

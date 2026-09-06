@@ -46,7 +46,7 @@ VIEWPORTS.forEach((viewport) => {
     await expect(page.getByRole('button', { name: '查看既有贡献' })).toHaveCount(1);
 
     const archive = page.locator('.archive-menu');
-    await expect(archive.locator('.t-cell')).toHaveCount(2);
+    await expect(archive.locator('.t-cell')).toHaveCount(4);
     await expect(page.getByRole('button', { name: '查看词条收藏' })).toBeVisible();
     await expect(page.getByRole('button', { name: '查看关注方言，当前 1 个' })).toBeVisible();
     await archive.evaluate((element) => element.scrollIntoView({
@@ -94,3 +94,18 @@ test('account archive keeps keyboard tabs and both surviving destinations', asyn
   await expect(page).toHaveURL(/\/pages\/circles\/index$/);
   expect(runtimeIssues, 'account archive interactions browser console').toEqual([]);
 });
+
+for (const destination of [
+  { label: '查看我的集盒', key: 'Enter', url: /\/pages\/collections\/index\?mine=true$/, heading: '把散落的乡音，收在一起' },
+  { label: '查看录音草稿', key: 'Space', url: /\/pages\/recordings\/drafts$/, heading: '留住未完成的乡音' },
+]) {
+  test(`account archive keyboard opens ${destination.label}`, async ({ page }) => {
+    const runtimeIssues = observeRuntime(page);
+    await openMemberAccount(page);
+    await page.getByRole('button', { name: destination.label }).focus();
+    await page.keyboard.press(destination.key);
+    await expect(page).toHaveURL(destination.url);
+    await expect(page.getByText(destination.heading, { exact: true })).toBeVisible();
+    expect(runtimeIssues).toEqual([]);
+  });
+}

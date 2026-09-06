@@ -3,56 +3,61 @@
     variant="recording-feed"
     @scrolltolower="loadMore"
   >
-    <view class="recording-feed__intro">
-      <view class="recording-feed__intro-meta">
-        <text class="recording-feed__kicker">
-          听见真实使用
-        </text>
-        <text class="recording-feed__scope">
-          {{ scopeText }}
-        </text>
-      </view>
-      <text class="recording-feed__title">
-        先听这一句
-      </text>
-      <text class="recording-feed__copy">
-        听懂意思，再看词条，或录下你那边的说法。
-      </text>
-    </view>
-
     <view
-      v-if="tab === 'today' || tab === 'recommended'"
-      class="recording-feed__intro"
+      class="recording-feed__opening"
+      :class="{ 'recording-feed__opening--expanded': featured || discoveryMessage }"
     >
-      <view class="box-actions">
-        <BaseButton
-          size="small"
-          variant="light"
-          text="今日精选"
-          :disabled="discovering"
-          @click="discover('daily')"
-        />
-        <BaseButton
-          size="small"
-          variant="light"
-          text="换一段"
-          :disabled="discovering"
-          @click="discover('random')"
+      <view class="recording-feed__intro">
+        <view class="recording-feed__intro-meta">
+          <text class="recording-feed__kicker">
+            听见真实使用
+          </text>
+          <text class="recording-feed__scope">
+            {{ scopeText }}
+          </text>
+        </view>
+        <text class="recording-feed__title">
+          先听这一句
+        </text>
+        <text class="recording-feed__copy">
+          听懂意思，再看词条，或录下你那边的说法。
+        </text>
+      </view>
+
+      <view
+        v-if="tab === 'today' || tab === 'recommended'"
+        class="recording-feed__intro"
+      >
+        <view class="box-actions">
+          <BaseButton
+            size="small"
+            variant="light"
+            text="今日精选"
+            :disabled="discovering"
+            @click="discover('daily')"
+          />
+          <BaseButton
+            size="small"
+            variant="light"
+            text="换一段"
+            :disabled="discovering"
+            @click="discover('random')"
+          />
+        </view>
+        <text
+          v-if="discoveryMessage"
+          aria-live="polite"
+        >
+          {{ discoveryMessage }}
+        </text>
+        <EntryRecordingCard
+          v-if="featured"
+          :recording="featured"
+          @attest="attest"
+          @open-entry="goEntryDetail"
+          @continue="continueChain"
         />
       </view>
-      <text
-        v-if="discoveryMessage"
-        aria-live="polite"
-      >
-        {{ discoveryMessage }}
-      </text>
-      <EntryRecordingCard
-        v-if="featured"
-        :recording="featured"
-        @attest="attest"
-        @open-entry="goEntryDetail"
-        @continue="continueChain"
-      />
     </view>
     <view
       v-if="loading && !items.length"
@@ -531,6 +536,12 @@ export default {
 
 /* #ifdef H5 */
 @media screen and (min-width: 600px) and (max-height: 500px) and (orientation: landscape) {
+  .recording-feed__opening:not(.recording-feed__opening--expanded) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
   .recording-feed__intro {
     gap: 2px;
     padding: 8px 24px 6px;
