@@ -9,6 +9,9 @@ class Notification(models.Model):
     class Verb(models.TextChoices):
         SYSTEM = "system.message", "系统消息"
         RECORDING_LIKE = "recording.like", "录音获赞"
+        ENTRY_COMMENT = "entry.comment", "词条有新评论"
+        ENTRY_REPLY = "entry.reply", "词条评论有新回复"
+        ENTRY_COMMENT_LIKE = "entry.comment_like", "词条评论获赞"
         RECORDING_COMMENT = "recording.comment", "录音有新评论"
         RECORDING_REPLY = "recording.reply", "评论有新回复"
         RECORDING_COMMENT_LIKE = "recording.comment_like", "评论获赞"

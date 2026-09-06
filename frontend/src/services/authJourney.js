@@ -23,6 +23,9 @@ export function resolveAuthDestination(intent) {
     return routeDestination(ROUTES.mine);
   }
 
+  if (intent.action === 'interact_entry' && context.entryId) {
+    return routeDestination(ROUTES.entryDetail, { id: context.entryId });
+  }
   if (intent.action === 'interact_recording' && context.recordingId) {
     return routeDestination(ROUTES.recordingDetail, { id: context.recordingId });
   }

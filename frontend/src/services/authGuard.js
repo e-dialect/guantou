@@ -2,6 +2,7 @@ import { toLoginPage } from '@/routers/login';
 import { notify } from '@/services/feedback';
 
 export const PROTECTED_ACTIONS = {
+  interact_entry: '参与词条讨论',
   interact_recording: '回应乡音',
   manage_collection: '收纳乡音',
   record_recording: '录制乡音',

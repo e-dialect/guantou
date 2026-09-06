@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-vi.mock('@/services/recordingDraftAudio', () => ({ persistDraftAudio: vi.fn(), restoreDraftAudio: vi.fn(), removeDraftAudio: vi.fn() }));
-import { persistDraftAudio, restoreDraftAudio, removeDraftAudio } from '@/services/recordingDraftAudio';
-import { saveRecordingDraft, restoreRecordingDraft, listRecordingDrafts, deleteRecordingDraft } from '@/services/recordingDrafts';
+vi.mock('@/services/recordingDraftAudio', () => ({ persistDraftAudio: vi.fn(), restoreDraftAudio: vi.fn(), removeDraftAudio: vi.fn(), isDraftAudioAvailable: vi.fn() }));
+import { persistDraftAudio, restoreDraftAudio, removeDraftAudio, isDraftAudioAvailable } from '@/services/recordingDraftAudio';
+import { saveRecordingDraft, restoreRecordingDraft, listRecordingDrafts, deleteRecordingDraft, listRecordingDraftsWithAudioStatus } from '@/services/recordingDrafts';
 import { searchHistory, rememberSearch, clearSearchHistory } from '@/services/entrySearchAssist';
 
 let storage;
@@ -75,4 +75,14 @@ describe('local search history', () => {
     user = 2; expect(searchHistory()).toEqual([]); rememberSearch('月娘'); clearSearchHistory();
     expect(searchHistory()).toEqual([]); user = 1; expect(searchHistory()).toHaveLength(10);
   });
+});
+
+it('checks whether persisted draft audio still exists without discarding its text', async () => {
+  persistDraftAudio.mockResolvedValue({ persisted: true, mediaId: 'missing' });
+  await saveRecordingDraft(input());
+  isDraftAudioAvailable.mockResolvedValue(false);
+  const rows = await listRecordingDraftsWithAudioStatus();
+  expect(rows[0].audio.available).toBe(false);
+  expect(rows[0].form.original_gloss).toBe('月娘');
+  expect(listRecordingDrafts()).toHaveLength(1);
 });

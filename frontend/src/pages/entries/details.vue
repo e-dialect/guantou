@@ -238,6 +238,11 @@
         </view>
       </view>
 
+      <DiscussionThread
+        :key="entry.id"
+        target-type="entry"
+        :target-id="entry.id"
+      />
       <view
         class="detail-actions"
         data-detail-section="actions"
@@ -273,6 +278,7 @@
 </template>
 
 <script>
+import DiscussionThread from '@/components/DiscussionThread.vue';
 import CollectionPicker from '@/components/CollectionPicker.vue';
 import BaseButton from '@/components/BaseButton.vue';
 import BaseLoading from '@/components/BaseLoading.vue';
@@ -297,6 +303,7 @@ import { PRODUCT_EVENTS, trackProductEvent } from '@/services/productAnalytics';
 
 export default {
   components: {
+    DiscussionThread,
     CollectionPicker,
     BaseButton,
     BaseLoading,

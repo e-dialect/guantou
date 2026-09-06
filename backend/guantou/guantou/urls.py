@@ -22,9 +22,10 @@ from .v2_views import (
     WritingFormViewSet,
 )
 
-from .restoration import CollectionViewSet, RecordingCommentViewSet
+from .restoration import CollectionViewSet, RecordingCommentViewSet, EntryCommentViewSet
 
 router = DefaultRouter()
+router.register("entry-comments", EntryCommentViewSet, basename="entry-comment")
 router.register("collections", CollectionViewSet, basename="collection")
 router.register(
     "recording-comments", RecordingCommentViewSet, basename="recording-comment"

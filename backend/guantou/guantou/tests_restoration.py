@@ -250,3 +250,133 @@ class RestorationTests(TestCase):
             response = self.client.get(self.url)
         self.assertEqual(response.data["recording_count"], 1)
         self.assertLessEqual(len(expanded), len(baseline) + 2)
+
+    def test_entry_discussion_isolated_idempotent_and_notifies_entry_creator(self):
+        data = {
+            "entry_id": self.entry.id,
+            "body": "这个词还可以这样用",
+            "client_id": str(uuid.uuid4()),
+        }
+        first = self.client.post("/entry-comments/", data, format="json")
+        self.assertEqual(first.status_code, 201, first.data)
+        self.assertEqual(first.data["entry_id"], self.entry.id)
+        self.assertIsNone(first.data["recording_id"])
+        self.assertEqual(
+            self.client.post("/entry-comments/", data, format="json").status_code, 200
+        )
+        event = Notification.objects.get(verb="entry.comment")
+        self.assertEqual(event.recipient, self.other)
+        self.assertEqual(
+            event.metadata["target_url"], f"/pages/entries/details?id={self.entry.id}"
+        )
+        self.assertEqual(
+            self.client.get(
+                "/recording-comments/", {"recording_id": self.recording.id}
+            ).data["count"],
+            0,
+        )
+        self.assertEqual(
+            self.client.delete(f"/recording-comments/{first.data['id']}/").status_code,
+            404,
+        )
+        reply = {**data, "client_id": str(uuid.uuid4()), "parent_id": first.data["id"]}
+        self.assertEqual(
+            self.client.post("/entry-comments/", reply, format="json").status_code, 201
+        )
+        self.assertEqual(
+            self.client.post(
+                "/entry-comments/",
+                {**reply, "entry_id": self.second.id, "client_id": str(uuid.uuid4())},
+                format="json",
+            ).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.post(
+                "/recording-comments/",
+                {
+                    "recording_id": self.recording.id,
+                    "parent_id": first.data["id"],
+                    "body": "wrong",
+                    "client_id": str(uuid.uuid4()),
+                },
+                format="json",
+            ).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.delete(f"/entry-comments/{first.data['id']}/").status_code, 204
+        )
+        self.assertEqual(
+            self.client.get("/entry-comments/", {"entry_id": self.entry.id}).data[
+                "count"
+            ],
+            0,
+        )
+
+    def test_discussion_requires_exactly_one_target_and_hidden_targets_reject_writes(
+        self,
+    ):
+        from django.db import IntegrityError, transaction
+
+        data = {
+            "entry_id": self.entry.id,
+            "recording_id": self.recording.id,
+            "body": "wrong",
+            "client_id": str(uuid.uuid4()),
+        }
+        self.assertEqual(
+            self.client.post("/entry-comments/", data, format="json").status_code, 400
+        )
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            RecordingComment.objects.create(
+                entry=self.entry,
+                recording=self.recording,
+                author=self.user,
+                body="wrong",
+                client_id=uuid.uuid4(),
+            )
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            RecordingComment.objects.create(
+                author=self.user, body="wrong", client_id=uuid.uuid4()
+            )
+        self.entry.visibility = False
+        self.entry.save(update_fields=["visibility"])
+        self.client.force_authenticate(self.other)
+        self.assertEqual(
+            self.client.post(
+                "/entry-comments/",
+                {
+                    "entry_id": self.entry.id,
+                    "body": "hidden",
+                    "client_id": str(uuid.uuid4()),
+                },
+                format="json",
+            ).status_code,
+            403,
+        )
+        self.client.force_authenticate(None)
+        self.assertEqual(
+            self.client.get(
+                "/entry-comments/", {"entry_id": self.entry.id}
+            ).status_code,
+            404,
+        )
+
+    def test_entry_comment_likes_are_scoped_and_notifications_deduplicated(self):
+        comment = RecordingComment.objects.create(
+            entry=self.entry, author=self.other, body="词条留言", client_id=uuid.uuid4()
+        )
+        endpoint = f"/entry-comments/{comment.id}/like/"
+        self.assertEqual(self.client.put(endpoint).status_code, 200)
+        self.client.delete(endpoint)
+        self.client.put(endpoint)
+        self.assertEqual(
+            Notification.objects.filter(verb="entry.comment_like").count(), 1
+        )
+        self.assertEqual(
+            self.client.put(f"/recording-comments/{comment.id}/like/").status_code, 404
+        )
+        self.assertEqual(
+            self.client.delete(f"/entry-comments/{comment.id}/").status_code, 403
+        )
