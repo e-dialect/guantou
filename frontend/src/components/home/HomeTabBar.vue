@@ -128,6 +128,10 @@ export default {
   color: var(--immersive-bg-strong-color);
 }
 
+.home-tab-bar__item--record:not(.home-tab-bar__item--active) .home-tab-bar__glyph {
+  opacity: 0.5;
+}
+
 .home-tab-bar__item--record:not(.home-tab-bar__item--active) .home-tab-bar__hint {
   color: var(--on-immersive-color);
 }
