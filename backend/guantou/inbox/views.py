@@ -6,6 +6,7 @@ from django.http import JsonResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
+from user.recipients import eligible_recipients
 from user.tokens import get_authorization_token, get_request_user, token_check
 from utils.exceptions.types.bad_request import BadRequestException
 from utils.exceptions.types.unauthorized import UnauthorizedException
@@ -21,10 +22,35 @@ class Notifications(View):
         if not user.id:
             raise UnauthorizedException()
         body = demjson3.decode(request.body)
-        if len(body["recipients"]) == 1 and body["recipients"][0] == -1:
-            recipients = None
+        raw_recipients = body.get("recipients")
+        if not isinstance(raw_recipients, list) or not raw_recipients:
+            raise BadRequestException("请选择收件人")
+        recipient_ids = set()
+        for value in raw_recipients:
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, str))
+                or not str(value).isascii()
+                or not (str(value) == "-1" or str(value).isdigit())
+                or len(str(value)) > 11
+            ):
+                raise BadRequestException("收件人无效")
+            recipient_id = int(value)
+            if recipient_id != -1 and not 0 < recipient_id <= 2147483647:
+                raise BadRequestException("收件人无效")
+            recipient_ids.add(recipient_id)
+        if recipient_ids == {-1}:
+            recipients = list(
+                User.objects.filter(is_superuser=True, is_active=True).exclude(
+                    id=user.id
+                )
+            )
         else:
-            recipients = User.objects.filter(id__in=body["recipients"])
+            recipients = list(eligible_recipients(user).filter(id__in=recipient_ids))
+            if len(recipients) != len(recipient_ids):
+                raise BadRequestException("收件人不可用，请重新选择")
+        if not recipients:
+            raise BadRequestException("暂无可用收件人")
         title = body["title"] if "title" in body else None
         notifications = send_notification(
             user, recipients, body["content"], title=title

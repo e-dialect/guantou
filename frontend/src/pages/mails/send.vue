@@ -239,7 +239,7 @@ import SectionBlock from '@/components/SectionBlock.vue';
 import { notifyError, notifySuccess } from '@/services/feedback';
 import { postMail } from '@/services/mail';
 import { openPage, ROUTES } from '@/services/navigation';
-import { getUserInfo, searchUsers } from '@/services/user';
+import { searchUsers } from '@/services/user';
 
 function blankNotification() {
   return {
@@ -342,10 +342,11 @@ export default {
       this.recipientResolving = true;
       this.recipientError = '';
       try {
-        const response = await getUserInfo(id, true);
+        const users = await searchUsers(id, 8);
         if (run !== this.recipientSearchRun) return;
-        if (!response?.user?.id) throw new Error('missing recipient');
-        this.selectRecipient(response.user);
+        const recipient = users.find((user) => String(user.id) === String(id));
+        if (!recipient) throw new Error('missing recipient');
+        this.selectRecipient(recipient);
       } catch (_error) {
         if (run !== this.recipientSearchRun) return;
         this.recipientQuery = String(id);

@@ -15,6 +15,7 @@ from user.tokens import (
     token_check,
 )
 from user.avatar import upload_avatar
+from user.recipients import eligible_recipients
 from user.verification import (
     check_email_code,
     check_phone_code,
@@ -52,25 +53,21 @@ def router_users(request):
                 exact_matches = Q(username__iexact=query) | Q(
                     user_info__nickname__iexact=query
                 )
+                id_match = Q(pk__in=[])
                 if query.isdigit():
                     user_id = int(query)
                     if 0 < user_id <= 2147483647:
-                        matches |= Q(id=user_id)
+                        id_match = Q(id=user_id)
+                        matches |= id_match
                         exact_matches |= Q(id=user_id)
 
                 result = (
-                    User.objects.select_related(
-                        "user_info", "user_info__primary_dialect"
-                    )
-                    .filter(
-                        matches,
-                        is_active=True,
-                        is_superuser=False,
-                        user_info__isnull=False,
-                    )
-                    .exclude(id=viewer.id)
+                    eligible_recipients(viewer)
+                    .select_related("user_info", "user_info__primary_dialect")
+                    .filter(matches)
                     .annotate(
                         exact_match=Case(
+                            When(id_match, then=Value(-1)),
                             When(exact_matches, then=Value(0)),
                             default=Value(1),
                             output_field=IntegerField(),

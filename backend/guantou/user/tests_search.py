@@ -90,3 +90,10 @@ class UserSearchApiTests(TestCase):
 
         invalid = self.client.get("/users?search=result&limit=many", **self.auth)
         self.assertEqual(invalid.status_code, 400)
+
+    def test_exact_id_precedes_numeric_nickname_matches_at_result_limit(self):
+        target = self.create_user("target", "目标")
+        for index in range(3):
+            self.create_user(f"numeric-{index}", str(target.id))
+        response = self.client.get(f"/users?search={target.id}&limit=1", **self.auth)
+        self.assertEqual([user["id"] for user in response.json()["users"]], [target.id])

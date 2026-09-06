@@ -67,7 +67,8 @@ describe('mail send recipient', () => {
     await wrapper.vm.applyRecipient(9);
     await wrapper.vm.$nextTick();
 
-    expect(mocks.getUserInfo).toHaveBeenCalledWith('9', true);
+    expect(mocks.searchUsers).toHaveBeenCalledWith('9', 8);
+    expect(mocks.getUserInfo).not.toHaveBeenCalled();
     expect(wrapper.vm.Notification.recipients).toEqual(['9']);
     expect(wrapper.vm.recipientLocked).toBe(true);
     expect(wrapper.vm.recipientLabel).toBe('阿林');
@@ -83,6 +84,23 @@ describe('mail send recipient', () => {
     expect(wrapper.vm.recipientLocked).toBe(false);
     expect(wrapper.vm.Notification.recipients).toEqual(['']);
     expect(mocks.getUserInfo).not.toHaveBeenCalled();
+  });
+
+  it.each(['self', 'inactive', 'administrator'])('rejects an ineligible %s deep link', async () => {
+    mocks.searchUsers.mockResolvedValue([]);
+    const wrapper = mountPage();
+    await wrapper.vm.applyRecipient(9);
+    expect(wrapper.vm.recipientLocked).toBe(false);
+    expect(wrapper.vm.Notification.recipients).toEqual(['']);
+    expect(wrapper.vm.recipientError).toContain('请重新搜索');
+    expect(mocks.getUserInfo).not.toHaveBeenCalled();
+  });
+
+  it('does not substitute a numeric nickname match for the linked user', async () => {
+    mocks.searchUsers.mockResolvedValue([{ ...recipient, id: 10, nickname: '9' }]);
+    const wrapper = mountPage();
+    await wrapper.vm.applyRecipient(9);
+    expect(wrapper.vm.recipientLocked).toBe(false);
   });
 
   it('searches by public identity and selects a result', async () => {
@@ -117,6 +135,7 @@ describe('mail send recipient', () => {
     wrapper.vm.selectAdministrator();
 
     expect(wrapper.vm.Notification.recipients).toEqual(['-1']);
+    expect(wrapper.vm.payload().recipients).toEqual(['-1']);
     expect(wrapper.vm.recipientLabel).toBe('平台管理员');
     expect(wrapper.vm.recipientHint).toContain('服务咨询');
   });
