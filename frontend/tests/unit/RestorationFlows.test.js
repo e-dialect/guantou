@@ -16,6 +16,17 @@ import { createComment, listComments } from '@/services/recordingSocial';
 const context = (component, extra = {}) => ({ ...component.data(), ...component.methods, ...extra });
 beforeEach(() => { vi.clearAllMocks(); });
 describe('restored journeys', () => {
+  it('retries with the saved native path after draft index persistence fails', async () => {
+    const error = Object.assign(new Error('草稿空间不足'), { persistedAudio: { path: 'wxfile://saved', persisted: true, mediaId: 'a' } });
+    saveRecordingDraft.mockRejectedValueOnce(error);
+    const page = context(RecordingCreate, { ownerScope: 'user:1', audio: { path: 'wxfile://temporary' } });
+    await page.saveDraft();
+    expect(page.audio.path).toBe('wxfile://saved');
+    expect(page.draftMessage).toBe('草稿空间不足');
+    saveRecordingDraft.mockResolvedValueOnce({ id: 'draft-a', audio: error.persistedAudio });
+    await page.saveDraft();
+    expect(saveRecordingDraft.mock.calls.at(-1)[0].audio.path).toBe('wxfile://saved');
+  });
   it('keeps a mini-program recording submit-ready after saving moves its temporary file', async () => {
     saveRecordingDraft.mockResolvedValue({ id: 'draft-a', audio: { path: 'wxfile://saved', persisted: true, mediaId: 'a' } });
     const page = context(RecordingCreate, { ownerScope: 'user:1', audio: { path: 'wxfile://temporary' } });

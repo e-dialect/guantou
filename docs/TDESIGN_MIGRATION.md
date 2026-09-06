@@ -220,5 +220,5 @@ V2 全站聚合验收由 [#346](https://github.com/e-dialect/guantou/issues/346)
 BaseLoading、EmptyState 与显式导入的 TDesign Switch。收纳面板使用现有组件，不恢复旧表单控件。
 主题预览更新为“听／查／录／我”并增加集盒预览。
 
-实施依据：[已确认计划](plans/2026-09-06-v2-restoration.md)。本地实现尚未创建 PR；功能去向见
+实施依据：[已确认计划](plans/2026-09-06-v2-restoration.md)，实现见 [PR #408](https://github.com/e-dialect/guantou/pull/408)；功能去向见
 [回归记录](audits/2026-09-06-v1-feature-restoration.md)。浏览器测试为 `frontend/tests/e2e/restoration.spec.js`。
