@@ -531,7 +531,7 @@ export default {
       const hasText = Object.entries(this.form).some(([key, value]) => (
         key !== 'usage_dialect_id' && String(value || '').trim()
       ));
-      if (!this.audio.path && !hasText) return;
+      if (!this.draftId && !this.audio.path && !hasText) return;
       await this.saveDraft({ silent: true });
     },
     saveDraft(options = {}) {
@@ -553,12 +553,13 @@ export default {
           audio: { ...this.audio },
           entryId: this.selectedEntry?.id,
         }, this.ownerScope);
+        if (draftOwner() !== this.ownerScope) return;
         const unchanged = signature === this.draftSignature();
         this.draftId = draft.id;
         if (draft.audio && this.audio.path === audioPath) {
           this.audio = { ...this.audio, ...draft.audio, path: draft.audio.path || this.audio.path };
         }
-        if (unchanged) {
+        if (unchanged && !draft.audioError) {
           this.savedDraftSignature = this.draftSignature();
         }
         if (draft.audioError) this.draftMessage = '仅文字已保存，音频保存失败，请保留本页重试';

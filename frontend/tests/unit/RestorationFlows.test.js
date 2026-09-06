@@ -134,3 +134,36 @@ it('clears displayed draft content when returning under another account', () => 
   expect(page.goRecordingDrafts).toHaveBeenCalled();
   expect(saveRecordingDraft).not.toHaveBeenCalled();
 });
+
+
+describe('review regressions', () => {
+  it('persists clearing an existing draft instead of restoring stale content', async () => {
+    saveRecordingDraft.mockResolvedValueOnce({ id: 'existing', audio: null });
+    const page = context(RecordingCreate, { draftReady: true, ownerScope: 'user:1', draftId: 'existing', savedDraftSignature: 'previous content' });
+    await page.persistDirtyDraft();
+    expect(saveRecordingDraft).toHaveBeenCalledWith(expect.objectContaining({ id: 'existing', form: expect.objectContaining({ original_gloss: '' }) }), 'user:1');
+  });
+  it('retries incomplete audio persistence on leaving the page', async () => {
+    saveRecordingDraft.mockResolvedValueOnce({ id: 'retry', audio: null, audioError: true }).mockResolvedValueOnce({ id: 'retry', audio: { path: 'saved' } });
+    const page = context(RecordingCreate, { draftReady: true, ownerScope: 'user:1', audio: { path: 'temporary' } });
+    await page.persistDirtyDraft();
+    expect(page.savedDraftSignature).not.toBe(page.draftSignature());
+    await page.persistDirtyDraft();
+    expect(saveRecordingDraft).toHaveBeenCalledTimes(2);
+    expect(page.savedDraftSignature).toBe(page.draftSignature());
+  });
+  it('does not repopulate a cleared page with another account’s in-flight save', async () => {
+    let finish;
+    saveRecordingDraft.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    const page = context(RecordingCreate, { draftReady: true, ownerScope: 'user:1', audio: { path: 'old' }, goRecordingDrafts: vi.fn() });
+    const saving = page.saveDraft();
+    await Promise.resolve(); await Promise.resolve();
+    draftOwner.mockReturnValue('user:2');
+    RecordingCreate.onShow.call(page);
+    finish({ id: 'private-draft', audio: { path: 'saved' } });
+    await saving;
+    expect(page.draftId).toBe('');
+    expect(page.audio.path).toBe('');
+    draftOwner.mockReturnValue('user:1');
+  });
+});
